@@ -88,6 +88,73 @@ def celestial_inferno(ic):
     ic.d.rectangle([ic.p(6, 55), ic.p(58, 58)], fill=(255, 106, 0, 255))
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# FROSTREND — glacier blue / white
+# ---------------------------------------------------------------------------------------------------------------------
+F = (0x6FD8FF, 0x061A2E, 0xE8FBFF)
+
+
+def crystal(ic, d, c, x, y, w, h, lean=0.0):
+    d.polygon(ic.pts([(x + lean, y - h), (x + w / 2, y - h * 0.25), (x + w / 2 * 0.7, y), (x - w / 2 * 0.7, y), (x - w / 2, y - h * 0.25)]), fill=c)
+
+
+@icon('frostrend', 'frost_slash', *F)
+def frost_slash(ic):
+    ic.shape(lambda d, c: d.pieslice([ic.p(8, 8), ic.p(58, 58)], 200, 340, fill=c))
+    ic.d.pieslice([ic.p(14, 15), ic.p(56, 58)], 195, 345, fill=mix(ic.dark, ic.primary, 0.15) + (255,))
+    def f(d, c):
+        for x, h in ((16, 12), (26, 16), (36, 12), (46, 15)):
+            crystal(ic, d, c, x, 56, 6, h)
+    ic.shape(f)
+
+
+@icon('frostrend', 'ice_spikes', *F)
+def ice_spikes(ic):
+    def f(d, c):
+        crystal(ic, d, c, 14, 56, 10, 18, -2)
+        crystal(ic, d, c, 32, 56, 14, 40)
+        crystal(ic, d, c, 50, 56, 10, 24, 2)
+    ic.shape(f)
+    ic.d.line([ic.p(32, 18), ic.p(32, 52)], fill=(255, 255, 255, 200), width=4)
+
+
+@icon('frostrend', 'frostbite', *F)
+def frostbite(ic):
+    def f(d, c):
+        for k in range(6):
+            a = k * math.pi / 3
+            x2, y2 = 32 + math.cos(a) * 24, 32 + math.sin(a) * 24
+            d.line([ic.p(32, 32), ic.p(x2, y2)], fill=c, width=4 * 4)
+            for t in (0.45, 0.7):
+                bx, by = 32 + math.cos(a) * 24 * t, 32 + math.sin(a) * 24 * t
+                for s in (-1, 1):
+                    d.line([ic.p(bx, by), ic.p(bx + math.cos(a + s * 0.8) * 7, by + math.sin(a + s * 0.8) * 7)], fill=c, width=3 * 4)
+    ic.shape(f)
+
+
+@icon('frostrend', 'glacial_domain', *F)
+def glacial_domain(ic):
+    def f(d, c):
+        d.ellipse([ic.p(6, 38), ic.p(58, 58)], outline=c, width=3 * 4)
+        for x, h in ((14, 12), (24, 20), (40, 18), (50, 11)):
+            crystal(ic, d, c, x, 50, 7, h)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(26, 12), ic.p(38, 24)], fill=(255, 255, 255, 230))
+
+
+@icon('frostrend', 'absolute_zero', *F)
+def absolute_zero(ic):
+    def f(d, c):
+        d.ellipse([ic.p(10, 10), ic.p(54, 54)], outline=c, width=3 * 4)
+        for k in range(8):
+            a = k * math.pi / 4
+            crystal_pts = [(32 + math.cos(a) * 8, 32 + math.sin(a) * 8), (32 + math.cos(a + 0.18) * 20, 32 + math.sin(a + 0.18) * 20),
+                           (32 + math.cos(a) * 27, 32 + math.sin(a) * 27), (32 + math.cos(a - 0.18) * 20, 32 + math.sin(a - 0.18) * 20)]
+            d.polygon(ic.pts(crystal_pts), fill=c)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(27, 27), ic.p(37, 37)], fill=(255, 255, 255, 255))
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):

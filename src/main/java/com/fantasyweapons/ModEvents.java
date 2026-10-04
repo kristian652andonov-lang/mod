@@ -37,6 +37,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onLogout);
         bus.addListener(ModEvents::onServerStopped);
         bus.addListener(ModEvents::onCommands);
+        bus.addListener(ModEvents::onIncomingDamage);
     }
 
     /**
@@ -75,6 +76,14 @@ public final class ModEvents {
 
     private static void onServerStopped(ServerStoppedEvent event) {
         AreaEffectManager.clear();
+    }
+
+    /** Frozen creatures cannot deal damage. */
+    private static void onIncomingDamage(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
+        if (event.getSource().getEntity() instanceof LivingEntity attacker && !attacker.level().isClientSide
+                && com.fantasyweapons.status.StatusService.stacks(attacker, com.fantasyweapons.status.StatusType.FROZEN) > 0) {
+            event.setCanceled(true);
+        }
     }
 
     private static void onCommands(RegisterCommandsEvent event) {

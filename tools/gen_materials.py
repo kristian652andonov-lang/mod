@@ -51,7 +51,45 @@ def bark():
     save_rgba('vfx/bark.png', arr)
 
 
+def frost():
+    """Radial frost growth decal: dendritic ice branches spreading from the centre."""
+    from PIL import Image, ImageDraw, ImageFilter
+    import math, random
+    from gen_textures import save_alpha, SS
+    size = 256 * SS
+    img = Image.new('L', (size, size), 0)
+    d = ImageDraw.Draw(img)
+    rng = random.Random(77)
+    c = size / 2
+
+    def branch(x, y, ang, length, width, depth):
+        if depth <= 0 or length < 6 * SS:
+            return
+        steps = 6
+        for _ in range(steps):
+            nx = x + math.cos(ang) * length / steps
+            ny = y + math.sin(ang) * length / steps
+            d.line([(x, y), (nx, ny)], fill=255, width=max(1, int(width)))
+            x, y = nx, ny
+            ang += rng.uniform(-0.15, 0.15)
+            if rng.random() < 0.45:
+                side = rng.choice((-1, 1))
+                branch(x, y, ang + side * rng.uniform(0.6, 1.1), length * 0.45, width * 0.65, depth - 1)
+
+    for i in range(9):
+        a = i * 2 * math.pi / 9 + rng.uniform(-0.2, 0.2)
+        branch(c, c, a, size * 0.46, 3.2 * SS, 4)
+    img = img.filter(ImageFilter.GaussianBlur(SS * 0.8)).resize((256, 256), Image.LANCZOS)
+    import numpy as np
+    a = np.asarray(img) / 255.0
+    u, v = np.mgrid[0:256, 0:256] / 255.0
+    r = np.hypot(u - 0.5, v - 0.5) * 2
+    glow = np.exp(-(r ** 2) * 3) * 0.25
+    save_alpha('vfx/frost.png', np.clip(a * 1.2 + glow, 0, 1) * (r < 1))
+
+
 if __name__ == '__main__':
+    frost()
     ice()
     rock()
     bark()

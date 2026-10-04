@@ -36,4 +36,13 @@ public final class FxIds {
     public static final ResourceLocation SOLARIS_INFERNO = FantasyWeapons.id("solaris/inferno");
     public static final ResourceLocation SOLARIS_INFERNO_STRIKE = FantasyWeapons.id("solaris/inferno_strike");
     public static final ResourceLocation SOLARIS_INFERNO_COLLAPSE = FantasyWeapons.id("solaris/inferno_collapse");
+
+    // ---- frostrend ----
+    public static final ResourceLocation FROSTREND_FROST_SLASH = FantasyWeapons.id("frostrend/frost_slash");
+    public static final ResourceLocation FROSTREND_ICE_SPIKES = FantasyWeapons.id("frostrend/ice_spikes");
+    public static final ResourceLocation FROSTREND_FREEZE = FantasyWeapons.id("frostrend/freeze");
+    public static final ResourceLocation FROSTREND_GLACIAL_DOMAIN = FantasyWeapons.id("frostrend/glacial_domain");
+    public static final ResourceLocation FROSTREND_ABSOLUTE_ZERO = FantasyWeapons.id("frostrend/absolute_zero");
+    public static final ResourceLocation FROSTREND_SHATTER = FantasyWeapons.id("frostrend/shatter");
+    public static final ResourceLocation FROSTREND_ABSOLUTE_ZERO_END = FantasyWeapons.id("frostrend/absolute_zero_end");
 }

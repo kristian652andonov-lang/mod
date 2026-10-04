@@ -36,5 +36,6 @@ public final class FxDispatcher {
         GenericFx.register();
         VoidfangFx.register();
         SolarisFx.register();
+        FrostrendFx.register();
     }
 }
