@@ -17,6 +17,7 @@ final class DevScripts {
             case "check" -> check(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
+                else if (name.startsWith("ability:")) single(b, name.substring(8));
                 else b.wait(20);
             }
         }
@@ -50,6 +51,23 @@ final class DevScripts {
             }
             b.wait(20).playerView().hud(true);
         }
+    }
+
+    /** One ability ("weapon/ability") captured every 2 ticks from a closer three-quarter view. */
+    private static void single(ScreenshotDirector.Builder b, String key) {
+        String[] parts = key.split("/");
+        var def = com.fantasyweapons.weapon.Weapons.get(parts[0]);
+        if (def == null || def.ability(parts[1]) == null) return;
+        var a = def.ability(parts[1]);
+        b.cmd("/fw give " + parts[0] + " 100").wait(20).slot(0).cmd("/fw points 200").hud(false);
+        for (int i = 0; i < 4; i++) {
+            b.cmd("/summon minecraft:husk " + (i - 1.5) * 1.5 + " -60 " + (5 + (i % 2) * 1.5)
+                    + " {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
+        }
+        b.wait(30).camera(CameraType.FIRST_PERSON).look(0, 10).select(a.id()).wait(5).viewFrom(4.5, 1.8, 6.5);
+        b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+        for (int i = 0; i < 12; i++) b.wait(2).screenshot(parts[1] + "_t" + String.format("%02d", i * 2));
+        b.playerView();
     }
 
     /** Quick checks: weapon-kill dissolve from the side, first-person heavy wind-ups and charge. */

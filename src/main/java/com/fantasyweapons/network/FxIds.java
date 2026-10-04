@@ -65,4 +65,14 @@ public final class FxIds {
     public static final ResourceLocation STORMBREAKER_WRATH = FantasyWeapons.id("stormbreaker/wrath");
     public static final ResourceLocation STORMBREAKER_BOLT = FantasyWeapons.id("stormbreaker/bolt");
     public static final ResourceLocation STORMBREAKER_WRATH_END = FantasyWeapons.id("stormbreaker/wrath_end");
+
+    // ---- gravebite ----
+    public static final ResourceLocation GRAVEBITE_SOUL_VOLLEY = FantasyWeapons.id("gravebite/soul_volley");
+    public static final ResourceLocation GRAVEBITE_SOUL_HIT = FantasyWeapons.id("gravebite/soul_hit");
+    public static final ResourceLocation GRAVEBITE_HARVEST = FantasyWeapons.id("gravebite/harvest");
+    public static final ResourceLocation GRAVEBITE_CHAINS = FantasyWeapons.id("gravebite/chains");
+    public static final ResourceLocation GRAVEBITE_MAW = FantasyWeapons.id("gravebite/maw");
+    public static final ResourceLocation GRAVEBITE_LEGION = FantasyWeapons.id("gravebite/legion");
+    public static final ResourceLocation GRAVEBITE_LEGION_LAUNCH = FantasyWeapons.id("gravebite/legion_launch");
+    public static final ResourceLocation GRAVEBITE_LEGION_END = FantasyWeapons.id("gravebite/legion_end");
 }

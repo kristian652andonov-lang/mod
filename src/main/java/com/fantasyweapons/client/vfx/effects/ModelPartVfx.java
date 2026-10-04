@@ -40,6 +40,9 @@ public class ModelPartVfx extends Vfx {
     private Function<Float, Float> scale = t -> 1f;
     private Function<Float, Float> alpha = t -> 1f;
     private boolean glow = true;
+    private int tint = 0xFFFFFF;
+    private float bodyAlpha = 1f;
+    private float glowAlpha = 0.55f;
     @Nullable
     private Vec3 pivotCache;
 
@@ -71,6 +74,20 @@ public class ModelPartVfx extends Vfx {
         return this;
     }
 
+    /** Explicit pivot in model space (blocks), e.g. a hinge, instead of the bones' geometric centre. */
+    public ModelPartVfx pivot(Vec3 modelSpace) {
+        this.pivotCache = modelSpace;
+        return this;
+    }
+
+    /** Spectral look: tints the model and makes it see-through (body alpha / glow alpha multipliers). */
+    public ModelPartVfx spectral(int rgb, float bodyAlpha, float glowAlpha) {
+        this.tint = rgb;
+        this.bodyAlpha = bodyAlpha;
+        this.glowAlpha = glowAlpha;
+        return this;
+    }
+
     public ModelPartVfx noGlow() {
         this.glow = false;
         return this;
@@ -96,12 +113,12 @@ public class ModelPartVfx extends Vfx {
         pose.scale(s, s, s);
         pose.translate(-pivotCache.x, -pivotCache.y, -pivotCache.z);
 
-        int color = Colors.alpha(a, 0xFFFFFF);
+        int color = Colors.alpha(a * bodyAlpha, tint);
         VertexConsumer body = ctx.translucent(texture);
         for (GeoBone bone : found) renderBone(pose, bone, body, color);
         if (glow) {
             VertexConsumer add = ctx.additive(texture);
-            int gc = Colors.alpha(a * 0.55f, 0xFFFFFF);
+            int gc = Colors.alpha(a * glowAlpha, tint);
             for (GeoBone bone : found) renderBone(pose, bone, add, gc);
         }
     }

@@ -2,6 +2,7 @@ package com.fantasyweapons.weapon;
 
 import com.fantasyweapons.weapons.doomcleaver.Doomcleaver;
 import com.fantasyweapons.weapons.frostrend.Frostrend;
+import com.fantasyweapons.weapons.gravebite.Gravebite;
 import com.fantasyweapons.weapons.solaris.Solaris;
 import com.fantasyweapons.weapons.stormbreaker.Stormbreaker;
 import com.fantasyweapons.weapons.voidfang.Voidfang;
@@ -27,7 +28,7 @@ public final class Weapons {
         add(Frostrend.create());
         add(Doomcleaver.create());
         add(Stormbreaker.create());
-        add(basic("gravebite", "Gravebite", "The Cursed Maw", Element.NECROMANCY, Rarity.MYTHIC, WeaponClass.BATTLEAXE, 150, 2.2f));
+        add(Gravebite.create());
         add(basic("soulreaper", "Soulreaper", "Harvester of Souls", Element.SOUL, Rarity.MYTHIC, WeaponClass.SCYTHE, 120, 2.2f));
         add(basic("bloomfall", "Bloomfall", "Scythe of the Wild Bloom", Element.NATURE, Rarity.LEGENDARY, WeaponClass.SCYTHE, 110, 2.2f));
         add(WeaponDefinition.builder("eclipse_reaper")

@@ -74,6 +74,7 @@ public final class ModEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             AbilityService.onLogout(player);
             com.fantasyweapons.weapons.stormbreaker.StormbreakerAbilities.forget(player.getUUID());
+            com.fantasyweapons.weapons.gravebite.GravebiteAbilities.forget(player.getUUID());
         }
     }
 

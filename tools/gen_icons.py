@@ -279,6 +279,76 @@ def wrath_of_the_storm(ic):
     ic.shape(f)
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# GRAVEBITE — spectral green
+# ---------------------------------------------------------------------------------------------------------------------
+G = (0x5CFFB8, 0x0C0418, 0xC9FFE9)
+
+
+def skull(ic, d, c, cx, cy, s=1.0, open_jaw=0.0):
+    P = lambda x, y: ic.p(cx + x * s, cy + y * s)
+    d.ellipse([P(-12, -14), P(12, 8)], fill=c)
+    d.rectangle([P(-8, 4), P(8, 12 + open_jaw)], fill=c)
+
+
+def soul_shape(ic, d, c, x, y, s=1.0):
+    d.ellipse([ic.p(x - 6 * s, y - 6 * s), ic.p(x + 6 * s, y + 6 * s)], fill=c)
+    d.polygon(ic.pts([(x - 6 * s, y), (x + 6 * s, y), (x + 2 * s, y + 14 * s), (x - 1 * s, y + 9 * s), (x - 4 * s, y + 16 * s)]), fill=c)
+
+
+@icon('gravebite', 'soul_volley', *G)
+def soul_volley(ic):
+    def f(d, c):
+        skull(ic, d, c, 18, 34, 0.9, 4)
+        for x, y, s in ((40, 18, 0.7), (48, 34, 0.8), (40, 48, 0.6)):
+            soul_shape(ic, d, c, x, y, s)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(11, 26), ic.p(16, 31)], fill=(10, 4, 20, 255))
+    ic.d.ellipse([ic.p(20, 26), ic.p(25, 31)], fill=(10, 4, 20, 255))
+
+
+@icon('gravebite', 'grave_chains', *G)
+def grave_chains(ic):
+    def f(d, c):
+        for x0, x1 in ((10, 26), (54, 38), (22, 30), (42, 34)):
+            for k in range(4):
+                t = k / 4
+                x = x0 + (x1 - x0) * t
+                y = 58 - 40 * t
+                d.ellipse([ic.p(x - 3, y - 4), ic.p(x + 3, y + 4)], outline=c, width=2 * 4)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(26, 10), ic.p(38, 22)], fill=ic.light + (255,))
+
+
+@icon('gravebite', 'soul_harvest', *G)
+def soul_harvest(ic):
+    def f(d, c):
+        soul_shape(ic, d, c, 32, 16, 1.2)
+        d.arc([ic.p(10, 26), ic.p(54, 62)], 200, 340, fill=c, width=4 * 4)
+    ic.shape(f)
+
+
+@icon('gravebite', 'deaths_maw', *G)
+def deaths_maw(ic):
+    def f(d, c):
+        skull(ic, d, c, 32, 28, 1.6, 6)
+    ic.shape(f)
+    for x in (22, 28, 34, 40):
+        ic.d.polygon(ic.pts([(x - 2, 44), (x + 2, 44), (x, 50)]), fill=(10, 4, 20, 255))
+    ic.d.ellipse([ic.p(20, 20), ic.p(28, 28)], fill=(10, 4, 20, 255))
+    ic.d.ellipse([ic.p(36, 20), ic.p(44, 28)], fill=(10, 4, 20, 255))
+
+
+@icon('gravebite', 'legion_of_the_damned', *G)
+def legion_of_the_damned(ic):
+    def f(d, c):
+        for k in range(8):
+            a = k * math.pi / 4
+            soul_shape(ic, d, c, 32 + math.cos(a) * 20, 28 + math.sin(a) * 18, 0.5)
+        skull(ic, d, c, 32, 32, 0.7, 2)
+    ic.shape(f)
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):

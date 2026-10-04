@@ -39,5 +39,6 @@ public final class FxDispatcher {
         FrostrendFx.register();
         DoomcleaverFx.register();
         StormbreakerFx.register();
+        GravebiteFx.register();
     }
 }
