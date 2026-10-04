@@ -43,5 +43,6 @@ public final class FxDispatcher {
         SoulreaperFx.register();
         BloomfallFx.register();
         EclipseFx.register();
+        StarforgeFx.register();
     }
 }

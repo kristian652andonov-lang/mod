@@ -98,4 +98,14 @@ public final class FxIds {
     public static final ResourceLocation ECLIPSE_TOTAL = FantasyWeapons.id("eclipse/total");
     public static final ResourceLocation ECLIPSE_BEAM = FantasyWeapons.id("eclipse/beam");
     public static final ResourceLocation ECLIPSE_TOTAL_END = FantasyWeapons.id("eclipse/total_end");
+
+    // ---- starforge ----
+    public static final ResourceLocation STARFORGE_WELL = FantasyWeapons.id("starforge/well");
+    public static final ResourceLocation STARFORGE_SLAM = FantasyWeapons.id("starforge/slam");
+    public static final ResourceLocation STARFORGE_SLAM_IMPACT = FantasyWeapons.id("starforge/slam_impact");
+    public static final ResourceLocation STARFORGE_METEOR = FantasyWeapons.id("starforge/meteor");
+    public static final ResourceLocation STARFORGE_METEOR_IMPACT = FantasyWeapons.id("starforge/meteor_impact");
+    public static final ResourceLocation STARFORGE_HORIZON = FantasyWeapons.id("starforge/horizon");
+    public static final ResourceLocation STARFORGE_HORIZON_END = FantasyWeapons.id("starforge/horizon_end");
+    public static final ResourceLocation STARFORGE_STARFALL = FantasyWeapons.id("starforge/starfall");
 }

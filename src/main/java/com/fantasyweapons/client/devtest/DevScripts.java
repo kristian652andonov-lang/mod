@@ -65,7 +65,9 @@ final class DevScripts {
             b.cmd("/summon minecraft:husk " + (i - 1.5) * 1.5 + " -60 " + (5 + (i % 2) * 1.5)
                     + " {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
         }
-        b.wait(30).camera(CameraType.FIRST_PERSON).look(0, 10).select(a.id()).wait(5).viewFrom(4.5, 1.8, 6.5);
+        b.wait(30).camera(CameraType.FIRST_PERSON).look(0, 10);
+        if (a.requiredForm() != null) b.form(a.requiredForm()).wait(30);
+        b.select(a.id()).wait(5).viewFrom(9.5, 3.5, 4.0);
         b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
         for (int i = 0; i < 12; i++) b.wait(2).screenshot(parts[1] + "_t" + String.format("%02d", i * 2));
         b.playerView();

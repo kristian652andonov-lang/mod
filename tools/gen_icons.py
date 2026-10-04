@@ -529,6 +529,68 @@ def total_eclipse(ic):
     ic.d.ellipse([ic.p(16, 14), ic.p(48, 46)], outline=(180, 120, 255, 255), width=4)
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# STARFORGE — cosmic violet
+# ---------------------------------------------------------------------------------------------------------------------
+C = (0x8A6CFF, 0x070A2E, 0xF0EDFF)
+
+
+def hammer(ic, d, c, cx, cy, s=1.0):
+    d.line([ic.p(cx, cy - 4 * s), ic.p(cx, cy + 26 * s)], fill=c, width=int(4 * 4 * s))
+    d.rounded_rectangle([ic.p(cx - 14 * s, cy - 16 * s), ic.p(cx + 14 * s, cy - 2 * s)], radius=int(3 * 4 * s), fill=c)
+
+
+@icon('starforge', 'gravity_slam', *C)
+def gravity_slam(ic):
+    def f(d, c):
+        hammer(ic, d, c, 32, 22, 0.8)
+        d.ellipse([ic.p(8, 46), ic.p(56, 60)], outline=c, width=3 * 4)
+        for k in range(6):
+            a = math.pi + k * math.pi / 5
+            d.line([ic.p(32 + math.cos(a) * 26, 53 + math.sin(a) * 7), ic.p(32 + math.cos(a) * 14, 53 + math.sin(a) * 4)], fill=c, width=2 * 4)
+    ic.shape(f)
+
+
+@icon('starforge', 'meteor_strike', *C)
+def meteor_strike(ic):
+    def f(d, c):
+        d.line([ic.p(10, 8), ic.p(36, 38)], fill=c, width=8 * 4)
+        d.ellipse([ic.p(30, 32), ic.p(50, 52)], fill=c)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(34, 36), ic.p(46, 48)], fill=(255, 160, 80, 255))
+    ic.d.rectangle([ic.p(6, 56), ic.p(58, 59)], fill=(255, 140, 60, 255))
+
+
+@icon('starforge', 'gravity_well', *C)
+def gravity_well(ic):
+    def f(d, c):
+        for k in range(4):
+            r = 26 - k * 6
+            d.ellipse([ic.p(32 - r, 32 - r * 0.45), ic.p(32 + r, 32 + r * 0.45)], outline=c, width=2 * 4)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(27, 28), ic.p(37, 36)], fill=(4, 2, 20, 255))
+
+
+@icon('starforge', 'event_horizon', *C)
+def event_horizon(ic):
+    def f(d, c):
+        d.ellipse([ic.p(4, 24), ic.p(60, 40)], outline=c, width=4 * 4)
+        d.ellipse([ic.p(18, 18), ic.p(46, 46)], outline=c, width=2 * 4)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(20, 20), ic.p(44, 44)], fill=(0, 0, 0, 255))
+    ic.d.arc([ic.p(4, 24), ic.p(60, 40)], 180, 360, fill=(255, 230, 200, 255), width=3 * 4)
+
+
+@icon('starforge', 'starfall', *C)
+def starfall(ic):
+    def f(d, c):
+        for x, y, s in ((14, 10, 1.0), (34, 6, 0.8), (50, 18, 1.0), (24, 30, 0.7), (44, 38, 0.9)):
+            d.line([ic.p(x - 8 * s, y - 8 * s), ic.p(x, y)], fill=c, width=int(3 * 4 * s))
+            d.polygon(star(ic, x, y, 6 * s, 2.5 * s, 5), fill=c)
+    ic.shape(f)
+    ic.d.rectangle([ic.p(6, 56), ic.p(58, 59)], fill=(255, 140, 60, 255))
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):
