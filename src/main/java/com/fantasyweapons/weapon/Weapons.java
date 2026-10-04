@@ -4,6 +4,7 @@ import com.fantasyweapons.weapons.doomcleaver.Doomcleaver;
 import com.fantasyweapons.weapons.frostrend.Frostrend;
 import com.fantasyweapons.weapons.gravebite.Gravebite;
 import com.fantasyweapons.weapons.solaris.Solaris;
+import com.fantasyweapons.weapons.soulreaper.Soulreaper;
 import com.fantasyweapons.weapons.stormbreaker.Stormbreaker;
 import com.fantasyweapons.weapons.voidfang.Voidfang;
 
@@ -29,7 +30,7 @@ public final class Weapons {
         add(Doomcleaver.create());
         add(Stormbreaker.create());
         add(Gravebite.create());
-        add(basic("soulreaper", "Soulreaper", "Harvester of Souls", Element.SOUL, Rarity.MYTHIC, WeaponClass.SCYTHE, 120, 2.2f));
+        add(Soulreaper.create());
         add(basic("bloomfall", "Bloomfall", "Scythe of the Wild Bloom", Element.NATURE, Rarity.LEGENDARY, WeaponClass.SCYTHE, 110, 2.2f));
         add(WeaponDefinition.builder("eclipse_reaper")
                 .name("Eclipse Reaper", "Where Sun and Moon Meet")

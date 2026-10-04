@@ -349,6 +349,66 @@ def legion_of_the_damned(ic):
     ic.shape(f)
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# SOULREAPER — soul blue
+# ---------------------------------------------------------------------------------------------------------------------
+R = (0x5A8CFF, 0x0B0620, 0xCFE0FF)
+
+
+def scythe(ic, d, c, cx, cy, s=1.0, rot=0.0):
+    def T(x, y):
+        x, y = x * s, y * s
+        return (cx + x * math.cos(rot) - y * math.sin(rot), cy + x * math.sin(rot) + y * math.cos(rot))
+    d.line([ic.p(*T(0, -24)), ic.p(*T(0, 24))], fill=c, width=int(4 * 4 * s))
+    blade = [T(0, -24), T(-10, -26), T(-22, -20), T(-28, -8), T(-24, -12), T(-14, -18), T(0, -18)]
+    d.polygon(ic.pts(blade), fill=c)
+
+
+@icon('soulreaper', 'reapers_throw', *R)
+def reapers_throw(ic):
+    def f(d, c):
+        scythe(ic, d, c, 40, 34, 0.7, 0.9)
+        d.arc([ic.p(6, 10), ic.p(58, 62)], 150, 260, fill=c, width=3 * 4)
+    ic.shape(f)
+
+
+@icon('soulreaper', 'soul_rend', *R)
+def soul_rend(ic):
+    ic.shape(lambda d, c: d.pieslice([ic.p(4, 12), ic.p(60, 68)], 180, 360, fill=c))
+    ic.d.pieslice([ic.p(12, 22), ic.p(52, 68)], 180, 360, fill=mix(ic.dark, ic.primary, 0.2) + (255,))
+    for x in (20, 32, 44):
+        ic.d.ellipse([ic.p(x - 3, 36), ic.p(x + 3, 42)], fill=ic.light + (230,))
+
+
+@icon('soulreaper', 'soul_siphon', *R)
+def soul_siphon(ic):
+    def f(d, c):
+        d.ellipse([ic.p(20, 8), ic.p(44, 32)], fill=c)
+        d.polygon(ic.pts([(20, 22), (44, 22), (38, 46), (32, 40), (26, 58)]), fill=c)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(25, 16), ic.p(30, 22)], fill=(10, 4, 30, 255))
+    ic.d.ellipse([ic.p(34, 16), ic.p(39, 22)], fill=(10, 4, 30, 255))
+
+
+@icon('soulreaper', 'reaping_whirl', *R)
+def reaping_whirl(ic):
+    def f(d, c):
+        d.ellipse([ic.p(8, 20), ic.p(56, 52)], outline=c, width=3 * 4)
+        scythe(ic, d, c, 46, 30, 0.45, 2.2)
+        scythe(ic, d, c, 18, 42, 0.45, -0.9)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(28, 28), ic.p(36, 44)], fill=ic.light + (255,))
+
+
+@icon('soulreaper', 'deaths_toll', *R)
+def deaths_toll(ic):
+    def f(d, c):
+        d.polygon(ic.pts([(32, 8), (44, 16), (48, 42), (52, 48), (12, 48), (16, 42), (20, 16)]), fill=c)
+        d.ellipse([ic.p(28, 50), ic.p(36, 58)], fill=c)
+    ic.shape(f)
+    ic.d.arc([ic.p(4, 4), ic.p(60, 60)], 200, 340, fill=ic.light + (200,), width=2 * 4)
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):

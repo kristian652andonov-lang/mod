@@ -29,6 +29,7 @@ public final class FantasyWeapons {
         ModAttachments.REGISTER.register(modBus);
         ModSounds.REGISTER.register(modBus);
         ModItems.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModEntities.REGISTER.register(modBus);
         ModTabs.REGISTER.register(modBus);
 
         container.registerConfig(ModConfig.Type.SERVER, ServerConfig.SPEC);

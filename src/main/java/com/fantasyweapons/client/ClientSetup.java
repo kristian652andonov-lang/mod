@@ -58,6 +58,9 @@ public final class ClientSetup {
         modBus.addListener(FWShaders::register);
         modBus.addListener(ClientSetup::registerLayers);
         modBus.addListener(ClientSetup::registerExtensions);
+        modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) ->
+                e.registerEntityRenderer(com.fantasyweapons.registry.ModEntities.THROWN_WEAPON.get(),
+                        com.fantasyweapons.client.render.ThrownWeaponRenderer::new));
 
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);
@@ -136,6 +139,11 @@ public final class ClientSetup {
         @Override
         public void handleFx(FxPayload payload) {
             FxDispatcher.dispatch(payload);
+        }
+
+        @Override
+        public void onThrownWeapon(com.fantasyweapons.entity.ThrownWeaponEntity entity) {
+            com.fantasyweapons.client.fx.ThrownWeaponFx.attach(entity);
         }
 
         @Override

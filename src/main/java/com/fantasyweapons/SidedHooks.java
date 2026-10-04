@@ -38,6 +38,10 @@ public interface SidedHooks {
     default void handleFx(FxPayload payload) {
     }
 
+    /** A thrown weapon entity appeared on the client (spawns its trail visuals). */
+    default void onThrownWeapon(com.fantasyweapons.entity.ThrownWeaponEntity entity) {
+    }
+
     /** A progression notification arrived from the server. */
     default void handleProgression(ProgressionEventPayload payload) {
     }

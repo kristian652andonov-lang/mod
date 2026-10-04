@@ -75,4 +75,10 @@ public final class FxIds {
     public static final ResourceLocation GRAVEBITE_LEGION = FantasyWeapons.id("gravebite/legion");
     public static final ResourceLocation GRAVEBITE_LEGION_LAUNCH = FantasyWeapons.id("gravebite/legion_launch");
     public static final ResourceLocation GRAVEBITE_LEGION_END = FantasyWeapons.id("gravebite/legion_end");
+
+    // ---- soulreaper ----
+    public static final ResourceLocation SOULREAPER_REAP = FantasyWeapons.id("soulreaper/reap");
+    public static final ResourceLocation SOULREAPER_CATCH = FantasyWeapons.id("soulreaper/catch");
+    public static final ResourceLocation SOULREAPER_REND = FantasyWeapons.id("soulreaper/rend");
+    public static final ResourceLocation SOULREAPER_TOLL = FantasyWeapons.id("soulreaper/toll");
 }

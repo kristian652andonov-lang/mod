@@ -40,5 +40,6 @@ public final class FxDispatcher {
         DoomcleaverFx.register();
         StormbreakerFx.register();
         GravebiteFx.register();
+        SoulreaperFx.register();
     }
 }

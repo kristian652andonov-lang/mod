@@ -70,7 +70,11 @@ public class FlashVfx extends Vfx {
         Vec3 p = pos;
         if (followId >= 0 && Minecraft.getInstance().level != null) {
             Entity e = Minecraft.getInstance().level.getEntity(followId);
-            if (e != null) p = e.getPosition(ctx.partial).add(followOffset);
+            if (e == null || e.isRemoved()) {
+                kill(); // the followed entity is gone
+                return;
+            }
+            p = e.getPosition(ctx.partial).add(followOffset);
         }
         var vc = energy ? ctx.energy(texture) : ctx.additive(texture);
         ctx.billboard(vc, p, size, rotation + spin * (age + ctx.partial), Colors.alpha(alpha, color));
