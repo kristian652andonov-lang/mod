@@ -1,0 +1,371 @@
+{
+  "weapon.swing": {
+    "subtitle": "subtitles.fantasyweapons.weapon.swing",
+    "sounds": [
+      {
+        "name": "fantasyweapons:weapon/swing",
+        "stream": false
+      }
+    ]
+  },
+  "weapon.swing_heavy": {
+    "subtitle": "subtitles.fantasyweapons.weapon.swing_heavy",
+    "sounds": [
+      {
+        "name": "fantasyweapons:weapon/swing_heavy",
+        "stream": false
+      }
+    ]
+  },
+  "weapon.hit": {
+    "subtitle": "subtitles.fantasyweapons.weapon.hit",
+    "sounds": [
+      {
+        "name": "fantasyweapons:weapon/hit",
+        "stream": false
+      }
+    ]
+  },
+  "weapon.heavy_impact": {
+    "subtitle": "subtitles.fantasyweapons.weapon.heavy_impact",
+    "sounds": [
+      {
+        "name": "fantasyweapons:weapon/heavy_impact",
+        "stream": false
+      }
+    ]
+  },
+  "ability.charge_start": {
+    "subtitle": "subtitles.fantasyweapons.ability.charge_start",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ability/charge_start",
+        "stream": false
+      }
+    ]
+  },
+  "ability.charge_loop": {
+    "subtitle": "subtitles.fantasyweapons.ability.charge_loop",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ability/charge_loop",
+        "stream": true
+      }
+    ]
+  },
+  "ability.full_charge": {
+    "subtitle": "subtitles.fantasyweapons.ability.full_charge",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ability/full_charge",
+        "stream": false
+      }
+    ]
+  },
+  "ability.activate": {
+    "subtitle": "subtitles.fantasyweapons.ability.activate",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ability/activate",
+        "stream": false
+      }
+    ]
+  },
+  "ability.impact": {
+    "subtitle": "subtitles.fantasyweapons.ability.impact",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ability/impact",
+        "stream": false
+      }
+    ]
+  },
+  "ability.fizzle": {
+    "subtitle": "subtitles.fantasyweapons.ability.fizzle",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ability/fizzle",
+        "stream": false
+      }
+    ]
+  },
+  "ability.denied": {
+    "subtitle": "subtitles.fantasyweapons.ability.denied",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ability/denied",
+        "stream": false
+      }
+    ]
+  },
+  "progression.level_up": {
+    "subtitle": "subtitles.fantasyweapons.progression.level_up",
+    "sounds": [
+      {
+        "name": "fantasyweapons:progression/level_up",
+        "stream": false
+      }
+    ]
+  },
+  "progression.ability_unlock": {
+    "subtitle": "subtitles.fantasyweapons.progression.ability_unlock",
+    "sounds": [
+      {
+        "name": "fantasyweapons:progression/ability_unlock",
+        "stream": false
+      }
+    ]
+  },
+  "progression.upgrade": {
+    "subtitle": "subtitles.fantasyweapons.progression.upgrade",
+    "sounds": [
+      {
+        "name": "fantasyweapons:progression/upgrade",
+        "stream": false
+      }
+    ]
+  },
+  "progression.exp": {
+    "subtitle": "subtitles.fantasyweapons.progression.exp",
+    "sounds": [
+      {
+        "name": "fantasyweapons:progression/exp",
+        "stream": false
+      }
+    ]
+  },
+  "ui.click": {
+    "subtitle": "subtitles.fantasyweapons.ui.click",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ui/click",
+        "stream": false
+      }
+    ]
+  },
+  "ui.hover": {
+    "subtitle": "subtitles.fantasyweapons.ui.hover",
+    "sounds": [
+      {
+        "name": "fantasyweapons:ui/hover",
+        "stream": false
+      }
+    ]
+  },
+  "form.mode_transform": {
+    "subtitle": "subtitles.fantasyweapons.form.mode_transform",
+    "sounds": [
+      {
+        "name": "fantasyweapons:form/mode_transform",
+        "stream": false
+      }
+    ]
+  },
+  "form.chain_transform": {
+    "subtitle": "subtitles.fantasyweapons.form.chain_transform",
+    "sounds": [
+      {
+        "name": "fantasyweapons:form/chain_transform",
+        "stream": false
+      }
+    ]
+  },
+  "form.chain_retract": {
+    "subtitle": "subtitles.fantasyweapons.form.chain_retract",
+    "sounds": [
+      {
+        "name": "fantasyweapons:form/chain_retract",
+        "stream": false
+      }
+    ]
+  },
+  "form.chain_attack": {
+    "subtitle": "subtitles.fantasyweapons.form.chain_attack",
+    "sounds": [
+      {
+        "name": "fantasyweapons:form/chain_attack",
+        "stream": false
+      }
+    ]
+  },
+  "void.slash": {
+    "subtitle": "subtitles.fantasyweapons.void.slash",
+    "sounds": [
+      {
+        "name": "fantasyweapons:void/slash",
+        "stream": false
+      }
+    ]
+  },
+  "void.teleport": {
+    "subtitle": "subtitles.fantasyweapons.void.teleport",
+    "sounds": [
+      {
+        "name": "fantasyweapons:void/teleport",
+        "stream": false
+      }
+    ]
+  },
+  "void.rift_open": {
+    "subtitle": "subtitles.fantasyweapons.void.rift_open",
+    "sounds": [
+      {
+        "name": "fantasyweapons:void/rift_open",
+        "stream": false
+      }
+    ]
+  },
+  "void.rift_close": {
+    "subtitle": "subtitles.fantasyweapons.void.rift_close",
+    "sounds": [
+      {
+        "name": "fantasyweapons:void/rift_close",
+        "stream": false
+      }
+    ]
+  },
+  "void.execution": {
+    "subtitle": "subtitles.fantasyweapons.void.execution",
+    "sounds": [
+      {
+        "name": "fantasyweapons:void/execution",
+        "stream": false
+      }
+    ]
+  },
+  "void.dimension": {
+    "subtitle": "subtitles.fantasyweapons.void.dimension",
+    "sounds": [
+      {
+        "name": "fantasyweapons:void/dimension",
+        "stream": false
+      }
+    ]
+  },
+  "element.explosion": {
+    "subtitle": "subtitles.fantasyweapons.element.explosion",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/explosion",
+        "stream": false
+      }
+    ]
+  },
+  "element.solar_burst": {
+    "subtitle": "subtitles.fantasyweapons.element.solar_burst",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/solar_burst",
+        "stream": false
+      }
+    ]
+  },
+  "element.lightning": {
+    "subtitle": "subtitles.fantasyweapons.element.lightning",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/lightning",
+        "stream": false
+      }
+    ]
+  },
+  "element.ice_burst": {
+    "subtitle": "subtitles.fantasyweapons.element.ice_burst",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/ice_burst",
+        "stream": false
+      }
+    ]
+  },
+  "element.soul_projectile": {
+    "subtitle": "subtitles.fantasyweapons.element.soul_projectile",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/soul_projectile",
+        "stream": false
+      }
+    ]
+  },
+  "element.scythe_throw": {
+    "subtitle": "subtitles.fantasyweapons.element.scythe_throw",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/scythe_throw",
+        "stream": false
+      }
+    ]
+  },
+  "element.scythe_return": {
+    "subtitle": "subtitles.fantasyweapons.element.scythe_return",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/scythe_return",
+        "stream": false
+      }
+    ]
+  },
+  "element.nature_growth": {
+    "subtitle": "subtitles.fantasyweapons.element.nature_growth",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/nature_growth",
+        "stream": false
+      }
+    ]
+  },
+  "element.meteor_impact": {
+    "subtitle": "subtitles.fantasyweapons.element.meteor_impact",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/meteor_impact",
+        "stream": false
+      }
+    ]
+  },
+  "element.gravity": {
+    "subtitle": "subtitles.fantasyweapons.element.gravity",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/gravity",
+        "stream": false
+      }
+    ]
+  },
+  "element.earth_impact": {
+    "subtitle": "subtitles.fantasyweapons.element.earth_impact",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/earth_impact",
+        "stream": false
+      }
+    ]
+  },
+  "element.energy_fire": {
+    "subtitle": "subtitles.fantasyweapons.element.energy_fire",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/energy_fire",
+        "stream": false
+      }
+    ]
+  },
+  "element.blood_rage": {
+    "subtitle": "subtitles.fantasyweapons.element.blood_rage",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/blood_rage",
+        "stream": false
+      }
+    ]
+  },
+  "element.fire_whoosh": {
+    "subtitle": "subtitles.fantasyweapons.element.fire_whoosh",
+    "sounds": [
+      {
+        "name": "fantasyweapons:element/fire_whoosh",
+        "stream": false
+      }
+    ]
+  }
+}
