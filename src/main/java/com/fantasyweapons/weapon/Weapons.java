@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.weapons.bloomfall.Bloomfall;
 import com.fantasyweapons.weapons.doomcleaver.Doomcleaver;
 import com.fantasyweapons.weapons.frostrend.Frostrend;
 import com.fantasyweapons.weapons.gravebite.Gravebite;
@@ -31,7 +32,7 @@ public final class Weapons {
         add(Stormbreaker.create());
         add(Gravebite.create());
         add(Soulreaper.create());
-        add(basic("bloomfall", "Bloomfall", "Scythe of the Wild Bloom", Element.NATURE, Rarity.LEGENDARY, WeaponClass.SCYTHE, 110, 2.2f));
+        add(Bloomfall.create());
         add(WeaponDefinition.builder("eclipse_reaper")
                 .name("Eclipse Reaper", "Where Sun and Moon Meet")
                 .element(Element.CELESTIAL).rarity(Rarity.ANCIENT).type(WeaponClass.SCYTHE).damage(135, 2.3f)

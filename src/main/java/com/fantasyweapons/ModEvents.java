@@ -53,7 +53,9 @@ public final class ModEvents {
     }
 
     private static void onDeath(LivingDeathEvent event) {
-        if (!event.isCanceled()) ExpService.onLivingDeath(event);
+        if (event.isCanceled()) return;
+        ExpService.onLivingDeath(event);
+        com.fantasyweapons.weapons.bloomfall.BloomfallAbilities.onDeath(event);
     }
 
     private static void onPlayerTick(PlayerTickEvent.Post event) {

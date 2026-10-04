@@ -81,4 +81,12 @@ public final class FxIds {
     public static final ResourceLocation SOULREAPER_CATCH = FantasyWeapons.id("soulreaper/catch");
     public static final ResourceLocation SOULREAPER_REND = FantasyWeapons.id("soulreaper/rend");
     public static final ResourceLocation SOULREAPER_TOLL = FantasyWeapons.id("soulreaper/toll");
+
+    // ---- bloomfall ----
+    public static final ResourceLocation BLOOMFALL_THORN_SWEEP = FantasyWeapons.id("bloomfall/thorn_sweep");
+    public static final ResourceLocation BLOOMFALL_ROOTS = FantasyWeapons.id("bloomfall/roots");
+    public static final ResourceLocation BLOOMFALL_SPORES = FantasyWeapons.id("bloomfall/spores");
+    public static final ResourceLocation BLOOMFALL_OVERGROWTH = FantasyWeapons.id("bloomfall/overgrowth");
+    public static final ResourceLocation BLOOMFALL_WRATH = FantasyWeapons.id("bloomfall/wrath");
+    public static final ResourceLocation BLOOMFALL_WRATH_END = FantasyWeapons.id("bloomfall/wrath_end");
 }

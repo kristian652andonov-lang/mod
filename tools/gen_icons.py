@@ -409,6 +409,70 @@ def deaths_toll(ic):
     ic.d.arc([ic.p(4, 4), ic.p(60, 60)], 200, 340, fill=ic.light + (200,), width=2 * 4)
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# BLOOMFALL — leaf green / pollen gold
+# ---------------------------------------------------------------------------------------------------------------------
+N = (0x5BE063, 0x0B2A0E, 0xFFE08A)
+
+
+def flower(ic, d, c, cx, cy, r, n=6):
+    for k in range(n):
+        a = k * 2 * math.pi / n
+        x, y = cx + math.cos(a) * r * 0.6, cy + math.sin(a) * r * 0.6
+        d.ellipse([ic.p(x - r * 0.45, y - r * 0.45), ic.p(x + r * 0.45, y + r * 0.45)], fill=c)
+
+
+def vine(ic, d, c, pts, w=3):
+    d.line([ic.p(x, y) for x, y in pts], fill=c, width=int(w * 4), joint='curve')
+
+
+@icon('bloomfall', 'thorn_sweep', *N)
+def thorn_sweep(ic):
+    ic.shape(lambda d, c: d.pieslice([ic.p(6, 10), ic.p(58, 62)], 195, 345, fill=c))
+    ic.d.pieslice([ic.p(13, 18), ic.p(57, 64)], 190, 350, fill=mix(ic.dark, ic.primary, 0.2) + (255,))
+    for x in range(12, 56, 8):
+        ic.d.polygon(ic.pts([(x - 2, 56), (x, 46), (x + 2, 56)]), fill=(60, 110, 40, 255))
+
+
+@icon('bloomfall', 'entangling_roots', *N)
+def entangling_roots(ic):
+    def f(d, c):
+        vine(ic, d, c, [(10, 58), (18, 40), (12, 26), (22, 12)], 4)
+        vine(ic, d, c, [(54, 58), (46, 40), (52, 26), (42, 12)], 4)
+        vine(ic, d, c, [(32, 60), (26, 44), (36, 30), (30, 16)], 4)
+    ic.shape(f)
+
+
+@icon('bloomfall', 'venom_bloom', *N)
+def venom_bloom(ic):
+    def f(d, c):
+        flower(ic, d, c, 32, 30, 20)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(26, 24), ic.p(38, 36)], fill=(120, 220, 60, 255))
+    for x, y in ((12, 52), (20, 56), (44, 54), (52, 50)):
+        ic.d.ellipse([ic.p(x - 2, y - 2), ic.p(x + 2, y + 2)], fill=(190, 255, 110, 220))
+
+
+@icon('bloomfall', 'overgrowth', *N)
+def overgrowth(ic):
+    def f(d, c):
+        for x0 in (12, 24, 38, 50):
+            vine(ic, d, c, [(x0, 58), (x0 - 4, 44), (x0 + 3, 32), (x0 - 1, 22)], 3)
+        flower(ic, d, c, 24, 18, 7, 5)
+        flower(ic, d, c, 46, 24, 6, 5)
+    ic.shape(f)
+    ic.d.rectangle([ic.p(6, 56), ic.p(58, 60)], fill=(70, 50, 30, 255))
+
+
+@icon('bloomfall', 'wrath_of_the_wild', *N)
+def wrath_of_the_wild(ic):
+    def f(d, c):
+        flower(ic, d, c, 32, 32, 26, 8)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(24, 24), ic.p(40, 40)], fill=(255, 140, 200, 255))
+    ic.d.ellipse([ic.p(29, 29), ic.p(35, 35)], fill=(255, 240, 160, 255))
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):
