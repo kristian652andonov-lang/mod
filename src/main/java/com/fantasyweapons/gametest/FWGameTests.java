@@ -11,6 +11,8 @@ import com.fantasyweapons.progression.ProgressionMath;
 import com.fantasyweapons.progression.WeaponData;
 import com.fantasyweapons.registry.ModComponents;
 import com.fantasyweapons.registry.ModItems;
+import com.fantasyweapons.status.StatusService;
+import com.fantasyweapons.status.StatusType;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
 import com.fantasyweapons.weapon.WeaponDefinition;
 import com.fantasyweapons.weapon.Weapons;
@@ -313,6 +315,29 @@ public final class FWGameTests {
             cleanup(p);
             h.succeed();
         });
+    }
+
+    @GameTest(template = ARENA, timeoutTicks = 40)
+    public static void chainbladeHitsHarderSearsAndHeatsUp(GameTestHelper h) {
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 6.5), 0);
+        ItemStack stack = giveWeapon(p, "infernochain");
+        ExpService.setLevel(p, stack, 15);
+        Husk swordTarget = dummy(h, new BlockPos(10, 2, 9), 100000f);
+        Husk chainTarget = dummy(h, new BlockPos(15, 2, 9), 100000f);
+        // sword form (form 0)
+        com.fantasyweapons.combat.MeleeHandler.attack(p, swordTarget);
+        float swordDamage = swordTarget.getMaxHealth() - swordTarget.getHealth();
+        // chainblade form (form 1)
+        WeaponData d = FantasyWeaponItem.data(stack);
+        stack.set(ModComponents.WEAPON_DATA.get(), d.withForm(1));
+        com.fantasyweapons.combat.MeleeHandler.attack(p, chainTarget);
+        float chainDamage = chainTarget.getMaxHealth() - chainTarget.getHealth();
+        h.assertTrue(swordDamage > 0 && chainDamage > swordDamage * 1.3f, "chainblade should hit far harder: sword " + swordDamage + " chain " + chainDamage);
+        h.assertTrue(StatusService.stacks(chainTarget, StatusType.SEARED) > 0, "chainblade hits should sear");
+        h.assertTrue(StatusService.stacks(swordTarget, StatusType.SEARED) == 0, "sword form hits should not sear");
+        h.assertTrue(StatusService.stacks(p, StatusType.INFERNO_OVERHEAT) == 2, "each hit should add a heat stack");
+        cleanup(p);
+        h.succeed();
     }
 
     // ------------------------------------------------------------------------------------------------------------

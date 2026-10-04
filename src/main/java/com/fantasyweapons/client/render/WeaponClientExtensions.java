@@ -4,6 +4,7 @@ import com.fantasyweapons.client.anim.AnimTracker;
 import com.fantasyweapons.client.anim.WeaponArmPoses;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
 import com.fantasyweapons.weapon.WeaponClass;
+import com.fantasyweapons.weapon.WeaponForm;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.model.HumanoidModel;
@@ -38,6 +39,10 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         int side = arm == HumanoidArm.RIGHT ? 1 : -1;
         pose.translate(side * 0.56F, -0.52F + equipProcess * -0.6F, -0.72F);
 
+        // the extended chainblade is far longer than the sword: keep it from filling the whole view
+        WeaponForm heldForm = item.definition().form(FantasyWeaponItem.data(stack));
+        if (heldForm != null && "chainblade".equals(heldForm.id())) pose.scale(0.62f, 0.62f, 0.62f);
+
         float time = (player.tickCount + partialTick) * 0.05f;
         pose.translate(0, Mth.sin(time) * 0.008f, 0);
 
@@ -68,6 +73,14 @@ public class WeaponClientExtensions implements IClientItemExtensions {
             // roll the diagonal blade upright first (inner), then pitch it forward and down (outer)
             pose.mulPose(Axis.XP.rotationDegrees((20 * raise + k[3] * d) * w));
             pose.mulPose(Axis.ZP.rotationDegrees(side * (8 * raise + k[4] * d) * w));
+        }
+        // Cinder Cyclone: the chain whirls around in front of the view
+        float spin = AnimTracker.spinAngle(player, partialTick);
+        if (spin != 0) {
+            float k = (float) Math.sin(-spin);
+            pose.translate(side * -0.25f * k, 0.1f, -0.15f);
+            pose.mulPose(Axis.ZP.rotationDegrees(side * 55 * k));
+            pose.mulPose(Axis.YP.rotationDegrees(side * 35 * (float) Math.cos(-spin)));
         }
         // form switch: raise the weapon in front of you
         float form = AnimTracker.formProgress(player, partialTick);

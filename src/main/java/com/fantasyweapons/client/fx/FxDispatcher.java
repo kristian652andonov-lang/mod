@@ -46,5 +46,6 @@ public final class FxDispatcher {
         StarforgeFx.register();
         AetherlanceFx.register();
         MonolithFx.register();
+        InfernochainFx.register();
     }
 }

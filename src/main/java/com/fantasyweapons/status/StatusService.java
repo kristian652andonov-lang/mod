@@ -117,7 +117,7 @@ public final class StatusService {
                 continue;
             }
             switch (inst.type) {
-                case SOLAR_BURN, NATURE_POISON, SOUL_DRAIN, ECLIPSE_DARKNESS -> {
+                case SOLAR_BURN, NATURE_POISON, SOUL_DRAIN, ECLIPSE_DARKNESS, SEARED -> {
                     if (pulse) dot(entity, inst);
                 }
                 case FROZEN, ROOTED -> entity.setDeltaMovement(0, Math.min(0, entity.getDeltaMovement().y), 0);

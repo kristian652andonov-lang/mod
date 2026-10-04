@@ -54,11 +54,11 @@ public final class StatusVisuals {
         Vec3 center = box.getCenter();
         Vec3 top = new Vec3(center.x, box.maxY, center.z);
         switch (inst.type) {
-            case SOLAR_BURN, INFERNO_OVERHEAT -> {
-                if (self && inst.type == StatusType.SOLAR_BURN) return;
+            case SOLAR_BURN, INFERNO_OVERHEAT, SEARED -> {
+                if (self && inst.type != StatusType.INFERNO_OVERHEAT) return;
                 boolean solar = inst.type == StatusType.SOLAR_BURN;
-                int n = solar ? 7 : Math.min(8, 2 + inst.stacks);
-                int col = solar ? 0xFFB627 : 0xFF5A1F;
+                int n = solar ? 7 : Math.min(9, 2 + inst.stacks + (inst.type == StatusType.SEARED ? 2 : 0));
+                int col = solar ? 0xFFB627 : inst.type == StatusType.SEARED ? 0xFF3A10 : 0xFF5A1F;
                 var flame = ctx.additive(VfxTextures.FLAME);
                 for (int i = 0; i < n; i++) {
                     float ph = ((seed >> (i * 3)) & 63) / 63f;

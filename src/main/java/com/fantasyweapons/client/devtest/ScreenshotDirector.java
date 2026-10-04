@@ -139,8 +139,10 @@ public final class ScreenshotDirector {
 
         public Builder swing() {
             return run(mc -> {
-                if (mc.hitResult != null && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
-                    mc.gameMode.attack(mc.player, ((net.minecraft.world.phys.EntityHitResult) mc.hitResult).getEntity());
+                // only attack what the player itself is looking at (not what a detached screenshot camera sees)
+                if (mc.getCameraEntity() == mc.player && mc.hitResult != null && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                    var target = ((net.minecraft.world.phys.EntityHitResult) mc.hitResult).getEntity();
+                    if (target != mc.player) mc.gameMode.attack(mc.player, target);
                 }
                 mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             });

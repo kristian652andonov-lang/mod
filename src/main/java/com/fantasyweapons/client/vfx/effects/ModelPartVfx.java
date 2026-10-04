@@ -123,7 +123,7 @@ public class ModelPartVfx extends Vfx {
         }
     }
 
-    private static void renderBone(PoseStack pose, GeoBone bone, VertexConsumer vc, int color) {
+    static void renderBone(PoseStack pose, GeoBone bone, VertexConsumer vc, int color) {
         pose.pushPose();
         RenderUtil.translateToPivotPoint(pose, bone);
         RenderUtil.rotateMatrixAroundBone(pose, bone);
@@ -148,7 +148,7 @@ public class ModelPartVfx extends Vfx {
     }
 
     /** Geometric centre of the bones' cubes (model space, blocks) so the effect is placed around its middle. */
-    private static Vec3 centerOf(List<GeoBone> bones) {
+    static Vec3 centerOf(List<GeoBone> bones) {
         AABB box = null;
         for (GeoBone b : bones) {
             for (GeoCube c : b.getCubes()) {

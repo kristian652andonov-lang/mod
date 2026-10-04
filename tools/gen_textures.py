@@ -455,6 +455,7 @@ STATUS = {
     'void_mark': 0x9B4DFF, 'solar_burn': 0xFFB627, 'frostbite': 0x8FE3FF, 'frozen': 0xDDF8FF, 'berserker': 0xE0213A,
     'soul_drain': 0x5A8CFF, 'nature_poison': 0x6BE36F, 'eclipse_light': 0xFFE7A0, 'eclipse_darkness': 0x8B3DFF,
     'gravity_bound': 0x8A6CFF, 'inferno_overheat': 0xFF5A1F, 'rooted': 0x4CAF50, 'staggered': 0xB08A5A,
+    'seared': 0xFF3A10,
 }
 
 
@@ -468,7 +469,7 @@ def status_icons():
             if name in ('void_mark',):
                 d.polygon(ic.pts([(32, 14), (48, 32), (32, 50), (16, 32)]), outline=c, width=4 * SS)
                 d.ellipse([ic.p(27, 27), ic.p(37, 37)], fill=c)
-            elif name in ('solar_burn', 'inferno_overheat'):
+            elif name in ('solar_burn', 'inferno_overheat', 'seared'):
                 d.polygon(ic.pts([(32, 12), (42, 30), (38, 30), (44, 50), (20, 50), (26, 30), (22, 30)]), fill=c)
             elif name in ('frostbite', 'frozen'):
                 for k in range(3):

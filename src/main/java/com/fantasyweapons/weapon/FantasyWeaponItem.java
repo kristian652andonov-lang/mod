@@ -102,6 +102,11 @@ public class FantasyWeaponItem extends Item implements GeoItem {
             List<String> seq = ability.castAnimations().isEmpty() ? List.of("ability_activation", "ability_execution") : ability.castAnimations();
             for (String s : seq) cast.thenPlay(def.anim(s));
             main.triggerableAnim("cast:" + ability.id(), cast);
+            ability.formCastAnimations().forEach((form, anims) -> {
+                RawAnimation formCast = RawAnimation.begin();
+                for (String s : anims) formCast.thenPlay(def.anim(s));
+                main.triggerableAnim("cast:" + ability.id() + "@" + form, formCast);
+            });
         }
         controllers.add(main);
     }
@@ -114,6 +119,11 @@ public class FantasyWeaponItem extends Item implements GeoItem {
     @Override
     public void createGeoRenderer(Consumer<GeoRenderProvider> consumer) {
         SidedHooks.get().provideRenderer(this, provider -> consumer.accept((GeoRenderProvider) provider));
+    }
+
+    /** Name of the trigger to use for the cast animation of an ability, honouring form-specific overrides. */
+    public static String castTrigger(AbilityDefinition ability, @org.jetbrains.annotations.Nullable WeaponForm form) {
+        return form != null && ability.formCastAnimations().containsKey(form.id()) ? "cast:" + ability.id() + "@" + form.id() : "cast:" + ability.id();
     }
 
     /** Name of the trigger to use for the charge animation of an ability. */

@@ -727,6 +727,84 @@ def worldbreaker(ic):
     ic.d.ellipse([ic.p(26, 36), ic.p(38, 44)], fill=(255, 231, 184, 255))
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# INFERNOCHAIN — black / crimson / orange / fire red
+# ---------------------------------------------------------------------------------------------------------------------
+I = (0xFF5A1F, 0x1A0605, 0xFFD38A)
+CRIMSON = (192, 18, 42, 255)
+
+
+def chain_links(ic, d, c, pts, r=3.2):
+    """Interlocking oval links along a polyline."""
+    for k in range(len(pts) - 1):
+        (x0, y0), (x1, y1) = pts[k], pts[k + 1]
+        n = max(1, int(math.hypot(x1 - x0, y1 - y0) / (r * 1.8)))
+        for j in range(n):
+            t = (j + 0.5) / n
+            x, y = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+            if (k + j) % 2 == 0:
+                d.ellipse([ic.p(x - r, y - r * 0.6), ic.p(x + r, y + r * 0.6)], outline=c, width=2 * 4)
+            else:
+                d.ellipse([ic.p(x - r * 0.6, y - r), ic.p(x + r * 0.6, y + r)], outline=c, width=2 * 4)
+
+
+def blade_tip(ic, d, c, x, y, ang, s=1.0):
+    ca, sa = math.cos(ang), math.sin(ang)
+    pts = [(0, -4 * s), (14 * s, 0), (0, 4 * s), (3 * s, 0)]
+    d.polygon(ic.pts([(x + px * ca - py * sa, y + px * sa + py * ca) for px, py in pts]), fill=c)
+
+
+@icon('infernochain', 'inferno_lash', *I)
+def inferno_lash(ic):
+    def f(d, c):
+        d.arc([ic.p(6, 10), ic.p(58, 62)], 200, 340, fill=c, width=5 * 4)
+        chain_links(ic, d, c, [(10, 52), (20, 40)])
+        blade_tip(ic, d, c, 50, 22, -0.6, 1.0)
+    ic.shape(f)
+    ic.d.arc([ic.p(10, 14), ic.p(54, 58)], 205, 335, fill=CRIMSON, width=2 * 4)
+
+
+@icon('infernochain', 'hellhook', *I)
+def hellhook(ic):
+    def f(d, c):
+        chain_links(ic, d, c, [(8, 54), (22, 40), (36, 28)])
+        d.arc([ic.p(36, 8), ic.p(58, 30)], 90, 330, fill=c, width=4 * 4)
+        blade_tip(ic, d, c, 38, 26, -0.75, 1.1)
+    ic.shape(f)
+
+
+@icon('infernochain', 'overheat', *I)
+def overheat(ic):
+    def f(d, c):
+        d.polygon(ic.pts([(32, 6), (44, 26), (40, 26), (48, 46), (32, 58), (16, 46), (24, 26), (20, 26)]), fill=c)
+    ic.shape(f)
+    ic.d.polygon(ic.pts([(32, 26), (38, 40), (32, 50), (26, 40)]), fill=(255, 250, 220, 255))
+    for k in range(5):
+        ic.d.rectangle([ic.p(10 + k * 9, 60), ic.p(16 + k * 9, 62)], fill=CRIMSON if k < 4 else (255, 211, 138, 255))
+
+
+@icon('infernochain', 'cinder_cyclone', *I)
+def cinder_cyclone(ic):
+    def f(d, c):
+        for k in range(3):
+            r = 24 - k * 7
+            d.arc([ic.p(32 - r, 34 - r * 0.6), ic.p(32 + r, 34 + r * 0.6)], 20 + k * 40, 300 + k * 40, fill=c, width=3 * 4)
+        blade_tip(ic, d, c, 50, 30, 1.2, 0.9)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(28, 30), ic.p(36, 38)], fill=CRIMSON)
+
+
+@icon('infernochain', 'drakes_wrath', *I)
+def drakes_wrath(ic):
+    def f(d, c):
+        # drake skull with open jaw and a coiling spine
+        d.polygon(ic.pts([(30, 10), (50, 14), (58, 22), (46, 26), (34, 24)]), fill=c)
+        d.polygon(ic.pts([(34, 26), (52, 30), (40, 34)]), fill=c)
+        chain_links(ic, d, c, [(34, 30), (22, 38), (16, 50), (28, 56), (44, 54)], r=3.0)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(40, 15), ic.p(44, 19)], fill=(255, 250, 220, 255))
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):

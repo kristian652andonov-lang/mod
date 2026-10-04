@@ -16,6 +16,8 @@ final class DevScripts {
             case "grip" -> grip(b);
             case "check" -> check(b);
             case "plant" -> plant(b);
+            case "infernochain" -> infernochain(b);
+            case "chaingrip" -> chainGrip(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
@@ -70,7 +72,8 @@ final class DevScripts {
         if (a.requiredForm() != null) b.form(a.requiredForm()).wait(30);
         b.select(a.id()).wait(5).viewFrom(9.5, 3.5, 4.0);
         b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
-        for (int i = 0; i < 12; i++) b.wait(2).screenshot(parts[1] + "_t" + String.format("%02d", i * 2));
+        int frames = a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE ? 26 : 12;
+        for (int i = 0; i < frames; i++) b.wait(2).screenshot(parts[1] + "_t" + String.format("%02d", i * 2));
         b.playerView();
     }
 
@@ -145,6 +148,39 @@ final class DevScripts {
         for (float t : ticks) b.plant(t, 30).wait(3).screenshot("plant_fp_" + Math.round(t));
         b.look(0, 40).plant(14, 30).wait(3).screenshot("plant_fp_down");
         b.plant(-1, 30).playerView();
+    }
+
+    /** Infernochain: sword idle, Transform into the chainblade, the burning chain idle, a chainblade whip, Inferno Lash in both forms. */
+    private static void infernochain(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give infernochain 100").wait(20).slot(0).cmd("/fw points 200").hud(false).look(0, 0).wait(10);
+        for (int i = 0; i < 3; i++) {
+            b.cmd("/summon minecraft:husk " + (i - 1) * 2 + " -60 6 {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
+        }
+        b.viewFrom(-5.5, 1.2, 2.4).wait(10).screenshot("inferno_sword_idle");
+        b.form("chainblade");
+        for (int t = 0; t < 6; t++) b.wait(7).screenshot("inferno_transform_" + t);
+        b.wait(20).screenshot("inferno_chain_idle");
+        b.swing();
+        for (int t = 0; t < 8; t++) b.wait(2).screenshot("inferno_whip_" + t);
+        b.wait(30).playerView().camera(CameraType.FIRST_PERSON).hud(true).wait(5).screenshot("inferno_fp_chain_idle").swing();
+        for (int t = 0; t < 4; t++) b.wait(3).screenshot("inferno_fp_whip_" + t);
+        b.hud(false).viewFrom(-5.5, 1.2, 2.4).select("inferno_lash").wait(5).cmd("/fw cooldowns");
+        b.abilityDown().wait(14).abilityUp();
+        for (int t = 0; t < 4; t++) b.wait(2).screenshot("inferno_lash_chain_" + t);
+        b.wait(30).form("sword").wait(30).cmd("/fw cooldowns").abilityDown().wait(14).abilityUp();
+        for (int t = 0; t < 3; t++) b.wait(2).screenshot("inferno_lash_sword_" + t);
+        b.wait(20).playerView();
+    }
+
+    /** Chain-form stance candidates (grip tilt/twist) from the side and the front. */
+    private static void chainGrip(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give infernochain 100").wait(20).slot(0).hud(false).look(0, 0).wait(10).form("chainblade").wait(60);
+        float[][] grips = {{-0.35f, 0.1f}, {0.95f, 0f}, {0.4f, 0f}, {1.6f, 0f}, {0.95f, 0.8f}, {0.95f, -0.8f}, {2.3f, 0f}, {-1.2f, 0f}};
+        for (int i = 0; i < grips.length; i++) {
+            b.grip(grips[i]).viewFrom(-4.5, 0.6, 1.2).wait(3).screenshot("cg_side_" + i);
+            b.viewFrom(1.5, 0.6, 4.5).wait(3).screenshot("cg_front_" + i);
+        }
+        b.grip(null).playerView();
     }
 
     private static void voidfang(ScreenshotDirector.Builder b) {

@@ -6,6 +6,7 @@ import com.fantasyweapons.weapons.doomcleaver.Doomcleaver;
 import com.fantasyweapons.weapons.eclipse.EclipseReaper;
 import com.fantasyweapons.weapons.frostrend.Frostrend;
 import com.fantasyweapons.weapons.gravebite.Gravebite;
+import com.fantasyweapons.weapons.infernochain.Infernochain;
 import com.fantasyweapons.weapons.monolith.Monolith;
 import com.fantasyweapons.weapons.solaris.Solaris;
 import com.fantasyweapons.weapons.soulreaper.Soulreaper;
@@ -19,11 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Registry of the 13 weapon definitions, in the order of the design brief.
- * <p>
- * Weapons are implemented one at a time (each in {@code com.fantasyweapons.weapons.<name>}). Weapons whose ability
- * tree is not implemented yet are still real items with their model, animations, stats, progression and melee — they
- * simply have no abilities until their phase lands.
+ * Registry of the 13 weapon definitions, in the order of the design brief. Each weapon lives in its own package
+ * ({@code com.fantasyweapons.weapons.<name>}): a definition class and its server-side abilities.
  */
 public final class Weapons {
     private static final Map<String, WeaponDefinition> BY_ID = new LinkedHashMap<>();
@@ -41,15 +39,7 @@ public final class Weapons {
         add(Starforge.create());
         add(Aetherlance.create());
         add(Monolith.create());
-        add(WeaponDefinition.builder("infernochain")
-                .name("Infernochain", "The Drake's Burning Coil")
-                .element(Element.FIRE).rarity(Rarity.MYTHIC).type(WeaponClass.CHAINBLADE).damage(110, 2.2f)
-                .theme(0xFF5A1F, 0xFFD38A)
-                // SWORD is entered with the artist's "retract" (Retraction), CHAINBLADE with "transform" (Transform);
-                // chainblade attacks use "whip" (Chainblade attack).
-                .form(new WeaponForm("sword", "Sword", "FORM", 0xFF7A2F, 0xFFD38A, "retract", "idle", "attack", 0f, 1.0f, 1.0f))
-                .form(new WeaponForm("chainblade", "Chainblade", "FORM", 0xFF2A10, 0xFFB15A, "transform", "chain_idle", "whip", 4.0f, 1.15f, 0.8f))
-                .build());
+        add(Infernochain.create());
     }
 
     private Weapons() {
@@ -57,12 +47,6 @@ public final class Weapons {
 
     private static void add(WeaponDefinition def) {
         if (BY_ID.put(def.id(), def) != null) throw new IllegalStateException("Duplicate weapon " + def.id());
-    }
-
-    private static WeaponDefinition basic(String id, String name, String title, Element element, Rarity rarity, WeaponClass type,
-                                          float damage, float heavy) {
-        return WeaponDefinition.builder(id).name(name, title).element(element).rarity(rarity).type(type).damage(damage, heavy)
-                .lifesteal(id.equals("doomcleaver") ? 0.06f : 0f).build();
     }
 
     public static List<WeaponDefinition> all() {

@@ -237,7 +237,7 @@ public final class AbilityService {
         long now = now(player);
         if (ok) {
             rt.setCooldown(data.idOrNil(), ability.id(), now, ProgressionMath.cooldownTicks(ability, level, mastery));
-            WeaponAnimations.trigger(player, stack, "cast:" + ability.id());
+            WeaponAnimations.trigger(player, stack, FantasyWeaponItem.castTrigger(ability, def.form(data)));
         } else {
             rt.setCooldown(data.idOrNil(), ability.id(), now, ServerConfig.FIZZLE_COOLDOWN_TICKS.getOrDefault());
             WeaponAnimations.stop(player, stack, FantasyWeaponItem.chargeTrigger(ability));

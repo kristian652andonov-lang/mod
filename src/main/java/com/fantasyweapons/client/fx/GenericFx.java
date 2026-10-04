@@ -73,6 +73,11 @@ public final class GenericFx {
         WeaponClass cls = def.weaponClass();
         boolean heavy = entity.isCrouching();
         AnimTracker.onSwing(entity, def, stack, heavy);
+        if (InfernochainFx.isInfernochain(stack) && InfernochainFx.chainForm(stack)) {
+            // the chainblade's lash is drawn from the real chain (fire sheet + flames), not a generic arc
+            InfernochainFx.onSwing(entity);
+            return;
+        }
         Themes.Theme theme = Themes.of(stack);
         boolean fp = WeaponAnchor.isFirstPersonLocal(entity);
 

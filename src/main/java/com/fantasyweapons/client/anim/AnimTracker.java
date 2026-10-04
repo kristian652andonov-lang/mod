@@ -28,6 +28,8 @@ public final class AnimTracker {
         double castStart = -1;
         double formStart = -1;
         double plantStart = -1;
+        double spinStart = -1;
+        int spinTicks;
         int plantTicks;
         int plantDrive = 4;
         boolean wasCharging;
@@ -97,6 +99,15 @@ public final class AnimTracker {
         s.castStart = -1; // the plant replaces the generic release pose
     }
 
+    /** The whole body whirls around for {@code ticks} (Infernochain's Cinder Cyclone). */
+    public static void onSpin(int entityId, int ticks) {
+        var level = Minecraft.getInstance().level;
+        if (level == null || !(level.getEntity(entityId) instanceof LivingEntity le)) return;
+        State s = state(le);
+        s.spinStart = now(0);
+        s.spinTicks = Math.max(1, ticks);
+    }
+
     /** Detects charge → release transitions for every visible player (works for remote players too). */
     public static void tick() {
         var level = Minecraft.getInstance().level;
@@ -150,6 +161,18 @@ public final class AnimTracker {
         if (s == null || s.plantStart < 0) return -1;
         double t = now(partial) - s.plantStart;
         return t >= s.plantTicks ? -1 : (float) Math.max(0, t);
+    }
+
+    /** Extra yaw (radians) of a whole-body spin, or 0 when not spinning. Spins up and winds down smoothly. */
+    public static float spinAngle(LivingEntity e, float partial) {
+        State s = STATES.get(e.getId());
+        if (s == null || s.spinStart < 0) return 0;
+        double t = now(partial) - s.spinStart;
+        if (t < 0 || t >= s.spinTicks) return 0;
+        double ramp = 4, perTick = Math.PI * 2 / 6; // one turn every 6 ticks at full speed
+        double up = Math.min(t, ramp), down = Math.max(0, t - (s.spinTicks - ramp));
+        double angle = perTick * (up * up / (2 * ramp) + Math.max(0, Math.min(t, s.spinTicks - ramp) - ramp) + (down > 0 ? down - down * down / (2 * ramp) : 0));
+        return (float) -angle;
     }
 
     public static int plantTicks(LivingEntity e) {

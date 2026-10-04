@@ -63,6 +63,7 @@ public final class AbilityDefinition {
     @Nullable
     private final AbilityExecutor executor;
     private final List<String> castAnimations;
+    private final Map<String, List<String>> formCastAnimations;
     @Nullable
     private final String chargeAnimation;
     @Nullable
@@ -87,6 +88,7 @@ public final class AbilityDefinition {
         this.upgradeLines = b.upgradeLines;
         this.executor = b.executor;
         this.castAnimations = List.copyOf(b.castAnimations);
+        this.formCastAnimations = Map.copyOf(b.formCastAnimations);
         this.chargeAnimation = b.chargeAnimation;
         this.requiredForm = b.requiredForm;
     }
@@ -177,6 +179,11 @@ public final class AbilityDefinition {
         return castAnimations;
     }
 
+    /** Cast animations to use instead of {@link #castAnimations()} while the weapon is in a given form. */
+    public Map<String, List<String>> formCastAnimations() {
+        return formCastAnimations;
+    }
+
     @Nullable
     public String chargeAnimation() {
         return chargeAnimation;
@@ -255,6 +262,7 @@ public final class AbilityDefinition {
         private Function<Integer, List<String>> upgradeLines = lvl -> List.of();
         private AbilityExecutor executor;
         private final List<String> castAnimations = new ArrayList<>();
+        private final Map<String, List<String>> formCastAnimations = new LinkedHashMap<>();
         private String chargeAnimation;
         private String requiredForm;
 
@@ -333,6 +341,12 @@ public final class AbilityDefinition {
 
         public Builder executor(AbilityExecutor executor) {
             this.executor = executor;
+            return this;
+        }
+
+        /** Form-aware abilities: the cast animations to play when released in form {@code formId}. */
+        public Builder formAnimations(String formId, String... castAnimations) {
+            this.formCastAnimations.put(formId, List.of(castAnimations));
             return this;
         }
 

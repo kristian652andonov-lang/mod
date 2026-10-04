@@ -126,4 +126,13 @@ public final class FxIds {
     public static final ResourceLocation MONOLITH_SLAM = FantasyWeapons.id("monolith/slam");
     public static final ResourceLocation MONOLITH_WORLDBREAKER = FantasyWeapons.id("monolith/worldbreaker");
     public static final ResourceLocation MONOLITH_ERUPTION = FantasyWeapons.id("monolith/eruption");
+
+    // Infernochain
+    public static final ResourceLocation INFERNO_LASH = FantasyWeapons.id("infernochain/lash");
+    public static final ResourceLocation INFERNO_HOOK = FantasyWeapons.id("infernochain/hook");
+    public static final ResourceLocation INFERNO_HOOK_END = FantasyWeapons.id("infernochain/hook_end");
+    public static final ResourceLocation INFERNO_CYCLONE = FantasyWeapons.id("infernochain/cyclone");
+    public static final ResourceLocation INFERNO_MELTDOWN = FantasyWeapons.id("infernochain/meltdown");
+    public static final ResourceLocation INFERNO_DRAKE = FantasyWeapons.id("infernochain/drake");
+    public static final ResourceLocation INFERNO_DRAKE_END = FantasyWeapons.id("infernochain/drake_end");
 }

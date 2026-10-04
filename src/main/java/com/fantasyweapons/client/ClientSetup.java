@@ -67,8 +67,19 @@ public final class ClientSetup {
         NeoForge.EVENT_BUS.addListener(VfxManager::render);
         NeoForge.EVENT_BUS.addListener((ViewportEvent.ComputeCameraAngles e) -> CameraShake.apply(e));
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut e) -> clearAll());
-        NeoForge.EVENT_BUS.addListener((RenderLivingEvent.Pre<?, ?> e) -> WeaponPoses.setRendering(e.getEntity()));
-        NeoForge.EVENT_BUS.addListener((RenderLivingEvent.Post<?, ?> e) -> WeaponPoses.setRendering(null));
+        NeoForge.EVENT_BUS.addListener((RenderLivingEvent.Pre<?, ?> e) -> {
+            WeaponPoses.setRendering(e.getEntity());
+            float spin = AnimTracker.spinAngle(e.getEntity(), e.getPartialTick());
+            SPIN_PUSHED.push(spin != 0);
+            if (spin != 0) {
+                e.getPoseStack().pushPose();
+                e.getPoseStack().mulPose(com.mojang.math.Axis.YP.rotation(spin));
+            }
+        });
+        NeoForge.EVENT_BUS.addListener((RenderLivingEvent.Post<?, ?> e) -> {
+            if (!SPIN_PUSHED.isEmpty() && SPIN_PUSHED.pop()) e.getPoseStack().popPose();
+            WeaponPoses.setRendering(null);
+        });
         com.fantasyweapons.client.devtest.ScreenshotDirector.initIfRequested();
     }
 
@@ -82,6 +93,9 @@ public final class ClientSetup {
         Item[] items = ModItems.WEAPONS.values().stream().map(h -> (Item) h.get()).toArray(Item[]::new);
         event.registerItem(new WeaponClientExtensions(), items);
     }
+
+    /** Whether each in-flight living-entity render pushed a spin rotation (popped again in Post). */
+    private static final java.util.ArrayDeque<Boolean> SPIN_PUSHED = new java.util.ArrayDeque<>();
 
     private static void onClientTickPre(ClientTickEvent.Pre event) {
         InputHandler.preTick();
@@ -97,6 +111,7 @@ public final class ClientSetup {
         ScreenFx.tick();
         ClientChargeFx.tick();
         AnimTracker.tick();
+        com.fantasyweapons.client.fx.InfernochainFx.tick();
         if (mc.player != null) {
             StatusEffects own = mc.player.getExistingDataOrNull(ModAttachments.STATUS);
             if (own != null) own.clientTick();
@@ -110,6 +125,8 @@ public final class ClientSetup {
         Notifications.clear();
         AnimTracker.clear();
         com.fantasyweapons.client.fx.FxProjectiles.clear();
+        com.fantasyweapons.client.render.ChainTracker.clear();
+        com.fantasyweapons.client.fx.InfernochainFx.clear();
     }
 
     /** Client implementation of the common → client bridge. */

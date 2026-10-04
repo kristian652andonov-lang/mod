@@ -12,11 +12,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
+import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.cache.texture.AutoGlowingTexture;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
 import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
@@ -48,7 +50,34 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
             WeaponPoses.Pose p = WeaponPoses.renderingPose(stack);
             if (p != null && (p.gx() != 0 || p.gz() != 0)) applyGrip(stack, ctx, pose, p);
         }
-        super.renderByItem(stack, ctx, pose, buffers, light, overlay);
+        LivingEntity tracked = chainHolder(stack, ctx);
+        if (tracked != null) ChainTracker.begin(tracked, ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND);
+        try {
+            super.renderByItem(stack, ctx, pose, buffers, light, overlay);
+        } finally {
+            if (tracked != null) ChainTracker.end();
+        }
+    }
+
+    /** The entity whose held Infernochain is being drawn in hand right now (its segments get tracked), or null. */
+    @Nullable
+    private static LivingEntity chainHolder(ItemStack stack, ItemDisplayContext ctx) {
+        if (!(stack.getItem() instanceof FantasyWeaponItem item) || !"infernochain".equals(item.definition().id())) return null;
+        if (ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
+            LivingEntity p = Minecraft.getInstance().player;
+            return p != null && p.getMainHandItem() == stack ? p : null;
+        }
+        if (ctx == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
+            LivingEntity e = WeaponPoses.renderingEntity();
+            return e != null && e.getMainHandItem() == stack ? e : null;
+        }
+        return null;
+    }
+
+    @Override
+    public void renderCubesOfBone(PoseStack poseStack, GeoBone bone, VertexConsumer buffer, int packedLight, int packedOverlay, int colour) {
+        if (ChainTracker.active()) ChainTracker.bone(bone, poseStack.last().pose());
+        super.renderCubesOfBone(poseStack, bone, buffer, packedLight, packedOverlay, colour);
     }
 
     /**

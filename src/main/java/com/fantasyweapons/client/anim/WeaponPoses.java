@@ -67,8 +67,8 @@ public final class WeaponPoses {
         return switch (cls) {
             // one-handed ready guard, blade angled up and forward
             case LONGSWORD -> p(-0.65f, -0.2f, 0.05f, 0.05f, 0, -0.06f, 0, 0).grip(0.95f, 0);
-            // sword form like a longsword; chain form lets the blade hang loose at the side
-            case CHAINBLADE -> chainForm ? p(-0.25f, -0.05f, 0.12f, 0.05f, 0, -0.06f, 0, 0).grip(-0.35f, 0.1f)
+            // sword form like a longsword; chain form lets the burning chain trail forward to the ground
+            case CHAINBLADE -> chainForm ? p(-0.25f, -0.05f, 0.12f, 0.05f, 0, -0.06f, 0, 0).grip(0.5f, 0.2f)
                     : p(-0.65f, -0.2f, 0.05f, 0.05f, 0, -0.06f, 0, 0).grip(0.95f, 0);
             // two-handed weapons rest on the right shoulder
             case GREATSWORD -> p(-0.75f, -0.5f, 0f, -0.95f, 0.65f, 0f, -0.15f, 0).grip(2.3f, -0.15f);
@@ -234,6 +234,11 @@ public final class WeaponPoses {
     public static void setRendering(LivingEntity entity) {
         rendering = entity;
         if (entity == null) lastEntity = null;
+    }
+
+    /** The living entity currently being rendered, or null outside entity rendering. */
+    public static LivingEntity renderingEntity() {
+        return rendering;
     }
 
     /** Grip of the main-hand weapon of the entity currently being rendered, or null. */
