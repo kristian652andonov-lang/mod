@@ -18,6 +18,7 @@ final class DevScripts {
             case "plant" -> plant(b);
             case "infernochain" -> infernochain(b);
             case "chaingrip" -> chainGrip(b);
+            case "menus" -> menus(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
@@ -181,6 +182,18 @@ final class DevScripts {
             b.viewFrom(1.5, 0.6, 4.5).wait(3).screenshot("cg_front_" + i);
         }
         b.grip(null).playerView();
+    }
+
+    /** Progression menu and HUD of the newest weapons. */
+    private static void menus(ScreenshotDirector.Builder b) {
+        String[] weapons = {"monolith", "infernochain"};
+        for (String w : weapons) b.cmd("/fw give " + w + " 100");
+        b.wait(20).cmd("/fw points 200").camera(CameraType.FIRST_PERSON).hud(true).look(0, 5);
+        for (int i = 0; i < weapons.length; i++) {
+            var def = com.fantasyweapons.weapon.Weapons.get(weapons[i]);
+            b.slot(i).wait(20).screenshot(weapons[i] + "_hud");
+            b.menu(def.castables().get(def.castables().size() - 1).id()).wait(20).screenshot(weapons[i] + "_menu").closeScreen().wait(5);
+        }
     }
 
     private static void voidfang(ScreenshotDirector.Builder b) {
