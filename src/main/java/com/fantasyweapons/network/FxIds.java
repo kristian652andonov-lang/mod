@@ -55,4 +55,14 @@ public final class FxIds {
     public static final ResourceLocation DOOMCLEAVER_APOCALYPSE = FantasyWeapons.id("doomcleaver/apocalypse");
     public static final ResourceLocation DOOMCLEAVER_DRAIN = FantasyWeapons.id("doomcleaver/drain");
     public static final ResourceLocation DOOMCLEAVER_APOCALYPSE_END = FantasyWeapons.id("doomcleaver/apocalypse_end");
+
+    // ---- stormbreaker ----
+    public static final ResourceLocation STORMBREAKER_CHAIN = FantasyWeapons.id("stormbreaker/chain");
+    public static final ResourceLocation STORMBREAKER_ARCS = FantasyWeapons.id("stormbreaker/arcs");
+    public static final ResourceLocation STORMBREAKER_SPIN = FantasyWeapons.id("stormbreaker/spin");
+    public static final ResourceLocation STORMBREAKER_STRIKE_WARN = FantasyWeapons.id("stormbreaker/strike_warn");
+    public static final ResourceLocation STORMBREAKER_STRIKE = FantasyWeapons.id("stormbreaker/strike");
+    public static final ResourceLocation STORMBREAKER_WRATH = FantasyWeapons.id("stormbreaker/wrath");
+    public static final ResourceLocation STORMBREAKER_BOLT = FantasyWeapons.id("stormbreaker/bolt");
+    public static final ResourceLocation STORMBREAKER_WRATH_END = FantasyWeapons.id("stormbreaker/wrath_end");
 }

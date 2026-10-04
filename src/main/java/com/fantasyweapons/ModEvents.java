@@ -71,7 +71,10 @@ public final class ModEvents {
     }
 
     private static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) AbilityService.onLogout(player);
+        if (event.getEntity() instanceof ServerPlayer player) {
+            AbilityService.onLogout(player);
+            com.fantasyweapons.weapons.stormbreaker.StormbreakerAbilities.forget(player.getUUID());
+        }
     }
 
     private static void onServerStopped(ServerStoppedEvent event) {

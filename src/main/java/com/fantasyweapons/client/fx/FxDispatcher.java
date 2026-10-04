@@ -38,5 +38,6 @@ public final class FxDispatcher {
         SolarisFx.register();
         FrostrendFx.register();
         DoomcleaverFx.register();
+        StormbreakerFx.register();
     }
 }

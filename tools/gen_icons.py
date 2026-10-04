@@ -219,6 +219,66 @@ def crimson_apocalypse(ic):
     ic.d.ellipse([ic.p(22, 10), ic.p(42, 30)], fill=(150, 0, 20, 255))
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# STORMBREAKER — electric blue
+# ---------------------------------------------------------------------------------------------------------------------
+B = (0x5CB8FF, 0x060C24, 0xE6F3FF)
+
+
+def bolt(ic, d, c, pts, w=3):
+    d.line([ic.p(x, y) for x, y in pts], fill=c, width=int(w * 4), joint='curve')
+
+
+@icon('stormbreaker', 'chain_lightning', *B)
+def chain_lightning(ic):
+    def f(d, c):
+        bolt(ic, d, c, [(6, 14), (18, 22), (14, 30), (28, 34)], 3.5)
+        bolt(ic, d, c, [(28, 34), (38, 28), (36, 40), (48, 46)], 3)
+        bolt(ic, d, c, [(48, 46), (52, 52), (58, 56)], 2.5)
+        for x, y in ((28, 34), (48, 46)):
+            d.ellipse([ic.p(x - 4, y - 4), ic.p(x + 4, y + 4)], fill=c)
+    ic.shape(f)
+
+
+@icon('stormbreaker', 'tempest_spin', *B)
+def tempest_spin(ic):
+    def f(d, c):
+        for k in range(3):
+            a0 = k * 120
+            d.arc([ic.p(8, 8), ic.p(56, 56)], a0, a0 + 70, fill=c, width=4 * 4)
+            d.arc([ic.p(18, 18), ic.p(46, 46)], a0 + 60, a0 + 120, fill=c, width=3 * 4)
+        d.polygon(ic.pts([(32, 20), (38, 30), (32, 44), (26, 30)]), fill=c)
+    ic.shape(f)
+
+
+@icon('stormbreaker', 'static_charge', *B)
+def static_charge(ic):
+    def f(d, c):
+        d.polygon(ic.pts([(36, 4), (16, 36), (30, 36), (24, 60), (48, 26), (34, 26), (42, 4)]), fill=c)
+    ic.shape(f)
+    for x, y in ((10, 16), (52, 44), (12, 50), (54, 12)):
+        ic.d.ellipse([ic.p(x - 2, y - 2), ic.p(x + 2, y + 2)], fill=(255, 255, 255, 220))
+
+
+@icon('stormbreaker', 'thunderstrike', *B)
+def thunderstrike(ic):
+    def f(d, c):
+        d.ellipse([ic.p(8, 4), ic.p(56, 20)], fill=c)
+        bolt(ic, d, c, [(32, 16), (26, 30), (36, 34), (28, 52)], 4)
+        d.ellipse([ic.p(14, 50), ic.p(42, 58)], outline=c, width=2 * 4)
+    ic.shape(f)
+
+
+@icon('stormbreaker', 'wrath_of_the_storm', *B)
+def wrath_of_the_storm(ic):
+    def f(d, c):
+        for x, y, r in ((18, 14, 10), (32, 10, 12), (46, 14, 10), (26, 20, 9), (40, 20, 9)):
+            d.ellipse([ic.p(x - r, y - r), ic.p(x + r, y + r)], fill=c)
+        for x in (14, 30, 48):
+            bolt(ic, d, c, [(x, 26), (x - 4, 38), (x + 3, 42), (x - 2, 58)], 3)
+    ic.shape(f)
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):
