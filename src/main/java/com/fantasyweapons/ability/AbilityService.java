@@ -137,6 +137,7 @@ public final class AbilityService {
         AbilityDefinition sel = selected(def, nd);
         if (sel != null && !formAllows(def, nd, sel)) nd = nd.withSelected("");
         stack.set(ModComponents.WEAPON_DATA.get(), nd);
+        com.fantasyweapons.weapon.WeaponHooks.fireFormSwitch(def.id(), player, stack, form);
         rt.setCooldown(data.idOrNil(), FORM_COOLDOWN, now, 20);
         player.syncData(ModAttachments.ABILITY_RUNTIME);
         WeaponAnimations.trigger(player, stack, "form:" + form.id());

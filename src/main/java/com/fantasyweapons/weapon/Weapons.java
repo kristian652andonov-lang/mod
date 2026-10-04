@@ -2,6 +2,7 @@ package com.fantasyweapons.weapon;
 
 import com.fantasyweapons.weapons.bloomfall.Bloomfall;
 import com.fantasyweapons.weapons.doomcleaver.Doomcleaver;
+import com.fantasyweapons.weapons.eclipse.EclipseReaper;
 import com.fantasyweapons.weapons.frostrend.Frostrend;
 import com.fantasyweapons.weapons.gravebite.Gravebite;
 import com.fantasyweapons.weapons.solaris.Solaris;
@@ -33,13 +34,7 @@ public final class Weapons {
         add(Gravebite.create());
         add(Soulreaper.create());
         add(Bloomfall.create());
-        add(WeaponDefinition.builder("eclipse_reaper")
-                .name("Eclipse Reaper", "Where Sun and Moon Meet")
-                .element(Element.CELESTIAL).rarity(Rarity.ANCIENT).type(WeaponClass.SCYTHE).damage(135, 2.3f)
-                .theme(0xFFE7A0, 0xFFFFFF)
-                .form(new WeaponForm("light", "Light", "MODE", 0xFFD978, 0xFFFFFF, "transform_reverse", "idle", "attack", 0f, 1.0f, 1.0f))
-                .form(new WeaponForm("dark", "Dark", "MODE", 0x8B3DFF, 0xB0123A, "transform", "idle_dark", "attack", 0f, 1.0f, 1.0f))
-                .build());
+        add(EclipseReaper.create());
         add(basic("starforge", "Starforge", "Hammer of the Fallen Stars", Element.COSMIC, Rarity.ANCIENT, WeaponClass.WARHAMMER, 200, 2.4f));
         add(basic("aetherlance", "Aetherlance", "Spear of the Celestial Court", Element.ENERGY, Rarity.MYTHIC, WeaponClass.LANCE, 130, 2.2f));
         add(basic("monolith", "Monolith", "The Mountain's Edge", Element.EARTH, Rarity.ANCIENT, WeaponClass.COLOSSAL, 320, 2.5f));

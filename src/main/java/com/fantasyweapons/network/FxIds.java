@@ -89,4 +89,13 @@ public final class FxIds {
     public static final ResourceLocation BLOOMFALL_OVERGROWTH = FantasyWeapons.id("bloomfall/overgrowth");
     public static final ResourceLocation BLOOMFALL_WRATH = FantasyWeapons.id("bloomfall/wrath");
     public static final ResourceLocation BLOOMFALL_WRATH_END = FantasyWeapons.id("bloomfall/wrath_end");
+
+    // ---- eclipse reaper ----
+    public static final ResourceLocation ECLIPSE_DISC_HIT = FantasyWeapons.id("eclipse/disc_hit");
+    public static final ResourceLocation ECLIPSE_RESONANCE = FantasyWeapons.id("eclipse/resonance");
+    public static final ResourceLocation ECLIPSE_SOLAR_FLARE = FantasyWeapons.id("eclipse/solar_flare");
+    public static final ResourceLocation ECLIPSE_UMBRAL_VORTEX = FantasyWeapons.id("eclipse/umbral_vortex");
+    public static final ResourceLocation ECLIPSE_TOTAL = FantasyWeapons.id("eclipse/total");
+    public static final ResourceLocation ECLIPSE_BEAM = FantasyWeapons.id("eclipse/beam");
+    public static final ResourceLocation ECLIPSE_TOTAL_END = FantasyWeapons.id("eclipse/total_end");
 }

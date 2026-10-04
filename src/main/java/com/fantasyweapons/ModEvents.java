@@ -77,6 +77,7 @@ public final class ModEvents {
             AbilityService.onLogout(player);
             com.fantasyweapons.weapons.stormbreaker.StormbreakerAbilities.forget(player.getUUID());
             com.fantasyweapons.weapons.gravebite.GravebiteAbilities.forget(player.getUUID());
+            com.fantasyweapons.weapons.eclipse.EclipseReaperAbilities.forget(player.getUUID());
         }
     }
 

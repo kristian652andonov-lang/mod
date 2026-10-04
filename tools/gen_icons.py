@@ -473,6 +473,62 @@ def wrath_of_the_wild(ic):
     ic.d.ellipse([ic.p(29, 29), ic.p(35, 35)], fill=(255, 240, 160, 255))
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# ECLIPSE REAPER — gold / violet
+# ---------------------------------------------------------------------------------------------------------------------
+E = (0xFFE7A0, 0x14081F, 0xFFFFFF)
+EV = (0x8B3DFF, 0x0A0412, 0xE2C8FF)
+
+
+@icon('eclipse_reaper', 'eclipse_disc', *E)
+def eclipse_disc(ic):
+    def f(d, c):
+        d.ellipse([ic.p(12, 12), ic.p(52, 52)], outline=c, width=5 * 4)
+        for k in range(4):
+            a = k * math.pi / 2 + 0.4
+            d.polygon(ic.pts([(32 + math.cos(a) * 20, 32 + math.sin(a) * 20), (32 + math.cos(a + 0.5) * 28, 32 + math.sin(a + 0.5) * 28),
+                              (32 + math.cos(a + 0.25) * 18, 32 + math.sin(a + 0.25) * 18)]), fill=c)
+    ic.shape(f)
+    ic.d.pieslice([ic.p(22, 22), ic.p(42, 42)], 90, 270, fill=(255, 220, 120, 255))
+    ic.d.pieslice([ic.p(22, 22), ic.p(42, 42)], 270, 90, fill=(110, 40, 220, 255))
+
+
+@icon('eclipse_reaper', 'solar_flare', *E)
+def solar_flare(ic):
+    ic.shape(lambda d, c: d.polygon(star(ic, 32, 32, 28, 10, 16), fill=c))
+    ic.d.ellipse([ic.p(22, 22), ic.p(42, 42)], fill=(255, 255, 255, 255))
+
+
+@icon('eclipse_reaper', 'umbral_vortex', *EV)
+def umbral_vortex(ic):
+    def f(d, c):
+        for k in range(4):
+            a0 = k * 90
+            d.arc([ic.p(8 + k * 3, 8 + k * 3), ic.p(56 - k * 3, 56 - k * 3)], a0, a0 + 200, fill=c, width=3 * 4)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(26, 26), ic.p(38, 38)], fill=(4, 0, 10, 255))
+
+
+@icon('eclipse_reaper', 'equilibrium', *E)
+def equilibrium(ic):
+    def f(d, c):
+        d.ellipse([ic.p(10, 10), ic.p(54, 54)], outline=c, width=3 * 4)
+    ic.shape(f)
+    ic.d.pieslice([ic.p(14, 14), ic.p(50, 50)], 90, 270, fill=(255, 225, 140, 255))
+    ic.d.pieslice([ic.p(14, 14), ic.p(50, 50)], 270, 90, fill=(120, 50, 230, 255))
+    ic.d.ellipse([ic.p(23, 14), ic.p(41, 32)], fill=(255, 225, 140, 255))
+    ic.d.ellipse([ic.p(23, 32), ic.p(41, 50)], fill=(120, 50, 230, 255))
+
+
+@icon('eclipse_reaper', 'total_eclipse', *E)
+def total_eclipse(ic):
+    def f(d, c):
+        d.polygon(star(ic, 32, 30, 28, 18, 18), fill=c)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(16, 14), ic.p(48, 46)], fill=(6, 2, 12, 255))
+    ic.d.ellipse([ic.p(16, 14), ic.p(48, 46)], outline=(180, 120, 255, 255), width=4)
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):

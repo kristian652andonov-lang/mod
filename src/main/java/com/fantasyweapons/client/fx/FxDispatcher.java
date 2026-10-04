@@ -42,5 +42,6 @@ public final class FxDispatcher {
         GravebiteFx.register();
         SoulreaperFx.register();
         BloomfallFx.register();
+        EclipseFx.register();
     }
 }

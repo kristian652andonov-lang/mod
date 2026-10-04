@@ -194,6 +194,16 @@ public final class ScreenshotDirector {
             return run(mc -> com.fantasyweapons.client.anim.WeaponPoses.debugGrip = gxz);
         }
 
+        /** Switches the held weapon's form until it is {@code formId} (no-op for weapons without forms). */
+        public Builder form(String formId) {
+            return run(mc -> {
+                var held = mc.player.getMainHandItem();
+                if (!(held.getItem() instanceof FantasyWeaponItem item) || !item.definition().hasForms()) return;
+                var f = item.definition().form(FantasyWeaponItem.data(held));
+                if (f != null && !f.id().equals(formId)) PacketDistributor.sendToServer(new C2SPayloads.SwitchForm());
+            });
+        }
+
         public Builder quit() {
             return run(mc -> mc.stop());
         }

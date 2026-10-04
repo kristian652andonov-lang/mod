@@ -40,6 +40,7 @@ final class DevScripts {
             }
             b.cmd("/fw cooldowns").wait(10);
             b.camera(CameraType.FIRST_PERSON).playerView().look(0, 12).wait(5);
+            if (a.requiredForm() != null) b.form(a.requiredForm()).wait(30);
             b.select(a.id()).wait(5).hud(false).viewFrom(-6.5, 2.2, 3.0);
             int charge = Math.max(0, a.chargeTicks());
             b.abilityDown().wait(Math.max(2, charge - 2)).screenshot(weapon + "_" + a.id() + "_0charge").wait(3).abilityUp();
