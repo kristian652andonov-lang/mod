@@ -591,6 +591,68 @@ def starfall(ic):
     ic.d.rectangle([ic.p(6, 56), ic.p(58, 59)], fill=(255, 140, 60, 255))
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# AETHERLANCE — aether cyan
+# ---------------------------------------------------------------------------------------------------------------------
+A = (0x5FF3FF, 0x062433, 0xF2FFFF)
+
+
+def lance(ic, d, c, x0, y0, x1, y1, w=4):
+    d.line([ic.p(x0, y0), ic.p(x1, y1)], fill=c, width=int(w * 4))
+    ang = math.atan2(y1 - y0, x1 - x0)
+    tip = (x1 + math.cos(ang) * 10, y1 + math.sin(ang) * 10)
+    l = (x1 + math.cos(ang + 1.9) * 5, y1 + math.sin(ang + 1.9) * 5)
+    r = (x1 + math.cos(ang - 1.9) * 5, y1 + math.sin(ang - 1.9) * 5)
+    d.polygon(ic.pts([tip, l, r]), fill=c)
+
+
+@icon('aetherlance', 'aether_bolt', *A)
+def aether_bolt(ic):
+    def f(d, c):
+        lance(ic, d, c, 8, 56, 30, 34)
+        d.ellipse([ic.p(38, 16), ic.p(54, 32)], fill=c)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(42, 20), ic.p(50, 28)], fill=(255, 255, 255, 255))
+
+
+@icon('aetherlance', 'piercing_charge', *A)
+def piercing_charge(ic):
+    def f(d, c):
+        lance(ic, d, c, 10, 32, 44, 32, 5)
+        for y in (22, 42):
+            d.line([ic.p(6, y), ic.p(26, y)], fill=c, width=2 * 4)
+    ic.shape(f)
+
+
+@icon('aetherlance', 'aether_resonance', *A)
+def aether_resonance(ic):
+    def f(d, c):
+        for k in range(3):
+            r = 10 + k * 8
+            d.arc([ic.p(32 - r, 32 - r), ic.p(32 + r, 32 + r)], -50, 50, fill=c, width=3 * 4)
+        lance(ic, d, c, 6, 32, 22, 32, 4)
+    ic.shape(f)
+
+
+@icon('aetherlance', 'celestial_barrage', *A)
+def celestial_barrage(ic):
+    def f(d, c):
+        for a in (-0.6, -0.3, 0, 0.3, 0.6):
+            x1, y1 = 12 + math.cos(a) * 38, 32 + math.sin(a) * 38
+            d.line([ic.p(12, 32), ic.p(x1, y1)], fill=c, width=3 * 4)
+            d.ellipse([ic.p(x1 - 3, y1 - 3), ic.p(x1 + 3, y1 + 3)], fill=c)
+    ic.shape(f)
+
+
+@icon('aetherlance', 'judgement_ray', *A)
+def judgement_ray(ic):
+    def f(d, c):
+        d.polygon(ic.pts([(8, 28), (58, 18), (58, 46), (8, 36)]), fill=c)
+    ic.shape(f)
+    ic.d.polygon(ic.pts([(8, 31), (58, 26), (58, 38), (8, 33)]), fill=(255, 255, 255, 255))
+    ic.d.ellipse([ic.p(4, 26), ic.p(14, 38)], fill=(255, 217, 120, 255))
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):

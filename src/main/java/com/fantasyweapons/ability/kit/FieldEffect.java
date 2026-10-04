@@ -77,6 +77,11 @@ public class FieldEffect extends AreaEffect {
         this.finished = true;
     }
 
+    /** Records a one-time hit on an entity; false if it was already hit by this field. */
+    public boolean hitOnceAdd(int entityId) {
+        return hitOnce.add(entityId);
+    }
+
     public Vec3 center() {
         return pos;
     }

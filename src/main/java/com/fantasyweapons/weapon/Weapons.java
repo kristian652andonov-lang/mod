@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.weapons.aetherlance.Aetherlance;
 import com.fantasyweapons.weapons.bloomfall.Bloomfall;
 import com.fantasyweapons.weapons.doomcleaver.Doomcleaver;
 import com.fantasyweapons.weapons.eclipse.EclipseReaper;
@@ -37,7 +38,7 @@ public final class Weapons {
         add(Bloomfall.create());
         add(EclipseReaper.create());
         add(Starforge.create());
-        add(basic("aetherlance", "Aetherlance", "Spear of the Celestial Court", Element.ENERGY, Rarity.MYTHIC, WeaponClass.LANCE, 130, 2.2f));
+        add(Aetherlance.create());
         add(basic("monolith", "Monolith", "The Mountain's Edge", Element.EARTH, Rarity.ANCIENT, WeaponClass.COLOSSAL, 320, 2.5f));
         add(WeaponDefinition.builder("infernochain")
                 .name("Infernochain", "The Drake's Burning Coil")

@@ -108,4 +108,12 @@ public final class FxIds {
     public static final ResourceLocation STARFORGE_HORIZON = FantasyWeapons.id("starforge/horizon");
     public static final ResourceLocation STARFORGE_HORIZON_END = FantasyWeapons.id("starforge/horizon_end");
     public static final ResourceLocation STARFORGE_STARFALL = FantasyWeapons.id("starforge/starfall");
+
+    // ---- aetherlance ----
+    public static final ResourceLocation AETHERLANCE_THRUST = FantasyWeapons.id("aetherlance/thrust");
+    public static final ResourceLocation AETHERLANCE_BOLT = FantasyWeapons.id("aetherlance/bolt");
+    public static final ResourceLocation AETHERLANCE_PIERCE = FantasyWeapons.id("aetherlance/pierce");
+    public static final ResourceLocation AETHERLANCE_BOLT_END = FantasyWeapons.id("aetherlance/bolt_end");
+    public static final ResourceLocation AETHERLANCE_CHARGE = FantasyWeapons.id("aetherlance/charge");
+    public static final ResourceLocation AETHERLANCE_RAY = FantasyWeapons.id("aetherlance/ray");
 }

@@ -42,7 +42,13 @@ public class ProjectileEffect extends AreaEffect {
     private boolean hitAny;
 
     public ProjectileEffect(AbilityContext ctx, Vec3 start, Vec3 velocity, double radius, double maxDistance, int pierce, HitHandler onHit) {
-        super(ctx.level(), ctx.player(), ctx.data().idOrNil(), start, (int) Math.ceil(maxDistance / Math.max(0.05, velocity.length())) + 40);
+        this(ctx.level(), ctx.player(), ctx.data().idOrNil(), start, velocity, radius, maxDistance, pierce, onHit);
+    }
+
+    /** For projectiles fired outside an ability cast (e.g. passives on melee hits). */
+    public ProjectileEffect(net.minecraft.server.level.ServerLevel level, ServerPlayer owner, java.util.UUID weaponId, Vec3 start, Vec3 velocity,
+                            double radius, double maxDistance, int pierce, HitHandler onHit) {
+        super(level, owner, weaponId, start, (int) Math.ceil(maxDistance / Math.max(0.05, velocity.length())) + 40);
         this.velocity = velocity;
         this.radius = radius;
         this.maxDistance = maxDistance;

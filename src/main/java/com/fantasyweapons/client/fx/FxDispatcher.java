@@ -44,5 +44,6 @@ public final class FxDispatcher {
         BloomfallFx.register();
         EclipseFx.register();
         StarforgeFx.register();
+        AetherlanceFx.register();
     }
 }

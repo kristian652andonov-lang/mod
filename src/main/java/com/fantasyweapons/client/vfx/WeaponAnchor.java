@@ -16,7 +16,7 @@ public final class WeaponAnchor {
 
     public static boolean isFirstPersonLocal(LivingEntity e) {
         Minecraft mc = Minecraft.getInstance();
-        return e == mc.player && mc.options.getCameraType() == CameraType.FIRST_PERSON;
+        return e == mc.player && mc.getCameraEntity() == mc.player && mc.options.getCameraType() == CameraType.FIRST_PERSON;
     }
 
     /** World position of the main hand. */
