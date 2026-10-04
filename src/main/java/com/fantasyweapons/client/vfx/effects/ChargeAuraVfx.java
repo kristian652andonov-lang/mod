@@ -93,9 +93,10 @@ public class ChargeAuraVfx extends Vfx {
         // white-hot core at full charge
         if (full) ctx.billboard(ctx.additive(VfxTextures.FLASH), mid, (fp ? 0.5f : 1.1f) * pulse, 0, Colors.alpha(fade * 0.55f, colorLight));
 
-        // converging motes (spiral inwards to the blade)
+        // converging motes (spiral inwards to the blade): small element-tinted glows with a faint bright core
         if (!fp || c > 0.05f) {
-            var motes = ctx.energy(VfxTextures.SPARK);
+            var motes = ctx.additive(VfxTextures.GLOW);
+            var cores = ctx.additive(VfxTextures.SPARK);
             int n = Math.round(MOTES * Math.min(1f, ctx.density) * (0.3f + 0.7f * c));
             float time = (age + ctx.partial) / 20f;
             Vec3 feet = p.getPosition(ctx.partial);
@@ -106,7 +107,9 @@ public class ChargeAuraVfx extends Vfx {
                 Vec3 origin = feet.add(Math.cos(ang) * radius, moteHeight[i] + 0.3, Math.sin(ang) * radius);
                 Vec3 pos = origin.lerp(mid, cycle * cycle);
                 float a = fade * Math.min(1, cycle * 4) * (1 - cycle * 0.3f) * (0.4f + 0.6f * c);
-                ctx.billboard(motes, pos, 0.18f + 0.12f * c, ang, Colors.alpha(a, cycle > 0.7f ? colorLight : color));
+                float size = (fp ? 0.09f : 0.13f) + 0.07f * c;
+                ctx.billboard(motes, pos, size, 0, Colors.alpha(a * 0.85f, color));
+                ctx.billboard(cores, pos, size * 0.35f, ang, Colors.alpha(a * (0.3f + 0.5f * cycle), Colors.lerpRgb(color, colorLight, cycle)));
             }
         }
 

@@ -10,6 +10,7 @@ import com.fantasyweapons.weapon.FantasyWeaponItem;
 import com.fantasyweapons.world.AreaEffectManager;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import com.fantasyweapons.world.DeathDissolve;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
@@ -59,9 +60,9 @@ public final class ModEvents {
     }
 
     private static void onEntityTick(EntityTickEvent.Post event) {
-        if (event.getEntity() instanceof LivingEntity living && !living.level().isClientSide && living.hasData(ModAttachments.STATUS)) {
-            StatusService.tick(living);
-        }
+        if (!(event.getEntity() instanceof LivingEntity living) || living.level().isClientSide) return;
+        if (living.deathTime >= DeathDissolve.REMOVE_AT && !living.isRemoved()) DeathDissolve.tick(living);
+        if (living.hasData(ModAttachments.STATUS)) StatusService.tick(living);
     }
 
     private static void onLevelTick(LevelTickEvent.Post event) {

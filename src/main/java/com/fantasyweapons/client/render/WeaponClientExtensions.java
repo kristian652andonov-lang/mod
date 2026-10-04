@@ -47,9 +47,9 @@ public class WeaponClientExtensions implements IClientItemExtensions {
             float w = smooth(Math.min(1, charge * 3));
             float tremble = Mth.sin((player.tickCount + partialTick) * 2.3f) * 0.012f * charge;
             boolean big = item.definition().weaponClass().twoHanded();
-            pose.translate(side * ((big ? -0.04f : -0.12f) * w + tremble), 0.12f * w + tremble, (big ? 0 : 0.08f) * w);
-            pose.mulPose(Axis.ZP.rotationDegrees(side * (big ? 10 : 18) * w));
-            pose.mulPose(Axis.XP.rotationDegrees((big ? 5 : 14) * w));
+            pose.translate(side * ((big ? -0.04f : -0.08f) * w + tremble), 0.12f * w + tremble, -0.04f * w);
+            pose.mulPose(Axis.ZP.rotationDegrees(side * (big ? 10 : 14) * w));
+            pose.mulPose(Axis.XP.rotationDegrees((big ? 4 : 6) * w));
         }
         // ability release: forward thrust
         float cast = AnimTracker.castProgress(player, partialTick);

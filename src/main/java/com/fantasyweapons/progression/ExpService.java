@@ -72,7 +72,11 @@ public final class ExpService {
             }
         }
         if (player == null || weapon.isEmpty() || player == victim) return;
-        victim.getData(ModAttachments.HIT_TRACKER).rewarded = true;
+        HitTracker credit = victim.getData(ModAttachments.HIT_TRACKER);
+        credit.rewarded = true;
+        if (victim instanceof Mob && ServerConfig.CUSTOM_DEATH_EFFECT.getOrDefault() && weapon.getItem() instanceof FantasyWeaponItem fw) {
+            credit.dissolveElement = fw.definition().element().ordinal();
+        }
         if (!RECENT.add(victim.getUUID())) return;
 
         ExpTier tier = isPlayer ? ExpTier.ELITE : ExpTier.classify(victim);

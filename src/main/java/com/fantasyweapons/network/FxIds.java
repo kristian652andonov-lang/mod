@@ -15,6 +15,7 @@ public final class FxIds {
     public static final ResourceLocation FORM_SWITCH = FantasyWeapons.id("form_switch");
     public static final ResourceLocation ABILITY_FIZZLE = FantasyWeapons.id("ability_fizzle");
     public static final ResourceLocation STATUS_BURST = FantasyWeapons.id("status_burst");
+    public static final ResourceLocation DEATH_DISSOLVE = FantasyWeapons.id("death_dissolve");
 
     // ---- voidfang ----
     public static final ResourceLocation VOID_SLASH = FantasyWeapons.id("voidfang/void_slash");

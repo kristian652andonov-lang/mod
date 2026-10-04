@@ -49,7 +49,7 @@ public class RiftVfx extends Vfx {
             drift += (r.nextFloat() - 0.5f) * 0.18f;
             lean[i] = drift;
         }
-        this.openTime = Math.min(10f, lifetime * 0.2f) / lifetime;
+        this.openTime = Math.min(5f, lifetime * 0.15f) / lifetime;
         this.closeTime = Math.min(10f, lifetime * 0.25f) / lifetime;
     }
 
@@ -76,7 +76,7 @@ public class RiftVfx extends Vfx {
         float closing = t > 1 - closeTime ? (t - (1 - closeTime)) / closeTime : 0;
         for (int i = 0; i <= SEGMENTS; i++) {
             float s = i / (float) SEGMENTS;
-            float y = (s - 0.5f) * height * (0.65f + 0.35f * Math.min(1, open * 1.3f));
+            float y = (s - 0.5f) * height * (0.8f + 0.2f * Math.min(1, open * 1.5f));
             float profile = (float) Math.pow(Math.sin(Math.PI * s), 0.75);
             // sealing from the ends inward while closing
             float seal = closing > 0 ? clamp01((profile - closing) / Math.max(0.05f, 1 - closing)) : 1f;

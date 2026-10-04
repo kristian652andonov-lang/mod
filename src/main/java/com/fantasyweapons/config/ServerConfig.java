@@ -96,6 +96,7 @@ public final class ServerConfig {
     public static final Dbl HEAVY_ATTACK_MIN_STRENGTH;
     public static final Bool ABILITIES_HURT_PLAYERS;
     public static final Bool ABILITIES_HURT_TAMED;
+    public static final Bool CUSTOM_DEATH_EFFECT;
     private static final Map<String, Dbl> BASE_DAMAGE = new HashMap<>();
 
     // ---- abilities ----
@@ -109,7 +110,7 @@ public final class ServerConfig {
         B.comment("Weapon level & EXP progression").push("progression");
         MAX_LEVEL = i("max_level", 100, 1, 1000, "Maximum weapon level");
         EXP_BASE = d("exp_base", 100, 1, 1e9, "EXP from level 1 to 2. Formula: base + linear*(L-1) + quadratic*(L-1)^2");
-        EXP_LINEAR = d("exp_linear", 50, 0, 1e9, "Linear EXP growth per level");
+        EXP_LINEAR = d("exp_linear", 37.5, 0, 1e9, "Linear EXP growth per level (defaults give 100, 150, 225, 325, 450, ...)");
         EXP_QUADRATIC = d("exp_quadratic", 12.5, 0, 1e9, "Quadratic EXP growth per level");
         EXP_CAP_PER_LEVEL = d("exp_cap_per_level", 20000, 1, 1e12, "Upper bound for the EXP required by a single level");
         EXP_MULTIPLIER = d("exp_multiplier", 1.0, 0, 1000, "Global multiplier on all weapon EXP gained");
@@ -143,6 +144,7 @@ public final class ServerConfig {
                 "Attack-cooldown fraction required for a sneak-attack to count as a HEAVY attack");
         ABILITIES_HURT_PLAYERS = bool("abilities_hurt_players", false, "Whether area abilities damage other players (PvP)");
         ABILITIES_HURT_TAMED = bool("abilities_hurt_tamed", false, "Whether area abilities damage tamed animals");
+        CUSTOM_DEATH_EFFECT = bool("custom_death_effect", true, "Mobs killed by fantasy weapons dissolve in an elemental effect instead of the vanilla death puff");
         B.push("base_damage");
         for (WeaponDefinition w : Weapons.all()) {
             BASE_DAMAGE.put(w.id(), d(w.id(), w.baseDamage(), 0, 1e9, w.displayName() + " level-1 melee damage"));

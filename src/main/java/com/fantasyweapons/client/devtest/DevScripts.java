@@ -14,9 +14,25 @@ final class DevScripts {
             case "voidfang" -> voidfang(b);
             case "poses" -> poses(b);
             case "grip" -> grip(b);
+            case "check" -> check(b);
             default -> b.wait(20);
         }
         b.wait(40).quit();
+    }
+
+    /** Quick checks: weapon-kill dissolve from the side, first-person heavy wind-ups and charge. */
+    private static void check(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give voidfang 1").cmd("/fw give doomcleaver 1").cmd("/fw give starforge 1").wait(20).slot(0);
+        b.cmd("/summon minecraft:husk 0 -60 2 {NoAI:1b,Health:1f}").wait(15).hud(false);
+        b.camera(CameraType.FIRST_PERSON).look(0, 20).wait(5).swing().viewFrom(-3.5, 0.6, 2.2);
+        b.wait(16).screenshot("dissolve_a").wait(4).screenshot("dissolve_b").wait(6).screenshot("dissolve_c");
+        b.playerView().hud(true).look(0, 0);
+        for (int i = 0; i < 3; i++) {
+            String w = i == 0 ? "voidfang" : i == 1 ? "doomcleaver" : "starforge";
+            b.slot(i).wait(10);
+            for (float t : new float[]{0.15f, 0.3f, 0.45f, 0.6f}) b.pin(t, false, false, -1, -1, -1).wait(3).screenshot(w + "_fp_swing" + Math.round(t * 100));
+            b.pin(-1, false, false, 1f, -1, -1).wait(3).screenshot(w + "_fp_charge").pin(-1, false, false, -1, -1, -1);
+        }
     }
 
     /** Calibration: grip angles on a one- and a two-handed weapon. */
@@ -80,9 +96,15 @@ final class DevScripts {
         b.menu("void_blink").wait(25).screenshot("07_menu_blink");
         b.closeScreen().wait(10);
         // melee on a dummy
-        b.cmd("/summon minecraft:zombie 0 -60 3 {NoAI:1b,Health:2000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:2000d}]}").wait(20);
+        b.cmd("/summon minecraft:husk 0 -60 3 {NoAI:1b,Health:2000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:2000d}]}").wait(20);
         b.look(0, 15).wait(5).swing().wait(2).screenshot("08_melee_hit");
         b.wait(30);
+        // weapon kill: custom dissolve instead of the vanilla death puff
+        b.cmd("/kill @e[type=minecraft:husk]").wait(30).cmd("/summon minecraft:husk 0 -60 3 {NoAI:1b,Health:1f}").wait(15);
+        b.camera(CameraType.THIRD_PERSON_BACK).look(0, 15).wait(5).swing().wait(2).screenshot("08b_kill");
+        b.wait(17).screenshot("08c_dissolve").wait(5).screenshot("08d_dissolve_late");
+        b.camera(CameraType.FIRST_PERSON).look(0, 15);
+        b.cmd("/summon minecraft:husk 0 -60 3 {NoAI:1b,Health:2000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:2000d}]}").wait(20);
         // void slash
         b.select("void_slash").wait(5).abilityDown().wait(6).screenshot("09_charging").wait(8).abilityUp().wait(4).screenshot("10_void_slash");
         b.cmd("/fw cooldowns").wait(30);
@@ -94,7 +116,7 @@ final class DevScripts {
         b.select("rift_tear").wait(5).abilityDown().wait(55).abilityUp().wait(14).screenshot("13_rift_tear").wait(30).screenshot("14_rift_tear_late");
         b.wait(40).cmd("/fw cooldowns");
         // void execution
-        b.cmd("/summon minecraft:zombie 0 -60 6 {NoAI:1b}").wait(10).camera(CameraType.THIRD_PERSON_BACK).look(0, 10);
+        b.cmd("/summon minecraft:husk 0 -60 6 {NoAI:1b}").wait(10).camera(CameraType.THIRD_PERSON_BACK).look(0, 10);
         b.select("void_execution").wait(5).abilityDown().wait(45).abilityUp().wait(3).screenshot("15_void_execution");
         b.wait(30).cmd("/fw cooldowns").cmd("/tp @s 0 -60 -10 0 0").wait(10);
         // void dimension

@@ -19,6 +19,7 @@ import com.fantasyweapons.config.ClientConfig;
 import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
 import com.fantasyweapons.sound.ModSounds;
+import com.fantasyweapons.weapon.Element;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
 import com.fantasyweapons.weapon.WeaponClass;
 import com.fantasyweapons.weapon.WeaponDefinition;
@@ -49,6 +50,7 @@ public final class GenericFx {
         FxDispatcher.register(FxIds.LEVEL_UP, GenericFx::levelUp);
         FxDispatcher.register(FxIds.FORM_SWITCH, GenericFx::formSwitch);
         FxDispatcher.register(FxIds.ABILITY_FIZZLE, GenericFx::fizzle);
+        FxDispatcher.register(FxIds.DEATH_DISSOLVE, GenericFx::deathDissolve);
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -250,6 +252,32 @@ public final class GenericFx {
         Vec3 hand = WeaponAnchor.blade(le, 1f, 1.0);
         VfxManager.add(new ShardBurstVfx(hand, new Vec3(0, 1, 0), 0.8f, 0.08f, 10, 0.5f, Colors.argb(120, 0x8A80A0), Colors.argb(0, 0x403850),
                 16, le.getId()).texture(VfxTextures.MIST, false).physics(-0.003f, 0.92f));
+    }
+
+    /** A mob killed by a fantasy weapon breaks apart into rising elemental embers (replaces the vanilla puff). */
+    private static void deathDissolve(FxPayload p) {
+        Element[] elements = Element.values();
+        Element el = elements[Math.floorMod(p.level(), elements.length)];
+        Vec3 c = p.pos();
+        float w = Math.max(0.3f, p.scale()), h = Math.max(0.3f, p.power());
+        Vec3 feet = c.add(0, -h / 2 + 0.05, 0);
+        int layers = Math.max(2, Math.min(6, Math.round(h / 0.4f)));
+        int perLayer = Math.max(6, Math.round(8 + w * 10));
+        for (int i = 0; i < layers; i++) {
+            Vec3 o = c.add(0, -h / 2 + h * (i + 0.5f) / layers, 0);
+            // bright embers drifting up and out
+            VfxManager.add(new ShardBurstVfx(o, new Vec3(0, 1, 0), 1.6f, 0.06f + 0.02f * w, perLayer, 0.16f + 0.06f * w,
+                    Colors.argb(255, el.light()), Colors.argb(0, el.primary()), 24 + i * 3, p.seed() + i)
+                    .texture(VfxTextures.SPARK, false).physics(-0.007f, 0.9f).energy());
+            // the body itself turning to coloured smoke
+            VfxManager.add(new ShardBurstVfx(o, new Vec3(0, 1, 0), 1.2f, 0.03f, Math.max(3, perLayer / 2), 0.55f + 0.25f * w,
+                    Colors.argb(190, el.primary()), Colors.argb(0, el.dark()), 28 + i * 2, p.seed() * 31 + i)
+                    .texture(VfxTextures.MIST, false).physics(-0.004f, 0.92f));
+        }
+        // a short column of light where the body stood
+        VfxManager.add(new BeamVfx(feet, feet.add(0, h + 0.8, 0), 0.5f * w + 0.3f, Colors.argb(200, el.primary()), 12));
+        VfxManager.add(new FlashVfx(c, w * 0.8f, w * 2.2f + 0.8f, Colors.argb(190, el.primary()), 12).energy());
+        VfxManager.add(new ShockwaveVfx(feet, new Vec3(0, 1, 0), 0.2f, w * 1.5f + 1.2f, 0.35f, Colors.argb(220, el.primary()), 16));
     }
 
     static Vec3[] basis(Vec3 n) {

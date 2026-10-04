@@ -11,4 +11,6 @@ public final class HitTracker {
     public UUID weapon;
     public long gameTime = Long.MIN_VALUE;
     public boolean rewarded;
+    /** Element ordinal of the weapon that landed the kill, or -1: such mobs dissolve instead of vanilla's death puff. */
+    public int dissolveElement = -1;
 }
