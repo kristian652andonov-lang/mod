@@ -1,0 +1,67 @@
+# Exported by three-d-stage
+newmtl umbra_black
+Kd 0.0217 0.0179 0.0318
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl lumen_silver
+Kd 0.9395 0.9576 1.0132
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl eclipse_gold
+Kd 0.8863 0.5368 0.0767
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl constellation
+Kd 1.1200 1.1200 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl pale_gold
+Kd 1.0322 0.8518 0.3937
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl sun_edge
+Kd 1.1200 1.0132 0.7064
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl umbra_glow
+Kd 0.7691 0.5368 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl eye_white
+Kd 0.9945 0.9576 0.8689
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl eye_iris
+Kd 0.9038 0.4386 0.0331
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl eye_pupil
+Kd 0.0049 0.0041 0.0068
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl umbra_violet
+Kd 0.0767 0.0399 0.1815
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+

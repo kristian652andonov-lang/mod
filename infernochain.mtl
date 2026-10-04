@@ -1,0 +1,97 @@
+# Exported by three-d-stage
+newmtl inferno_grip
+Kd 0.1145 0.0145 0.0078
+Ks 0.2000 0.2000 0.2000
+Ns 40
+d 1.0000
+
+newmtl inferno_brass
+Kd 0.6542 0.2847 0.0474
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl inferno_dark
+Kd 0.0474 0.0344 0.0371
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl fire_crystal
+Kd 1.1200 0.7218 0.3937
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl drake_bone
+Kd 0.0474 0.0282 0.0238
+Ks 0.2000 0.2000 0.2000
+Ns 60
+d 1.0000
+
+newmtl inferno_edge
+Kd 0.5434 0.4502 0.4047
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl inferno_steel
+Kd 0.1647 0.1282 0.1199
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl blade_fire_0
+Kd 1.1200 0.4863 0.1310
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl inferno_crack
+Kd 1.1200 0.2847 0.1145
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl blade_fire_1
+Kd 1.1200 0.4863 0.1310
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl blade_fire_2
+Kd 1.1200 0.4863 0.1310
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl blade_fire_3
+Kd 1.1200 0.4863 0.1310
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl blade_fire_4
+Kd 1.1200 0.4863 0.1310
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl blade_fire_5
+Kd 1.1200 0.4863 0.1310
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl blade_fire_6
+Kd 1.1200 0.4863 0.1310
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl energy_chain
+Kd 1.1200 0.5904 0.2418
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+

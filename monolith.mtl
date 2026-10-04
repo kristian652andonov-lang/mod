@@ -1,0 +1,91 @@
+# Exported by three-d-stage
+newmtl titan_leather
+Kd 0.0767 0.0306 0.0145
+Ks 0.2000 0.2000 0.2000
+Ns 30
+d 1.0000
+
+newmtl bronze_dark
+Kd 0.1614 0.0667 0.0198
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl ancient_bronze
+Kd 0.4386 0.1956 0.0474
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl bronze_patina
+Kd 0.0876 0.2847 0.2104
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl rune_core
+Kd 1.1200 0.8518 0.4386
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl titan_iron
+Kd 0.0474 0.0474 0.0574
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl titan_edge
+Kd 0.6469 0.6042 0.5239
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl titan_banner
+Kd 0.2180 0.0259 0.0145
+Ks 0.2000 0.2000 0.2000
+Ns 20
+d 1.0000
+
+newmtl titan_stone_pale
+Kd 0.3619 0.3317 0.2847
+Ks 0.2000 0.2000 0.2000
+Ns 24
+d 1.0000
+
+newmtl titan_stone
+Kd 0.2180 0.2029 0.1815
+Ks 0.2000 0.2000 0.2000
+Ns 20
+d 1.0000
+
+newmtl titan_stone_dark
+Kd 0.1017 0.0945 0.0853
+Ks 0.2000 0.2000 0.2000
+Ns 16
+d 1.0000
+
+newmtl rune_seam_0
+Kd 1.1200 0.5904 0.1815
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl rune_seam_1
+Kd 1.1200 0.5904 0.1815
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl rune_seam_2
+Kd 1.1200 0.5904 0.1815
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl rune_seam_3
+Kd 1.1200 0.5904 0.1815
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+

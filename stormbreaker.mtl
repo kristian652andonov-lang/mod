@@ -1,0 +1,79 @@
+# Exported by three-d-stage
+newmtl gunmetal
+Kd 0.0282 0.0357 0.0506
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_grip
+Kd 0.0188 0.0238 0.0344
+Ks 0.2000 0.2000 0.2000
+Ns 50
+d 1.0000
+
+newmtl storm_gold
+Kd 0.7374 0.4271 0.0474
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_band_0
+Kd 0.3883 1.0038 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_band_1
+Kd 0.3883 1.0038 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_band_2
+Kd 0.3883 1.0038 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_band_3
+Kd 0.3883 1.0038 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_core
+Kd 0.7771 1.1001 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_steel
+Kd 0.0686 0.0898 0.1254
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_edge_R
+Kd 0.5368 1.0804 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_edge_L
+Kd 0.5368 1.0804 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl storm_cloud
+Kd 0.1145 0.1427 0.1956
+Ks 0.2000 0.2000 0.2000
+Ns 10
+d 1.0000
+
+newmtl storm_cloud_dark
+Kd 0.0474 0.0610 0.0898
+Ks 0.2000 0.2000 0.2000
+Ns 10
+d 1.0000
+

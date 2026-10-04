@@ -1,0 +1,67 @@
+# Exported by three-d-stage
+newmtl grave_iron
+Kd 0.0686 0.0945 0.0767
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl coffin_wood
+Kd 0.0523 0.0306 0.0198
+Ks 0.2000 0.2000 0.2000
+Ns 20
+d 1.0000
+
+newmtl grave_bone
+Kd 0.7531 0.6763 0.4863
+Ks 0.2000 0.2000 0.2000
+Ns 30
+d 1.0000
+
+newmtl old_bone
+Kd 0.4386 0.3723 0.2337
+Ks 0.2000 0.2000 0.2000
+Ns 20
+d 1.0000
+
+newmtl grave_rag
+Kd 0.5368 0.2802 0.0306
+Ks 0.2000 0.2000 0.2000
+Ns 10
+d 1.0000
+
+newmtl soul_wisp
+Kd 0.8349 1.1200 0.8863
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl soul_gem
+Kd 0.6469 1.1200 0.7374
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl socket_dark
+Kd 0.0259 0.0217 0.0162
+Ks 0.2000 0.2000 0.2000
+Ns 20
+d 1.0000
+
+newmtl eye_flame
+Kd 0.8349 1.1200 0.8863
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl grave_crack
+Kd 0.5368 1.1200 0.6183
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl ghost_chain
+Kd 0.3776 1.1200 0.4863
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 0.7000
+

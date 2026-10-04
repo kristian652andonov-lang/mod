@@ -1,0 +1,91 @@
+# Exported by three-d-stage
+newmtl bark
+Kd 0.0399 0.0179 0.0078
+Ks 0.2000 0.2000 0.2000
+Ns 10
+d 1.0000
+
+newmtl branch_wood
+Kd 0.0831 0.0344 0.0145
+Ks 0.2000 0.2000 0.2000
+Ns 20
+d 1.0000
+
+newmtl heartwood_green
+Kd 0.0153 0.0831 0.0271
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl leaf
+Kd 0.1199 0.6183 0.0922
+Ks 0.2000 0.2000 0.2000
+Ns 60
+d 1.0000
+
+newmtl vine
+Kd 0.0318 0.2180 0.0357
+Ks 0.2000 0.2000 0.2000
+Ns 40
+d 1.0000
+
+newmtl pollen
+Kd 0.9945 1.1200 0.4863
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl toxic_petal
+Kd 0.7771 0.0686 0.9667
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl toadstool_dot
+Kd 0.9945 0.9215 0.7691
+Ks 0.2000 0.2000 0.2000
+Ns 40
+d 1.0000
+
+newmtl toadstool_cap
+Kd 0.5904 0.0458 0.0271
+Ks 0.2000 0.2000 0.2000
+Ns 40
+d 1.0000
+
+newmtl bloom_crystal
+Kd 0.7691 1.1200 0.6763
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl thorn
+Kd 0.6542 0.7771 0.2847
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl leaf_blade
+Kd 0.0686 0.5175 0.0945
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl thorn_edge
+Kd 0.4386 0.9038 0.1885
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl eye_flower_white
+Kd 0.9945 0.9576 0.8689
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl eye_flower_pupil
+Kd 0.0078 0.0058 0.0041
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+

@@ -1,0 +1,61 @@
+# Exported by three-d-stage
+newmtl void_grip
+Kd 0.0188 0.0259 0.0945
+Ks 0.2000 0.2000 0.2000
+Ns 30
+d 1.0000
+
+newmtl meteor_iron_dark
+Kd 0.0629 0.0540 0.1310
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl star_silver
+Kd 0.6325 0.6689 0.8349
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl cosmic_vein_violet
+Kd 0.7218 0.5112 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl cosmic_vein_blue
+Kd 0.5112 0.6469 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl meteor_iron
+Kd 0.1614 0.1397 0.3124
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl meteor_rock
+Kd 0.2377 0.2104 0.3937
+Ks 0.2000 0.2000 0.2000
+Ns 30
+d 1.0000
+
+newmtl star_gold
+Kd 0.7691 0.4986 0.1145
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl star_core
+Kd 1.1200 1.1200 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl gravity_ring
+Kd 0.7691 0.7064 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+

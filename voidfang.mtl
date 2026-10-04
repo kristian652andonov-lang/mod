@@ -1,0 +1,67 @@
+# Exported by three-d-stage
+newmtl grip_wrap
+Kd 0.0198 0.0123 0.0306
+Ks 0.2000 0.2000 0.2000
+Ns 20
+d 1.0000
+
+newmtl void_band
+Kd 0.2180 0.0557 0.5904
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl void_trim
+Kd 0.1199 0.0788 0.2627
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl black_steel
+Kd 0.0686 0.0506 0.1199
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl fang_edge
+Kd 0.4158 0.3671 0.6183
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl void_crystal
+Kd 0.8863 0.6325 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl void_seam
+Kd 0.3671 0.0282 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 0.8800
+
+newmtl void_crack_0
+Kd 0.7771 0.3937 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl void_crack_1
+Kd 0.7771 0.3937 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl void_crack_2
+Kd 0.7771 0.3937 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl void_crack_3
+Kd 0.7771 0.3937 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+

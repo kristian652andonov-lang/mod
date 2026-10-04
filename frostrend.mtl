@@ -1,0 +1,103 @@
+# Exported by three-d-stage
+newmtl glacier_grip
+Kd 0.0116 0.0188 0.0574
+Ks 0.2000 0.2000 0.2000
+Ns 30
+d 1.0000
+
+newmtl crimson_wrap
+Kd 0.2847 0.0259 0.0767
+Ks 0.2000 0.2000 0.2000
+Ns 40
+d 1.0000
+
+newmtl frost_silver
+Kd 0.8265 0.9038 0.9945
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl rime_steel
+Kd 0.0145 0.0259 0.0647
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl ice_edge
+Kd 0.9576 1.0707 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl clear_ice
+Kd 0.4386 0.8863 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 0.8500
+
+newmtl frost_core
+Kd 0.5835 1.0322 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl rime_plate
+Kd 0.0474 0.0767 0.1746
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl glacier_blue
+Kd 0.0557 0.2377 0.7064
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl frost_band_0
+Kd 0.1282 0.9759 0.8349
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl frost_pale
+Kd 0.6469 1.0132 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl glacier_deep
+Kd 0.0294 0.0876 0.3829
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl frost_seam
+Kd 0.7691 1.0322 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl hoarfrost
+Kd 0.9945 1.0804 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 20
+d 0.9000
+
+newmtl frost_band_1
+Kd 0.1282 0.9759 0.8349
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl frost_band_2
+Kd 0.1282 0.9759 0.8349
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl frost_band_3
+Kd 0.1282 0.9759 0.8349
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+

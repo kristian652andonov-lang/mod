@@ -1,0 +1,85 @@
+# Exported by three-d-stage
+newmtl reaper_shaft
+Kd 0.0294 0.0198 0.0238
+Ks 0.2000 0.2000 0.2000
+Ns 40
+d 1.0000
+
+newmtl reaper_band
+Kd 0.1885 0.1647 0.2257
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl reaper_trim
+Kd 0.1614 0.1368 0.2418
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl reaper_bone
+Kd 0.7691 0.6988 0.5239
+Ks 0.2000 0.2000 0.2000
+Ns 36
+d 1.0000
+
+newmtl reaper_black
+Kd 0.0592 0.0474 0.0945
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl soul_crystal
+Kd 0.6469 1.1200 0.9759
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl reaper_silver
+Kd 0.7531 0.7852 0.8689
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl soul_crack_0
+Kd 0.8518 0.6469 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl soul_crack_1
+Kd 0.6469 1.1200 0.7691
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl soul_crack_2
+Kd 0.8518 0.6469 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl soul_crack_3
+Kd 0.6469 1.1200 0.7691
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl rune
+Kd 0.9038 0.7374 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl reaper_soul
+Kd 0.8349 1.1200 0.9945
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl spectral_chain
+Kd 0.6542 0.4863 1.1200
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 0.7000
+

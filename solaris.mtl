@@ -1,0 +1,73 @@
+# Exported by three-d-stage
+newmtl ember_grip
+Kd 0.5368 0.0574 0.0153
+Ks 0.2000 0.2000 0.2000
+Ns 40
+d 1.0000
+
+newmtl sun_gold
+Kd 0.8349 0.4047 0.0259
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl bright_gold
+Kd 1.1200 0.7296 0.1614
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl dark_bronze
+Kd 0.2180 0.0767 0.0116
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl pommel_gem
+Kd 1.1200 0.6042 0.2180
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl solar_core
+Kd 1.1200 1.0804 0.8863
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl white_gold
+Kd 1.1200 0.9759 0.6469
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl sun_channel_0
+Kd 1.1200 0.5049 0.0706
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl sun_channel_1
+Kd 1.1200 0.5049 0.0706
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl sun_channel_2
+Kd 1.1200 0.5049 0.0706
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl sun_channel_3
+Kd 1.1200 0.5049 0.0706
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
+newmtl sun_channel_4
+Kd 1.1200 0.5049 0.0706
+Ks 0.2000 0.2000 0.2000
+Ns 76
+d 1.0000
+
