@@ -106,6 +106,7 @@ public final class ClientSetup {
         ClientChargeFx.clear();
         Notifications.clear();
         AnimTracker.clear();
+        com.fantasyweapons.client.fx.FxProjectiles.clear();
     }
 
     /** Client implementation of the common → client bridge. */

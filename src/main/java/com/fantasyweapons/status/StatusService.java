@@ -82,6 +82,7 @@ public final class StatusService {
         StatusEffects.Instance dark = effects.get(StatusType.ECLIPSE_DARKNESS);
         if (light != null && dark != null) mult += 0.25f; // both marks: eclipse resonance
         if (effects.has(StatusType.GRAVITY_BOUND) && element == Element.COSMIC) mult += 0.2f;
+        if (effects.has(StatusType.SOLAR_BURN) && element == Element.SOLAR) mult += 0.15f;
         return mult;
     }
 
@@ -143,6 +144,9 @@ public final class StatusService {
         if (source == null) return;
         float amount = inst.potency * inst.stacks;
         float dealt = FWDamage.deal(source, ItemStack.EMPTY, entity, amount, FWDamage.Kind.DOT, null, FWDamage.FLAG_DOT);
+        // keep the weapon's kill credit alive while its damage-over-time ticks
+        com.fantasyweapons.combat.HitTracker tracker = entity.getExistingDataOrNull(ModAttachments.HIT_TRACKER);
+        if (dealt > 0 && tracker != null && source.getUUID().equals(tracker.player)) tracker.gameTime = level.getServer().overworld().getGameTime();
         if (inst.type == StatusType.SOUL_DRAIN) FWDamage.lifesteal(source, dealt, 0.5f);
     }
 

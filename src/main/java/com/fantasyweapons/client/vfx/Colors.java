@@ -33,6 +33,14 @@ public final class Colors {
         return lerpRgb(rgb, 0x000000, amount);
     }
 
+    /** Multiplies the RGB channels by {@code k} (flat shading). */
+    public static int scale(int rgb, float k) {
+        int r = Math.min(255, Math.round(((rgb >> 16) & 255) * k));
+        int g = Math.min(255, Math.round(((rgb >> 8) & 255) * k));
+        int b = Math.min(255, Math.round((rgb & 255) * k));
+        return (r << 16) | (g << 8) | b;
+    }
+
     public static float r(int c) {
         return ((c >> 16) & 255) / 255f;
     }

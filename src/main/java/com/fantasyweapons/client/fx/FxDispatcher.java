@@ -35,5 +35,6 @@ public final class FxDispatcher {
     public static void init() {
         GenericFx.register();
         VoidfangFx.register();
+        SolarisFx.register();
     }
 }

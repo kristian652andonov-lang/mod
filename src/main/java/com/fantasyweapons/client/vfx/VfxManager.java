@@ -55,7 +55,7 @@ public final class VfxManager {
     }
 
     public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || ACTIVE.isEmpty()) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
         Minecraft mc = Minecraft.getInstance();
         Camera camera = event.getCamera();
         float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
@@ -71,6 +71,7 @@ public final class VfxManager {
                 v.kill();
             }
         }
+        com.fantasyweapons.client.fx.StatusVisuals.render(ctx);
         SOURCE.endBatch();
         if (mc.level == null) clear();
     }

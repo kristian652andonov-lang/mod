@@ -94,22 +94,27 @@ public class ChargeAuraVfx extends Vfx {
         if (full) ctx.billboard(ctx.additive(VfxTextures.FLASH), mid, (fp ? 0.5f : 1.1f) * pulse, 0, Colors.alpha(fade * 0.55f, colorLight));
 
         // converging motes (spiral inwards to the blade): small element-tinted glows with a faint bright core
+        // (two passes: one buffer per render type, never interleaved)
         if (!fp || c > 0.05f) {
-            var motes = ctx.additive(VfxTextures.GLOW);
-            var cores = ctx.additive(VfxTextures.SPARK);
             int n = Math.round(MOTES * Math.min(1f, ctx.density) * (0.3f + 0.7f * c));
             float time = (age + ctx.partial) / 20f;
             Vec3 feet = p.getPosition(ctx.partial);
+            Vec3[] pos = new Vec3[n];
+            float[] alpha = new float[n], cyc = new float[n], ang = new float[n];
             for (int i = 0; i < n; i++) {
-                float cycle = (time * (0.6f + c * 0.9f) + motePhase[i]) % 1f;
-                float radius = (fp ? 1.1f : 1.8f) * (1 - cycle);
-                float ang = moteAngle[i] + cycle * 5f;
-                Vec3 origin = feet.add(Math.cos(ang) * radius, moteHeight[i] + 0.3, Math.sin(ang) * radius);
-                Vec3 pos = origin.lerp(mid, cycle * cycle);
-                float a = fade * Math.min(1, cycle * 4) * (1 - cycle * 0.3f) * (0.4f + 0.6f * c);
-                float size = (fp ? 0.09f : 0.13f) + 0.07f * c;
-                ctx.billboard(motes, pos, size, 0, Colors.alpha(a * 0.85f, color));
-                ctx.billboard(cores, pos, size * 0.35f, ang, Colors.alpha(a * (0.3f + 0.5f * cycle), Colors.lerpRgb(color, colorLight, cycle)));
+                cyc[i] = (time * (0.6f + c * 0.9f) + motePhase[i]) % 1f;
+                float radius = (fp ? 1.1f : 1.8f) * (1 - cyc[i]);
+                ang[i] = moteAngle[i] + cyc[i] * 5f;
+                Vec3 origin = feet.add(Math.cos(ang[i]) * radius, moteHeight[i] + 0.3, Math.sin(ang[i]) * radius);
+                pos[i] = origin.lerp(mid, cyc[i] * cyc[i]);
+                alpha[i] = fade * Math.min(1, cyc[i] * 4) * (1 - cyc[i] * 0.3f) * (0.4f + 0.6f * c);
+            }
+            float size = (fp ? 0.09f : 0.13f) + 0.07f * c;
+            var motes = ctx.additive(VfxTextures.GLOW);
+            for (int i = 0; i < n; i++) ctx.billboard(motes, pos[i], size, 0, Colors.alpha(alpha[i] * 0.85f, color));
+            var cores = ctx.additive(VfxTextures.SPARK);
+            for (int i = 0; i < n; i++) {
+                ctx.billboard(cores, pos[i], size * 0.35f, ang[i], Colors.alpha(alpha[i] * (0.3f + 0.5f * cyc[i]), Colors.lerpRgb(color, colorLight, cyc[i])));
             }
         }
 

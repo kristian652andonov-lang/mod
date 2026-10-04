@@ -27,4 +27,13 @@ public final class FxIds {
     public static final ResourceLocation VOID_DIMENSION = FantasyWeapons.id("voidfang/void_dimension");
     public static final ResourceLocation VOID_DIMENSION_STRIKE = FantasyWeapons.id("voidfang/dimension_strike");
     public static final ResourceLocation VOID_DIMENSION_COLLAPSE = FantasyWeapons.id("voidfang/dimension_collapse");
+
+    // ---- solaris ----
+    public static final ResourceLocation SOLARIS_RADIANT_SLASH = FantasyWeapons.id("solaris/radiant_slash");
+    public static final ResourceLocation SOLARIS_SOLAR_BURST = FantasyWeapons.id("solaris/solar_burst");
+    public static final ResourceLocation SOLARIS_SUPERNOVA = FantasyWeapons.id("solaris/supernova");
+    public static final ResourceLocation SOLARIS_SUPERNOVA_IMPACT = FantasyWeapons.id("solaris/supernova_impact");
+    public static final ResourceLocation SOLARIS_INFERNO = FantasyWeapons.id("solaris/inferno");
+    public static final ResourceLocation SOLARIS_INFERNO_STRIKE = FantasyWeapons.id("solaris/inferno_strike");
+    public static final ResourceLocation SOLARIS_INFERNO_COLLAPSE = FantasyWeapons.id("solaris/inferno_collapse");
 }

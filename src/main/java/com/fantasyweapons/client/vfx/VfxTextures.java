@@ -35,4 +35,7 @@ public final class VfxTextures {
     public static final ResourceLocation STAR = t("star");
     public static final ResourceLocation WHITE = t("white");
     public static final ResourceLocation DISC = t("disc");
+    public static final ResourceLocation ICE = t("ice");
+    public static final ResourceLocation ROCK = t("rock");
+    public static final ResourceLocation BARK = t("bark");
 }

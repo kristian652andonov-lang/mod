@@ -15,9 +15,41 @@ final class DevScripts {
             case "poses" -> poses(b);
             case "grip" -> grip(b);
             case "check" -> check(b);
-            default -> b.wait(20);
+            default -> {
+                if (name.startsWith("weapon:")) showcase(b, name.substring(7));
+                else b.wait(20);
+            }
         }
         b.wait(40).quit();
+    }
+
+    /**
+     * Casts every castable ability of a weapon at a group of dummies, from a third-person side view, capturing the
+     * charge, the release and the aftermath.
+     */
+    private static void showcase(ScreenshotDirector.Builder b, String weapon) {
+        var def = com.fantasyweapons.weapon.Weapons.get(weapon);
+        if (def == null) return;
+        b.cmd("/fw give " + weapon + " 100").wait(20).slot(0).cmd("/fw points 200").hud(true);
+        for (var a : def.castables()) {
+            b.cmd("/kill @e[type=minecraft:husk]").wait(25);
+            for (int i = 0; i < 5; i++) {
+                b.cmd("/summon minecraft:husk " + (i % 2 == 0 ? -1 : 1) * (i / 2) * 2 + " -60 " + (6 + (i % 3) * 2)
+                        + " {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
+            }
+            b.cmd("/fw cooldowns").wait(10);
+            b.camera(CameraType.FIRST_PERSON).playerView().look(0, 12).wait(5);
+            b.select(a.id()).wait(5).hud(false).viewFrom(-6.5, 2.2, 3.0);
+            int charge = Math.max(0, a.chargeTicks());
+            b.abilityDown().wait(Math.max(2, charge - 2)).screenshot(weapon + "_" + a.id() + "_0charge").wait(3).abilityUp();
+            b.wait(3).screenshot(weapon + "_" + a.id() + "_1release").wait(6).screenshot(weapon + "_" + a.id() + "_2mid")
+                    .wait(10).screenshot(weapon + "_" + a.id() + "_3late");
+            if (a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE) {
+                b.wait(40).screenshot(weapon + "_" + a.id() + "_4ult").wait(60).screenshot(weapon + "_" + a.id() + "_5ult")
+                        .wait(40).screenshot(weapon + "_" + a.id() + "_6ult");
+            }
+            b.wait(20).playerView().hud(true);
+        }
     }
 
     /** Quick checks: weapon-kill dissolve from the side, first-person heavy wind-ups and charge. */

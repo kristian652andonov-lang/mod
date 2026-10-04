@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.weapons.solaris.Solaris;
 import com.fantasyweapons.weapons.voidfang.Voidfang;
 
 import java.util.Collections;
@@ -19,7 +20,7 @@ public final class Weapons {
 
     static {
         add(Voidfang.create());
-        add(basic("solaris", "Solaris", "The Sun-Forged Greatsword", Element.SOLAR, Rarity.LEGENDARY, WeaponClass.GREATSWORD, 140, 2.3f));
+        add(Solaris.create());
         add(basic("frostrend", "Frostrend", "Blade of the Eternal Winter", Element.ICE, Rarity.LEGENDARY, WeaponClass.LONGSWORD, 105, 2.3f));
         add(basic("doomcleaver", "Doomcleaver", "Axe of the Crimson Hunger", Element.BLOOD, Rarity.MYTHIC, WeaponClass.BATTLEAXE, 170, 2.2f));
         add(basic("stormbreaker", "Stormbreaker", "Twin-Headed Tempest", Element.LIGHTNING, Rarity.LEGENDARY, WeaponClass.BATTLEAXE, 150, 2.2f));

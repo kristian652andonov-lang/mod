@@ -20,7 +20,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestGenerator;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.TestFunction;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
@@ -45,7 +47,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Server-side GameTests for progression and the Voidfang abilities. Run with {@code ./gradlew runGameTestServer}.
  * Every test drives the real server code paths (EXP service, ability state machine, melee pipeline) through a mock
- * player standing in the {@code fantasyweapons:arena} structure (24x8x24 stone floor at y=0).
+ * player standing in the {@code fantasyweapons:arena} structure (24x8x24, stone floor). GameTest places structures one block
+ * above the test origin, so the floor is at relative y=1 and everything stands at y=2.
  */
 @GameTestHolder(FantasyWeapons.MOD_ID)
 @PrefixGameTestTemplate(false)
@@ -109,7 +112,7 @@ public final class FWGameTests {
 
     @GameTest(template = ARENA)
     public static void levelUpGrantsPointsAndUnlocks(GameTestHelper h) {
-        ServerPlayer p = player(h, new Vec3(12.5, 1, 12.5), 0);
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");
         WeaponDefinition def = Weapons.get("voidfang");
         AbilityDefinition slash = def.ability(Voidfang.VOID_SLASH);
@@ -134,7 +137,7 @@ public final class FWGameTests {
 
     @GameTest(template = ARENA)
     public static void upgradesAreServerValidated(GameTestHelper h) {
-        ServerPlayer p = player(h, new Vec3(12.5, 1, 12.5), 0);
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");
         WeaponDefinition def = Weapons.get("voidfang");
         AbilityDefinition slash = def.ability(Voidfang.VOID_SLASH);
@@ -171,7 +174,7 @@ public final class FWGameTests {
 
     @GameTest(template = ARENA)
     public static void lockedWeaponCannotCharge(GameTestHelper h) {
-        ServerPlayer p = player(h, new Vec3(12.5, 1, 12.5), 0);
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
         giveWeapon(p, "voidfang");
         AbilityService.handleAbilityKey(p, true);
         h.assertFalse(AbilityService.runtime(p).isCharging(), "a level-1 weapon has nothing to charge");
@@ -181,7 +184,7 @@ public final class FWGameTests {
 
     @GameTest(template = ARENA)
     public static void releasingTooEarlyFizzles(GameTestHelper h) {
-        ServerPlayer p = player(h, new Vec3(12.5, 1, 12.5), 0);
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");
         ExpService.setLevel(p, stack, 5);
         UUID id = FantasyWeaponItem.data(stack).idOrNil();
@@ -198,12 +201,12 @@ public final class FWGameTests {
 
     @GameTest(template = ARENA, timeoutTicks = 120)
     public static void voidSlashKillsAndGrantsExp(GameTestHelper h) {
-        ServerPlayer p = player(h, new Vec3(12.5, 1, 6.5), 0);
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 6.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");
         ExpService.setLevel(p, stack, 5);
         UUID id = FantasyWeaponItem.data(stack).idOrNil();
         long expBefore = FantasyWeaponItem.data(stack).totalExp();
-        Husk target = dummy(h, new BlockPos(12, 1, 11), 1f);
+        Husk target = dummy(h, new BlockPos(12, 2, 11), 1f);
 
         AbilityService.handleAbilityKey(p, true);
         int charge = AbilityService.runtime(p).chargeTicks();
@@ -224,9 +227,9 @@ public final class FWGameTests {
 
     @GameTest(template = ARENA, timeoutTicks = 60)
     public static void meleeKillGrantsExp(GameTestHelper h) {
-        ServerPlayer p = player(h, new Vec3(12.5, 1, 10.5), 0);
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 10.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");
-        Husk target = dummy(h, new BlockPos(12, 1, 12), 1f);
+        Husk target = dummy(h, new BlockPos(12, 2, 12), 1f);
         h.runAfterDelay(2, () -> p.attack(target));
         h.succeedWhen(() -> {
             h.assertFalse(target.isAlive(), "melee hit should kill the target");
@@ -238,9 +241,9 @@ public final class FWGameTests {
 
     @GameTest(template = ARENA, timeoutTicks = 80)
     public static void weaponKillsDissolveInsteadOfVanillaPuff(GameTestHelper h) {
-        ServerPlayer p = player(h, new Vec3(12.5, 1, 10.5), 0);
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 10.5), 0);
         giveWeapon(p, "voidfang");
-        Husk target = dummy(h, new BlockPos(12, 1, 12), 1f);
+        Husk target = dummy(h, new BlockPos(12, 2, 12), 1f);
         h.runAfterDelay(2, () -> p.attack(target));
         h.succeedWhen(() -> {
             h.assertTrue(target.isRemoved(), "dead mob should be removed");
@@ -252,14 +255,14 @@ public final class FWGameTests {
 
     @GameTest(template = ARENA, timeoutTicks = 120)
     public static void voidBlinkStopsAtWalls(GameTestHelper h) {
-        ServerPlayer p = player(h, new Vec3(12.5, 1, 4.5), 0);
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 4.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");
         ExpService.setLevel(p, stack, 10);
         UUID id = FantasyWeaponItem.data(stack).idOrNil();
         AbilityService.handleSelect(p, 0, id, Voidfang.VOID_BLINK);
         h.assertTrue(Voidfang.VOID_BLINK.equals(FantasyWeaponItem.data(stack).selected()), "Void Blink should be selected");
         // a wall 5 blocks ahead, well inside the blink distance
-        for (int x = 8; x <= 16; x++) for (int y = 1; y <= 4; y++) h.setBlock(new BlockPos(x, y, 9), Blocks.STONE);
+        for (int x = 8; x <= 16; x++) for (int y = 2; y <= 5; y++) h.setBlock(new BlockPos(x, y, 9), Blocks.STONE);
         double startZ = p.getZ();
         double wallZ = h.absoluteVec(new Vec3(0, 0, 9)).z;
 
@@ -273,6 +276,63 @@ public final class FWGameTests {
             cleanup(p);
             h.succeed();
         });
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // every castable ability of every weapon: charges, executes (not a fizzle/failure) and hurts the dummies
+    // ------------------------------------------------------------------------------------------------------------
+
+    @GameTestGenerator
+    public static java.util.Collection<TestFunction> everyAbility() {
+        java.util.List<TestFunction> tests = new java.util.ArrayList<>();
+        for (WeaponDefinition def : Weapons.all()) {
+            for (AbilityDefinition a : def.castables()) {
+                String name = "ability_" + def.id() + "_" + a.id();
+                tests.add(new TestFunction("abilities", name, FantasyWeapons.MOD_ID + ":" + ARENA, 240, 0, true, h -> abilityTest(h, def, a)));
+            }
+        }
+        return tests;
+    }
+
+    /** Ability ids whose effect is a self buff / utility and deals no damage by itself. */
+    private static final java.util.Set<String> NON_DAMAGING = java.util.Set.of("doomcleaver/blood_rage");
+
+    private static void abilityTest(GameTestHelper h, WeaponDefinition def, AbilityDefinition a) {
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 5.5), 0);
+        ItemStack stack = giveWeapon(p, def.id());
+        ExpService.setLevel(p, stack, Math.max(1, a.unlockLevel()));
+        WeaponData d = FantasyWeaponItem.data(stack);
+        if (a.requiredForm() != null) {
+            for (int i = 0; i < def.forms().size(); i++) if (def.forms().get(i).id().equals(a.requiredForm())) d = d.withForm(i);
+        }
+        stack.set(ModComponents.WEAPON_DATA.get(), d.withSelected(a.id()));
+        UUID id = d.idOrNil();
+        java.util.List<Husk> dummies = java.util.List.of(dummy(h, new BlockPos(12, 2, 9), 2000f), dummy(h, new BlockPos(13, 2, 11), 2000f),
+                dummy(h, new BlockPos(10, 2, 7), 2000f));
+        // look at the first dummy's chest
+        Vec3 eye = p.getEyePosition();
+        Vec3 to = dummies.get(0).getBoundingBox().getCenter().subtract(eye);
+        float pitch = (float) -Math.toDegrees(Math.atan2(to.y, Math.sqrt(to.x * to.x + to.z * to.z)));
+        p.teleportTo(h.getLevel(), p.getX(), p.getY(), p.getZ(), 0, pitch);
+
+        AbilityService.handleAbilityKey(p, true);
+        AbilityRuntime rt = AbilityService.runtime(p);
+        int charge = rt.isCharging() ? rt.chargeTicks() : 0;
+        h.assertTrue(charge > 0 || a.chargeTicks() == 0, a.key() + " did not start charging");
+        h.runAfterDelay(charge + 1, () -> {
+            if (rt.isCharging()) AbilityService.handleAbilityKey(p, false);
+            long cd = rt.cooldownRemaining(id, a.id(), AbilityService.now(p));
+            h.assertTrue(cd > ServerConfig.FIZZLE_COOLDOWN_TICKS.getOrDefault(), a.key() + " failed or fizzled (cooldown " + cd + ")");
+        });
+        boolean damaging = !NON_DAMAGING.contains(def.id() + "/" + a.id());
+        h.runAfterDelay(charge + 2, () -> h.succeedWhen(() -> {
+            if (damaging) {
+                h.assertTrue(dummies.stream().anyMatch(du -> du.getHealth() < du.getMaxHealth() || !du.isAlive()), a.key() + " hurt no dummy "
+                        + dummies.stream().map(du -> du.getHealth() + "/" + du.getMaxHealth() + "@" + du.position()).toList() + " player " + p.position()
+                        + " pitch " + p.getXRot());
+            }
+            cleanup(p);
+        }));
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -323,6 +383,8 @@ public final class FWGameTests {
     private static Husk dummy(GameTestHelper h, BlockPos relative, float health) {
         Husk husk = h.spawn(EntityType.HUSK, relative);
         husk.setNoAi(true);
+        var max = husk.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);
+        if (max != null && health > max.getBaseValue()) max.setBaseValue(health);
         husk.setHealth(health);
         return husk;
     }
