@@ -179,6 +179,16 @@ public final class StatusVisuals {
                     ctx.ribbon(bark, pts, ws, cs, 0, 0.3f);
                 }
             }
+            case STAGGERED -> {
+                // stone chips circling the head, dust shaken loose at the feet
+                var rock = ctx.translucent(VfxTextures.ROCK);
+                for (int i = 0; i < 3; i++) {
+                    double a = t * 0.18 + i * 2.094;
+                    Vec3 p = top.add(Math.cos(a) * (w * 0.5 + 0.2), 0.25 + Math.sin(t * 0.3 + i) * 0.05, Math.sin(a) * (w * 0.5 + 0.2));
+                    ctx.billboard(rock, p, 0.2f, (float) a, Colors.alpha(fade, 0x8A7356));
+                }
+                ctx.billboard(ctx.translucent(VfxTextures.MIST), feet.add(0, 0.15, 0), (float) (w + 0.6), t * 0.01f, Colors.alpha(fade * 0.3f, 0xA08A6C));
+            }
             case VOID_MARK -> {
                 var vc = ctx.additive(VfxTextures.SHARD);
                 for (int i = 0; i < inst.stacks; i++) {

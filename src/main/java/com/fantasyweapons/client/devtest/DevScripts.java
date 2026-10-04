@@ -15,6 +15,7 @@ final class DevScripts {
             case "poses" -> poses(b);
             case "grip" -> grip(b);
             case "check" -> check(b);
+            case "plant" -> plant(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
@@ -132,6 +133,18 @@ final class DevScripts {
             b.pin(-1, false, false, -1, -1, -1);
         }
         b.playerView();
+    }
+
+    /** Monolith's plant pose: overhead, mid-drive, planted, pulled free; third person side/front and first person. */
+    private static void plant(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give monolith 1").wait(20).slot(0).hud(false).look(0, 0).wait(10);
+        float[] ticks = {0, 2, 4, 14, 26};
+        for (float t : ticks) b.plant(t, 30).viewFrom(-4.2, 0.4, 1.4).wait(3).screenshot("plant_side_" + Math.round(t));
+        b.plant(14, 30).viewFrom(2.8, 0.6, 3.6).wait(3).screenshot("plant_front_14");
+        b.playerView().camera(CameraType.FIRST_PERSON).hud(true);
+        for (float t : ticks) b.plant(t, 30).wait(3).screenshot("plant_fp_" + Math.round(t));
+        b.look(0, 40).plant(14, 30).wait(3).screenshot("plant_fp_down");
+        b.plant(-1, 30).playerView();
     }
 
     private static void voidfang(ScreenshotDirector.Builder b) {

@@ -653,6 +653,80 @@ def judgement_ray(ic):
     ic.d.ellipse([ic.p(4, 26), ic.p(14, 38)], fill=(255, 217, 120, 255))
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# MONOLITH — quarried stone / limestone / molten amber ground energy
+# ---------------------------------------------------------------------------------------------------------------------
+M = (0xE0B070, 0x1E1812, 0xFFF0D8)
+AMBER = (255, 166, 64, 255)
+
+
+def greatsword_down(ic, d, c, cx, top, length, w=7):
+    """A colossal blade standing point-down: pommel, guard, blade ending at top + length."""
+    d.rectangle([ic.p(cx - 2, top), ic.p(cx + 2, top + 8)], fill=c)
+    d.ellipse([ic.p(cx - 4, top - 4), ic.p(cx + 4, top + 3)], fill=c)
+    d.rectangle([ic.p(cx - 13, top + 8), ic.p(cx + 13, top + 12)], fill=c)
+    d.polygon(ic.pts([(cx - w, top + 12), (cx + w, top + 12), (cx + w, top + length - 6), (cx, top + length), (cx - w, top + length - 6)]), fill=c)
+
+
+def crack(ic, d, c, pts, w=3):
+    d.line([ic.p(x, y) for x, y in pts], fill=c, width=int(w * 4), joint='curve')
+
+
+@icon('monolith', 'earthshatter', *M)
+def earthshatter(ic):
+    def f(d, c):
+        greatsword_down(ic, d, c, 32, 6, 44)
+        d.rectangle([ic.p(4, 46), ic.p(60, 49)], fill=c)
+    ic.shape(f)
+    for pts in (((32, 50), (24, 54), (16, 52), (8, 58)), ((32, 50), (40, 55), (50, 53), (58, 59)), ((32, 50), (30, 58), (34, 62))):
+        crack(ic, ic.d, AMBER, pts, 2)
+
+
+@icon('monolith', 'seismic_fissure', *M)
+def seismic_fissure(ic):
+    def f(d, c):
+        for x, h in ((14, 12), (26, 18), (38, 24), (50, 30)):
+            d.polygon(ic.pts([(x - 5, 52), (x - 1, 52 - h), (x + 2, 52 - h + 4), (x + 5, 52)]), fill=c)
+        d.rectangle([ic.p(4, 52), ic.p(60, 55)], fill=c)
+    ic.shape(f)
+    crack(ic, ic.d, AMBER, ((6, 58), (18, 56), (28, 59), (40, 56), (52, 59), (60, 57)), 3)
+
+
+@icon('monolith', 'mountains_weight', *M)
+def mountains_weight(ic):
+    def f(d, c):
+        d.polygon(ic.pts([(6, 50), (24, 16), (32, 28), (40, 18), (58, 50)]), fill=c)
+    ic.shape(f)
+    ic.d.polygon(ic.pts([(24, 16), (29, 25), (20, 25)]), fill=(255, 250, 240, 255))
+    for r in (10, 18, 26):
+        ic.d.arc([ic.p(32 - r, 52 - r * 0.3), ic.p(32 + r, 52 + r * 0.3)], 0, 180, fill=AMBER, width=2 * 4)
+
+
+@icon('monolith', 'tectonic_slam', *M)
+def tectonic_slam(ic):
+    def f(d, c):
+        greatsword_down(ic, d, c, 32, 2, 36, w=6)
+        for x, h in ((10, 14), (20, 20), (44, 20), (54, 14)):
+            d.polygon(ic.pts([(x - 5, 58), (x, 58 - h), (x + 5, 58)]), fill=c)
+    ic.shape(f)
+    ic.d.arc([ic.p(4, 40), ic.p(60, 64)], 180, 360, fill=AMBER, width=3 * 4)
+
+
+@icon('monolith', 'worldbreaker', *M)
+def worldbreaker(ic):
+    def f(d, c):
+        greatsword_down(ic, d, c, 32, 4, 34, w=6)
+    ic.shape(f)
+    for k in range(8):
+        a = k * math.pi / 4 + 0.2
+        pts = [(32, 40)]
+        for j in range(1, 4):
+            r = j * 8
+            pts.append((32 + math.cos(a + (0.15 if j % 2 else -0.15)) * r, 40 + math.sin(a + (0.15 if j % 2 else -0.15)) * r * 0.55))
+        crack(ic, ic.d, AMBER, pts, 2)
+    ic.d.ellipse([ic.p(26, 36), ic.p(38, 44)], fill=(255, 231, 184, 255))
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):

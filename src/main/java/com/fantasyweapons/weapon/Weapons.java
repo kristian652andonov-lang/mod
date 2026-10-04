@@ -6,6 +6,7 @@ import com.fantasyweapons.weapons.doomcleaver.Doomcleaver;
 import com.fantasyweapons.weapons.eclipse.EclipseReaper;
 import com.fantasyweapons.weapons.frostrend.Frostrend;
 import com.fantasyweapons.weapons.gravebite.Gravebite;
+import com.fantasyweapons.weapons.monolith.Monolith;
 import com.fantasyweapons.weapons.solaris.Solaris;
 import com.fantasyweapons.weapons.soulreaper.Soulreaper;
 import com.fantasyweapons.weapons.starforge.Starforge;
@@ -39,7 +40,7 @@ public final class Weapons {
         add(EclipseReaper.create());
         add(Starforge.create());
         add(Aetherlance.create());
-        add(basic("monolith", "Monolith", "The Mountain's Edge", Element.EARTH, Rarity.ANCIENT, WeaponClass.COLOSSAL, 320, 2.5f));
+        add(Monolith.create());
         add(WeaponDefinition.builder("infernochain")
                 .name("Infernochain", "The Drake's Burning Coil")
                 .element(Element.FIRE).rarity(Rarity.MYTHIC).type(WeaponClass.CHAINBLADE).damage(110, 2.2f)

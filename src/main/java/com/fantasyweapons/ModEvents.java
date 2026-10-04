@@ -79,6 +79,7 @@ public final class ModEvents {
             com.fantasyweapons.weapons.gravebite.GravebiteAbilities.forget(player.getUUID());
             com.fantasyweapons.weapons.eclipse.EclipseReaperAbilities.forget(player.getUUID());
             com.fantasyweapons.weapons.aetherlance.AetherlanceAbilities.forget(player.getUUID());
+            com.fantasyweapons.weapons.monolith.MonolithAbilities.forget(player.getUUID());
         }
     }
 

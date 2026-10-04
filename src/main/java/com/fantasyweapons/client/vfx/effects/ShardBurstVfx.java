@@ -23,6 +23,7 @@ public class ShardBurstVfx extends Vfx {
     private float drag = 0.9f;
     private boolean stretch = true;
     private boolean energy;
+    private boolean translucent;
     private Vec3 attractor;
     private float attractStrength;
 
@@ -86,6 +87,12 @@ public class ShardBurstVfx extends Vfx {
         return this;
     }
 
+    /** Alpha-blended instead of additive (dust, smoke, rubble that must not glow). */
+    public ShardBurstVfx translucent() {
+        this.translucent = true;
+        return this;
+    }
+
     /** Pull fragments towards a point (implosions, charge gathering). */
     public ShardBurstVfx attract(Vec3 point, float strength) {
         this.attractor = point;
@@ -121,7 +128,7 @@ public class ShardBurstVfx extends Vfx {
     @Override
     public void render(VfxContext ctx) {
         float t = progress(ctx.partial);
-        var vc = energy ? ctx.energy(texture) : ctx.additive(texture);
+        var vc = translucent ? ctx.translucent(texture) : energy ? ctx.energy(texture) : ctx.additive(texture);
         float p = ctx.partial;
         int n = Math.max(1, Math.round(count * Math.min(1f, ctx.density)));
         for (int i = 0; i < n; i++) {

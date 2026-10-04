@@ -164,6 +164,7 @@ public final class StatusService {
             if (frost != null) slow = Math.max(slow, frost.potency * frost.stacks);
             StatusEffects.Instance poison = effects.get(StatusType.NATURE_POISON);
             if (poison != null) slow = Math.max(slow, 0.25);
+            if (effects.has(StatusType.STAGGERED)) slow = Math.max(slow, 0.5);
         }
         setModifier(entity, Attributes.MOVEMENT_SPEED, SLOW_ID, slow > 0 ? -Math.min(1.0, slow) : 0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 

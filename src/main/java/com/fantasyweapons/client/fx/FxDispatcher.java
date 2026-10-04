@@ -45,5 +45,6 @@ public final class FxDispatcher {
         EclipseFx.register();
         StarforgeFx.register();
         AetherlanceFx.register();
+        MonolithFx.register();
     }
 }

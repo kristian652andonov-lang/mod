@@ -19,7 +19,8 @@ public enum StatusType {
     ECLIPSE_DARKNESS("Eclipse Darkness", 0x8B3DFF, true, 3),
     GRAVITY_BOUND("Gravity Bound", 0x8A6CFF, true, 1),
     INFERNO_OVERHEAT("Inferno Overheat", 0xFF5A1F, false, 5),
-    ROOTED("Rooted", 0x4CAF50, true, 1);
+    ROOTED("Rooted", 0x4CAF50, true, 1),
+    STAGGERED("Staggered", 0xB08A5A, true, 1);
 
     private final String displayName;
     private final int color;

@@ -152,6 +152,14 @@ public final class WeaponPoses {
         };
     }
 
+    /**
+     * The blade driven point-first into the ground in front of the wielder: both hands on the grip at chest height,
+     * body leaning over it, blade vertical.
+     */
+    static Pose plant() {
+        return p(-1.3f, -0.3f, 0.05f, -1.4f, 0.5f, 0f, 0f, 0.3f).grip(-1.45f, 0);
+    }
+
     static Pose form() {
         return p(-1.95f, -0.3f, 0f, -1.85f, 0.5f, 0f, 0f, -0.05f).grip(0.5f, 0);
     }
@@ -190,6 +198,17 @@ public final class WeaponPoses {
 
         float cast = AnimTracker.castProgress(e, partial);
         if (cast >= 0) pose = pose.lerp(cast(cls).addPitch(headPitch * 0.6f), bumpSmooth(cast, 0.18f));
+
+        float[] plant = AnimTracker.plantPhase(e, partial);
+        if (plant != null) {
+            // from overhead, accelerating down into the ground, then a shudder as it bites
+            Pose overhead = charge(cls, stance);
+            Pose planted = plant();
+            float sh = plant[2] * 0.06f;
+            planted = new Pose(planted.rx() + sh, planted.ry(), planted.rz(), planted.lx() + sh, planted.ly(), planted.lz(), planted.by(),
+                    planted.bx() + sh, planted.gx(), planted.gz());
+            pose = pose.lerp(overhead.lerp(planted, plant[1]), plant[0]);
+        }
 
         float swing = AnimTracker.swingProgress(e, partial);
         if (swing >= 0) {

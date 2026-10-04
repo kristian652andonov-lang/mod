@@ -190,6 +190,11 @@ public final class ScreenshotDirector {
         }
 
         /** Forces the weapon grip angles (radians); null releases. */
+        /** Pins the player's plant timeline (Monolith) at {@code elapsed} ticks of a {@code total}-tick plant; -1 releases. */
+        public Builder plant(float elapsed, int total) {
+            return run(mc -> com.fantasyweapons.client.anim.AnimTracker.debugPlant(mc.player, elapsed, total));
+        }
+
         public Builder grip(float[] gxz) {
             return run(mc -> com.fantasyweapons.client.anim.WeaponPoses.debugGrip = gxz);
         }

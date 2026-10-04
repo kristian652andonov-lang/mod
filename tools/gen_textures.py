@@ -454,7 +454,7 @@ def voidfang_icons():
 STATUS = {
     'void_mark': 0x9B4DFF, 'solar_burn': 0xFFB627, 'frostbite': 0x8FE3FF, 'frozen': 0xDDF8FF, 'berserker': 0xE0213A,
     'soul_drain': 0x5A8CFF, 'nature_poison': 0x6BE36F, 'eclipse_light': 0xFFE7A0, 'eclipse_darkness': 0x8B3DFF,
-    'gravity_bound': 0x8A6CFF, 'inferno_overheat': 0xFF5A1F, 'rooted': 0x4CAF50,
+    'gravity_bound': 0x8A6CFF, 'inferno_overheat': 0xFF5A1F, 'rooted': 0x4CAF50, 'staggered': 0xB08A5A,
 }
 
 
@@ -489,6 +489,10 @@ def status_icons():
             elif name == 'eclipse_darkness':
                 d.ellipse([ic.p(18, 18), ic.p(46, 46)], fill=c)
                 d.ellipse([ic.p(24, 14), ic.p(52, 42)], fill=(10, 10, 18, 255))
+            elif name == 'staggered':
+                # a boulder cracked in two
+                d.polygon(ic.pts([(14, 40), (20, 22), (34, 14), (48, 20), (52, 38), (40, 50), (22, 50)]), fill=c)
+                d.line([ic.p(32, 14), ic.p(28, 26), ic.p(36, 34), ic.p(30, 50)], fill=(10, 10, 18, 255), width=3 * SS)
             elif name == 'gravity_bound':
                 for rr in (18, 11, 4):
                     d.ellipse([ic.p(32 - rr, 32 - rr), ic.p(32 + rr, 32 + rr)], outline=c, width=3 * SS)

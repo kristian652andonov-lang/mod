@@ -27,10 +27,13 @@ public final class AnimTracker {
         boolean heavy;
         double castStart = -1;
         double formStart = -1;
+        double plantStart = -1;
+        int plantTicks;
+        int plantDrive = 4;
         boolean wasCharging;
         float lastCharge;
         // development screenshot pins (see debugPin)
-        float pinSwing = -1, pinCast = -1, pinForm = -1, pinCharge = -1;
+        float pinSwing = -1, pinCast = -1, pinForm = -1, pinCharge = -1, pinPlant = -1;
     }
 
     private static final Map<Integer, State> STATES = new HashMap<>();
@@ -80,6 +83,20 @@ public final class AnimTracker {
         s.formStart = now(0);
     }
 
+    /**
+     * The weapon is driven into the ground for {@code ticks} (Monolith): {@code drive} ticks to bring it down, held
+     * planted, then pulled free during the last ticks.
+     */
+    public static void onPlant(int entityId, int ticks, int drive) {
+        var level = Minecraft.getInstance().level;
+        if (level == null || !(level.getEntity(entityId) instanceof LivingEntity le)) return;
+        State s = state(le);
+        s.plantStart = now(0);
+        s.plantTicks = Math.max(drive + 2, ticks);
+        s.plantDrive = Math.max(1, drive);
+        s.castStart = -1; // the plant replaces the generic release pose
+    }
+
     /** Detects charge → release transitions for every visible player (works for remote players too). */
     public static void tick() {
         var level = Minecraft.getInstance().level;
@@ -116,7 +133,52 @@ public final class AnimTracker {
         s.pinForm = form;
     }
 
+    /** DEVELOPMENT ONLY: pins the plant timeline at {@code elapsed} ticks of a {@code total}-tick plant (-1 releases). */
+    public static void debugPlant(LivingEntity e, float elapsed, int total) {
+        State s = state(e);
+        s.pinPlant = elapsed;
+        s.plantTicks = total;
+        s.plantDrive = 4;
+    }
+
     // ---- queries ----
+
+    /** Ticks since the weapon started being driven into the ground, or -1 when not planted. */
+    public static float plantElapsed(LivingEntity e, float partial) {
+        State s = STATES.get(e.getId());
+        if (s != null && s.pinPlant >= 0) return s.pinPlant;
+        if (s == null || s.plantStart < 0) return -1;
+        double t = now(partial) - s.plantStart;
+        return t >= s.plantTicks ? -1 : (float) Math.max(0, t);
+    }
+
+    public static int plantTicks(LivingEntity e) {
+        State s = STATES.get(e.getId());
+        return s == null ? 0 : s.plantTicks;
+    }
+
+    public static int plantDrive(LivingEntity e) {
+        State s = STATES.get(e.getId());
+        return s == null ? 4 : s.plantDrive;
+    }
+
+    /**
+     * Weight of the planted pose (0..1) and the drive progress, shared by third and first person: returns
+     * {weight, drive (0..1, eased in), impact shudder (decaying)} or null when not planted.
+     */
+    public static float[] plantPhase(LivingEntity e, float partial) {
+        float el = plantElapsed(e, partial);
+        if (el < 0) return null;
+        int total = plantTicks(e), drive = plantDrive(e);
+        int out = Math.min(8, Math.max(3, total / 4));
+        float d = Math.min(1, el / drive);
+        float driveK = d * d;
+        float weight = el > total - out ? Math.max(0, (total - el) / out) : 1;
+        weight = weight * weight * (3 - 2 * weight);
+        float since = el - drive;
+        float shudder = since < 0 ? 0 : (float) (Math.sin(since * 2.6) * Math.exp(-since * 0.35));
+        return new float[]{weight, driveK, shudder};
+    }
 
     /** Swing progress 0..1, or -1 when not swinging. */
     public static float swingProgress(LivingEntity e, float partial) {

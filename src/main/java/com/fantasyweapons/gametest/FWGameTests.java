@@ -4,6 +4,7 @@ import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.ability.AbilityDefinition;
 import com.fantasyweapons.ability.AbilityRuntime;
 import com.fantasyweapons.ability.AbilityService;
+import com.fantasyweapons.api.GroundSplitAbility;
 import com.fantasyweapons.config.ServerConfig;
 import com.fantasyweapons.progression.ExpService;
 import com.fantasyweapons.progression.ProgressionMath;
@@ -13,6 +14,7 @@ import com.fantasyweapons.registry.ModItems;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
 import com.fantasyweapons.weapon.WeaponDefinition;
 import com.fantasyweapons.weapon.Weapons;
+import com.fantasyweapons.weapons.monolith.Monolith;
 import com.fantasyweapons.weapons.voidfang.Voidfang;
 import com.fantasyweapons.world.DeathDissolve;
 import com.mojang.authlib.GameProfile;
@@ -273,6 +275,41 @@ public final class FWGameTests {
             h.assertTrue(p.getZ() > startZ + 2, "player should have blinked forward (moved " + (p.getZ() - startZ) + ")");
             h.assertTrue(p.getZ() + p.getBbWidth() / 2 <= wallZ + 1e-3, "player must stop before the wall, ended at z=" + p.getZ());
             h.assertFalse(h.getLevel().getBlockState(p.blockPosition()).isSolidRender(h.getLevel(), p.blockPosition()), "player inside a block");
+            cleanup(p);
+            h.succeed();
+        });
+    }
+
+    @GameTest(template = ARENA, timeoutTicks = 100)
+    public static void monolithReportsGroundSplitsWithoutTouchingTerrain(GameTestHelper h) {
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 6.5), 0);
+        ItemStack stack = giveWeapon(p, "monolith");
+        ExpService.setLevel(p, stack, 5);
+        java.util.List<GroundSplitAbility.Context> splits = new java.util.concurrent.CopyOnWriteArrayList<>();
+        GroundSplitAbility.setHandler(c -> {
+            if (c.player() == p) splits.add(c);
+        });
+        // snapshot the terrain around the impact
+        java.util.Map<BlockPos, net.minecraft.world.level.block.state.BlockState> before = new java.util.HashMap<>();
+        for (BlockPos bp : BlockPos.betweenClosed(new BlockPos(2, 0, 0), new BlockPos(22, 3, 18))) before.put(bp.immutable(), h.getBlockState(bp));
+
+        AbilityService.handleAbilityKey(p, true);
+        int charge = AbilityService.runtime(p).chargeTicks();
+        h.runAfterDelay(charge + 1, () -> AbilityService.handleAbilityKey(p, false));
+        h.runAfterDelay(charge + 3, () -> {
+            var speed = p.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+            h.assertTrue(speed != null && speed.getValue() < speed.getBaseValue() * 0.5, "wielder should be anchored while the blade is planted");
+        });
+        h.runAfterDelay(charge + 45, () -> {
+            GroundSplitAbility.setHandler(GroundSplitAbility.NONE);
+            h.assertTrue(splits.size() == 7, "Earthshatter should report its 7 cracks, got " + splits.size());
+            for (GroundSplitAbility.Context c : splits) {
+                h.assertTrue(Monolith.EARTHSHATTER.equals(c.abilityId()) && c.abilityLevel() >= 1, "wrong ability in " + c);
+                h.assertTrue(c.length() > 1 && Math.abs(c.direction().y) < 1e-6 && Math.abs(c.direction().length() - 1) < 1e-6, "bad crack " + c);
+            }
+            before.forEach((bp, state) -> h.assertTrue(h.getBlockState(bp) == state, "terrain changed at " + bp));
+            var speed = p.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+            h.assertTrue(speed != null && Math.abs(speed.getValue() - speed.getBaseValue()) < 1e-6, "anchor should be released");
             cleanup(p);
             h.succeed();
         });

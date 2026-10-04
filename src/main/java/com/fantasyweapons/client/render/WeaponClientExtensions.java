@@ -58,6 +58,17 @@ public class WeaponClientExtensions implements IClientItemExtensions {
             pose.translate(side * -0.15f * k, 0.05f * k, -0.4f * k);
             pose.mulPose(Axis.XP.rotationDegrees(-25 * k));
         }
+        // Monolith plant: from overhead, driven point-first into the ground ahead, then pulled free
+        float[] plant = AnimTracker.plantPhase(player, partialTick);
+        if (plant != null) {
+            float w = plant[0], d = plant[1], raise = 1 - plant[1];
+            float sh = plant[2] * 0.03f;
+            float[] k = debugPlantFp != null ? debugPlantFp : PLANT_FP;
+            pose.translate(side * k[0] * w, (0.3f * raise + k[1] * d + sh) * w, (-0.05f * raise + k[2] * d) * w);
+            // roll the diagonal blade upright first (inner), then pitch it forward and down (outer)
+            pose.mulPose(Axis.XP.rotationDegrees((20 * raise + k[3] * d) * w));
+            pose.mulPose(Axis.ZP.rotationDegrees(side * (8 * raise + k[4] * d) * w));
+        }
         // form switch: raise the weapon in front of you
         float form = AnimTracker.formProgress(player, partialTick);
         if (form >= 0) {
@@ -118,6 +129,11 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         }
         return true;
     }
+
+    /** First-person planted offset: x (towards centre), y, z, pitch, roll. */
+    private static final float[] PLANT_FP = {-0.5f, 0.3f, -0.75f, -145f, -36f};
+    /** DEVELOPMENT ONLY (screenshot director): overrides {@link #PLANT_FP}. */
+    public static float[] debugPlantFp;
 
     private static float smooth(float t) {
         t = Math.max(0, Math.min(1, t));

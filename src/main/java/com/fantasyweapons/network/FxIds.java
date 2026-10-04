@@ -116,4 +116,14 @@ public final class FxIds {
     public static final ResourceLocation AETHERLANCE_BOLT_END = FantasyWeapons.id("aetherlance/bolt_end");
     public static final ResourceLocation AETHERLANCE_CHARGE = FantasyWeapons.id("aetherlance/charge");
     public static final ResourceLocation AETHERLANCE_RAY = FantasyWeapons.id("aetherlance/ray");
+
+    // Monolith
+    public static final ResourceLocation MONOLITH_PLANT = FantasyWeapons.id("monolith/plant");
+    public static final ResourceLocation MONOLITH_SHATTER = FantasyWeapons.id("monolith/shatter");
+    public static final ResourceLocation MONOLITH_FISSURE = FantasyWeapons.id("monolith/fissure");
+    public static final ResourceLocation MONOLITH_AFTERSHOCK = FantasyWeapons.id("monolith/aftershock");
+    public static final ResourceLocation MONOLITH_LEAP = FantasyWeapons.id("monolith/leap");
+    public static final ResourceLocation MONOLITH_SLAM = FantasyWeapons.id("monolith/slam");
+    public static final ResourceLocation MONOLITH_WORLDBREAKER = FantasyWeapons.id("monolith/worldbreaker");
+    public static final ResourceLocation MONOLITH_ERUPTION = FantasyWeapons.id("monolith/eruption");
 }
