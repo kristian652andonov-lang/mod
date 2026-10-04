@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.weapons.doomcleaver.Doomcleaver;
 import com.fantasyweapons.weapons.frostrend.Frostrend;
 import com.fantasyweapons.weapons.solaris.Solaris;
 import com.fantasyweapons.weapons.voidfang.Voidfang;
@@ -23,7 +24,7 @@ public final class Weapons {
         add(Voidfang.create());
         add(Solaris.create());
         add(Frostrend.create());
-        add(basic("doomcleaver", "Doomcleaver", "Axe of the Crimson Hunger", Element.BLOOD, Rarity.MYTHIC, WeaponClass.BATTLEAXE, 170, 2.2f));
+        add(Doomcleaver.create());
         add(basic("stormbreaker", "Stormbreaker", "Twin-Headed Tempest", Element.LIGHTNING, Rarity.LEGENDARY, WeaponClass.BATTLEAXE, 150, 2.2f));
         add(basic("gravebite", "Gravebite", "The Cursed Maw", Element.NECROMANCY, Rarity.MYTHIC, WeaponClass.BATTLEAXE, 150, 2.2f));
         add(basic("soulreaper", "Soulreaper", "Harvester of Souls", Element.SOUL, Rarity.MYTHIC, WeaponClass.SCYTHE, 120, 2.2f));

@@ -26,8 +26,8 @@ public final class Blast {
      */
     public static void explode(Vec3 ground, float radius, Palette pal, long seed, int power, ResourceLocation embers) {
         Vec3 c = ground.add(0, Math.min(1.2, radius * 0.25), 0);
-        VfxManager.add(new SphereVfx(c, radius * 0.1f, radius * 0.85f, Colors.argb(150, pal.main()), 10 + power * 3, SphereVfx.Mode.GROW));
-        VfxManager.add(new SphereVfx(c, radius * 0.05f, radius * 0.4f, Colors.argb(190, pal.core()), 7 + power * 2, SphereVfx.Mode.GROW));
+        VfxManager.add(new SphereVfx(c, radius * 0.1f, radius * 0.85f, Colors.argb(120, pal.main()), 10 + power * 3, SphereVfx.Mode.GROW));
+        VfxManager.add(new SphereVfx(c, radius * 0.05f, radius * 0.4f, Colors.argb(160, pal.core()), 7 + power * 2, SphereVfx.Mode.GROW));
         VfxManager.add(new FlashVfx(c, radius * 0.5f, radius * 1.6f, Colors.argb(170, pal.main()), 10 + power * 2).energy());
         VfxManager.add(new FlashVfx(c, radius * 0.3f, radius * 1.1f, Colors.argb(255, pal.core()), 6, VfxTextures.FLASH));
         VfxManager.add(new ShockwaveVfx(ground.add(0, 0.06, 0), new Vec3(0, 1, 0), 0.3f, radius * 1.35f, 0.5f + 0.15f * power,

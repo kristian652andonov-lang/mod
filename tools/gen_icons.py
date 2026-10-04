@@ -155,6 +155,70 @@ def absolute_zero(ic):
     ic.d.ellipse([ic.p(27, 27), ic.p(37, 37)], fill=(255, 255, 255, 255))
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# DOOMCLEAVER — blood red
+# ---------------------------------------------------------------------------------------------------------------------
+D = (0xE0213A, 0x1C0006, 0xFFD6DC)
+
+
+def axe(ic, d, c, cx, cy, s=1.0, rot=0.0):
+    def R(x, y):
+        x, y = x * s, y * s
+        return (cx + x * math.cos(rot) - y * math.sin(rot), cy + x * math.sin(rot) + y * math.cos(rot))
+    d.line([ic.p(*R(0, -22)), ic.p(*R(0, 24))], fill=c, width=int(5 * 4 * s))
+    d.polygon(ic.pts([R(2, -20), R(20, -26), R(24, -8), R(18, 6), R(2, -2)]), fill=c)
+
+
+@icon('doomcleaver', 'crimson_cleave', *D)
+def crimson_cleave(ic):
+    ic.shape(lambda d, c: axe(ic, d, c, 26, 30, 0.9, -0.5))
+    def f(d, c):
+        for x, h in ((34, 10), (42, 16), (50, 12)):
+            d.polygon(ic.pts([(x - 3, 58), (x, 58 - h), (x + 3, 58)]), fill=c)
+    ic.shape(f)
+
+
+@icon('doomcleaver', 'blood_rage', *D)
+def blood_rage(ic):
+    def f(d, c):
+        d.polygon(ic.pts([(32, 6), (40, 22), (52, 14), (46, 32), (58, 38), (42, 44), (44, 58), (32, 48), (20, 58), (22, 44), (6, 38),
+                          (18, 32), (12, 14), (24, 22)]), fill=c)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(24, 26), ic.p(40, 42)], fill=(120, 0, 16, 255))
+    ic.d.polygon(ic.pts([(26, 30), (31, 33), (26, 35)]), fill=(255, 220, 220, 255))
+    ic.d.polygon(ic.pts([(38, 30), (33, 33), (38, 35)]), fill=(255, 220, 220, 255))
+
+
+@icon('doomcleaver', 'bloodthirst', *D)
+def bloodthirst(ic):
+    def f(d, c):
+        d.polygon(ic.pts([(32, 8), (46, 30), (48, 42), (40, 54), (24, 54), (16, 42), (18, 30)]), fill=c)
+    ic.shape(f)
+    ic.d.polygon(ic.pts([(32, 22), (40, 36), (36, 48), (28, 48), (24, 36)]), fill=(150, 0, 20, 255))
+    ic.d.ellipse([ic.p(26, 30), ic.p(32, 38)], fill=(255, 255, 255, 180))
+
+
+@icon('doomcleaver', 'sanguine_leap', *D)
+def sanguine_leap(ic):
+    def f(d, c):
+        d.arc([ic.p(6, 12), ic.p(58, 70)], 200, 320, fill=c, width=4 * 4)
+        axe(ic, d, c, 46, 30, 0.6, 0.6)
+        for k in range(5):
+            a = math.pi + k * math.pi / 4
+            d.line([ic.p(32 + math.cos(a) * 6, 56), ic.p(32 + math.cos(a) * 16, 56 + math.sin(a) * 10)], fill=c, width=3 * 4)
+    ic.shape(f)
+
+
+@icon('doomcleaver', 'crimson_apocalypse', *D)
+def crimson_apocalypse(ic):
+    def f(d, c):
+        d.ellipse([ic.p(18, 6), ic.p(46, 34)], fill=c)
+        for x in (10, 22, 42, 54):
+            d.line([ic.p(32, 30), ic.p(x, 58)], fill=c, width=3 * 4)
+    ic.shape(f)
+    ic.d.ellipse([ic.p(22, 10), ic.p(42, 30)], fill=(150, 0, 20, 255))
+
+
 def build(weapons):
     for weapon in weapons:
         for name, primary, dark, light, fn in ICONS.get(weapon, []):

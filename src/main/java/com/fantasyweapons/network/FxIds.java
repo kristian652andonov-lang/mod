@@ -45,4 +45,14 @@ public final class FxIds {
     public static final ResourceLocation FROSTREND_ABSOLUTE_ZERO = FantasyWeapons.id("frostrend/absolute_zero");
     public static final ResourceLocation FROSTREND_SHATTER = FantasyWeapons.id("frostrend/shatter");
     public static final ResourceLocation FROSTREND_ABSOLUTE_ZERO_END = FantasyWeapons.id("frostrend/absolute_zero_end");
+
+    // ---- doomcleaver ----
+    public static final ResourceLocation DOOMCLEAVER_CLEAVE = FantasyWeapons.id("doomcleaver/cleave");
+    public static final ResourceLocation DOOMCLEAVER_RAGE = FantasyWeapons.id("doomcleaver/rage");
+    public static final ResourceLocation DOOMCLEAVER_FEED = FantasyWeapons.id("doomcleaver/feed");
+    public static final ResourceLocation DOOMCLEAVER_LEAP = FantasyWeapons.id("doomcleaver/leap");
+    public static final ResourceLocation DOOMCLEAVER_LEAP_LAND = FantasyWeapons.id("doomcleaver/leap_land");
+    public static final ResourceLocation DOOMCLEAVER_APOCALYPSE = FantasyWeapons.id("doomcleaver/apocalypse");
+    public static final ResourceLocation DOOMCLEAVER_DRAIN = FantasyWeapons.id("doomcleaver/drain");
+    public static final ResourceLocation DOOMCLEAVER_APOCALYPSE_END = FantasyWeapons.id("doomcleaver/apocalypse_end");
 }

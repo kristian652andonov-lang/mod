@@ -72,6 +72,15 @@ public class FieldEffect extends AreaEffect {
         this.radius = r;
     }
 
+    /** Ends the field at the end of this tick (its end handler still runs). */
+    public void finish() {
+        this.finished = true;
+    }
+
+    public Vec3 center() {
+        return pos;
+    }
+
     public int age() {
         return age;
     }
