@@ -244,6 +244,25 @@ public class ThrownWeaponEntity extends Entity {
         discard();
     }
 
+    /**
+     * However the entity goes away — caught, /kill, chunk unload, dimension change — the weapon must never stay
+     * "in flight", or its abilities and form switch would be locked forever.
+     */
+    @Override
+    public void remove(RemovalReason reason) {
+        if (!level().isClientSide && ownerUuid != null && level() instanceof ServerLevel sl) {
+            ServerPlayer owner = sl.getServer().getPlayerList().getPlayer(ownerUuid);
+            if (owner != null) {
+                AbilityRuntime rt = owner.getData(ModAttachments.ABILITY_RUNTIME);
+                if (rt.isThrown(weaponId)) {
+                    rt.setThrown(null);
+                    owner.syncData(ModAttachments.ABILITY_RUNTIME);
+                }
+            }
+        }
+        super.remove(reason);
+    }
+
     /** Element of the hits (for helpers that need it). */
     public Element element() {
         return Element.SOUL;

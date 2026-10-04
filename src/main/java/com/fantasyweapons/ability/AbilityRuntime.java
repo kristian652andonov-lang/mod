@@ -192,7 +192,11 @@ public final class AbilityRuntime {
 
     public void setThrown(UUID weapon) {
         this.thrownWeapon = weapon == null ? NIL : weapon;
+        this.thrownSince = -1;
     }
+
+    /** Server only: game time the throw was first seen by the watchdog (-1 = not yet). */
+    public long thrownSince = -1;
 
     /** Copy of the raw cooldown map for the client mirror. */
     public Map<String, Cooldown> cooldowns() {

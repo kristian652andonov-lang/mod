@@ -55,6 +55,9 @@ public final class ClientState {
     public static void predictCharge(WeaponDefinition def, WeaponData data) {
         AbilityDefinition a = AbilityService.selected(def, data);
         if (a == null) return;
+        // mirror the server's refusals so nothing looks like it is charging when it can't be cast
+        AbilityRuntime rt = runtime(player());
+        if (rt != null && (rt.cooldownRemaining(data.idOrNil(), a.id(), now()) > 0 || rt.isThrown(data.idOrNil()))) return;
         int ticks = ProgressionMath.chargeTicks(a, ProgressionMath.mastery(def, data));
         if (ticks <= 0) return;
         predictedChargeStart = now();

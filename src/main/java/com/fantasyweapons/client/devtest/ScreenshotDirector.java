@@ -40,6 +40,10 @@ public final class ScreenshotDirector {
         String script = System.getProperty("fantasyweapons.devtest");
         if (script == null || script.isBlank()) return;
         FantasyWeapons.LOGGER.warn("Fantasy Weapons dev test director active: {}", script);
+        if (script.equals("inputs")) {
+            InputSelfTest.start();
+            return;
+        }
         DevScripts.build(script, new Builder());
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> tick());
     }

@@ -1,6 +1,7 @@
 package com.fantasyweapons.client.hud;
 
 import com.fantasyweapons.ability.AbilityDefinition;
+import com.fantasyweapons.client.ClientState;
 import com.fantasyweapons.client.vfx.Colors;
 import com.fantasyweapons.client.vfx.VfxTextures;
 import com.fantasyweapons.config.ClientConfig;
@@ -79,10 +80,16 @@ public final class Notifications {
             case DENIED -> {
                 deniedText = p.message();
                 deniedAt = Util.getMillis();
+                ClientState.clearPrediction(); // the server refused: drop any predicted charge at once
             }
             case POINTS -> {
             }
         }
+    }
+
+    /** The most recent refusal from the server (for diagnostics), or null. */
+    public static String lastDenied() {
+        return deniedText;
     }
 
     public static void clear() {

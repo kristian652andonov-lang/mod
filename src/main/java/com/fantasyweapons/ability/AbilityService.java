@@ -51,9 +51,11 @@ public final class AbilityService {
     // ------------------------------------------------------------------------------------------------------------
 
     public static void handleAbilityKey(ServerPlayer player, boolean pressed) {
-        if (!rateLimit(player)) return;
-        if (pressed) startCharge(player);
-        else release(player, false);
+        if (pressed) {
+            if (rateLimit(player)) startCharge(player);
+        } else {
+            release(player, false); // never drop a release: it only ever ends a charge
+        }
     }
 
     public static void handleCycle(ServerPlayer player, int direction) {
@@ -64,12 +66,15 @@ public final class AbilityService {
         if (rt.isCharging()) return;
         WeaponDefinition def = item.definition();
         WeaponData data = FantasyWeaponItem.data(stack);
-        List<AbilityDefinition> usable = def.castables().stream().filter(a -> data.isUnlocked(a) && formAllows(def, data, a)).toList();
+        // every unlocked ability is in the cycle; picking one that needs the other form transforms the weapon
+        boolean canSwitch = canSwitchForm(player, def, data);
+        List<AbilityDefinition> usable = def.castables().stream()
+                .filter(a -> data.isUnlocked(a) && (formAllows(def, data, a) || canSwitch)).toList();
         if (usable.isEmpty()) return;
         AbilityDefinition current = selected(def, data);
         int idx = current == null ? 0 : usable.indexOf(current);
         AbilityDefinition next = usable.get(Math.floorMod(idx + (direction >= 0 ? 1 : -1), usable.size()));
-        stack.set(ModComponents.WEAPON_DATA.get(), data.withSelected(next.id()));
+        choose(player, stack, def, next);
     }
 
     public static void handleSelect(ServerPlayer player, int slot, UUID weaponId, String abilityId) {
@@ -80,6 +85,26 @@ public final class AbilityService {
         WeaponData data = FantasyWeaponItem.data(stack);
         AbilityDefinition a = item.definition().ability(abilityId);
         if (a == null || !a.kind().castable() || !data.isUnlocked(a)) return;
+        if (stack == player.getMainHandItem() && !formAllows(item.definition(), data, a) && !runtime(player).isCharging()) {
+            choose(player, stack, item.definition(), a);
+            return;
+        }
+        stack.set(ModComponents.WEAPON_DATA.get(), data.withSelected(a.id()));
+    }
+
+    /** Selects an ability on the held weapon, transforming it first if the ability needs the other form. */
+    private static void choose(ServerPlayer player, ItemStack stack, WeaponDefinition def, AbilityDefinition a) {
+        WeaponData data = FantasyWeaponItem.data(stack);
+        if (!formAllows(def, data, a)) {
+            int target = -1;
+            for (int i = 0; i < def.forms().size(); i++) if (def.forms().get(i).id().equals(a.requiredForm())) target = i;
+            if (target < 0 || !canSwitchForm(player, def, data)) {
+                deny(player, def, a.name() + " needs " + (target < 0 ? "another" : def.forms().get(target).displayName()) + " form");
+                return;
+            }
+            switchForm(player, stack, def, target);
+            data = FantasyWeaponItem.data(stack);
+        }
         stack.set(ModComponents.WEAPON_DATA.get(), data.withSelected(a.id()));
     }
 
@@ -127,11 +152,20 @@ public final class AbilityService {
         WeaponDefinition def = item.definition();
         if (!def.hasForms()) return;
         WeaponData data = FantasyWeaponItem.data(stack);
+        if (!canSwitchForm(player, def, data)) return;
+        switchForm(player, stack, def, Math.floorMod(data.form() + 1, def.forms().size()));
+    }
+
+    private static boolean canSwitchForm(ServerPlayer player, WeaponDefinition def, WeaponData data) {
+        if (!def.hasForms()) return false;
+        AbilityRuntime rt = runtime(player);
+        return !rt.isCharging() && !rt.isThrown(data.idOrNil()) && rt.cooldownRemaining(data.idOrNil(), FORM_COOLDOWN, now(player)) <= 0;
+    }
+
+    private static void switchForm(ServerPlayer player, ItemStack stack, WeaponDefinition def, int next) {
+        WeaponData data = FantasyWeaponItem.data(stack);
         AbilityRuntime rt = runtime(player);
         long now = now(player);
-        if (rt.isCharging() || rt.isThrown(data.idOrNil())) return;
-        if (rt.cooldownRemaining(data.idOrNil(), FORM_COOLDOWN, now) > 0) return;
-        int next = Math.floorMod(data.form() + 1, def.forms().size());
         WeaponForm form = def.forms().get(next);
         WeaponData nd = data.withForm(next);
         AbilityDefinition sel = selected(def, nd);
@@ -276,6 +310,14 @@ public final class AbilityService {
         AbilityRuntime rt = player.getExistingDataOrNull(ModAttachments.ABILITY_RUNTIME);
         if (rt == null) return;
         long now = now(player);
+        // watchdog: a throw never lasts longer than the thrown entity's own 20 s limit
+        if (!rt.thrownWeapon().equals(AbilityRuntime.NIL)) {
+            if (rt.thrownSince < 0) rt.thrownSince = now;
+            else if (now - rt.thrownSince > 25 * 20) {
+                rt.setThrown(null);
+                player.syncData(ModAttachments.ABILITY_RUNTIME);
+            }
+        }
         if (rt.isCharging()) {
             ItemStack stack = player.getMainHandItem();
             if (!validCharge(player, rt, stack)) {
