@@ -9,17 +9,116 @@ from gen_textures import tileable_noise, coords, save_rgba
 
 
 def ice():
-    n = tileable_noise(64, octaves=4, seed=101)
-    u, v = coords(64, 64)
-    streak = 0.5 + 0.5 * np.sin((u * 3 + v * 9 + n * 2) * np.pi)
-    lum = np.clip(0.72 + 0.25 * streak + 0.15 * (n - 0.5), 0, 1)
-    alpha = np.clip(0.55 + 0.35 * n + 0.25 * (np.abs(u - 0.5) * 2) ** 4, 0, 1)
-    arr = np.zeros((64, 64, 4))
-    arr[..., 0] = lum * 235
-    arr[..., 1] = lum * 248
-    arr[..., 2] = 255
+    """
+    Ice crystal for spike meshes. v runs along the spike (top row = tip, bottom row = base), u across one facet.
+    Clear, cold body with a bright rim on the facet edges, a specular stripe, internal fracture planes, trapped air
+    bubbles and white rime where it breaks out of the ground.
+    """
+    from PIL import Image, ImageDraw, ImageFilter
+    import random
+    w, h = 128, 256
+    rng = random.Random(4242)
+    u, v = coords(w, h)
+    n = tileable_noise(256, octaves=5, seed=111)[:h, :w]
+    n2 = tileable_noise(256, octaves=3, seed=112, base=8)[:h, :w]
+    edge = np.abs(u - 0.5) * 2                                   # 0 centre of the facet .. 1 facet edge
+    rim = np.clip((edge - 0.78) / 0.22, 0, 1) ** 1.5             # bright crystal edges
+    spec = np.exp(-((u - 0.3 - 0.05 * (1 - v)) ** 2) / 0.0035) * (0.4 + 0.6 * (1 - v))
+    depth = 0.55 + 0.45 * (1 - v)                                # deep at the base, bright towards the tip
+    lum = depth * (0.82 + 0.12 * n) + 0.35 * rim + 0.45 * spec
+
+    # fracture planes: thin bright lines with a soft glow, more of them near the base
+    cr = Image.new('L', (w * 4, h * 4), 0)
+    d = ImageDraw.Draw(cr)
+    for _ in range(14):
+        y0 = h * 4 * (0.3 + 0.7 * rng.random() ** 0.6)
+        x0 = rng.uniform(0, w * 4)
+        ang = rng.uniform(-1.2, -0.3) if rng.random() < 0.5 else rng.uniform(0.3, 1.2)
+        length = rng.uniform(120, 320)
+        pts = [(x0, y0)]
+        for _k in range(4):
+            x0 += np.cos(ang) * length / 4
+            y0 -= abs(np.sin(ang)) * length / 4
+            ang += rng.uniform(-0.5, 0.5)
+            pts.append((x0, y0))
+        d.line(pts, fill=rng.randint(130, 255), width=rng.choice((2, 3, 4)))
+    cracks = np.asarray(cr.resize((w, h), Image.LANCZOS)) / 255.0
+    crack_glow = np.asarray(cr.filter(ImageFilter.GaussianBlur(10)).resize((w, h), Image.LANCZOS)) / 255.0
+    lum += 0.55 * cracks + 0.25 * crack_glow
+
+    # trapped air bubbles in the lower half
+    bub = Image.new('L', (w * 4, h * 4), 0)
+    d = ImageDraw.Draw(bub)
+    for _ in range(60):
+        x, y = rng.uniform(0, w * 4), h * 4 * (0.45 + 0.55 * rng.random())
+        r = rng.uniform(2, 7)
+        d.ellipse([x - r, y - r, x + r, y + r], outline=200, width=2)
+    bubbles = np.asarray(bub.resize((w, h), Image.LANCZOS)) / 255.0
+    lum += 0.3 * bubbles
+
+    # frosty rime at the base
+    rime = np.clip((v - 0.84) / 0.16, 0, 1) * (0.55 + 0.45 * (n2 > 0.48))
+    lum = lum * (1 - 0.6 * rime) + 1.15 * rime
+
+    alpha = np.clip(0.5 + 0.18 * (1 - v) + 0.4 * rim + 0.35 * cracks + 0.3 * spec + 0.5 * rime + 0.1 * (n - 0.5), 0, 1)
+    lum = np.clip(lum, 0, 1.15)
+    arr = np.zeros((h, w, 4))
+    arr[..., 0] = np.clip(lum * 205 + 40 * rim + 50 * rime, 0, 255)
+    arr[..., 1] = np.clip(lum * 238 + 20 * rim + 20 * rime, 0, 255)
+    arr[..., 2] = np.clip(lum * 255, 0, 255)
     arr[..., 3] = alpha * 255
     save_rgba('vfx/ice.png', arr)
+
+
+def snowflake():
+    """Six-fold dendritic snowflake (white alpha, tinted at runtime) with a soft glow, for frost decals and flakes."""
+    from PIL import Image, ImageDraw, ImageFilter
+    import math
+    from gen_textures import save_alpha, SS
+    size = 512 * SS
+    c = size / 2
+    R = size * 0.47
+    img = Image.new('L', (size, size), 0)
+    d = ImageDraw.Draw(img)
+
+    def seg(p0, p1, wdt):
+        d.line([p0, p1], fill=255, width=max(1, int(wdt)))
+        r = wdt / 2
+        for p in (p0, p1):
+            d.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=255)
+
+    def at(ang, dist, base=(c, c)):
+        return (base[0] + math.cos(ang) * dist, base[1] + math.sin(ang) * dist)
+
+    for k in range(6):
+        a = k * math.pi / 3 - math.pi / 2
+        seg((c, c), at(a, R), 9 * SS)
+        # side branches at 60 degrees, both sides, shrinking outwards, each with its own twigs
+        for t, ln in ((0.3, 0.2), (0.48, 0.27), (0.66, 0.22), (0.82, 0.13)):
+            base = at(a, R * t)
+            for side in (-1, 1):
+                ba = a + side * math.pi / 3
+                tip = at(ba, R * ln, base)
+                seg(base, tip, 6 * SS)
+                for tt, tl in ((0.45, 0.35), (0.75, 0.22)):
+                    tb = at(ba, R * ln * tt, base)
+                    seg(tb, at(a, R * ln * tl, tb), 3.5 * SS)
+                    seg(tb, at(ba + side * math.pi / 3, R * ln * tl * 0.8, tb), 3.5 * SS)
+        # small arrow-head plate at the tip
+        tip = at(a, R * 0.95)
+        for side in (-1, 1):
+            seg(tip, at(a + math.pi + side * 0.55, R * 0.07, tip), 4 * SS)
+    # hexagonal plate in the middle: outline and an inner star
+    hexo = [at(k * math.pi / 3 - math.pi / 2, R * 0.16) for k in range(6)]
+    d.line(hexo + [hexo[0]], fill=255, width=int(5 * SS))
+    hexi = [at(k * math.pi / 3, R * 0.08) for k in range(6)]
+    d.polygon(hexi, fill=210)
+
+    sharp = img.resize((512, 512), Image.LANCZOS)
+    glow = img.filter(ImageFilter.GaussianBlur(14 * SS)).resize((512, 512), Image.LANCZOS)
+    a = np.asarray(sharp) / 255.0
+    g = np.asarray(glow) / 255.0
+    save_alpha('vfx/snowflake.png', np.clip(a + g * 0.9, 0, 1))
 
 
 def rock():
@@ -91,6 +190,7 @@ def frost():
 if __name__ == '__main__':
     frost()
     ice()
+    snowflake()
     rock()
     bark()
     print('materials written')

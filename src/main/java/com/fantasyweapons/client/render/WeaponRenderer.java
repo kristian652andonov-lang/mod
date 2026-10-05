@@ -150,20 +150,19 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
             if (stack == null || stack.isEmpty()) return;
             WeaponData data = FantasyWeaponItem.data(stack);
             float charge = ClientState.chargeOf(data.idOrNil());
-            float intensity = charge * (charge >= 1f ? 1.0f + 0.35f * (float) Math.sin(Util.getMillis() / 90.0) : 0.85f);
+            // the emissive parts brighten towards the weapon's own colour; capped so pale blades (Frostrend's ice)
+            // keep their detail instead of washing out to white
+            float intensity = charge * (charge >= 1f ? 0.62f + 0.13f * (float) Math.sin(Util.getMillis() / 110.0) : 0.55f);
             if (ProgressionMath.mastery(animatable.definition(), data) >= 0.9999f) {
-                intensity = Math.max(intensity, 0.18f + 0.12f * (float) Math.sin(Util.getMillis() / 600.0));
+                intensity = Math.max(intensity, 0.16f + 0.1f * (float) Math.sin(Util.getMillis() / 600.0));
             }
             if (intensity <= 0.02f) return;
+            int theme = animatable.definition().themePrimary(data);
+            int r = Math.round(((theme >> 16) & 255) * intensity), g = Math.round(((theme >> 8) & 255) * intensity), b = Math.round((theme & 255) * intensity);
+            int color = 0xFF000000 | (r << 16) | (g << 8) | b;
             RenderType glow = RenderType.eyes(AutoGlowingTexture.getEmissiveResource(getTextureResource(animatable)));
-            int passes = intensity > 1f ? 2 : 1;
-            for (int i = 0; i < passes; i++) {
-                float k = Math.min(1f, intensity - i);
-                int v = Math.max(0, Math.min(255, Math.round(k * 255)));
-                int color = 0xFF000000 | (v << 16) | (v << 8) | v;
-                getRenderer().reRender(bakedModel, poseStack, bufferSource, animatable, glow, bufferSource.getBuffer(glow), partialTick,
-                        0xF000F0, packedOverlay, color);
-            }
+            getRenderer().reRender(bakedModel, poseStack, bufferSource, animatable, glow, bufferSource.getBuffer(glow), partialTick,
+                    0xF000F0, packedOverlay, color);
         }
     }
 }

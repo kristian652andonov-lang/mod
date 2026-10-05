@@ -3,7 +3,8 @@
 A NeoForge mod for Minecraft 1.21.1 that adds 13 legendary RPG weapons. Each weapon levels up on its own, unlocks a
 skill tree of abilities, and has custom poses, animations, VFX, HUD and sounds. All gameplay is server-authoritative.
 
-The weapon models, textures and animations are the artist's original GeckoLib assets and are used unchanged. That
+The weapon models, textures and animations are the artist's original GeckoLib assets (with the artist's updated, higher
+resolution textures) and are used unchanged. That
 includes Infernochain's **Transform**, **Chainblade attack** and **Retraction** animations, and Eclipse Reaper's
 **Transform**.
 

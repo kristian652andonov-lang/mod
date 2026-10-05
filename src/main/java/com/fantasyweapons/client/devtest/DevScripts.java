@@ -23,9 +23,13 @@ final class DevScripts {
             case "yaw" -> yaw(b);
             case "levelup" -> levelUp(b);
             case "anchors" -> anchors(b);
+            case "rift" -> rift(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
+                else if (name.startsWith("abilities:")) {
+                    for (String k : name.substring(10).split(",")) single(b.cmd("/clear @s").cmd("/kill @e[type=!player]").wait(10), k);
+                }
                 else b.wait(20);
             }
         }
@@ -315,5 +319,19 @@ final class DevScripts {
             b.wait(120);
         }
         b.cmd("/gamemode survival");
+    }
+
+    /** Rift Tear on its own (client-side effect only), every 3 ticks from the caster's eyes, then from the side. */
+    private static void rift(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give voidfang 100").wait(120).slot(0).hud(false).look(0, 0).camera(CameraType.FIRST_PERSON).playerView().wait(10);
+        for (String v : new String[]{"fp", "side"}) {
+            if (v.equals("side")) b.viewFrom(9, 2, 6, 2);
+            b.run(mc -> com.fantasyweapons.client.fx.FxDispatcher.dispatch(com.fantasyweapons.network.FxPayload.of(com.fantasyweapons.network.FxIds.VOID_RIFT)
+                    .caster(mc.player.getId()).pos(mc.player.position().add(0, 2.5, 9)).dir(new net.minecraft.world.phys.Vec3(0, 0, 1)).scale(3.5f)
+                    .power(50).seed(7).build()));
+            for (int t = 0; t < 12; t++) b.wait(3).screenshot("rift_" + v + "_" + String.format("%02d", t * 3));
+            b.wait(40);
+        }
+        b.playerView();
     }
 }

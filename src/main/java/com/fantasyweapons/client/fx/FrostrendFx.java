@@ -8,6 +8,7 @@ import com.fantasyweapons.client.vfx.effects.DecalVfx;
 import com.fantasyweapons.client.vfx.effects.FlashVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
+import com.fantasyweapons.client.vfx.effects.SnowfallVfx;
 import com.fantasyweapons.client.vfx.effects.SpikeVfx;
 import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
@@ -127,12 +128,15 @@ public final class FrostrendFx {
         Vec3 c = p.pos();
         float r = p.scale();
         int duration = Math.round(p.power());
-        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(230, FROST), VfxTextures.FROST, duration)
-                .timing(0.25f, 0.15f).spin(0.002f));
-        VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r * 0.98f, Colors.argb(160, ICE), VfxTextures.HEX, duration)
-                .timing(0.3f, 0.15f).energy());
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), new Vec3(0, 1, 0), r * 1.1f, Colors.argb(120, DEEP), VfxTextures.GLOW, duration)
+        // a great snowflake spreading over the ground, ringed by six small ones, over a cold blue frost glow
+        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), new Vec3(0, 1, 0), r * 1.1f, Colors.argb(130, DEEP), VfxTextures.GLOW, duration)
                 .timing(0.2f, 0.15f));
+        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(150, DEEP), VfxTextures.SNOWFLAKE, duration)
+                .timing(0.25f, 0.15f).spin(0.003f).translucent().satellites(0));
+        VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(235, FROST), VfxTextures.SNOWFLAKE, duration)
+                .timing(0.25f, 0.15f).spin(0.003f).satellites(6));
+        VfxManager.add(new DecalVfx(c.add(0, 0.06, 0), new Vec3(0, 1, 0), r * 0.35f, Colors.argb(200, ICE), VfxTextures.SNOWFLAKE, duration)
+                .timing(0.3f, 0.15f).spin(-0.008f).satellites(0));
         VfxManager.add(new ShockwaveVfx(c.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.4f, r, 0.6f, Colors.argb(230, FROST), 16).energy());
         // crystals around the rim and scattered inside, growing as the frost spreads
         RandomSource rnd = RandomSource.create(p.seed());
@@ -161,10 +165,9 @@ public final class FrostrendFx {
                     VfxManager.add(new ShardBurstVfx(at, new Vec3(0, 1, 0), 1f, 0.02f, 2, 1.4f, Colors.argb(110, FROST), Colors.argb(0, ICE), 30,
                             rr.nextLong()).texture(VfxTextures.MIST, false).physics(-0.001f, 0.95f));
                 }
-                VfxManager.add(new ShardBurstVfx(c.add(0, 2.5, 0), Vec3.ZERO, 1f, r * 0.03f, 10, 0.12f, Colors.argb(255, 0xFFFFFF),
-                        Colors.argb(0, FROST), 30, rr.nextLong()).texture(VfxTextures.SPARK, false).physics(0.006f, 0.9f));
             });
         }
+        VfxManager.add(new SnowfallVfx(c, r, 7f, Math.round(r * r * 1.2f), Colors.argb(255, FROST), duration, p.seed()));
         ScreenFx.zoneVignette(ICE, 0.25f, duration, c, r);
     }
 
@@ -175,8 +178,10 @@ public final class FrostrendFx {
         VfxManager.add(new ShockwaveVfx(c.add(0, 0.12, 0), new Vec3(0, 1, 0), 0.5f, r * 1.1f, 1.2f, Colors.argb(240, FROST), 14).energy());
         VfxManager.add(new ShockwaveVfx(c.add(0, 1.2, 0), new Vec3(0, 1, 0), 0.5f, r, 0.6f, Colors.argb(200, ICE), 18));
         VfxManager.add(new FlashVfx(c.add(0, 1, 0), 1f, r * 1.5f, Colors.argb(230, FROST), 12).energy());
-        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(240, FROST), VfxTextures.FROST, freeze + 30)
-                .timing(0.08f, 0.2f));
+        VfxManager.add(new DecalVfx(c.add(0, 0.035, 0), new Vec3(0, 1, 0), r, Colors.argb(160, DEEP), VfxTextures.SNOWFLAKE, freeze + 30)
+                .timing(0.08f, 0.2f).spin(-0.004f).translucent());
+        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(240, FROST), VfxTextures.SNOWFLAKE, freeze + 30)
+                .timing(0.08f, 0.2f).spin(-0.004f));
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r * 0.6f, Colors.argb(200, ICE), VfxTextures.RUNE_CIRCLE, freeze)
                 .spin(-0.03f).energy());
         RandomSource rnd = RandomSource.create(p.seed());

@@ -11,7 +11,6 @@ import com.fantasyweapons.client.vfx.VfxTextures;
 import com.fantasyweapons.client.vfx.effects.BeamVfx;
 import com.fantasyweapons.client.vfx.effects.DecalVfx;
 import com.fantasyweapons.client.vfx.effects.FlashVfx;
-import com.fantasyweapons.client.vfx.effects.ModelPartVfx;
 import com.fantasyweapons.client.vfx.effects.RibbonTrailVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
@@ -24,7 +23,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Quaternionf;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -122,12 +120,6 @@ public final class VoidfangFx {
         RandomSource r = RandomSource.create(p.seed());
 
         VfxManager.add(new RiftVfx(c, p.dir(), height, radius * 0.95f, VOID, EDGE, duration + 6, p.seed()));
-        // the artist's dimension_rift geometry anchors the centre of the tear
-        float modelScale = height / 2.4f;
-        VfxManager.add(new ModelPartVfx("voidfang", c, duration + 6, "dimension_rift", "dimension_rift_back")
-                .rotation(t -> new Quaternionf().rotationY((float) (Math.atan2(p.dir().x, p.dir().z) + t * 0.6)))
-                .scale(t -> modelScale * (t < 0.12f ? Vfx.easeOut(t / 0.12f) : (t > 0.85f ? 1 - (t - 0.85f) / 0.15f : 1f)))
-                .alpha(t -> t > 0.9f ? (1 - t) / 0.1f : 1f));
         VfxManager.add(new DecalVfx(groundBelow(c, height * 0.5), new Vec3(0, 1, 0), radius * 1.4f, Colors.argb(220, VOID),
                 VfxTextures.RUNE_CIRCLE, duration + 6).spin(0.05f).energy());
         VfxManager.add(new ShockwaveVfx(c, p.dir(), 0.5f, radius * 1.6f, 0.4f, Colors.argb(200, EDGE), 12));

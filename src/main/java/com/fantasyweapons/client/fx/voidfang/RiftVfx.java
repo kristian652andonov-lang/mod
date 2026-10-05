@@ -13,6 +13,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public class RiftVfx extends Vfx {
     private static final int SEGMENTS = 22;
+    private static final int STREAKS = 26;
     private final Vec3 center;
     private final Vec3 side;
     private final Vec3 up;
@@ -23,6 +24,9 @@ public class RiftVfx extends Vfx {
     private final float[] jagL = new float[SEGMENTS + 1];
     private final float[] jagR = new float[SEGMENTS + 1];
     private final float[] lean = new float[SEGMENTS + 1];
+    private final float[] streakAngle = new float[STREAKS];
+    private final float[] streakPhase = new float[STREAKS];
+    private final long seed;
     private final float openTime;
     private final float closeTime;
 
@@ -49,6 +53,11 @@ public class RiftVfx extends Vfx {
             drift += (r.nextFloat() - 0.5f) * 0.18f;
             lean[i] = drift;
         }
+        for (int i = 0; i < STREAKS; i++) {
+            streakAngle[i] = r.nextFloat() * 6.283f;
+            streakPhase[i] = r.nextFloat();
+        }
+        this.seed = seed;
         this.openTime = Math.min(5f, lifetime * 0.15f) / lifetime;
         this.closeTime = Math.min(10f, lifetime * 0.25f) / lifetime;
     }
@@ -88,6 +97,10 @@ public class RiftVfx extends Vfx {
             right[i] = c.add(side.scale(w * jagR[i]));
         }
 
+        // a dark halo around the tear so it reads as a hole in the world, even in daylight
+        ctx.billboard(ctx.translucent(VfxTextures.GLOW), center, Math.max(width * 2.2f, height * 1.15f) * open, 0,
+                Colors.alpha(0.55f * Math.min(1, open * 1.5f), Colors.darken(color, 0.8f)));
+
         // void interior
         var vi = ctx.voidInterior(VfxTextures.WHITE);
         int inner = Colors.alpha(0.95f, color);
@@ -125,6 +138,43 @@ public class RiftVfx extends Vfx {
         if (open < 0.35f) {
             // a single bright seam while the rift is a thin crack
             ctx.ribbon(core, mid, coreW, coreC, 0, 0.05f);
+        }
+
+        // crackling arcs leaping off the edges, re-rolled every few ticks
+        int roll = (int) (time / 3);
+        RandomSource ar = RandomSource.create(roll * 7919L + seed);
+        for (int k = 0; k < 3; k++) {
+            int i = 3 + ar.nextInt(SEGMENTS - 5);
+            boolean l = ar.nextBoolean();
+            Vec3 from = l ? left[i] : right[i];
+            Vec3 out = side.scale(l ? -1 : 1).add(up.scale(ar.nextFloat() - 0.5f)).normalize();
+            float len = (0.6f + ar.nextFloat()) * Math.max(1f, width * 0.8f) * open;
+            Vec3[] pts = new Vec3[6];
+            float[] aw = new float[6];
+            int[] ac = new int[6];
+            float fadeArc = 1 - ((time / 3) - roll);
+            for (int j = 0; j < 6; j++) {
+                float f = j / 5f;
+                Vec3 jitter = j == 0 ? Vec3.ZERO : new Vec3(ar.nextGaussian(), ar.nextGaussian(), ar.nextGaussian()).scale(0.12 * len);
+                pts[j] = from.add(out.scale(len * f)).add(jitter);
+                aw[j] = 0.12f * (1 - f * 0.7f);
+                ac[j] = Colors.alpha(0.9f * fadeArc * (1 - f * 0.6f) * Math.min(1, open * 2), edgeColor);
+            }
+            ctx.ribbon(core, pts, aw, ac, 0, 0.2f);
+        }
+
+        // matter spiralling into the tear
+        var streak = ctx.additive(VfxTextures.SPARK);
+        float reach = Math.max(height * 0.75f, width * 1.5f);
+        for (int k = 0; k < STREAKS; k++) {
+            float f = (streakPhase[k] + time * 0.035f) % 1f;          // 0 far away .. 1 swallowed
+            float rr = (1 - f) * reach;
+            double ang = streakAngle[k] + f * 2.2f;
+            Vec3 p = center.add(side.scale(Math.cos(ang) * rr * 0.8)).add(up.scale(Math.sin(ang) * rr * 0.6));
+            Vec3 dir = center.subtract(p);
+            if (dir.lengthSqr() < 1e-4) continue;
+            float a = Math.min(1, f * 4) * Math.min(1, (1 - f) * 6) * Math.min(1, open * 2);
+            ctx.stretched(streak, p, dir, 0.3f + 0.7f * (1 - f), 0.12f, Colors.alpha(0.85f * a, k % 3 == 0 ? 0xFFFFFF : edgeColor));
         }
     }
 }

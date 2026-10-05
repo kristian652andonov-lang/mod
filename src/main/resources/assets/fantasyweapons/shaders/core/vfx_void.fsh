@@ -33,9 +33,13 @@ void main() {
     vec3 deep = vec3(0.012, 0.0, 0.03);
     vec3 tint = vertexColor.rgb;
     vec3 col = deep + tint * (0.18 * swirl * swirl + 0.22 * neb * neb * smoothstep(0.2, 1.0, r));
-    float stars = texture(Sampler1, texCoord0 * 7.0 + vec2(0.0, t * 0.01)).r;
-    float twinkle = 0.5 + 0.5 * sin(t * 6.0 + stars * 40.0);
-    col += vec3(0.9, 0.8, 1.0) * step(0.83, stars) * twinkle * 0.9;
+    // point stars: one in a few cells of a fine grid, each twinkling on its own
+    vec2 grid = texCoord0 * vec2(26.0, 52.0);
+    vec2 cell = floor(grid);
+    float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+    float star = step(0.92, h) * smoothstep(0.32, 0.0, length(fract(grid) - 0.5));
+    float twinkle = 0.55 + 0.45 * sin(t * 3.0 + h * 60.0);
+    col += vec3(0.9, 0.82, 1.0) * star * twinkle;
     vec4 shape = texture(Sampler0, texCoord0);
     float rim = smoothstep(0.55, 1.0, r) * shape.a;
     col += tint * rim * 1.3;
