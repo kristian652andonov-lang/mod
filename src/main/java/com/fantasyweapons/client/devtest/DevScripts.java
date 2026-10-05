@@ -24,6 +24,7 @@ final class DevScripts {
             case "levelup" -> levelUp(b);
             case "anchors" -> anchors(b);
             case "rift" -> rift(b);
+            case "ray" -> ray(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
@@ -331,6 +332,23 @@ final class DevScripts {
                     .power(50).seed(7).build()));
             for (int t = 0; t < 12; t++) b.wait(3).screenshot("rift_" + v + "_" + String.format("%02d", t * 3));
             b.wait(40);
+        }
+        b.playerView();
+    }
+
+    /** Judgement Ray from the caster's eyes, then from the side. */
+    private static void ray(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give aetherlance 100").wait(130).slot(0).cmd("/fw points 200").hud(false).look(0, 2).camera(CameraType.FIRST_PERSON).playerView();
+        for (int i = 0; i < 3; i++) {
+            b.cmd("/summon minecraft:husk " + (i - 1) * 3 + " -60 14 {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+        }
+        b.select("judgement_ray").wait(10);
+        for (String v : new String[]{"fp", "side"}) {
+            b.cmd("/fw cooldowns").wait(5);
+            if (v.equals("side")) b.viewFrom(8, 2.5, 7, 1.5);
+            b.abilityDown().wait(66).abilityUp();
+            for (int t = 0; t < 6; t++) b.wait(t == 0 ? 2 : 8).screenshot("ray_" + v + "_" + t);
+            b.wait(120);
         }
         b.playerView();
     }

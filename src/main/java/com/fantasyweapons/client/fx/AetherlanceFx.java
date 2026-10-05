@@ -8,7 +8,7 @@ import com.fantasyweapons.client.vfx.effects.FlashVfx;
 import com.fantasyweapons.client.vfx.effects.FollowTrailVfx;
 import com.fantasyweapons.client.vfx.effects.ModelPartVfx;
 import com.fantasyweapons.client.vfx.effects.OrbVfx;
-import com.fantasyweapons.client.vfx.effects.RayVfx;
+import com.fantasyweapons.client.vfx.effects.JudgementRayVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
 import com.fantasyweapons.network.FxIds;
@@ -109,7 +109,7 @@ public final class AetherlanceFx {
         Entity e = entity(p.caster());
         if (!(e instanceof LivingEntity le)) return;
         int duration = Math.round(p.power());
-        VfxManager.add(new RayVfx(le, p.level(), Math.max(0.6f, p.scale()), AETHER, LIGHT, 2.6, duration));
+        VfxManager.add(new JudgementRayVfx(le, p.level(), Math.max(0.6f, p.scale()), AETHER, LIGHT, GOLD, 2.6, duration));
         if (le == Minecraft.getInstance().player) ScreenFx.flash(AETHER, 0.2f, 8);
         CameraShake.add(le.position(), 0.25f, 12);
     }
