@@ -35,7 +35,8 @@ public final class Gravebite {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("gravebite")
                 .name("Gravebite", "The Cursed Maw")
-                .lore("The skull is not decoration. It is still hungry, and it remembers every soul it has swallowed.")
+                .lore("Its skull belonged to the Grave King, who devoured the souls of his enemies so they could never rest. The king was slain; the skull was not. It is not decoration. It is still hungry, and it remembers every soul it has swallowed.",
+                        "the inscription on the Grave King's barrow")
                 .element(Element.NECROMANCY)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.BATTLEAXE)

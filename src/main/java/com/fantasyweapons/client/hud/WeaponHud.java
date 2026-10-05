@@ -32,7 +32,7 @@ import java.util.List;
  */
 public final class WeaponHud {
     public static final int W = 176;
-    public static final int H = 88;
+    public static final int H = 96;
     private static final ResourceLocation LOCK = FantasyWeapons.id("textures/gui/lock.png");
 
     private static ItemStack shownStack = ItemStack.EMPTY;
@@ -105,27 +105,22 @@ public final class WeaponHud {
 
         // ---- frame ----
         UiDraw.panel(g, 0, 0, W, H, theme, a);
-        if (full || castFlash > 0) UiDraw.glowBorder(g, 0, 0, W, H, themeLight, a * Math.max(fullPulse * 0.8f, castFlash), 4);
+        if (full || castFlash > 0) UiDraw.glow(g, 26, 66, 70, Colors.alpha(a * Math.max(fullPulse * 0.5f, castFlash * 0.6f), themeLight));
 
-        // ---- header ----
-        UiDraw.glow(g, 11, 10, 18, Colors.alpha(a * 0.6f, theme));
-        UiDraw.diamond(g, 11, 10, 4, Colors.alpha(a, themeLight));
-        UiDraw.diamond(g, 11, 10, 2, Colors.alpha(a, theme));
-        UiDraw.text(g, def.displayName().toUpperCase(), 19, 5, Colors.alpha(a, rarity), 1.0f, true);
-        String lv = "LV " + data.level();
-        float lvW = UiDraw.font().width(lv) * 0.85f + 8;
-        UiDraw.hGradient(g, W - 7 - lvW, 4, W - 7, 14, Colors.alpha(a * 0.9f, theme), Colors.alpha(a * 0.9f, Colors.darken(theme, 0.4f)));
-        UiDraw.border(g, W - 7 - lvW, 4, W - 7, 14, 1, Colors.alpha(a * 0.8f, themeLight));
-        UiDraw.text(g, lv, W - 7 - lvW + 4, 5.5f, Colors.alpha(a, 0xFFFFFF), 0.85f, true);
-        String sub = def.rarity().displayName().toUpperCase() + " · " + def.element().displayName().toUpperCase();
-        UiDraw.text(g, sub, 19, 15.5f, Colors.alpha(a * 0.85f, Colors.lerpRgb(rarity, 0xB0A8C0, 0.4f)), 0.55f, false);
+        // ---- header: name, rarity and element, level plaque ----
+        UiDraw.text(g, def.displayName(), 9, 6, Colors.alpha(a, UiDraw.GOLD_LIGHT), 0.95f, true);
+        String lv = "Lv " + data.level();
+        float lvW = UiDraw.font().width(lv) * 0.7f + 10;
+        UiDraw.button(g, W - 8 - lvW, 4, lvW, 12, 0, a);
+        UiDraw.title(g, lv, W - 8 - lvW / 2, 6.5f, Colors.alpha(a, UiDraw.GOLD_LIGHT), 0.7f);
+        String sub = def.rarity().displayName() + " · " + def.element().displayName();
+        UiDraw.text(g, sub, 9, 16, Colors.alpha(a, Colors.lerpRgb(rarity, UiDraw.INK_MUTED, 0.35f)), 0.55f, false);
         WeaponForm form = def.form(data);
         if (form != null) {
-            String fs = form.label() + ": " + form.displayName().toUpperCase();
-            UiDraw.textRight(g, fs, W - 8, 16, Colors.alpha(a, form.themePrimary()), 0.55f, false);
+            UiDraw.textRight(g, form.displayName() + " form", W - 9, 18, Colors.alpha(a, form.themePrimary()), 0.52f, false);
         }
 
-        // ---- EXP ----
+        // ---- experience ----
         long need = ProgressionMath.expToNext(data.level());
         float expFrac = need <= 0 ? 1f : data.exp() / (float) need;
         if (shownLevel != data.level()) {
@@ -134,17 +129,16 @@ public final class WeaponHud {
             if (shownExp > expFrac + 0.0001f) shownExp = 0;
         }
         shownExp += (expFrac - shownExp) * Math.min(1, dt * 5);
-        UiDraw.bar(g, 8, 26, W - 16, 4, shownExp, theme, themeLight, a, t);
+        UiDraw.bar(g, 9, 27, W - 18, 3, shownExp, Colors.darken(theme, 0.15f), themeLight, a, t);
         float dmg = ProgressionMath.weaponDamage(def, data) * (form != null ? form.damageFactor() : 1f);
-        UiDraw.text(g, String.format("DMG %,.0f", dmg), 8, 33, Colors.alpha(a, 0xFF8A7A), 0.62f, false);
+        String dmgText = String.format("Damage %,.0f", dmg);
+        UiDraw.text(g, dmgText, 9, 34, Colors.alpha(a, 0xF0A080), 0.58f, false);
         int mastery = Math.round(ProgressionMath.mastery(def, data) * 100);
-        UiDraw.text(g, "MASTERY " + mastery + "%", 8 + UiDraw.font().width(String.format("DMG %,.0f", dmg)) * 0.62f + 6, 33,
-                Colors.alpha(a * 0.9f, 0xC9A2FF), 0.62f, false);
-        String expText = need <= 0 ? "MAX LEVEL" : String.format("%,d / %,d EXP", data.exp(), need);
-        UiDraw.textRight(g, expText, W - 8, 33, Colors.alpha(a * 0.8f, 0xBDB6CC), 0.58f, false);
+        UiDraw.text(g, "Mastery " + mastery + "%", 9 + UiDraw.font().width(dmgText) * 0.58f + 6, 34, Colors.alpha(a, UiDraw.ARCANE), 0.58f, false);
+        String expText = need <= 0 ? "Mastered" : String.format("%,d / %,d", data.exp(), need);
+        UiDraw.textRight(g, expText, W - 9, 34, Colors.alpha(a, UiDraw.INK_MUTED), 0.55f, false);
 
-        UiDraw.hGradient(g, 8, 41, W / 2f, 42, Colors.alpha(0, theme), Colors.alpha(a * 0.6f, theme));
-        UiDraw.hGradient(g, W / 2f, 41, W - 8, 42, Colors.alpha(a * 0.6f, theme), Colors.alpha(0, theme));
+        UiDraw.divider(g, W / 2f, 44, W - 30, a);
 
         // ---- ability card ----
         renderAbilityCard(g, def, data, sel, state, a, t, theme, themeLight, stateFlash, castFlash, fullPulse);
@@ -174,116 +168,115 @@ public final class WeaponHud {
 
     private static void renderAbilityCard(GuiGraphics g, WeaponDefinition def, WeaponData data, AbilityDefinition sel, AbilityState state,
                                           float a, float t, int theme, int light, float stateFlash, float castFlash, float fullPulse) {
-        float ix = 8, iy = 46, is = 26;
+        float cx = 24, cy = 64, r = 14;
         if (sel == null) {
-            UiDraw.rect(g, ix, iy, ix + is, iy + is, Colors.alpha(a * 0.6f, 0x0A0810));
-            UiDraw.border(g, ix, iy, ix + is, iy + is, 1, Colors.alpha(a * 0.5f, 0x55505F));
-            UiDraw.texture(g, LOCK, ix + 7, iy + 7, 12, 12, Colors.alpha(a * 0.8f, 0xFFFFFF));
+            UiDraw.rect(g, cx - r * 0.7f, cy - r * 0.7f, cx + r * 0.7f, cy + r * 0.7f, Colors.alpha(a, 0x0C0704));
+            UiDraw.texture(g, LOCK, cx - 6, cy - 6, 12, 12, Colors.alpha(a * 0.8f, 0xFFFFFF));
+            UiDraw.medallion(g, cx, cy, r, Colors.alpha(a, 0x9A9088));
             AbilityDefinition next = null;
             for (AbilityDefinition ab : def.castables()) if (!data.isUnlocked(ab)) {
                 next = ab;
                 break;
             }
-            UiDraw.text(g, "NO ABILITY UNLOCKED", 40, 48, Colors.alpha(a, 0xB8B0C8), 0.75f, false);
+            UiDraw.text(g, "No ability awakened yet", 44, 52, Colors.alpha(a, UiDraw.INK), 0.68f, false);
             if (next != null) {
-                UiDraw.text(g, next.name().toUpperCase() + " AT LEVEL " + next.unlockLevel(), 40, 59, Colors.alpha(a * 0.85f, light), 0.6f, false);
-            } else {
-                UiDraw.text(g, "Abilities arrive in a later update", 40, 59, Colors.alpha(a * 0.7f, 0x8F8A9A), 0.6f, false);
+                UiDraw.text(g, next.name() + " awakens at level " + next.unlockLevel(), 44, 62, Colors.alpha(a, UiDraw.INK_MUTED), 0.55f, false);
             }
             renderStrip(g, def, data, null, a, theme, light);
             return;
         }
         int stateColor = switch (state) {
-            case READY -> 0x7CFFB2;
+            case READY -> UiDraw.GOOD;
             case CHARGING -> light;
-            case FULLY_CHARGED -> 0xFFFFFF;
-            case ACTIVE -> 0xFFD84A;
-            case COOLDOWN -> 0x9A96AE;
-            default -> 0x6A6676;
+            case FULLY_CHARGED -> UiDraw.GOLD_LIGHT;
+            case ACTIVE -> UiDraw.GOLD;
+            case COOLDOWN -> 0x9A8E7E;
+            default -> 0x7A6E60;
         };
 
-        // icon frame with glow
-        float pulse = state == AbilityState.FULLY_CHARGED ? 1 + 0.08f * fullPulse : 1f;
-        float glowA = state == AbilityState.READY ? 0.35f : state == AbilityState.FULLY_CHARGED ? 0.6f + 0.4f * fullPulse
-                : state == AbilityState.CHARGING ? 0.45f : 0.12f;
-        UiDraw.glow(g, ix + is / 2, iy + is / 2, is * 2.2f * pulse, Colors.alpha(a * Math.max(glowA, Math.max(stateFlash, castFlash)), theme));
+        // the ability's icon set in a medallion, glowing with its state
+        float pulse = state == AbilityState.FULLY_CHARGED ? 1 + 0.06f * fullPulse : 1f;
+        float glowA = state == AbilityState.READY ? 0.3f : state == AbilityState.FULLY_CHARGED ? 0.55f + 0.35f * fullPulse
+                : state == AbilityState.CHARGING ? 0.4f : 0.08f;
+        UiDraw.glow(g, cx, cy, r * 3.4f * pulse, Colors.alpha(a * Math.max(glowA, Math.max(stateFlash, castFlash)), theme));
         g.pose().pushPose();
-        g.pose().translate(ix + is / 2, iy + is / 2, 0);
+        g.pose().translate(cx, cy, 0);
         g.pose().scale(pulse, pulse, 1);
-        UiDraw.rect(g, -is / 2, -is / 2, is / 2, is / 2, Colors.alpha(a * 0.8f, 0x07050C));
-        int iconTint = state == AbilityState.COOLDOWN ? 0x8A8698 : 0xFFFFFF;
-        UiDraw.texture(g, sel.icon(), -is / 2 + 1, -is / 2 + 1, is - 2, is - 2, Colors.alpha(a, iconTint));
+        float in = r * 0.72f;
+        UiDraw.rect(g, -in, -in, in, in, Colors.alpha(a, 0x0C0704));
+        int iconTint = state == AbilityState.COOLDOWN ? 0x8A8070 : 0xFFFFFF;
+        UiDraw.texture(g, sel.icon(), -in, -in, in * 2, in * 2, Colors.alpha(a, iconTint));
         if (state == AbilityState.COOLDOWN) {
             long rem = ClientState.cooldownRemaining(data, sel);
             int tot = Math.max(1, ClientState.cooldownTotal(data, sel));
             float f = rem / (float) tot;
-            UiDraw.rect(g, -is / 2 + 1, -is / 2 + 1 + (is - 2) * (1 - f), is / 2 - 1, is / 2 - 1, Colors.alpha(a * 0.55f, 0x000000));
+            UiDraw.rect(g, -in, -in + in * 2 * (1 - f), in, in, Colors.alpha(a * 0.6f, 0x000000));
         }
-        UiDraw.border(g, -is / 2, -is / 2, is / 2, is / 2, 1, Colors.alpha(a, state == AbilityState.COOLDOWN ? 0x5C5868 : light));
+        UiDraw.medallion(g, 0, 0, r, Colors.alpha(a, state == AbilityState.COOLDOWN ? 0xA09488 : 0xFFFFFF));
         g.pose().popPose();
 
-        // name + state
-        int nameColor = Colors.lerpRgb(0xFFFFFF, light, 0.15f);
-        if (castFlash > 0) nameColor = Colors.lerpRgb(nameColor, 0xFFFFFF, castFlash);
-        UiDraw.text(g, sel.name().toUpperCase(), 40, 47, Colors.alpha(a, nameColor), 0.85f, true);
+        // name, rank and state
+        int nameColor = castFlash > 0 ? Colors.lerpRgb(UiDraw.INK, 0xFFFFFF, castFlash) : UiDraw.INK;
+        UiDraw.text(g, sel.name(), 44, 50, Colors.alpha(a, nameColor), 0.78f, true);
         int lvl = data.abilityLevel(sel);
-        UiDraw.text(g, "LV " + lvl, 40 + UiDraw.font().width(sel.name().toUpperCase()) * 0.85f + 4, 48.5f, Colors.alpha(a * 0.8f, 0xC9A2FF), 0.6f, false);
-        String label = state.label();
-        UiDraw.text(g, label, 40, 57.5f, Colors.alpha(a, stateColor), 0.68f, false);
+        UiDraw.text(g, "Rank " + lvl, 44 + UiDraw.font().width(sel.name()) * 0.78f + 4, 51.5f, Colors.alpha(a, UiDraw.ARCANE), 0.55f, false);
+        UiDraw.text(g, UiDraw.titleCase(state.label()), 44, 59.5f, Colors.alpha(a, stateColor), 0.62f, false);
 
-        // bar + right text
-        float bx = 40, by = 66, bw = W - 48, bh = 4;
+        float bx = 44, by = 68, bw = W - 53, bh = 3;
         String right;
         switch (state) {
             case CHARGING, FULLY_CHARGED -> {
                 ClientState.ChargeInfo ci = ClientState.localCharge();
                 float f = ci == null ? 0 : ci.fraction();
-                UiDraw.bar(g, bx, by, bw, bh, f, theme, state == AbilityState.FULLY_CHARGED ? 0xFFFFFF : light, a, t * 2);
-                right = state == AbilityState.FULLY_CHARGED ? "MAX" : Math.round(f * 100) + "%";
+                UiDraw.bar(g, bx, by, bw, bh, f, Colors.darken(theme, 0.15f), state == AbilityState.FULLY_CHARGED ? UiDraw.GOLD_LIGHT : light, a, t * 2);
+                right = state == AbilityState.FULLY_CHARGED ? "Full" : Math.round(f * 100) + "%";
             }
             case COOLDOWN -> {
                 long rem = ClientState.cooldownRemaining(data, sel);
                 int tot = Math.max(1, ClientState.cooldownTotal(data, sel));
-                UiDraw.bar(g, bx, by, bw, bh, rem / (float) tot, 0x5C5868, 0x8A8698, a, -1);
+                UiDraw.bar(g, bx, by, bw, bh, rem / (float) tot, 0x5A5048, 0x8A8070, a, -1);
                 right = String.format("%.1fs", rem / 20f);
             }
             case ACTIVE -> {
                 float p = 0.6f + 0.4f * (float) Math.sin(t * 6);
-                UiDraw.bar(g, bx, by, bw, bh, 1, 0xFFB627, 0xFFE27A, a * p, t);
-                right = "ACTIVE";
+                UiDraw.bar(g, bx, by, bw, bh, 1, 0xE0A040, UiDraw.GOLD_LIGHT, a * p, t);
+                right = "Active";
             }
             default -> {
-                UiDraw.bar(g, bx, by, bw, bh, 1, Colors.darken(theme, 0.2f), light, a * 0.85f, t * 0.5f);
+                UiDraw.bar(g, bx, by, bw, bh, 1, Colors.darken(theme, 0.15f), light, a * 0.85f, t * 0.5f);
                 right = keyName(KeyBindings.ABILITY);
             }
         }
-        UiDraw.textRight(g, right, W - 8, 57.5f, Colors.alpha(a, stateColor), 0.68f, false);
-        if (stateFlash > 0) UiDraw.glowBorder(g, bx, by, bx + bw, by + bh, stateColor, a * stateFlash, 3);
+        UiDraw.textRight(g, right, W - 9, 59.5f, Colors.alpha(a, stateColor), 0.62f, false);
+        if (stateFlash > 0) UiDraw.glow(g, bx + bw / 2, by + 1, bw * 1.2f, Colors.alpha(a * stateFlash * 0.5f, stateColor));
 
         renderStrip(g, def, data, sel, a, theme, light);
     }
 
     private static void renderStrip(GuiGraphics g, WeaponDefinition def, WeaponData data, AbilityDefinition sel, float a, int theme, int light) {
         List<AbilityDefinition> castables = def.castables();
-        float x = 40, y = 75.5f, s = 9;
+        float r = 5.5f, x = 44 + r, y = 79;
         for (AbilityDefinition ab : castables) {
             boolean unlocked = data.isUnlocked(ab);
             boolean isSel = ab == sel;
             AbilityState st = unlocked ? ClientState.state(def, data, ab) : AbilityState.LOCKED;
-            int tint = !unlocked ? 0x403C48 : st == AbilityState.COOLDOWN ? 0x8A8698 : 0xFFFFFF;
-            if (isSel) UiDraw.glow(g, x + s / 2, y + s / 2, s * 2.4f, Colors.alpha(a * 0.5f, theme));
-            UiDraw.texture(g, ab.icon(), x, y, s, s, Colors.alpha(a * (unlocked ? 1f : 0.7f), tint));
-            if (!unlocked) UiDraw.texture(g, LOCK, x + 2, y + 2, s - 4, s - 4, Colors.alpha(a * 0.9f, 0xFFFFFF));
+            int tint = !unlocked ? 0x403830 : st == AbilityState.COOLDOWN ? 0x8A8070 : 0xFFFFFF;
+            if (isSel) UiDraw.glow(g, x, y, r * 3.6f, Colors.alpha(a * 0.55f, UiDraw.GOLD_LIGHT));
+            float in = r * 0.72f;
+            UiDraw.rect(g, x - in, y - in, x + in, y + in, Colors.alpha(a, 0x0C0704));
+            UiDraw.texture(g, ab.icon(), x - in, y - in, in * 2, in * 2, Colors.alpha(a * (unlocked ? 1f : 0.7f), tint));
+            if (!unlocked) UiDraw.texture(g, LOCK, x - 2.5f, y - 2.5f, 5, 5, Colors.alpha(a * 0.9f, 0xFFFFFF));
             if (st == AbilityState.COOLDOWN) {
                 long rem = ClientState.cooldownRemaining(data, ab);
                 int tot = Math.max(1, ClientState.cooldownTotal(data, ab));
-                UiDraw.rect(g, x, y + s * (1 - rem / (float) tot), x + s, y + s, Colors.alpha(a * 0.55f, 0x000000));
+                UiDraw.rect(g, x - in, y - in + in * 2 * (1 - rem / (float) tot), x + in, y + in, Colors.alpha(a * 0.6f, 0x000000));
             }
-            UiDraw.border(g, x - 1, y - 1, x + s + 1, y + s + 1, 1, Colors.alpha(a * (isSel ? 1f : 0.45f), isSel ? light : 0x5C5868));
-            x += s + 4;
+            UiDraw.medallion(g, x, y, r, Colors.alpha(a, isSel ? 0xFFF4D0 : unlocked ? 0xC8BCA8 : 0x7A7068));
+            x += r * 2 + 3;
         }
-        String hint = keyName(KeyBindings.CYCLE) + " NEXT  " + keyName(KeyBindings.MENU) + " MENU";
-        UiDraw.text(g, hint, 8, 77, Colors.alpha(a * 0.55f, 0xA8A0B8), 0.48f, false);
+        // key hints on their own row, clear of the icons
+        String hint = keyName(KeyBindings.CYCLE) + " next ability   " + keyName(KeyBindings.MENU) + " open the tome";
+        UiDraw.textCentered(g, hint, W / 2f, H - 8.5f, Colors.alpha(a * 0.85f, UiDraw.INK_MUTED), 0.46f, false);
     }
 
     private static void renderStatuses(GuiGraphics g, float a) {
@@ -295,7 +288,8 @@ public final class WeaponHud {
         for (StatusEffects.Instance inst : effects.all()) {
             int col = inst.type.color();
             UiDraw.glow(g, x + 6, y + 6, 22, Colors.alpha(a * 0.35f, col));
-            UiDraw.texture(g, inst.type.icon(), x, y, 12, 12, Colors.alpha(a, 0xFFFFFF));
+            UiDraw.texture(g, inst.type.icon(), x + 1.5f, y + 1.5f, 9, 9, Colors.alpha(a, 0xFFFFFF));
+            UiDraw.medallion(g, x + 6, y + 6, 7, Colors.alpha(a, 0xFFFFFF));
             float f = inst.maxDuration <= 0 ? 0 : inst.duration / (float) inst.maxDuration;
             UiDraw.rect(g, x, y + 13, x + 12 * f, y + 14, Colors.alpha(a, col));
             if (inst.stacks > 1) UiDraw.textRight(g, String.valueOf(inst.stacks), x + 13, y + 6, Colors.alpha(a, 0xFFFFFF), 0.55f, true);
@@ -326,9 +320,9 @@ public final class WeaponHud {
         }
         if (full) UiDraw.arc(g, cx, cy, r1 + 3, r1 + 4 + pulse * 2, 0, (float) (Math.PI * 2), Colors.alpha(0.5f + 0.5f * pulse, 0xFFFFFF), 48);
         AbilityDefinition a = def.ability(ci.abilityId());
-        String label = full ? "FULL CHARGE" : Math.round(f * 100) + "%";
-        UiDraw.title(g, label, cx, cy + r1 + 7, Colors.alpha(1f, full ? 0xFFFFFF : light), full ? 0.8f : 0.7f);
-        if (a != null) UiDraw.textCentered(g, a.name().toUpperCase(), cx, cy - r1 - 12, Colors.alpha(0.85f, light), 0.6f, true);
+        String label = full ? "Full Charge" : Math.round(f * 100) + "%";
+        UiDraw.title(g, label, cx, cy + r1 + 7, Colors.alpha(1f, full ? UiDraw.GOLD_LIGHT : light), full ? 0.8f : 0.7f);
+        if (a != null) UiDraw.textCentered(g, a.name(), cx, cy - r1 - 12, Colors.alpha(0.9f, UiDraw.INK), 0.62f, true);
     }
 
     static String keyName(net.minecraft.client.KeyMapping key) {

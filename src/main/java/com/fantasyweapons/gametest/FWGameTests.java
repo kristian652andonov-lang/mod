@@ -179,6 +179,33 @@ public final class FWGameTests {
         h.succeed();
     }
 
+    @GameTest(template = ARENA)
+    public static void upgradeToMaxSpendsOnlyWhatIsAllowed(GameTestHelper h) {
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
+        ItemStack stack = giveWeapon(p, "voidfang");
+        AbilityDefinition slash = Weapons.get("voidfang").ability(Voidfang.VOID_SLASH);
+        UUID id = FantasyWeaponItem.data(stack).idOrNil();
+        ExpService.setLevel(p, stack, 100);
+        // only enough points for two levels: upgrade-to-max must stop there
+        WeaponData d = FantasyWeaponItem.data(stack);
+        int two = slash.costFor(2) + slash.costFor(3);
+        stack.set(ModComponents.WEAPON_DATA.get(), d.withProgress(d.level(), d.exp(), d.totalExp(), two));
+        h.assertTrue(AbilityService.maxUpgrade(FantasyWeaponItem.data(stack), slash)[0] == 2, "two levels should be affordable");
+        AbilityService.handleUpgrade(p, 0, id, slash.id(), true);
+        WeaponData after = FantasyWeaponItem.data(stack);
+        h.assertTrue(after.abilityLevel(slash) == 3, "upgrade-to-max with points for two levels should reach level 3, got " + after.abilityLevel(slash));
+        h.assertTrue(after.masteryPoints() == 0, "every affordable point should be spent, " + after.masteryPoints() + " left");
+        // plenty of points: it goes all the way to the ability's max level and keeps the change
+        stack.set(ModComponents.WEAPON_DATA.get(), after.withProgress(after.level(), after.exp(), after.totalExp(), 999));
+        int[] plan = AbilityService.maxUpgrade(FantasyWeaponItem.data(stack), slash);
+        AbilityService.handleUpgrade(p, 0, id, slash.id(), true);
+        WeaponData maxed = FantasyWeaponItem.data(stack);
+        h.assertTrue(maxed.abilityLevel(slash) == slash.maxLevel(), "should reach max level " + slash.maxLevel() + ", got " + maxed.abilityLevel(slash));
+        h.assertTrue(maxed.masteryPoints() == 999 - plan[1], "cost should match the plan: " + (999 - plan[1]) + " vs " + maxed.masteryPoints());
+        cleanup(p);
+        h.succeed();
+    }
+
     // ------------------------------------------------------------------------------------------------------------
     // ability state machine
     // ------------------------------------------------------------------------------------------------------------

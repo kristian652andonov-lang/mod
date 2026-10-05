@@ -35,7 +35,8 @@ public final class Stormbreaker {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("stormbreaker")
                 .name("Stormbreaker", "Twin-Headed Tempest")
-                .lore("Forged during a storm that lasted a hundred days. The thunder never left it.")
+                .lore("Forged on a mountaintop during a storm that raged for a hundred days, its twin heads struck by lightning between every blow of the hammer. The thunder never left it. Lift it to the sky and the sky lifts back.",
+                        "the Ballad of the Hundred-Day Storm")
                 .element(Element.LIGHTNING)
                 .rarity(Rarity.LEGENDARY)
                 .type(WeaponClass.BATTLEAXE)

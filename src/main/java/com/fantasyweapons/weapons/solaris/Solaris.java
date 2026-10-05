@@ -35,7 +35,8 @@ public final class Solaris {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("solaris")
                 .name("Solaris", "The Sun-Forged Greatsword")
-                .lore("Quenched in the heart of a dying star. Its edge still remembers the heat of creation.")
+                .lore("When the old sun was dying, the smiths of Ashkarra caught its final breath in a crucible and quenched a blade in it. The forge-city burned for a hundred years after. Its edge still remembers the heat of creation, and it will not suffer the dark to stand before it.",
+                        "the Ashkarran Chronicles")
                 .element(Element.SOLAR)
                 .rarity(Rarity.LEGENDARY)
                 .type(WeaponClass.GREATSWORD)

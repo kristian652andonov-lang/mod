@@ -35,7 +35,8 @@ public final class Frostrend {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("frostrend")
                 .name("Frostrend", "Blade of the Eternal Winter")
-                .lore("Carved from a glacier that never melted. Wounds it leaves freeze before they can bleed.")
+                .lore("Carved from the heart of the glacier that buried the kingdom of Hrimgard, it still carries the silence of that long winter. Wounds it leaves freeze before they can bleed. On still nights its bearer wakes to frost on the inside of the windows, spelling names no one remembers.",
+                        "a Hrimgard lullaby")
                 .element(Element.ICE)
                 .rarity(Rarity.LEGENDARY)
                 .type(WeaponClass.LONGSWORD)

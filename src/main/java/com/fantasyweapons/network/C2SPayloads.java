@@ -50,12 +50,13 @@ public final class C2SPayloads {
     }
 
     /** Spend mastery points to upgrade an ability of the weapon in an inventory slot. */
-    public record UpgradeAbility(int slot, UUID weapon, String ability) implements CustomPacketPayload {
+    public record UpgradeAbility(int slot, UUID weapon, String ability, boolean toMax) implements CustomPacketPayload {
         public static final Type<UpgradeAbility> TYPE = new Type<>(FantasyWeapons.id("upgrade_ability"));
         public static final StreamCodec<ByteBuf, UpgradeAbility> CODEC = StreamCodec.composite(
                 ByteBufCodecs.VAR_INT, UpgradeAbility::slot,
                 UUIDUtil.STREAM_CODEC, UpgradeAbility::weapon,
                 ByteBufCodecs.STRING_UTF8, UpgradeAbility::ability,
+                ByteBufCodecs.BOOL, UpgradeAbility::toMax,
                 UpgradeAbility::new);
 
         @Override

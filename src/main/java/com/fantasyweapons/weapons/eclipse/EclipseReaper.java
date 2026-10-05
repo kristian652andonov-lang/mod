@@ -42,7 +42,8 @@ public final class EclipseReaper {
         WeaponHooks.onFormSwitch("eclipse_reaper", EclipseReaperAbilities::onFormSwitch);
         return WeaponDefinition.builder("eclipse_reaper")
                 .name("Eclipse Reaper", "Where Sun and Moon Meet")
-                .lore("Forged at the instant the moon swallowed the sun. It has never decided which of them it serves.")
+                .lore("Forged in the single instant the moon swallowed the sun, by a smith who went blind at the final blow. Half of it remembers the light and half remembers the dark, and it has never decided which of them it serves. It lets its bearer choose, a little more each day.",
+                        "the Twilight Testament")
                 .element(Element.CELESTIAL).rarity(Rarity.ANCIENT).type(WeaponClass.SCYTHE).damage(10f, 2.3f)
                 .crit(0.12f, 2.0f)
                 .theme(0xFFE7A0, 0xFFFFFF)

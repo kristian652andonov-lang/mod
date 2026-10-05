@@ -35,7 +35,8 @@ public final class Soulreaper {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("soulreaper")
                 .name("Soulreaper", "Harvester of Souls")
-                .lore("Every scythe reaps. This one keeps what it reaps, and it is never full.")
+                .lore("The ferryman of the dead grew weary of waiting and made this scythe so that the dead would come to him sooner. Every scythe reaps. This one keeps what it reaps, and it is never full. On quiet nights you can hear them inside it, counting.",
+                        "the Ferryman's Lament")
                 .element(Element.SOUL)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.SCYTHE)

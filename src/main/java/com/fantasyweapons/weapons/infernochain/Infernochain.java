@@ -41,7 +41,8 @@ public final class Infernochain {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("infernochain")
                 .name("Infernochain", "The Drake's Burning Coil")
-                .lore("A drake's skull still smoulders in its pommel. Unlock the blade and the drake's spine uncoils into a lash of burning steel.")
+                .lore("A drake's skull still smoulders in its pommel: the beast was chained, not slain, and its spine became the blade. Unlock it and the spine uncoils into a lash of burning steel. The drake is only waiting for the day its chain is long enough.",
+                        "the Drakebinder's Warning")
                 .element(Element.FIRE)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.CHAINBLADE)

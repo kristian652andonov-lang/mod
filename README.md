@@ -28,7 +28,7 @@ All keys can be rebound under *Controls → Fantasy Weapons*.
 | **R** (hold) | Charge the selected ability; release to cast. Releasing too early fizzles it. |
 | **G** | Cycle the selected ability (sneak + G cycles backwards). |
 | **F** | Switch form or mode (Infernochain sword ↔ chainblade, Eclipse Reaper light ↔ dark). |
-| **K** | Open the weapon progression menu (skill tree, upgrades, stats, model preview). |
+| **K** | Open the weapon progression menu (skill tree, upgrades, upgrade-to-max, stats, model preview). |
 | Attack | Melee with the weapon. Sneak-attack at full strength for a heavy attack. |
 
 ## Weapons
@@ -114,10 +114,12 @@ NeoForge.EVENT_BUS.addListener((GroundSplitAbility.GroundSplitEvent e) -> {
 | Run all GameTests | `./gradlew runGameTestServer` |
 | Scripted screenshot run | `./gradlew runClient -PfwDevtest=<script>` (screenshots land in `run/screenshots`) |
 | Regenerate VFX textures, status icons and UI glyphs | `cd tools && python3 gen_textures.py` |
+| Regenerate the fantasy UI art (frames, buttons, banners…) | `cd tools && python3 gen_ui.py` |
+| Regenerate mesh materials (ice, thorn, petal, snowflake…) | `cd tools && python3 gen_materials.py` |
 | Regenerate ability icons | `cd tools && python3 gen_icons.py [weapon …]` |
 
-- **GameTests.** There are 66 tests. They cover the EXP curve, damage scaling, codecs, level-ups, server-side upgrade
-  validation, fizzles, kill credit, the death dissolve and wall-safe teleports. They also cast every ability of every
+- **GameTests.** There are 67 tests. They cover the EXP curve, damage scaling, codecs, level-ups, server-side upgrade
+  validation (including upgrade-to-max), fizzles, kill credit, the death dissolve and wall-safe teleports. They also cast every ability of every
   weapon against dummies, and check the ground-split hook and chainblade melee.
 - **Screenshot scripts.** Available scripts:
   - `weapon:<id>` casts every ability of a weapon.

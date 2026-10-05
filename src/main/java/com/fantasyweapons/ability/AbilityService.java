@@ -109,6 +109,14 @@ public final class AbilityService {
     }
 
     public static void handleUpgrade(ServerPlayer player, int slot, UUID weaponId, String abilityId) {
+        handleUpgrade(player, slot, weaponId, abilityId, false);
+    }
+
+    /**
+     * Upgrades an ability one level, or with {@code toMax} as many levels as the player can currently afford and the
+     * weapon level allows (each level is validated exactly like a single upgrade).
+     */
+    public static void handleUpgrade(ServerPlayer player, int slot, UUID weaponId, String abilityId, boolean toMax) {
         if (!rateLimit(player)) return;
         ItemStack stack = stackInSlot(player, slot, weaponId);
         if (stack == null) return;
@@ -122,15 +130,32 @@ public final class AbilityService {
             deny(player, def, denied);
             return;
         }
-        int cur = data.abilityLevel(a);
-        int cost = a.costFor(cur + 1);
-        int extra = data.upgrades().getOrDefault(a.id(), 0) + 1;
-        WeaponData nd = data.withUpgrade(a.id(), extra, data.masteryPoints() - cost);
+        int from = data.abilityLevel(a);
+        int spent = 0;
+        WeaponData nd = data;
+        do {
+            int cur = nd.abilityLevel(a);
+            int cost = a.costFor(cur + 1);
+            nd = nd.withUpgrade(a.id(), nd.upgrades().getOrDefault(a.id(), 0) + 1, nd.masteryPoints() - cost);
+            spent += cost;
+        } while (toMax && upgradeDenial(nd, a) == null);
         stack.set(ModComponents.WEAPON_DATA.get(), nd);
         float dmg = ProgressionMath.weaponDamage(def, nd);
         PacketDistributor.sendToPlayer(player, new ProgressionEventPayload(ProgressionEventPayload.Kind.UPGRADE, def.id(),
-                cur, cur + 1, dmg, dmg, cost, List.of(a.id()), ""));
+                from, nd.abilityLevel(a), dmg, dmg, spent, List.of(a.id()), ""));
         player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(), ModSounds.UPGRADE.get(), SoundSource.PLAYERS, 1f, 1f);
+    }
+
+    /** How many levels an upgrade-to-max would buy right now (0 if not even one is allowed), and their total cost. */
+    public static int[] maxUpgrade(WeaponData data, AbilityDefinition a) {
+        int levels = 0, cost = 0, points = data.masteryPoints(), cur = data.abilityLevel(a);
+        while (cur > 0 && cur < a.maxLevel() && data.level() >= a.weaponLevelFor(cur + 1) && points >= a.costFor(cur + 1)) {
+            points -= a.costFor(cur + 1);
+            cost += a.costFor(cur + 1);
+            cur++;
+            levels++;
+        }
+        return new int[]{levels, cost};
     }
 
     /** Null if the upgrade is allowed, otherwise a short reason shown to the player. Shared with the client UI. */

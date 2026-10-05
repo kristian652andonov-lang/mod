@@ -35,7 +35,8 @@ public final class Doomcleaver {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("doomcleaver")
                 .name("Doomcleaver", "Axe of the Crimson Hunger")
-                .lore("Its heart still beats. Every life it takes feeds the one who wields it.")
+                .lore("The Crimson Warlord was buried with this axe, and dug up by his own army a year later because they could hear it beating. Its heart beats still. Every life it takes feeds the one who wields it, and it is always, always hungry.",
+                        "the tally-songs of the Red March")
                 .element(Element.BLOOD)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.BATTLEAXE)

@@ -22,7 +22,7 @@ public final class FWNetwork {
         r.playToServer(C2SPayloads.SwitchForm.TYPE, C2SPayloads.SwitchForm.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> AbilityService.handleSwitchForm((ServerPlayer) ctx.player())));
         r.playToServer(C2SPayloads.UpgradeAbility.TYPE, C2SPayloads.UpgradeAbility.CODEC, (p, ctx) ->
-                ctx.enqueueWork(() -> AbilityService.handleUpgrade((ServerPlayer) ctx.player(), p.slot(), p.weapon(), p.ability())));
+                ctx.enqueueWork(() -> AbilityService.handleUpgrade((ServerPlayer) ctx.player(), p.slot(), p.weapon(), p.ability(), p.toMax())));
         r.playToServer(C2SPayloads.SelectAbility.TYPE, C2SPayloads.SelectAbility.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> AbilityService.handleSelect((ServerPlayer) ctx.player(), p.slot(), p.weapon(), p.ability())));
 

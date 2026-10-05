@@ -35,7 +35,8 @@ public final class Aetherlance {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("aetherlance")
                 .name("Aetherlance", "Spear of the Celestial Court")
-                .lore("Carried by the heralds of a court that sits above the sky. Its point is a sliver of pure light.")
+                .lore("Borne by the heralds of the Celestial Court, which sits above the sky and judges all that happens beneath it. Its point is a sliver of pure light. When its herald fell to earth the lance chose to stay, and it has never stopped looking up.",
+                        "the Codex of the Celestial Court")
                 .element(Element.ENERGY)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.LANCE)

@@ -35,7 +35,8 @@ public final class Bloomfall {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("bloomfall")
                 .name("Bloomfall", "Scythe of the Wild Bloom")
-                .lore("Where it falls, the wild returns. Flowers open on the graves it makes.")
+                .lore("Shaped from a thorn of the World-Tree by the druids of the Veiled Grove, to defend the wild from axe and fire. Where it falls, the wild returns. Flowers open on the graves it makes, and the forest never forgets who carried it.",
+                        "the Grove-Keepers' Oath")
                 .element(Element.NATURE)
                 .rarity(Rarity.LEGENDARY)
                 .type(WeaponClass.SCYTHE)

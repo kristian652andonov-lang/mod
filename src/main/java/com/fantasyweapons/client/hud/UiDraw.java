@@ -18,8 +18,29 @@ import java.util.List;
 /**
  * Immediate-mode drawing helpers for the custom HUD and menus (float coordinates, gradients in both directions,
  * glowing borders, additive glows, arcs, bars, scaled/outlined text). Each primitive flushes so draw order is exact.
+ * The look is an old tome: tooled leather inside bevelled bronze frames with gold inlay and gem-set corners, carved
+ * bronze buttons, gold dividers, medallion sockets and crimson ribbon banners, with parchment-coloured ink.
  */
 public final class UiDraw {
+    public static final ResourceLocation FRAME = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/frame.png");
+    public static final ResourceLocation LEATHER = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/leather.png");
+    public static final ResourceLocation BUTTON = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/button.png");
+    public static final ResourceLocation DIVIDER = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/divider.png");
+    public static final ResourceLocation MEDALLION = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/medallion.png");
+    public static final ResourceLocation BANNER = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/banner.png");
+    public static final ResourceLocation BAR = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/bar.png");
+
+    /** Parchment ink: values. */
+    public static final int INK = 0xEFE2C4;
+    /** Faded ink: labels. */
+    public static final int INK_MUTED = 0xB49F7A;
+    /** Gold leaf: headings. */
+    public static final int GOLD = 0xE8C26A;
+    public static final int GOLD_LIGHT = 0xFFE7A8;
+    public static final int GOOD = 0x9CD67A;
+    public static final int BAD = 0xE0705A;
+    public static final int ARCANE = 0xC9A8F0;
+
     private UiDraw() {
     }
 
@@ -73,47 +94,116 @@ public final class UiDraw {
     }
 
     /**
-     * Fantasy panel: translucent dark body, element-tinted gradient sheen, thin glowing frame and bright corner
-     * accents. {@code alpha} fades the whole panel.
+     * Fantasy panel: tooled leather body darkened towards its edges, the faintest wash of the weapon's colour, inside
+     * an ornate bronze frame with gem-set corners. {@code alpha} fades the whole panel.
      */
     public static void panel(GuiGraphics g, float x, float y, float w, float h, int theme, float alpha) {
-        int body = Colors.alpha(0.78f * alpha, Colors.darken(theme, 0.88f));
-        int body2 = Colors.alpha(0.86f * alpha, Colors.darken(theme, 0.94f));
-        vGradient(g, x, y, x + w, y + h, body, body2);
-        hGradient(g, x, y, x + w * 0.5f, y + h, Colors.alpha(0.10f * alpha, theme), Colors.alpha(0f, theme));
-        vGradient(g, x + 1, y + 1, x + w - 1, y + Math.min(10, h * 0.3f), Colors.alpha(0.12f * alpha, Colors.brighten(theme, 0.4f)), Colors.alpha(0, theme));
-        glowBorder(g, x, y, x + w, y + h, theme, 0.75f * alpha, 2.5f);
-        float c = Math.min(7, Math.min(w, h) * 0.25f);
-        int accent = Colors.alpha(alpha, Colors.brighten(theme, 0.45f));
-        rect(g, x - 1, y - 1, x + c, y + 1, accent);
-        rect(g, x - 1, y - 1, x + 1, y + c, accent);
-        rect(g, x + w - c, y - 1, x + w + 1, y + 1, accent);
-        rect(g, x + w - 1, y - 1, x + w + 1, y + c, accent);
-        rect(g, x - 1, y + h - 1, x + c, y + h + 1, accent);
-        rect(g, x - 1, y + h - c, x + 1, y + h + 1, accent);
-        rect(g, x + w - c, y + h - 1, x + w + 1, y + h + 1, accent);
-        rect(g, x + w - 1, y + h - c, x + w + 1, y + h + 1, accent);
+        if (alpha <= 0.01f) return;
+        tile(g, LEATHER, x + 1, y + 1, w - 2, h - 2, 48, Colors.alpha(0.97f * alpha, 0xFFFFFF));
+        hGradient(g, x + 1, y + 1, x + w * 0.6f, y + h - 1, Colors.alpha(0.07f * alpha, theme), Colors.alpha(0f, theme));
+        float e = Math.min(14, Math.min(w, h) * 0.3f);
+        vGradient(g, x + 1, y + 1, x + w - 1, y + e, Colors.alpha(0.45f * alpha, 0x000000), 0);
+        vGradient(g, x + 1, y + h - e, x + w - 1, y + h - 1, 0, Colors.alpha(0.5f * alpha, 0x000000));
+        hGradient(g, x + 1, y + 1, x + e, y + h - 1, Colors.alpha(0.35f * alpha, 0x000000), 0);
+        hGradient(g, x + w - e, y + 1, x + w - 1, y + h - 1, 0, Colors.alpha(0.35f * alpha, 0x000000));
+        float b = Math.min(9, Math.min(w, h) / 2f);
+        nineSlice(g, FRAME, x - 2, y - 2, w + 4, h + 4, b, 96, 96, 24, 0, 96, Colors.alpha(alpha, 0xFFFFFF));
     }
 
-    /** Progress bar with gradient fill, moving shimmer and a bright leading edge. */
+    /** Progress bar: a dark groove in a bronze frame, filled with a soft gradient and a gentle passing gleam. */
     public static void bar(GuiGraphics g, float x, float y, float w, float h, float fraction, int from, int to, float alpha, float shimmerTime) {
         fraction = Math.max(0, Math.min(1, fraction));
-        rect(g, x, y, x + w, y + h, Colors.alpha(0.55f * alpha, 0x05030A));
-        border(g, x - 1, y - 1, x + w + 1, y + h + 1, 1, Colors.alpha(0.35f * alpha, from));
+        rect(g, x, y, x + w, y + h, Colors.alpha(0.85f * alpha, 0x0E0804));
         float fw = w * fraction;
-        if (fw <= 0.01f) return;
+        if (fw > 0.01f) barFill(g, x, y, w, h, fw, from, to, alpha, shimmerTime);
+        nineSlice(g, BAR, x - 2, y - 2, w + 4, h + 4, Math.min(3, (h + 4) / 2f), 64, 12, 5, 0, 12, Colors.alpha(alpha, 0xFFFFFF));
+    }
+
+    private static void barFill(GuiGraphics g, float x, float y, float w, float h, float fw, int from, int to, float alpha, float shimmerTime) {
+        float fraction = fw / w;
         hGradient(g, x, y, x + fw, y + h, Colors.alpha(alpha, from), Colors.alpha(alpha, Colors.lerpRgb(from, to, fraction)));
         vGradient(g, x, y, x + fw, y + h * 0.45f, Colors.alpha(0.35f * alpha, 0xFFFFFF), Colors.alpha(0, 0xFFFFFF));
         if (shimmerTime >= 0) {
-            float sx = x + ((shimmerTime * 0.6f) % 1.4f - 0.2f) * w;
-            float sw = Math.max(6, w * 0.12f);
+            float sx = x + ((shimmerTime * 0.25f) % 1.6f - 0.3f) * w;
+            float sw = Math.max(6, w * 0.15f);
             float a = Math.max(x, sx - sw), b = Math.min(x + fw, sx + sw);
             if (b > a) {
-                hGradient(g, a, y, (a + b) / 2, y + h, Colors.alpha(0, 0xFFFFFF), Colors.alpha(0.45f * alpha, 0xFFFFFF));
-                hGradient(g, (a + b) / 2, y, b, y + h, Colors.alpha(0.45f * alpha, 0xFFFFFF), Colors.alpha(0, 0xFFFFFF));
+                hGradient(g, a, y, (a + b) / 2, y + h, Colors.alpha(0, 0xFFF4D0), Colors.alpha(0.22f * alpha, 0xFFF4D0));
+                hGradient(g, (a + b) / 2, y, b, y + h, Colors.alpha(0.22f * alpha, 0xFFF4D0), Colors.alpha(0, 0xFFF4D0));
             }
         }
-        rect(g, x + fw - 1, y - 1, x + fw, y + h + 1, Colors.alpha(alpha, Colors.brighten(to, 0.6f)));
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // fantasy ornaments
+    // ------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Draws a 9-slice from a region of a texture: corners of {@code border} display pixels stay unscaled, edges and
+     * centre stretch. {@code texBorder} is the corner size in texture pixels; the region starts at row {@code v0} and
+     * is {@code regionH} rows tall (for stacked button states).
+     */
+    public static void nineSlice(GuiGraphics g, ResourceLocation tex, float x, float y, float w, float h, float border, int texW, int texH,
+                                 int texBorder, int v0, int regionH, int argb) {
+        float b = Math.min(border, Math.min(w, h) / 2f);
+        float ub = texBorder / (float) texW, vb = texBorder / (float) texH;
+        float vt = v0 / (float) texH, vbtm = (v0 + regionH) / (float) texH;
+        float[] xs = {x, x + b, x + w - b, x + w};
+        float[] ys = {y, y + b, y + h - b, y + h};
+        float[] us = {0, ub, 1 - ub, 1};
+        float[] vs = {vt, vt + vb, vbtm - vb, vbtm};
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (xs[i + 1] - xs[i] <= 0.01f || ys[j + 1] - ys[j] <= 0.01f) continue;
+                textureUv(g, tex, xs[i], ys[j], xs[i + 1] - xs[i], ys[j + 1] - ys[j], us[i], vs[j], us[i + 1], vs[j + 1], argb);
+            }
+        }
+    }
+
+    /** Fills a rectangle with a repeating texture, {@code tile} display pixels per repeat. */
+    public static void tile(GuiGraphics g, ResourceLocation tex, float x, float y, float w, float h, float tile, int argb) {
+        textureUv(g, tex, x, y, w, h, x / tile, y / tile, (x + w) / tile, (y + h) / tile, argb);
+    }
+
+    /** A carved bronze button: state 0 normal, 1 hover, 2 disabled. */
+    public static void button(GuiGraphics g, float x, float y, float w, float h, int state, float alpha) {
+        nineSlice(g, BUTTON, x, y, w, h, Math.min(5, h / 2f), 64, 72, 8, state * 24, 24, Colors.alpha(alpha, 0xFFFFFF));
+    }
+
+    /** A gold flourish divider centred on {@code cx}. */
+    public static void divider(GuiGraphics g, float cx, float y, float w, float alpha) {
+        texture(g, DIVIDER, cx - w / 2, y - w / 24, w, w / 12, Colors.alpha(alpha, 0xFFFFFF));
+    }
+
+    /** A gold-rimmed round socket of radius {@code r}. */
+    public static void medallion(GuiGraphics g, float cx, float cy, float r, int argb) {
+        texture(g, MEDALLION, cx - r, cy - r, r * 2, r * 2, argb);
+    }
+
+    /** A crimson ribbon banner centred on {@code cx}, swallowtail ends keeping their proportions. */
+    public static void banner(GuiGraphics g, float cx, float y, float w, float h, float alpha) {
+        float end = h * 40f / 48f;
+        float x = cx - w / 2;
+        int c = Colors.alpha(alpha, 0xFFFFFF);
+        textureUv(g, BANNER, x, y, end, h, 0, 0, 40 / 256f, 1, c);
+        textureUv(g, BANNER, x + end, y, w - end * 2, h, 40 / 256f, 0, 216 / 256f, 1, c);
+        textureUv(g, BANNER, x + w - end, y, end, h, 216 / 256f, 0, 1, 1, c);
+    }
+
+    /** "UNLOCKED AT" → "Unlocked At": labels read like a book, not a terminal. Numbers and symbols are kept as is. */
+    public static String titleCase(String s) {
+        StringBuilder b = new StringBuilder(s.length());
+        boolean start = true;
+        for (char ch : s.toCharArray()) {
+            if (Character.isLetter(ch)) {
+                b.append(start ? Character.toUpperCase(ch) : Character.toLowerCase(ch));
+                start = false;
+            } else {
+                b.append(ch);
+                start = ch == ' ' || ch == '(' || ch == '-' || ch == '/';
+            }
+        }
+        return b.toString();
     }
 
     /** Annular arc (radians, 0 = up, clockwise). */
@@ -234,7 +324,7 @@ public final class UiDraw {
     public static void title(GuiGraphics g, String s, float cx, float y, int argb, float scale) {
         if ((argb >>> 24) < 5) return;
         float x = cx - font().width(s) * scale / 2f;
-        int outline = Colors.argb((argb >>> 24) * 3 / 4, 0x0A0612);
+        int outline = Colors.argb((argb >>> 24) * 3 / 4, 0x1A0E06);
         float o = Math.max(0.5f, scale * 0.5f);
         for (int i = 0; i < 8; i++) {
             double a = i / 8.0 * Math.PI * 2;
@@ -244,7 +334,13 @@ public final class UiDraw {
     }
 
     public static int wrap(GuiGraphics g, String s, float x, float y, int maxWidth, int argb, float scale, int lineHeight) {
-        List<FormattedCharSequence> lines = font().split(Component.literal(s), (int) (maxWidth / scale));
+        return wrap(g, Component.literal(s), x, y, maxWidth, argb, scale, lineHeight);
+    }
+
+    /** Wrapped text with its own style (italic lore, coloured runs). */
+    public static int wrap(GuiGraphics g, Component s, float x, float y, int maxWidth, int argb, float scale, int lineHeight) {
+        if ((argb >>> 24) < 5) return 0;
+        List<FormattedCharSequence> lines = font().split(s, (int) (maxWidth / scale));
         float yy = y;
         for (FormattedCharSequence line : lines) {
             g.pose().pushPose();

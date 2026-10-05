@@ -18,6 +18,7 @@ public final class WeaponDefinition {
     private final String displayName;
     private final String title;
     private final String lore;
+    private final String loreSource;
     private final Element element;
     private final Rarity rarity;
     private final WeaponClass weaponClass;
@@ -45,6 +46,7 @@ public final class WeaponDefinition {
         this.displayName = b.displayName;
         this.title = b.title;
         this.lore = b.lore;
+        this.loreSource = b.loreSource;
         this.element = b.element;
         this.rarity = b.rarity;
         this.weaponClass = b.weaponClass;
@@ -80,6 +82,11 @@ public final class WeaponDefinition {
 
     public String title() {
         return title;
+    }
+
+    /** Where the lore is "quoted" from (a ballad, a chronicle...), or empty. */
+    public String loreSource() {
+        return loreSource;
     }
 
     public String lore() {
@@ -184,6 +191,7 @@ public final class WeaponDefinition {
         private String displayName;
         private String title = "";
         private String lore = "";
+        private String loreSource = "";
         private Element element = Element.VOID;
         private Rarity rarity = Rarity.LEGENDARY;
         private WeaponClass weaponClass = WeaponClass.LONGSWORD;
@@ -208,6 +216,12 @@ public final class WeaponDefinition {
             this.displayName = displayName;
             this.title = title;
             return this;
+        }
+
+        /** The weapon's legend and the in-world text it comes from. */
+        public Builder lore(String lore, String source) {
+            this.loreSource = source;
+            return lore(lore);
         }
 
         public Builder lore(String lore) {

@@ -12,6 +12,7 @@ import net.minecraft.Util;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -70,11 +71,11 @@ public final class Notifications {
             case UPGRADE -> {
                 if (def == null || p.abilities().isEmpty()) return;
                 AbilityDefinition a = def.ability(p.abilities().get(0));
-                if (a != null) POPUPS.add(new Popup(a.name().toUpperCase() + "  LV " + p.oldLevel() + " → " + p.newLevel(),
+                if (a != null) POPUPS.add(new Popup(a.name() + "  ·  Rank " + p.oldLevel() + " → " + p.newLevel(),
                         def.element().light(), Util.getMillis()));
             }
             case FORM -> {
-                if (def != null) POPUPS.add(new Popup(def.form(p.newLevel()).label() + ": " + p.message().toUpperCase(),
+                if (def != null) POPUPS.add(new Popup(p.message() + " form",
                         def.form(p.newLevel()).themePrimary(), Util.getMillis()));
             }
             case DENIED -> {
@@ -133,7 +134,7 @@ public final class Notifications {
 
         // ---- +EXP popups (aggregate bursts of kills) ----
         if (pendingExp > 0 && now - pendingExpAt > 120) {
-            POPUPS.add(new Popup("+" + String.format("%,d", pendingExp) + " EXP", 0xB9F27C, now));
+            POPUPS.add(new Popup("+" + String.format("%,d", pendingExp) + " experience", 0xC8E08A, now));
             pendingExp = 0;
             pendingExpAt = 0;
         }
@@ -156,7 +157,7 @@ public final class Notifications {
             if (t < 1) {
                 float a = t > 0.7f ? 1 - (t - 0.7f) / 0.3f : 1;
                 float shake = t < 0.15f ? (float) Math.sin(t * 120) * 2 * (1 - t / 0.15f) : 0;
-                UiDraw.title(g, deniedText.toUpperCase(), sw / 2f + shake, sh - 72, Colors.alpha(a, 0xFF5C6E), 0.8f);
+                UiDraw.title(g, deniedText, sw / 2f + shake, sh - 72, Colors.alpha(a, UiDraw.BAD), 0.8f);
             }
         }
     }
@@ -176,24 +177,17 @@ public final class Notifications {
         @Override
         public void render(GuiGraphics g, float t, float cx, float y, float alpha) {
             int theme = def.element().primary();
-            int light = def.element().light();
-            float w = 220, h = 66;
-            float pulse = 0.5f + 0.5f * (float) Math.sin(t * 30);
-            UiDraw.glow(g, cx, y + h / 2, 240, Colors.alpha(alpha * 0.15f, theme));
-            UiDraw.rect(g, cx - w / 2, y, cx + w / 2, y + h, Colors.alpha(alpha * 0.6f, 0x05030A));
-            UiDraw.panel(g, cx - w / 2, y, w, h, theme, alpha);
-            // light sweep across the banner
-            float sx = cx - w / 2 + (t * 1.6f % 1.2f - 0.1f) * w;
-            UiDraw.hGradient(g, Math.max(cx - w / 2, sx - 30), y + 1, sx, y + h - 1, Colors.alpha(0, 0xFFFFFF), Colors.alpha(alpha * 0.12f, 0xFFFFFF));
-            UiDraw.hGradient(g, sx, y + 1, Math.min(cx + w / 2, sx + 30), y + h - 1, Colors.alpha(alpha * 0.12f, 0xFFFFFF), Colors.alpha(0, 0xFFFFFF));
-            UiDraw.title(g, "WEAPON LEVEL UP", cx, y + 6, Colors.alpha(alpha, Colors.lerpRgb(light, 0xFFFFFF, pulse * 0.5f)), 1.25f);
-            UiDraw.textCentered(g, def.displayName().toUpperCase(), cx, y + 21, Colors.alpha(alpha, def.rarity().color()), 0.8f, true);
-            String lv = "LEVEL " + from + "  →  LEVEL " + to;
-            UiDraw.title(g, lv, cx, y + 32, Colors.alpha(alpha, 0xFFFFFF), 0.9f);
-            String dmg = String.format("DAMAGE %,.0f  →  %,.0f", dmgFrom, dmgTo);
-            UiDraw.textCentered(g, dmg, cx, y + 45, Colors.alpha(alpha, 0xFF8A7A), 0.7f, true);
+            float w = 216, h = 64;
+            UiDraw.glow(g, cx, y + h / 2, 240, Colors.alpha(alpha * 0.14f, theme));
+            UiDraw.panel(g, cx - w / 2, y + 8, w, h - 8, theme, alpha);
+            // the heading rides a ribbon across the top of the plaque
+            UiDraw.banner(g, cx, y, 150, 22, alpha);
+            UiDraw.title(g, "Level Up", cx, y + 6, Colors.alpha(alpha, UiDraw.GOLD_LIGHT), 1.05f);
+            UiDraw.textCentered(g, def.displayName(), cx, y + 25, Colors.alpha(alpha, def.rarity().color()), 0.72f, true);
+            UiDraw.title(g, "Level " + from + "  →  Level " + to, cx, y + 35, Colors.alpha(alpha, UiDraw.INK), 0.82f);
+            UiDraw.textCentered(g, String.format("Damage %,.0f  →  %,.0f", dmgFrom, dmgTo), cx, y + 47, Colors.alpha(alpha, 0xF0A080), 0.62f, true);
             if (points > 0) {
-                UiDraw.textCentered(g, "+" + points + " MASTERY POINT" + (points > 1 ? "S" : ""), cx, y + 55, Colors.alpha(alpha, 0xC9A2FF), 0.6f, true);
+                UiDraw.textCentered(g, "+" + points + " Mastery Point" + (points > 1 ? "s" : ""), cx, y + 56, Colors.alpha(alpha, UiDraw.ARCANE), 0.56f, true);
             }
         }
     }
@@ -207,24 +201,24 @@ public final class Notifications {
         @Override
         public void render(GuiGraphics g, float t, float cx, float y, float alpha) {
             int theme = def.element().primary();
-            int light = def.element().light();
-            float w = 250, h = 78;
+            float w = 252, h = 82;
             float pulse = 0.5f + 0.5f * (float) Math.sin(t * 24);
-            UiDraw.glow(g, cx, y + h / 2, 260, Colors.alpha(alpha * 0.15f, theme));
-            UiDraw.rect(g, cx - w / 2, y, cx + w / 2, y + h, Colors.alpha(alpha * 0.6f, 0x05030A));
-            UiDraw.panel(g, cx - w / 2, y, w, h, theme, alpha);
-            UiDraw.glowBorder(g, cx - w / 2, y, cx + w / 2, y + h, light, alpha * (0.4f + 0.4f * pulse), 4);
-            UiDraw.title(g, "NEW ABILITY UNLOCKED", cx, y + 6, Colors.alpha(alpha, Colors.lerpRgb(light, 0xFFFFFF, pulse * 0.4f)), 1.1f);
-            float ix = cx - w / 2 + 12, iy = y + 22;
-            UiDraw.glow(g, ix + 16, iy + 16, 60, Colors.alpha(alpha * (0.5f + 0.4f * pulse), theme));
-            UiDraw.texture(g, ability.icon(), ix, iy, 32, 32, Colors.alpha(alpha, 0xFFFFFF));
-            UiDraw.border(g, ix - 1, iy - 1, ix + 33, iy + 33, 1, Colors.alpha(alpha, light));
-            UiDraw.additive(g, VfxTextures.STAR, ix - 6 + (float) Math.sin(t * 9) * 3, iy - 6, 14, 14, Colors.alpha(alpha * pulse, 0xFFFFFF));
-            float tx = ix + 42;
-            UiDraw.text(g, ability.name().toUpperCase(), tx, iy, Colors.alpha(alpha, 0xFFFFFF), 1.0f, true);
-            UiDraw.wrap(g, ability.description(), tx, iy + 12, (int) (cx + w / 2 - tx - 10), Colors.alpha(alpha * 0.9f, 0xCFC8DD), 0.6f, 7);
-            UiDraw.text(g, "UNLOCKED AT LEVEL " + ability.unlockLevel() + "  ·  " + ability.kind().displayName().toUpperCase(), tx, y + h - 11,
-                    Colors.alpha(alpha, light), 0.58f, false);
+            UiDraw.glow(g, cx, y + h / 2, 260, Colors.alpha(alpha * 0.14f, theme));
+            UiDraw.panel(g, cx - w / 2, y + 8, w, h - 8, theme, alpha);
+            UiDraw.banner(g, cx, y, 176, 22, alpha);
+            UiDraw.title(g, "Ability Awakened", cx, y + 6, Colors.alpha(alpha, UiDraw.GOLD_LIGHT), 1.0f);
+            float icx = cx - w / 2 + 28, icy = y + 48;
+            UiDraw.glow(g, icx, icy, 56, Colors.alpha(alpha * (0.4f + 0.3f * pulse), theme));
+            UiDraw.rect(g, icx - 12, icy - 12, icx + 12, icy + 12, Colors.alpha(alpha, 0x0C0704));
+            UiDraw.texture(g, ability.icon(), icx - 12, icy - 12, 24, 24, Colors.alpha(alpha, 0xFFFFFF));
+            UiDraw.medallion(g, icx, icy, 17, Colors.alpha(alpha, 0xFFFFFF));
+            UiDraw.additive(g, VfxTextures.STAR, icx - 18 + (float) Math.sin(t * 9) * 2, icy - 18, 12, 12, Colors.alpha(alpha * pulse, 0xFFF4D0));
+            float tx = icx + 24;
+            UiDraw.text(g, ability.name(), tx, y + 25, Colors.alpha(alpha, UiDraw.INK), 0.9f, true);
+            UiDraw.wrap(g, Component.literal(ability.description()).withStyle(net.minecraft.ChatFormatting.ITALIC), tx, y + 36,
+                    (int) (cx + w / 2 - tx - 10), Colors.alpha(alpha * 0.95f, 0xD8C9A8), 0.55f, 7);
+            UiDraw.text(g, UiDraw.titleCase(ability.kind().displayName()) + "  ·  awakened at level " + ability.unlockLevel(), tx, y + h - 12,
+                    Colors.alpha(alpha, UiDraw.GOLD), 0.52f, false);
         }
     }
 }

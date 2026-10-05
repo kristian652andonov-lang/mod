@@ -6,7 +6,6 @@ import com.fantasyweapons.ability.AbilityDefinition;
 import com.fantasyweapons.progression.ProgressionMath;
 import com.fantasyweapons.progression.WeaponData;
 import com.fantasyweapons.registry.ModComponents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
@@ -210,31 +209,73 @@ public class FantasyWeaponItem extends Item implements GeoItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         WeaponData d = data(stack);
+        int ink = 0xD8C9A8, faded = 0x9C8862, gold = 0xE8C26A;
+        // epithet, kind, and a line of runes engraved along the blade
         tooltip.add(Component.literal(def.title()).withStyle(s -> s.withColor(def.element().light()).withItalic(true)));
-        tooltip.add(Component.literal(def.rarity().displayName().toUpperCase() + "  ·  " + def.element().displayName().toUpperCase()
-                + "  ·  " + def.weaponClass().displayName()).withStyle(s -> s.withColor(def.rarity().color())));
+        tooltip.add(Component.literal(def.rarity().displayName() + " " + def.weaponClass().displayName() + " of " + def.element().displayName())
+                .withStyle(s -> s.withColor(mix(def.rarity().color(), gold, 0.35f))));
+        String runes = (def.displayName() + " " + def.title()).toLowerCase().replaceAll("[^a-z ]", "");
+        tooltip.add(Component.literal(runes.length() > 30 ? runes.substring(0, 30) : runes)
+                .withStyle(s -> s.withColor(0x7A6646).withFont(ResourceLocation.withDefaultNamespace("alt"))));
+        // the legend
+        if (!def.lore().isEmpty()) {
+            tooltip.add(Component.empty());
+            List<String> lines = wrap(def.lore(), 40);
+            for (int i = 0; i < lines.size(); i++) {
+                String line = (i == 0 ? "\u201C" : " ") + lines.get(i) + (i == lines.size() - 1 ? "\u201D" : "");
+                tooltip.add(Component.literal(line).withStyle(s -> s.withColor(ink).withItalic(true)));
+            }
+            if (!def.loreSource().isEmpty()) {
+                tooltip.add(Component.literal("        \u2014 " + def.loreSource()).withStyle(s -> s.withColor(faded).withItalic(true)));
+            }
+        }
         tooltip.add(Component.empty());
         long need = ProgressionMath.expToNext(d.level());
-        tooltip.add(Component.literal("Level " + d.level() + " / " + ProgressionMath.maxLevel()).withStyle(ChatFormatting.WHITE)
-                .append(Component.literal(need > 0 ? "   EXP " + d.exp() + " / " + need : "   MAX").withStyle(ChatFormatting.GRAY)));
-        tooltip.add(Component.literal(String.format("Damage %,.0f", ProgressionMath.weaponDamage(def, d))).withStyle(s -> s.withColor(0xFF6B6B)));
+        tooltip.add(Component.literal("\u2726 Level " + d.level() + " of " + ProgressionMath.maxLevel()).withStyle(s -> s.withColor(gold))
+                .append(Component.literal(need > 0 ? "   " + String.format("%,d / %,d experience", d.exp(), need) : "   Mastered")
+                        .withStyle(s -> s.withColor(faded))));
+        tooltip.add(Component.literal(String.format("\u2694 %,.0f Damage", ProgressionMath.weaponDamage(def, d))).withStyle(s -> s.withColor(0xF0A080)));
         int pct = Math.round(ProgressionMath.mastery(def, d) * 100);
-        tooltip.add(Component.literal("Mastery " + pct + "%" + (d.masteryPoints() > 0 ? "   (" + d.masteryPoints() + " points unspent)" : ""))
-                .withStyle(s -> s.withColor(0xC9A2FF)));
+        tooltip.add(Component.literal("\u2727 Mastery " + pct + "%").withStyle(s -> s.withColor(0xC9A8F0))
+                .append(Component.literal(d.masteryPoints() > 0 ? "   " + d.masteryPoints() + " points to spend" : "").withStyle(s -> s.withColor(faded))));
         WeaponForm form = def.form(d);
-        if (form != null) tooltip.add(Component.literal(form.label() + ": " + form.displayName()).withStyle(s -> s.withColor(form.themePrimary())));
+        if (form != null) {
+            tooltip.add(Component.literal("\u25C8 " + form.displayName() + " form").withStyle(s -> s.withColor(form.themePrimary())));
+        }
+        // abilities
         tooltip.add(Component.empty());
+        tooltip.add(Component.literal("Abilities").withStyle(s -> s.withColor(gold)));
         for (AbilityDefinition a : def.abilities()) {
             int lvl = d.abilityLevel(a);
             if (lvl > 0) {
-                tooltip.add(Component.literal("◆ " + a.name() + "  Lv " + lvl).withStyle(s -> s.withColor(def.element().primary())));
+                tooltip.add(Component.literal(" \u25C6 " + a.name()).withStyle(s -> s.withColor(def.element().primary()))
+                        .append(Component.literal("  rank " + lvl).withStyle(s -> s.withColor(faded))));
             } else {
-                tooltip.add(Component.literal("◇ " + a.name() + "  (Lv " + a.unlockLevel() + ")").withStyle(ChatFormatting.DARK_GRAY));
+                tooltip.add(Component.literal(" \u25C7 " + a.name() + "  sealed until level " + a.unlockLevel()).withStyle(s -> s.withColor(0x5E5444)));
             }
         }
-        if (flag.hasShiftDown() && !def.lore().isEmpty()) {
-            tooltip.add(Component.empty());
-            tooltip.add(Component.literal(def.lore()).withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.ITALIC));
+    }
+
+    private static int mix(int a, int b, float t) {
+        int r = Math.round(((a >> 16) & 255) + (((b >> 16) & 255) - ((a >> 16) & 255)) * t);
+        int g = Math.round(((a >> 8) & 255) + (((b >> 8) & 255) - ((a >> 8) & 255)) * t);
+        int bl = Math.round((a & 255) + ((b & 255) - (a & 255)) * t);
+        return (r << 16) | (g << 8) | bl;
+    }
+
+    /** Word-wraps {@code text} into lines of at most {@code width} characters. */
+    private static List<String> wrap(String text, int width) {
+        List<String> out = new java.util.ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : text.split(" ")) {
+            if (line.length() > 0 && line.length() + 1 + word.length() > width) {
+                out.add(line.toString());
+                line.setLength(0);
+            }
+            if (line.length() > 0) line.append(' ');
+            line.append(word);
         }
+        if (line.length() > 0) out.add(line.toString());
+        return out;
     }
 }

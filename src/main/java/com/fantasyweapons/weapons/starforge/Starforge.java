@@ -35,7 +35,8 @@ public final class Starforge {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("starforge")
                 .name("Starforge", "Hammer of the Fallen Stars")
-                .lore("Its head is the heart of a fallen star. When it strikes, the sky remembers and answers.")
+                .lore("Its head is the heart of a fallen star, dragged from the crater by a hundred oxen and shaped over seven years by giants who would not say why. When it strikes, the sky remembers, and answers.",
+                        "the Skyfall Sagas")
                 .element(Element.COSMIC)
                 .rarity(Rarity.ANCIENT)
                 .type(WeaponClass.WARHAMMER)

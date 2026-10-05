@@ -40,7 +40,8 @@ public final class Voidfang {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("voidfang")
                 .name("Voidfang", "Fang of the Endless Void")
-                .lore("Forged from a shard of the space between stars. Every cut it makes is a door that should never have been opened.")
+                .lore("Ser Vael went looking for the edge of the world and found the gap behind it. He came back with this shard of the nothing between stars, and no one ever saw him cast a shadow again. Every cut it makes is a door that should never have been opened, and something on the other side is always listening.",
+                        "the last letter of Ser Vael")
                 .element(Element.VOID)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.LONGSWORD)

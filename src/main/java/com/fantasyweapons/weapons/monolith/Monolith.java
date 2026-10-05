@@ -36,7 +36,8 @@ public final class Monolith {
     public static WeaponDefinition create() {
         return WeaponDefinition.builder("monolith")
                 .name("Monolith", "The Mountain's Edge")
-                .lore("Not forged but quarried. Only the mountain it was cut from has ever lifted it with ease.")
+                .lore("Not forged but quarried, cut from the heart of Mount Kharuun by a giant who wanted a sword that would never break. It never has. Only the mountain it was cut from ever lifted it with ease, and the earth still trembles to feel it walk.",
+                        "the Stonewrights' Hymn")
                 .element(Element.EARTH)
                 .rarity(Rarity.ANCIENT)
                 .type(WeaponClass.COLOSSAL)

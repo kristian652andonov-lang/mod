@@ -25,6 +25,7 @@ final class DevScripts {
             case "anchors" -> anchors(b);
             case "rift" -> rift(b);
             case "ray" -> ray(b);
+            case "tooltips" -> tooltips(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
@@ -191,6 +192,8 @@ final class DevScripts {
             var def = com.fantasyweapons.weapon.Weapons.get(weapons[i]);
             b.slot(i).wait(20).screenshot(weapons[i] + "_hud");
             b.menu(def.castables().get(def.castables().size() - 1).id()).wait(20).screenshot(weapons[i] + "_menu").closeScreen().wait(5);
+            b.menu(def.castables().get(0).id()).wait(20).screenshot(weapons[i] + "_menu_first").closeScreen().wait(5);
+            b.menu("#core").wait(20).screenshot(weapons[i] + "_menu_core").closeScreen().wait(5);
         }
     }
 
@@ -351,5 +354,13 @@ final class DevScripts {
             b.wait(120);
         }
         b.playerView();
+    }
+
+    /** The item tooltip (legend, runes, stats, abilities) of a few weapons. */
+    private static void tooltips(ScreenshotDirector.Builder b) {
+        for (String w : new String[]{"monolith", "voidfang", "infernochain"}) {
+            b.cmd("/clear @s").cmd("/fw give " + w + " 40").wait(140).slot(0);
+            b.run(mc -> mc.setScreen(new TooltipPreviewScreen(mc.player.getMainHandItem()))).wait(10).screenshot("tooltip_" + w).closeScreen().wait(5);
+        }
     }
 }
