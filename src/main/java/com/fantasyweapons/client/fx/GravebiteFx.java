@@ -115,11 +115,18 @@ public final class GravebiteFx {
         for (int id : p.entities()) {
             Entity e = entity(id);
             if (e == null) continue;
+            // four chains burst from small grave rifts around the target, seek it out and lock a shackle round it
             for (int k = 0; k < 4; k++) {
                 double a = k * Math.PI / 2 + rnd.nextDouble() * 0.6;
-                Vec3 anchor = FrostrendFx.ground(e.position().add(Math.cos(a) * (1.6 + rnd.nextDouble()), 0, Math.sin(a) * (1.6 + rnd.nextDouble())));
-                VfxManager.add(new ChainVfx(anchor, () -> e.isAlive() ? e.getPosition(1f).add(0, e.getBbHeight() * 0.55, 0) : null,
-                        Colors.argb(230, SOUL), Colors.argb(240, GHOST), bind).shoot(3 + k));
+                double d = 1.8 + rnd.nextDouble() * 0.8;
+                Vec3 anchor = FrostrendFx.ground(e.position().add(Math.cos(a) * d, 0, Math.sin(a) * d));
+                VfxManager.add(new DecalVfx(anchor.add(0, 0.05, 0), new Vec3(0, 1, 0), 0.7f, Colors.argb(230, GRAVE), VfxTextures.CRACK, bind + 12)
+                        .timing(0.05f, 0.2f).translucent());
+                VfxManager.add(new DecalVfx(anchor.add(0, 0.06, 0), new Vec3(0, 1, 0), 0.9f, Colors.argb(200, SOUL), VfxTextures.GLOW, bind + 12)
+                        .timing(0.05f, 0.2f));
+                ChainVfx chain = new ChainVfx(anchor, ChainVfx.toEntity(e, 0.55), Colors.argb(230, SOUL), Colors.argb(240, GHOST), bind).shoot(3 + k * 2);
+                if (k == 0) chain.shackle(e.getBbWidth() * 0.5f + 0.25f);
+                VfxManager.add(chain);
             }
             VfxManager.add(new FlashVfx(Vec3.ZERO, 0.3f, e.getBbHeight() * 1.6f, Colors.argb(180, SOUL), 10).follow(e, new Vec3(0, e.getBbHeight() * 0.5, 0)).energy());
         }
@@ -128,7 +135,7 @@ public final class GravebiteFx {
             double a = rnd.nextDouble() * Math.PI * 2, d = rnd.nextDouble() * r;
             Vec3 base = FrostrendFx.ground(c.add(Math.cos(a) * d, 0, Math.sin(a) * d));
             Vec3 top = base.add(rnd.nextGaussian() * 0.6, 1.8 + rnd.nextDouble() * 1.5, rnd.nextGaussian() * 0.6);
-            VfxManager.add(new ChainVfx(base, () -> top, Colors.argb(200, SOUL), Colors.argb(220, GHOST), 14 + rnd.nextInt(8)).shoot(4));
+            VfxManager.add(new ChainVfx(base, partial -> top, Colors.argb(200, SOUL), Colors.argb(220, GHOST), 18 + rnd.nextInt(8)).shoot(4).scale(0.85f));
         }
         VfxManager.add(new ShockwaveVfx(c.add(0, 0.08, 0), new Vec3(0, 1, 0), 0.3f, r * 1.1f, 0.4f, Colors.argb(220, SOUL), 12).energy());
         CameraShake.add(c, 0.3f, 12);

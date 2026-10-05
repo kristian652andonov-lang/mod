@@ -40,4 +40,6 @@ public final class VfxTextures {
     public static final ResourceLocation BARK = t("bark");
     public static final ResourceLocation FROST = t("frost");
     public static final ResourceLocation SNOWFLAKE = t("snowflake");
+    public static final ResourceLocation THORN = t("thorn");
+    public static final ResourceLocation PETAL_VEIN = t("petal_vein");
 }

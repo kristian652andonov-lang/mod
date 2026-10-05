@@ -19,8 +19,10 @@ import java.util.function.Function;
  *   <li>{@link #energy}: additive + animated noise breakup shader</li>
  *   <li>{@link #voidInterior}: alpha-blended dark void with swirling nebula (can actually darken the scene)</li>
  *   <li>{@link #translucent}: alpha-blended textured geometry (dark smoke, shadows, solid-looking fragments)</li>
+ *   <li>{@link #solid}: like translucent but writes depth, for modelled props that must hide their own back faces</li>
  * </ul>
- * None of them write depth, so effects overlap without sorting artefacts but are still hidden behind terrain.
+ * Apart from {@link #solid} none of them write depth, so effects overlap without sorting artefacts but are still
+ * hidden behind terrain.
  */
 public final class FWRenderTypes extends RenderType {
     private FWRenderTypes(String name, VertexFormat format, VertexFormat.Mode mode, int size, boolean crumbling, boolean sort,
@@ -60,6 +62,17 @@ public final class FWRenderTypes extends RenderType {
                     .setDepthTestState(LEQUAL_DEPTH_TEST)
                     .setCullState(NO_CULL)
                     .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> SOLID = Util.memoize(tex -> create("fw_vfx_solid",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(ADDITIVE_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_DEPTH_WRITE)
                     .createCompositeState(false)));
 
     private static final Function<ResourceLocation, RenderType> ENERGY = Util.memoize(tex -> create("fw_vfx_energy",
@@ -117,6 +130,11 @@ public final class FWRenderTypes extends RenderType {
 
     public static RenderType additive(ResourceLocation texture) {
         return ADDITIVE.apply(texture);
+    }
+
+    /** Opaque-looking textured geometry that writes depth (vines, thorns, petals, chain links) so it occludes itself. */
+    public static RenderType solid(ResourceLocation texture) {
+        return SOLID.apply(texture);
     }
 
     public static RenderType translucent(ResourceLocation texture) {

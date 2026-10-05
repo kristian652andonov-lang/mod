@@ -171,7 +171,7 @@ final class InputSelfTest {
         QUEUE.add(mc -> {
             cmd(mc, "/kill @e[type=!player]");
             cmd(mc, "/tp @s 0 -60 0 0 8");
-            cmd(mc, "/summon minecraft:husk 0 -60 5 {NoAI:1b,Health:1000000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000000d}]}");
+            cmd(mc, "/summon minecraft:husk 0 -60 5 {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
             cmd(mc, "/fw cooldowns");
             return 6;
         });
@@ -232,7 +232,7 @@ final class InputSelfTest {
         // a fresh target right in front, then charge with the real ability key, release, verify the cast
         QUEUE.add(mc -> {
             cmd(mc, "/kill @e[type=minecraft:husk]");
-            cmd(mc, "/summon minecraft:husk 0 -60 5 {NoAI:1b,Health:1000000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000000d}]}");
+            cmd(mc, "/summon minecraft:husk 0 -60 5 {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
             return 4;
         });
         QUEUE.add(mc -> {

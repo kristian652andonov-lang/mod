@@ -62,7 +62,7 @@ public final class BloomfallFx {
         float a0 = (float) (Math.PI / 2 - half), a1 = (float) (Math.PI / 2 + half);
         VfxManager.add(new SlashArcVfx(o.add(0, 1, 0), right, fwd, range * 0.8f, range * 0.32f, a0, a1, Colors.argb(225, LEAF), Colors.argb(255, POLLEN), 12));
         RandomSource r = RandomSource.create(p.seed());
-        SpikeVfx thorns = new SpikeVfx(SpikeVfx.Style.THORN, Colors.argb(255, 0x3B5E22), POLLEN, 40).timing(3, 10);
+        SpikeVfx thorns = new SpikeVfx(SpikeVfx.Style.THORN, Colors.argb(255, 0x5C4A2A), 0xC8E06A, 40).timing(3, 10);
         for (int i = 0; i <= 12; i++) {
             double a = a0 + (a1 - a0) * i / 12.0;
             Vec3 dir = right.scale(Math.cos(a)).add(fwd.scale(Math.sin(a)));
@@ -104,7 +104,7 @@ public final class BloomfallFx {
             }
         }
         // thick roots breaking the surface across the area
-        SpikeVfx spikes = new SpikeVfx(SpikeVfx.Style.THORN, Colors.argb(255, BARK), POLLEN, root + 10).timing(4, 10);
+        SpikeVfx spikes = new SpikeVfx(SpikeVfx.Style.THORN, Colors.argb(255, BARK), 0xD9C38A, root + 10).timing(4, 10);
         for (int i = 0; i < r * 3; i++) {
             double a = rnd.nextDouble() * Math.PI * 2, d = Math.sqrt(rnd.nextDouble()) * r;
             Vec3 at = FrostrendFx.ground(c.add(Math.cos(a) * d, 0, Math.sin(a) * d));
@@ -145,7 +145,7 @@ public final class BloomfallFx {
             double h = 1.0 + rnd.nextDouble() * 1.6;
             FxScheduler.after(delay, () -> sprout(at, h, 0.45, 12, duration - 4, s, flower));
         }
-        SpikeVfx thorns = new SpikeVfx(SpikeVfx.Style.THORN, Colors.argb(255, 0x35561F), POLLEN, duration).timing(6, 12);
+        SpikeVfx thorns = new SpikeVfx(SpikeVfx.Style.THORN, Colors.argb(255, 0x56482A), 0xB8E06A, duration).timing(6, 12);
         for (int i = 0; i < r * 1.6f; i++) {
             double a = rnd.nextDouble() * Math.PI * 2, d = Math.sqrt(rnd.nextDouble()) * r;
             Vec3 at = FrostrendFx.ground(c.add(Math.cos(a) * d, 0, Math.sin(a) * d));
@@ -197,7 +197,7 @@ public final class BloomfallFx {
         Vec3 c = p.pos();
         float r = p.scale();
         RandomSource rnd = RandomSource.create(p.seed());
-        SpikeVfx thorns = new SpikeVfx(SpikeVfx.Style.THORN, Colors.argb(255, 0x2F4F1A), POLLEN, 50).timing(3, 12);
+        SpikeVfx thorns = new SpikeVfx(SpikeVfx.Style.THORN, Colors.argb(255, 0x5A4428), 0xE0B0C8, 50).timing(3, 12);
         for (int ring = 0; ring < 4; ring++) {
             float d = r * 0.2f * (ring + 1);
             int n = 8 + ring * 6;

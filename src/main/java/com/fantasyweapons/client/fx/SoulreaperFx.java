@@ -99,7 +99,7 @@ public final class SoulreaperFx {
         for (int id : p.entities()) {
             Entity v = entity(id);
             if (v == null || caster == null) continue;
-            VfxManager.add(new ChainVfx(caster.position().add(0, 1.2, 0), () -> v.isAlive() ? v.getPosition(1f).add(0, v.getBbHeight() * 0.6, 0) : null,
+            VfxManager.add(new ChainVfx(caster.position().add(0, 1.2, 0), ChainVfx.toEntity(v, 0.6),
                     Colors.argb(200, SOUL), Colors.argb(220, SPIRIT), delay + 6).shoot(6));
             VfxManager.add(new FlashVfx(Vec3.ZERO, 0.5f, 1.2f, Colors.argb(230, SOUL), delay + 30).follow(v, new Vec3(0, v.getBbHeight() + 0.6, 0))
                     .peak(0.1f).energy());

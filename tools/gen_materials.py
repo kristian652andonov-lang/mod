@@ -187,10 +187,51 @@ def frost():
     save_alpha('vfx/frost.png', np.clip(a * 1.2 + glow, 0, 1) * (r < 1))
 
 
+def thorn():
+    """Thorn/root spike: fibrous wood grain running up the spike (v: top = tip), lighter, polished towards the tip."""
+    w, h = 64, 128
+    u, v = coords(w, h)
+    n = tileable_noise(128, octaves=4, seed=404)[:h, :w]
+    n2 = tileable_noise(128, octaves=3, seed=405, base=16)[:h, :w]
+    grain = 0.5 + 0.5 * np.sin((u * 9 + n * 1.8) * np.pi * 2)
+    lum = 0.55 + 0.25 * grain + 0.15 * (n2 - 0.5)
+    tip = np.clip((0.35 - v) / 0.35, 0, 1)
+    lum = lum * (1 - 0.5 * tip) + 0.95 * tip * (0.85 + 0.15 * grain)
+    edge = np.abs(u - 0.5) * 2
+    lum *= 0.8 + 0.2 * (1 - edge ** 2)
+    arr = np.zeros((h, w, 4))
+    arr[..., 0] = np.clip(lum * 255, 0, 255)
+    arr[..., 1] = np.clip(lum * 248, 0, 255)
+    arr[..., 2] = np.clip(lum * 236, 0, 255)
+    arr[..., 3] = 255
+    save_rgba('vfx/thorn.png', arr)
+
+
+def petal_vein():
+    """Petal surface (u across, v: top = tip, bottom = base): fine veins fanning out from the base, a soft sheen."""
+    w, h = 64, 128
+    u, v = coords(w, h)
+    x = (u - 0.5) * 2
+    base = 1 - v                                                  # 0 at the base .. 1 at the tip
+    fan = x / np.maximum(0.08, base ** 0.7)                       # veins spread out from the base
+    veins = np.abs(np.sin(fan * 5.5 * np.pi)) ** 18
+    mid = np.exp(-(x ** 2) / 0.004) * (1 - base * 0.6)
+    n = tileable_noise(128, octaves=3, seed=506)[:h, :w]
+    lum = 0.9 - 0.18 * veins * (0.4 + 0.6 * base) - 0.12 * mid + 0.06 * (n - 0.5) + 0.08 * base
+    arr = np.zeros((h, w, 4))
+    arr[..., 0] = np.clip(lum * 255, 0, 255)
+    arr[..., 1] = np.clip(lum * 255, 0, 255)
+    arr[..., 2] = np.clip(lum * 255, 0, 255)
+    arr[..., 3] = 255
+    save_rgba('vfx/petal_vein.png', arr)
+
+
 if __name__ == '__main__':
     frost()
     ice()
     snowflake()
+    thorn()
+    petal_vein()
     rock()
     bark()
     print('materials written')

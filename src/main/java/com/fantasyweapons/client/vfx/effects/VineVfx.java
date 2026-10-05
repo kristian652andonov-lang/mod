@@ -4,6 +4,7 @@ import com.fantasyweapons.client.vfx.Colors;
 import com.fantasyweapons.client.vfx.Vfx;
 import com.fantasyweapons.client.vfx.VfxContext;
 import com.fantasyweapons.client.vfx.VfxTextures;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 
@@ -11,28 +12,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A custom animated vine/root: a tapered bark ribbon that grows along a curved path, sprouts leaves along its length
- * and optionally opens a flower at the tip; withers away at the end of its life.
+ * A modelled vine or root: a tapered, bark-textured stem (a real tube, lit from above) that grows along a smoothed
+ * curve, unfolds leaves and small thorns along its length and can open a flower at its tip. At the end of its life
+ * it withers: it thins and draws back towards its base.
  */
 public class VineVfx extends Vfx {
+    private static final Vec3 LIGHT = new Vec3(0.3, 0.9, 0.3).normalize();
+    private static final int SIDES = 6;
+
     private final Vec3[] path;
     private final float width;
     private final int color;
     private final int leafColor;
     private final int growTicks;
     private int flowerColor = -1;
-    private final List<float[]> leaves = new ArrayList<>(); // t along path, angle, size
+    private final List<float[]> leaves = new ArrayList<>(); // t along the vine, angle, size
+    private final List<float[]> thorns = new ArrayList<>(); // t along the vine, angle
 
     public VineVfx(Vec3[] path, float width, int color, int leafColor, int growTicks, int lifetime, long seed) {
         super(lifetime);
-        this.path = path;
+        this.path = smooth(path, 4);
         this.width = width;
         this.color = color;
         this.leafColor = leafColor;
         this.growTicks = Math.max(1, growTicks);
         RandomSource r = RandomSource.create(seed);
-        int n = Math.max(1, path.length / 3);
-        for (int i = 0; i < n; i++) leaves.add(new float[]{0.2f + 0.75f * r.nextFloat(), r.nextFloat() * 6.283f, 0.25f + r.nextFloat() * 0.25f});
+        int n = Math.max(2, path.length / 2);
+        for (int i = 0; i < n; i++) leaves.add(new float[]{0.15f + 0.8f * (i + r.nextFloat() * 0.6f) / n, r.nextFloat() * 6.283f, 0.28f + r.nextFloat() * 0.22f});
+        for (int i = 0; i < n + 2; i++) thorns.add(new float[]{0.1f + 0.85f * r.nextFloat(), r.nextFloat() * 6.283f});
     }
 
     public VineVfx flower(int color) {
@@ -55,58 +62,155 @@ public class VineVfx extends Vfx {
         return out;
     }
 
+    /** Catmull-Rom resampling so the stem bends smoothly instead of in straight segments. */
+    private static Vec3[] smooth(Vec3[] p, int sub) {
+        if (p.length < 3) return p;
+        Vec3[] out = new Vec3[(p.length - 1) * sub + 1];
+        for (int i = 0; i < p.length - 1; i++) {
+            Vec3 p0 = p[Math.max(0, i - 1)], p1 = p[i], p2 = p[i + 1], p3 = p[Math.min(p.length - 1, i + 2)];
+            for (int s = 0; s < sub; s++) {
+                double t = s / (double) sub, t2 = t * t, t3 = t2 * t;
+                out[i * sub + s] = p0.scale(-0.5 * t3 + t2 - 0.5 * t).add(p1.scale(1.5 * t3 - 2.5 * t2 + 1))
+                        .add(p2.scale(-1.5 * t3 + 2 * t2 + 0.5 * t)).add(p3.scale(0.5 * t3 - 0.5 * t2));
+            }
+        }
+        out[out.length - 1] = p[p.length - 1];
+        return out;
+    }
+
     @Override
     public void render(VfxContext ctx) {
         float time = age + ctx.partial;
-        float grow = easeOut(Math.min(1, time / growTicks));
-        float wither = clamp01((time - (lifetime - 10)) / 10f);
-        float alpha = (1 - wither) * ((color >>> 24) & 255) / 255f;
-        if (alpha <= 0.01f) return;
-        int count = Math.max(2, (int) Math.ceil(path.length * grow));
+        float wither = clamp01((time - (lifetime - 12)) / 12f);
+        float grow = easeOut(Math.min(1, time / growTicks)) * (1 - 0.6f * easeIn(wither));
+        float alpha = ((color >>> 24) & 255) / 255f * (1 - easeIn(wither) * 0.3f);
+        if (grow <= 0.01f) return;
+        int last = path.length - 1;
+        float reach = last * grow;
+        int count = Math.min(last, (int) Math.ceil(reach)) + 1;
         Vec3[] pts = new Vec3[count];
-        float[] widths = new float[count];
-        int[] colors = new int[count];
-        for (int i = 0; i < count; i++) {
-            pts[i] = path[Math.min(path.length - 1, i)];
-            float t = i / (float) (path.length - 1);
-            widths[i] = width * (1 - t * 0.85f) * (1 - wither * 0.5f);
-            colors[i] = Colors.alpha(alpha, Colors.lerpRgb(color, Colors.brighten(color, 0.25f), t));
-        }
-        if (count < path.length) {
-            // smooth growing tip
-            float frac = path.length * grow - (count - 1);
-            Vec3 a = path[count - 2], b = path[count - 1];
-            pts[count - 1] = a.lerp(b, Math.max(0, Math.min(1, frac)));
-        }
-        ctx.ribbon(ctx.translucent(VfxTextures.BARK), pts, widths, colors, 0, 0.35f);
+        for (int i = 0; i < count; i++) pts[i] = path[i];
+        int i0 = Math.min(last - 1, (int) Math.floor(reach));
+        pts[count - 1] = path[i0].lerp(path[i0 + 1], reach - i0);
+        if (count < 2) return;
 
-        var leafVc = ctx.translucent(VfxTextures.LEAF);
-        for (float[] leaf : leaves) {
-            if (leaf[0] > grow) continue;
-            int idx = Math.min(path.length - 2, (int) (leaf[0] * (path.length - 1)));
-            Vec3 p = path[idx];
-            Vec3 along = path[idx + 1].subtract(p).normalize();
-            Vec3[] basis = VfxContext.basis(along);
-            Vec3 out = basis[0].scale(Math.cos(leaf[1])).add(basis[1].scale(Math.sin(leaf[1])));
-            float s = leaf[2] * Math.min(1, (grow - leaf[0]) * 6) * (1 - wither);
-            Vec3 c = p.add(out.scale(s * 0.6));
-            ctx.plane(leafVc, c, out.scale(s * 0.6), along.scale(s * 0.35), Colors.alpha(alpha, leafColor));
-        }
-        if (flowerColor != -1 && grow >= 0.98f) {
-            float open = easeOut(clamp01((time - growTicks) / 8f)) * (1 - wither);
-            Vec3 tip = path[path.length - 1];
-            Vec3 up = path[path.length - 1].subtract(path[path.length - 2]).normalize();
-            Vec3[] basis = VfxContext.basis(up);
-            var petal = ctx.translucent(VfxTextures.PETAL);
-            for (int i = 0; i < 5; i++) {
-                double a = i * Math.PI * 2 / 5 + time * 0.01;
-                Vec3 out = basis[0].scale(Math.cos(a)).add(basis[1].scale(Math.sin(a)));
-                Vec3 dir = out.scale(open).add(up.scale(1 - open * 0.8)).normalize();
-                Vec3 side = up.cross(out).normalize();
-                float len = 0.35f * (0.4f + 0.6f * open);
-                ctx.plane(petal, tip.add(dir.scale(len * 0.5)), dir.scale(len * 0.5), side.scale(0.13f), Colors.alpha(alpha, flowerColor));
+        // ---- stem: tapered tube with parallel-transported rings ----
+        Vec3 tan0 = pts[1].subtract(pts[0]).normalize();
+        Vec3[] b = VfxContext.basis(tan0);
+        Vec3 nrm = b[0];
+        Vec3[][] ring = new Vec3[count][SIDES];
+        Vec3[][] nor = new Vec3[count][SIDES];
+        float[] arc = new float[count];
+        for (int i = 0; i < count; i++) {
+            Vec3 t = pts[Math.min(count - 1, i + 1)].subtract(pts[Math.max(0, i - 1)]);
+            t = t.lengthSqr() < 1e-10 ? tan0 : t.normalize();
+            nrm = nrm.subtract(t.scale(nrm.dot(t)));
+            nrm = nrm.lengthSqr() < 1e-8 ? VfxContext.basis(t)[0] : nrm.normalize();
+            Vec3 bin = t.cross(nrm);
+            float f = i / (float) last;
+            float r = width * 0.5f * (1 - 0.82f * f) * (1 - 0.35f * wither);
+            if (i == count - 1) r *= 0.35f;                       // pointed growing tip
+            for (int s = 0; s < SIDES; s++) {
+                double a = s * Math.PI * 2 / SIDES;
+                Vec3 o = nrm.scale(Math.cos(a)).add(bin.scale(Math.sin(a)));
+                nor[i][s] = o;
+                ring[i][s] = pts[i].add(o.scale(r));
             }
-            ctx.billboard(ctx.additive(VfxTextures.GLOW), tip, 0.35f * open, 0, Colors.alpha(alpha * 0.8f, 0xFFF3A0));
+            arc[i] = i == 0 ? 0 : arc[i - 1] + (float) pts[i].distanceTo(pts[i - 1]);
         }
+        VertexConsumer bark = ctx.solid(VfxTextures.BARK);
+        for (int i = 0; i < count - 1; i++) {
+            float f0 = i / (float) last, f1 = (i + 1) / (float) last;
+            for (int s = 0; s < SIDES; s++) {
+                int s1 = (s + 1) % SIDES;
+                float v0 = 0.25f + 0.5f * s / SIDES, v1 = 0.25f + 0.5f * (s + 1) / SIDES;
+                int ca = stemColor(f0, nor[i][s], alpha), cb = stemColor(f0, nor[i][s1], alpha);
+                int cc = stemColor(f1, nor[i + 1][s1], alpha), cd = stemColor(f1, nor[i + 1][s], alpha);
+                float u0 = arc[i] * 1.6f, u1 = arc[i + 1] * 1.6f;
+                ctx.vertex(bark, ring[i][s], u0, v0, ca);
+                ctx.vertex(bark, ring[i][s1], u0, v1, cb);
+                ctx.vertex(bark, ring[i + 1][s1], u1, v1, cc);
+                ctx.vertex(bark, ring[i + 1][s], u1, v0, cd);
+            }
+        }
+
+        // ---- small thorns along the stem ----
+        VertexConsumer wood = ctx.solid(VfxTextures.THORN);
+        for (float[] th : thorns) {
+            float at = th[0] * last;
+            if (at > reach - 0.5f) continue;
+            int i = Math.min(count - 2, (int) at);
+            Vec3 t = pts[i + 1].subtract(pts[i]).normalize();
+            Vec3[] tb = VfxContext.basis(t);
+            Vec3 o = tb[0].scale(Math.cos(th[1])).add(tb[1].scale(Math.sin(th[1])));
+            float r = width * 0.5f * (1 - 0.82f * th[0]);
+            float len = (0.08f + 0.12f * (1 - th[0])) * Math.min(1, (reach - at) * 0.5f) * (1 - wither);
+            if (len <= 0.01f) continue;
+            Vec3 base = pts[i].lerp(pts[i + 1], at - i).add(o.scale(r * 0.8));
+            Vec3 tip = base.add(o.scale(len)).add(t.scale(len * 0.6));
+            Vec3 w1 = t.scale(r * 0.45), w2 = o.cross(t).normalize().scale(r * 0.45);
+            int c = Colors.argb(Math.round(255 * alpha), Colors.lerpRgb(color, 0xD8C8A0, 0.35f));
+            ctx.quad(wood, base.subtract(w1), base.add(w1), tip, tip, c);
+            ctx.quad(wood, base.subtract(w2), base.add(w2), tip, tip, c);
+        }
+
+        // ---- leaves: folded along the midrib, drooping slightly, unfolding as the vine passes ----
+        VertexConsumer leafVc = ctx.solid(VfxTextures.LEAF);
+        for (float[] leaf : leaves) {
+            float at = leaf[0] * last;
+            if (at > reach) continue;
+            int i = Math.min(count - 2, (int) at);
+            Vec3 t = pts[i + 1].subtract(pts[i]).normalize();
+            Vec3[] lb = VfxContext.basis(t);
+            Vec3 out = lb[0].scale(Math.cos(leaf[1])).add(lb[1].scale(Math.sin(leaf[1])));
+            float s = leaf[2] * Math.min(1, (reach - at) * 0.4f) * (1 - wither * 0.7f);
+            if (s <= 0.02f) continue;
+            float r = width * 0.5f * (1 - 0.82f * leaf[0]);
+            Vec3 base = pts[i].lerp(pts[i + 1], at - i).add(out.scale(r));
+            Vec3 axis = out.scale(0.75).add(t.scale(0.45)).add(0, -0.2, 0).normalize();
+            Vec3 side = axis.cross(new Vec3(0, 1, 0));
+            side = side.lengthSqr() < 1e-6 ? lb[0] : side.normalize();
+            Vec3 up = side.cross(axis).normalize();
+            if (up.y < 0) up = up.scale(-1);
+            Vec3 tip = base.add(axis.scale(s));
+            Vec3 midA = base.add(axis.scale(s * 0.5));
+            float fold = 0.35f;
+            Vec3 l = midA.subtract(side.scale(s * 0.32)).add(up.scale(s * 0.32 * fold));
+            Vec3 rr = midA.add(side.scale(s * 0.32)).add(up.scale(s * 0.32 * fold));
+            float shade = 0.6f + 0.4f * (float) Math.max(0, up.dot(LIGHT));
+            int c0 = Colors.argb(Math.round(255 * alpha), Colors.scale(Colors.darken(leafColor, 0.3f), shade));
+            int c1 = Colors.argb(Math.round(255 * alpha), Colors.scale(leafColor, shade * 1.1f));
+            // two halves of the leaf texture meeting at the midrib (u = 0.5)
+            ctx.vertex(leafVc, base, 0.5f, 1f, c0);
+            ctx.vertex(leafVc, l, 0f, 0.5f, c1);
+            ctx.vertex(leafVc, tip, 0.5f, 0f, c1);
+            ctx.vertex(leafVc, tip, 0.5f, 0f, c1);
+            ctx.vertex(leafVc, base, 0.5f, 1f, c0);
+            ctx.vertex(leafVc, tip, 0.5f, 0f, c1);
+            ctx.vertex(leafVc, rr, 1f, 0.5f, c1);
+            ctx.vertex(leafVc, rr, 1f, 0.5f, c1);
+        }
+
+        // ---- flower at the tip once fully grown ----
+        if (flowerColor != -1 && grow >= 0.98f) {
+            float open = easeOut(clamp01((time - growTicks) / 10f)) * (1 - easeIn(wither));
+            if (open > 0.01f) {
+                Vec3 tip = pts[count - 1];
+                var petals = ctx.solid(VfxTextures.PETAL_VEIN);
+                for (int i = 0; i < 6; i++) {
+                    double a = i * Math.PI / 3 + time * 0.01;
+                    Vec3 out = new Vec3(Math.cos(a), 0, Math.sin(a));
+                    FlowerVfx.petal(ctx, petals, tip, out, 0.32f * (0.5f + 0.5f * open), 0.11f, 1.4f - open * 1.1f, 0.5f * open, 0.4f,
+                            Colors.darken(flowerColor, 0.25f), Colors.lerpRgb(flowerColor, 0xFFFFFF, 0.45f), alpha);
+                }
+                ctx.billboard(ctx.additive(VfxTextures.GLOW), tip.add(0, 0.06, 0), 0.38f * open, 0, Colors.alpha(alpha * 0.85f, 0xFFF3A0));
+            }
+        }
+    }
+
+    private int stemColor(float f, Vec3 normal, float alpha) {
+        float shade = 0.5f + 0.5f * (float) Math.max(0, normal.dot(LIGHT));
+        int rgb = Colors.lerpRgb(color, Colors.lerpRgb(color, leafColor, 0.55f), f);
+        return Colors.argb(Math.round(255 * alpha), Colors.scale(rgb, shade * 1.15f));
     }
 }

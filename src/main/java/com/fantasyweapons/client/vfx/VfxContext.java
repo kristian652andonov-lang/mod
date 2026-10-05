@@ -48,6 +48,11 @@ public final class VfxContext {
         return buffers.getBuffer(FWRenderTypes.voidInterior(mask));
     }
 
+    /** Depth-writing textured geometry for modelled props (see {@link FWRenderTypes#solid}). */
+    public VertexConsumer solid(ResourceLocation tex) {
+        return buffers.getBuffer(FWRenderTypes.solid(tex));
+    }
+
     public VertexConsumer translucent(ResourceLocation tex) {
         return buffers.getBuffer(FWRenderTypes.translucent(tex));
     }

@@ -48,7 +48,7 @@ final class DevScripts {
             b.cmd("/kill @e[type=minecraft:husk]").wait(25);
             for (int i = 0; i < 5; i++) {
                 b.cmd("/summon minecraft:husk " + (i % 2 == 0 ? -1 : 1) * (i / 2) * 2 + " -60 " + (6 + (i % 3) * 2)
-                        + " {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
+                        + " {NoAI:1b,Health:1000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000d}]}");
             }
             b.cmd("/fw cooldowns").wait(10);
             b.camera(CameraType.FIRST_PERSON).playerView().look(0, 12).wait(5);
@@ -72,10 +72,10 @@ final class DevScripts {
         var def = com.fantasyweapons.weapon.Weapons.get(parts[0]);
         if (def == null || def.ability(parts[1]) == null) return;
         var a = def.ability(parts[1]);
-        b.cmd("/fw give " + parts[0] + " 100").wait(20).slot(0).cmd("/fw points 200").hud(false);
+        b.cmd("/fw give " + parts[0] + " 100").wait(130).slot(0).cmd("/fw points 200").hud(false);
         for (int i = 0; i < 4; i++) {
             b.cmd("/summon minecraft:husk " + (i - 1.5) * 1.5 + " -60 " + (5 + (i % 2) * 1.5)
-                    + " {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
+                    + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
         }
         b.wait(30).camera(CameraType.FIRST_PERSON).look(0, 10);
         if (a.requiredForm() != null) b.form(a.requiredForm()).wait(30);
@@ -152,7 +152,7 @@ final class DevScripts {
     private static void infernochain(ScreenshotDirector.Builder b) {
         b.cmd("/fw give infernochain 100").wait(20).slot(0).cmd("/fw points 200").hud(false).look(0, 0).wait(10);
         for (int i = 0; i < 3; i++) {
-            b.cmd("/summon minecraft:husk " + (i - 1) * 2 + " -60 6 {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
+            b.cmd("/summon minecraft:husk " + (i - 1) * 2 + " -60 6 {NoAI:1b,Health:1000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000d}]}");
         }
         b.viewFrom(-5.5, 1.2, 2.4).wait(10).screenshot("inferno_sword_idle");
         b.form("chainblade");
@@ -248,7 +248,7 @@ final class DevScripts {
         b.menu("void_blink").wait(25).screenshot("07_menu_blink");
         b.closeScreen().wait(10);
         // melee on a dummy
-        b.cmd("/summon minecraft:husk 0 -60 3 {NoAI:1b,Health:2000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:2000d}]}").wait(20);
+        b.cmd("/summon minecraft:husk 0 -60 3 {NoAI:1b,Health:2000f,attributes:[{id:\"minecraft:generic.max_health\",base:2000d}]}").wait(20);
         b.look(0, 15).wait(5).swing().wait(2).screenshot("08_melee_hit");
         b.wait(30);
         // weapon kill: custom dissolve instead of the vanilla death puff
@@ -256,7 +256,7 @@ final class DevScripts {
         b.camera(CameraType.THIRD_PERSON_BACK).look(0, 15).wait(5).swing().wait(2).screenshot("08b_kill");
         b.wait(17).screenshot("08c_dissolve").wait(5).screenshot("08d_dissolve_late");
         b.camera(CameraType.FIRST_PERSON).look(0, 15);
-        b.cmd("/summon minecraft:husk 0 -60 3 {NoAI:1b,Health:2000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:2000d}]}").wait(20);
+        b.cmd("/summon minecraft:husk 0 -60 3 {NoAI:1b,Health:2000f,attributes:[{id:\"minecraft:generic.max_health\",base:2000d}]}").wait(20);
         // void slash
         b.select("void_slash").wait(5).abilityDown().wait(6).screenshot("09_charging").wait(8).abilityUp().wait(4).screenshot("10_void_slash");
         b.cmd("/fw cooldowns").wait(30);
@@ -305,7 +305,7 @@ final class DevScripts {
                     .cmd("/fw points 200").cmd("/fw cooldowns");
             for (int i = 0; i < 4; i++) {
                 b.cmd("/summon minecraft:husk " + (i - 1.5) * 2.5 + " -60 " + (3 + (i % 2) * 2)
-                        + " {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
+                        + " {NoAI:1b,Health:1000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000d}]}");
             }
             b.run(mc -> {
                 mc.player.getAbilities().flying = true;
