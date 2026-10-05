@@ -67,6 +67,9 @@ public class ThrownWeaponEntity extends Entity {
     @Nullable
     private Runnable onCaught;
     private int life;
+    private int returnTicks;
+    /** Client only: the stack drawn for this entity (own animation instance, see ThrownWeaponRenderer). */
+    public ItemStack displayStack;
     private boolean clientInit;
 
     public ThrownWeaponEntity(EntityType<? extends ThrownWeaponEntity> type, Level level) {
@@ -206,13 +209,17 @@ public class ThrownWeaponEntity extends Entity {
                 yield from.add(d.normalize().scale(speed));
             }
             case RETURN -> {
+                // flies home smoothly: eases in from a slow start, never jumps the last stretch
+                returnTicks++;
                 Vec3 goal = owner.position().add(0, owner.getBbHeight() * 0.6, 0);
                 Vec3 d = goal.subtract(from);
-                double s = speed * 1.15 + Math.min(1.0, life * 0.01);
-                if (d.length() <= Math.max(1.4, s)) {
+                double dist = d.length();
+                if (dist <= 0.9) {
                     finish(owner);
                     yield goal;
                 }
+                double cruise = Math.max(1.0, speed * 1.1) + returnTicks * 0.03; // keeps gaining so it always catches up
+                double s = Math.min(dist, Math.min(cruise, 0.3 + returnTicks * 0.1));
                 yield from.add(d.normalize().scale(s));
             }
         };

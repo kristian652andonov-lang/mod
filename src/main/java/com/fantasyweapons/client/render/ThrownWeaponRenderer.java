@@ -17,7 +17,7 @@ import net.minecraft.world.item.ItemStack;
 /** Renders the actual weapon model of a {@link ThrownWeaponEntity}, lying flat and spinning like a disc. */
 public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeaponEntity> {
     /** Degrees per tick of spin; shared with the trail so the blade tips line up. */
-    public static final float SPIN = 38f;
+    public static final float SPIN = 24f;
     public static final float SCALE = 2.4f;
 
     public ThrownWeaponRenderer(EntityRendererProvider.Context ctx) {
@@ -26,7 +26,7 @@ public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeaponEntity> {
 
     @Override
     public void render(ThrownWeaponEntity e, float yaw, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
-        ItemStack stack = e.stack();
+        ItemStack stack = displayStack(e);
         if (stack.isEmpty()) return;
         pose.pushPose();
         float t = e.tickCount + partial;
@@ -39,6 +39,21 @@ public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeaponEntity> {
                 OverlayTexture.NO_OVERLAY, pose, buffers, e.level(), e.getId());
         pose.popPose();
         super.render(e, yaw, partial, pose, buffers, light);
+    }
+
+    /**
+     * A copy of the weapon with its own GeckoLib animatable id, so the flying model only plays its idle loop and never
+     * the cast / transform animations still being triggered on the stack in the player's hand (which made it flip).
+     */
+    private static ItemStack displayStack(ThrownWeaponEntity e) {
+        ItemStack src = e.stack();
+        if (src.isEmpty()) return src;
+        if (e.displayStack == null || e.displayStack.getItem() != src.getItem()) {
+            ItemStack copy = src.copy();
+            copy.set(software.bernie.geckolib.GeckoLibConstants.STACK_ANIMATABLE_ID_COMPONENT.get(), Long.MIN_VALUE + e.getId());
+            e.displayStack = copy;
+        }
+        return e.displayStack;
     }
 
     @Override

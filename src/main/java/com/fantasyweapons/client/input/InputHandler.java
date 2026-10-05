@@ -31,6 +31,21 @@ public final class InputHandler {
         }
     }
 
+    /**
+     * The weapon's recovery is real: until it is (nearly) recovered the attack key does nothing — no swing, no
+     * attack packet. Mining blocks with a weapon is left alone.
+     */
+    public static void onInteractionKey(net.neoforged.neoforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
+        if (!event.isAttack()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || !(mc.player.getMainHandItem().getItem() instanceof FantasyWeaponItem)) return;
+        if (mc.hitResult != null && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) return;
+        if (mc.player.getAttackStrengthScale(0f) < 0.97f) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+        }
+    }
+
     public static void postTick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) {

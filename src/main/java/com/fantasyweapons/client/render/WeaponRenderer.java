@@ -50,6 +50,13 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
             WeaponPoses.Pose p = WeaponPoses.renderingPose(stack);
             if (p != null && (p.gx() != 0 || p.gz() != 0)) applyGrip(stack, ctx, pose, p);
         }
+        float yaw = handleYaw(stack, ctx);
+        if (yaw != 0) {
+            // spin the model about its own handle (GeckoLib draws the model origin at (0.5, 0.51, 0.5))
+            pose.translate(0.5f, 0, 0.5f);
+            pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(yaw));
+            pose.translate(-0.5f, 0, -0.5f);
+        }
         LivingEntity tracked = chainHolder(stack, ctx);
         if (tracked != null) ChainTracker.begin(tracked, ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND);
         try {
@@ -57,6 +64,33 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
         } finally {
             if (tracked != null) ChainTracker.end();
         }
+    }
+
+    /** DEVELOPMENT ONLY (screenshot director): overrides the first-person / third-person handle yaw. */
+    public static Float debugFpYaw, debugTpYaw;
+
+    /**
+     * First person: weapons are turned about their handle so the striking side (hammer faces, axe and scythe blades,
+     * sword edges) points into the screen instead of showing the flat side.
+     */
+    private static final float FP_YAW_HEAVY = 55f, FP_YAW_BLADE = 35f;
+    /** Models whose business end sits on the other side of the handle (or reads as backwards) are turned around. */
+    private static final java.util.Map<String, Float> FACING = java.util.Map.of("soulreaper", 180f, "eclipse_reaper", 180f, "starforge", 180f,
+            "bloomfall", 180f);
+
+    /** Rotation of the weapon about its handle for the given view, in degrees. */
+    private static float handleYaw(ItemStack stack, ItemDisplayContext ctx) {
+        boolean fp = ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
+        boolean tp = ctx == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
+        if (!fp && !tp || !(stack.getItem() instanceof FantasyWeaponItem item)) return 0;
+        float facing = FACING.getOrDefault(item.definition().id(), 0f);
+        // blades keep a sliver of their flat side in view; axes, hammers and scythes point their head into the screen
+        float fpYaw = switch (item.definition().weaponClass().swingStyle()) {
+            case CHOP, SLAM, REAP -> FP_YAW_HEAVY;
+            default -> FP_YAW_BLADE;
+        };
+        if (fp) return debugFpYaw != null ? debugFpYaw : facing + fpYaw;
+        return debugTpYaw != null ? debugTpYaw : facing;
     }
 
     /** The entity whose held Infernochain is being drawn in hand right now (its segments get tracked), or null. */

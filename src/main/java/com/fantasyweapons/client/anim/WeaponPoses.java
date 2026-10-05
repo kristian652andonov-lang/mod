@@ -59,8 +59,17 @@ public final class WeaponPoses {
         return new Pose(rx, ry, rz, lx, ly, lz, by, bx, 0, 0);
     }
 
+    /**
+     * Pose from a desired blade elevation instead of a raw grip angle: {@code theta} is the blade's angle above the
+     * horizontal in the swing plane (0 = pointing straight ahead, π/2 = straight up, negative = pointing down). Measured
+     * from the renders, the blade's elevation is {@code -rx + gx - 0.88}.
+     */
+    private static Pose pt(float rx, float ry, float rz, float lx, float ly, float lz, float by, float bx, float theta, float twist) {
+        return new Pose(rx, ry, rz, lx, ly, lz, by, bx, theta + rx + 0.88f, twist);
+    }
+
     // ------------------------------------------------------------------------------------------------------------
-    // stances
+    // stances: every weapon is held in front of the body with its business end facing forward
     // ------------------------------------------------------------------------------------------------------------
 
     static Pose stance(WeaponClass cls, boolean chainForm) {
@@ -70,47 +79,57 @@ public final class WeaponPoses {
             // sword form like a longsword; chain form lets the burning chain trail forward to the ground
             case CHAINBLADE -> chainForm ? p(-0.25f, -0.05f, 0.12f, 0.05f, 0, -0.06f, 0, 0).grip(0.5f, 0.2f)
                     : p(-0.65f, -0.2f, 0.05f, 0.05f, 0, -0.06f, 0, 0).grip(0.95f, 0);
-            // two-handed weapons rest on the right shoulder
-            case GREATSWORD -> p(-0.75f, -0.5f, 0f, -0.95f, 0.65f, 0f, -0.15f, 0).grip(2.3f, -0.15f);
-            case WARHAMMER -> p(-0.7f, -0.4f, 0f, -0.9f, 0.55f, 0f, -0.1f, 0).grip(2.4f, -0.1f);
-            case COLOSSAL -> p(-0.8f, -0.45f, 0f, -1.0f, 0.55f, 0f, -0.2f, 0).grip(2.3f, -0.2f);
-            // battle axe held diagonally across the body
-            case BATTLEAXE -> p(-0.7f, -0.45f, 0f, -0.8f, 0.55f, 0f, -0.1f, 0).grip(1.35f, 0.35f);
-            // scythe stood upright, blade high
-            case SCYTHE -> p(-0.4f, -0.15f, 0.15f, -1.0f, 0.75f, 0f, -0.2f, 0).grip(1.35f, 0);
+            // two-handed guard in front, blade raised forward
+            case GREATSWORD -> pt(-0.6f, -0.25f, 0f, -0.75f, 0.55f, 0f, -0.1f, 0.04f, 0.85f, 0);
+            // axe and hammer stood up in front of the chest, head high and facing forward
+            case BATTLEAXE -> pt(-0.62f, -0.2f, 0f, -0.8f, 0.5f, 0f, -0.08f, 0.04f, 1.25f, 0);
+            case WARHAMMER -> pt(-0.6f, -0.2f, 0f, -0.8f, 0.5f, 0f, -0.08f, 0.06f, 1.35f, 0);
+            // the colossal blade is too heavy to raise at rest: both hands low, blade angled down in front
+            case COLOSSAL -> pt(-0.42f, -0.18f, 0f, -0.55f, 0.5f, 0f, -0.05f, 0.1f, -0.22f, 0);
+            // reaper's stance: snath upright beside the body, blade high and pointing forward
+            case SCYTHE -> pt(-0.42f, -0.1f, 0.12f, -1.05f, 0.45f, 0f, -0.1f, 0f, 1.62f, 0);
             // lance couched forward
             case LANCE -> p(-0.4f, 0.05f, 0f, -0.85f, 0.45f, 0f, -0.15f, 0).grip(0.55f, 0);
         };
     }
 
     // ------------------------------------------------------------------------------------------------------------
-    // swings: keyframes from stance → wind-up → strike → follow-through → stance
+    // swings: stance → wind-up → strike → follow-through → recovery. The strike lands early (damage is dealt on the
+    // click); the long follow-through and recovery carry the weight. Arcs stay in front of / outside the body.
     // ------------------------------------------------------------------------------------------------------------
 
     private static Key[] swingKeys(WeaponClass cls, Pose stance, boolean backhand) {
         return switch (cls.swingStyle()) {
             case SLASH -> backhand
-                    ? new Key[]{new Key(0, stance), new Key(0.22f, p(-0.45f, 0.85f, -0.25f, 0.1f, 0, -0.1f, 0.45f, 0).grip(0.7f, -0.5f)),
-                    new Key(0.55f, p(-2.2f, -0.8f, 0.35f, 0.2f, 0, -0.25f, -0.45f, 0.05f).grip(0.9f, 0.2f)), new Key(1, stance)}
-                    : new Key[]{new Key(0, stance), new Key(0.22f, p(-2.5f, -0.75f, 0.35f, 0.15f, 0, -0.2f, -0.4f, -0.05f).grip(1.5f, 0)),
-                    new Key(0.55f, p(-0.55f, 0.9f, -0.2f, 0.1f, 0, -0.1f, 0.5f, 0.12f).grip(0.35f, 0.5f)), new Key(1, stance)};
+                    ? new Key[]{new Key(0, stance),
+                    new Key(0.24f, pt(-1.3f, -0.9f, -0.1f, 0.1f, 0, -0.1f, 0.45f, 0.02f, 0.65f, -0.35f)),
+                    new Key(0.44f, pt(-1.35f, 0.6f, 0.15f, 0.15f, 0, -0.2f, -0.45f, 0.08f, 0.1f, 0.35f)),
+                    new Key(0.7f, pt(-0.9f, 0.8f, 0.2f, 0.15f, 0, -0.2f, -0.5f, 0.1f, -0.3f, 0.3f)), new Key(1, stance)}
+                    : new Key[]{new Key(0, stance),
+                    new Key(0.24f, pt(-2.2f, 0.55f, 0.2f, 0.15f, 0, -0.2f, -0.35f, -0.04f, 1.9f, 0)),
+                    new Key(0.44f, pt(-1.25f, -0.6f, -0.05f, 0.1f, 0, -0.1f, 0.4f, 0.1f, 0f, 0.4f)),
+                    new Key(0.7f, pt(-0.75f, -0.85f, -0.05f, 0.1f, 0, -0.1f, 0.5f, 0.12f, -0.6f, 0.35f)), new Key(1, stance)};
             case HEAVY_SLASH -> new Key[]{new Key(0, stance),
-                    new Key(0.28f, p(-1.4f, -1.15f, 0.3f, -1.3f, -0.35f, 0, -0.95f, 0).grip(1.8f, 0)),
-                    new Key(0.62f, p(-1.25f, 0.95f, 0, -1.35f, 1.3f, 0, 0.9f, 0.1f).grip(0.6f, 0.3f)), new Key(1, stance)};
+                    new Key(0.3f, pt(-2.1f, 0.45f, 0.1f, -2.0f, 0.9f, 0, -0.6f, -0.08f, 1.75f, 0)),
+                    new Key(0.5f, pt(-1.2f, -0.55f, 0, -1.25f, 0.15f, 0, 0.65f, 0.15f, 0.05f, 0.35f)),
+                    new Key(0.72f, pt(-0.7f, -0.8f, 0, -0.75f, 0f, 0, 0.8f, 0.18f, -0.55f, 0.3f)), new Key(1, stance)};
             case CHOP -> new Key[]{new Key(0, stance),
-                    new Key(0.32f, p(-3.0f, -0.2f, 0, -2.9f, 0.3f, 0, 0, -0.12f).grip(2.0f, 0)),
-                    new Key(0.58f, p(-0.45f, -0.15f, 0, -0.6f, 0.35f, 0, 0.05f, 0.35f).grip(0.45f, 0)),
-                    new Key(0.75f, p(-0.5f, -0.15f, 0, -0.65f, 0.35f, 0, 0.05f, 0.3f).grip(0.5f, 0)), new Key(1, stance)};
+                    new Key(0.32f, pt(-2.75f, 0.25f, 0, -2.7f, 0.5f, 0, -0.1f, -0.12f, 2.25f, 0)),
+                    new Key(0.5f, pt(-1.05f, -0.1f, 0, -1.1f, 0.4f, 0, 0.05f, 0.3f, -0.25f, 0)),
+                    new Key(0.74f, pt(-0.6f, -0.1f, 0, -0.65f, 0.4f, 0, 0.05f, 0.35f, -0.7f, 0)), new Key(1, stance)};
             case REAP -> new Key[]{new Key(0, stance),
-                    new Key(0.27f, p(-1.0f, -1.35f, 0.4f, -1.4f, -0.3f, 0, -1.05f, 0).grip(0.75f, 0.3f)),
-                    new Key(0.66f, p(-0.9f, 1.05f, -0.2f, -1.0f, 1.4f, 0, 1.0f, 0.15f).grip(0.6f, -0.2f)), new Key(1, stance)};
+                    new Key(0.3f, pt(-1.25f, 1.0f, 0.1f, -1.35f, 1.3f, 0, -0.9f, 0f, 0.7f, 0.5f)),
+                    new Key(0.52f, pt(-1.2f, -0.6f, 0, -1.3f, 0.1f, 0, 0.75f, 0.1f, 0.55f, 0f)),
+                    new Key(0.76f, pt(-0.95f, -0.95f, 0, -1.0f, -0.2f, 0, 0.95f, 0.12f, 0.4f, -0.1f)), new Key(1, stance)};
             case SLAM -> new Key[]{new Key(0, stance),
-                    new Key(0.38f, p(-3.1f, -0.1f, 0, -3.0f, 0.2f, 0, 0, -0.15f).grip(2.2f, 0)),
-                    new Key(0.56f, p(-0.3f, -0.1f, 0, -0.4f, 0.3f, 0, 0, 0.45f).grip(0.05f, 0)),
-                    new Key(0.8f, p(-0.35f, -0.1f, 0, -0.45f, 0.3f, 0, 0, 0.4f).grip(0.05f, 0)), new Key(1, stance)};
+                    new Key(0.34f, pt(-2.95f, 0.1f, 0, -2.9f, 0.3f, 0, 0, -0.15f, 2.0f, 0)),
+                    new Key(0.44f, pt(-3.05f, 0.1f, 0, -3.0f, 0.3f, 0, 0, -0.18f, 2.15f, 0)),
+                    new Key(0.58f, pt(-0.85f, -0.05f, 0, -0.9f, 0.35f, 0, 0, 0.4f, -0.45f, 0)),
+                    new Key(0.8f, pt(-0.75f, -0.05f, 0, -0.8f, 0.35f, 0, 0, 0.38f, -0.55f, 0)), new Key(1, stance)};
             case THRUST -> new Key[]{new Key(0, stance),
-                    new Key(0.25f, p(-0.15f, 0.25f, 0, -0.6f, 0.3f, 0, -0.3f, 0).grip(0.8f, 0)),
-                    new Key(0.5f, p(-1.4f, -0.05f, 0, -1.45f, 0.25f, 0, 0.2f, 0.15f).grip(-0.5f, 0)), new Key(1, stance)};
+                    new Key(0.25f, pt(-0.85f, 0.25f, 0, -0.9f, 0.5f, 0, -0.35f, -0.05f, 0.05f, 0)),
+                    new Key(0.45f, pt(-1.5f, -0.05f, 0, -1.5f, 0.25f, 0, 0.25f, 0.15f, 0f, 0)),
+                    new Key(0.7f, pt(-1.4f, -0.05f, 0, -1.45f, 0.25f, 0, 0.2f, 0.12f, 0f, 0)), new Key(1, stance)};
         };
     }
 

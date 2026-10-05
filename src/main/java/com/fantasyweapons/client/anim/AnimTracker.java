@@ -52,17 +52,15 @@ public final class AnimTracker {
         return level == null ? 0 : level.getGameTime() + partial;
     }
 
-    /** Swing duration in ticks for a weapon (heavy attacks wind up longer). */
+    /**
+     * Swing duration in ticks: about 80% of the weapon's recovery time, so the follow-through settles just before the
+     * next swing is allowed (heavy attacks take longer still).
+     */
     public static int swingDuration(WeaponDefinition def, ItemStack stack, boolean heavy) {
         WeaponForm form = def.form(FantasyWeaponItem.data(stack));
-        int base = switch (def.weaponClass()) {
-            case LONGSWORD, LANCE -> 7;
-            case CHAINBLADE -> form != null && "chainblade".equals(form.id()) ? 11 : 7;
-            case GREATSWORD, BATTLEAXE, SCYTHE -> 10;
-            case WARHAMMER -> 12;
-            case COLOSSAL -> 16;
-        };
-        return heavy ? Math.round(base * 1.4f) : base;
+        float speed = def.weaponClass().attackSpeed() * (form != null ? form.attackSpeedFactor() : 1f);
+        int base = Math.max(8, Math.round(20f / speed * 0.8f));
+        return heavy ? Math.round(base * 1.25f) : base;
     }
 
     public static void onSwing(LivingEntity e, WeaponDefinition def, ItemStack stack, boolean heavy) {

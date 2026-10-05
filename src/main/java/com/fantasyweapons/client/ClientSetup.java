@@ -62,6 +62,7 @@ public final class ClientSetup {
                 e.registerEntityRenderer(com.fantasyweapons.registry.ModEntities.THROWN_WEAPON.get(),
                         com.fantasyweapons.client.render.ThrownWeaponRenderer::new));
 
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.input.InputHandler::onInteractionKey);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);
         NeoForge.EVENT_BUS.addListener(VfxManager::render);

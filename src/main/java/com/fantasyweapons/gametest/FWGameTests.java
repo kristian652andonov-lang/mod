@@ -234,7 +234,10 @@ public final class FWGameTests {
         ServerPlayer p = player(h, new Vec3(12.5, 2, 10.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");
         Husk target = dummy(h, new BlockPos(12, 2, 12), 1f);
-        h.runAfterDelay(2, () -> p.attack(target));
+        h.runAfterDelay(2, () -> {
+            ready(p);
+            p.attack(target);
+        });
         h.succeedWhen(() -> {
             h.assertFalse(target.isAlive(), "melee hit should kill the target");
             WeaponData d = FantasyWeaponItem.data(stack);
@@ -248,7 +251,10 @@ public final class FWGameTests {
         ServerPlayer p = player(h, new Vec3(12.5, 2, 10.5), 0);
         giveWeapon(p, "voidfang");
         Husk target = dummy(h, new BlockPos(12, 2, 12), 1f);
-        h.runAfterDelay(2, () -> p.attack(target));
+        h.runAfterDelay(2, () -> {
+            ready(p);
+            p.attack(target);
+        });
         h.succeedWhen(() -> {
             h.assertTrue(target.isRemoved(), "dead mob should be removed");
             // vanilla removes at deathTime 20 with the puff event; the dissolve removes it earlier
@@ -325,11 +331,13 @@ public final class FWGameTests {
         Husk swordTarget = dummy(h, new BlockPos(10, 2, 9), 100000f);
         Husk chainTarget = dummy(h, new BlockPos(15, 2, 9), 100000f);
         // sword form (form 0)
+        ready(p);
         com.fantasyweapons.combat.MeleeHandler.attack(p, swordTarget);
         float swordDamage = swordTarget.getMaxHealth() - swordTarget.getHealth();
         // chainblade form (form 1)
         WeaponData d = FantasyWeaponItem.data(stack);
         stack.set(ModComponents.WEAPON_DATA.get(), d.withForm(1));
+        ready(p);
         com.fantasyweapons.combat.MeleeHandler.attack(p, chainTarget);
         float chainDamage = chainTarget.getMaxHealth() - chainTarget.getHealth();
         h.assertTrue(swordDamage > 0 && chainDamage > swordDamage * 1.3f, "chainblade should hit far harder: sword " + swordDamage + " chain " + chainDamage);
@@ -427,6 +435,17 @@ public final class FWGameTests {
         Vec3 abs = h.absoluteVec(relative);
         player.teleportTo(level, abs.x, abs.y, abs.z, yaw, 0);
         return player;
+    }
+
+    /** Mock players are never ticked, so their weapon never "recovers" by itself: mark it fully recovered. */
+    private static void ready(ServerPlayer p) {
+        try {
+            var f = net.minecraft.world.entity.LivingEntity.class.getDeclaredField("attackStrengthTicker");
+            f.setAccessible(true);
+            f.setInt(p, 10000);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static void cleanup(ServerPlayer p) {

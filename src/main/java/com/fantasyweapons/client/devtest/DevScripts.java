@@ -19,6 +19,8 @@ final class DevScripts {
             case "infernochain" -> infernochain(b);
             case "chaingrip" -> chainGrip(b);
             case "menus" -> menus(b);
+            case "holds" -> holds(b);
+            case "yaw" -> yaw(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
@@ -109,31 +111,20 @@ final class DevScripts {
 
     /** One weapon per class: idle, swing keyframes, heavy, charge, release and form from several angles. */
     private static void poses(ScreenshotDirector.Builder b) {
-        String[] weapons = {"voidfang", "solaris", "doomcleaver", "soulreaper", "starforge", "aetherlance", "monolith", "infernochain"};
+        var all = com.fantasyweapons.weapon.Weapons.all();
         b.hud(false);
-        for (int i = 0; i < weapons.length; i++) b.cmd("/fw give " + weapons[i] + " 1");
-        b.wait(20);
-        for (int i = 0; i < weapons.length; i++) {
-            String w = weapons[i];
-            b.slot(i).look(0, 0).wait(10);
-            // first person: idle, mid swing
-            b.playerView().camera(CameraType.FIRST_PERSON).hud(true).pin(-1, false, false, -1, -1, -1).wait(8).screenshot(w + "_fp_idle");
-            b.pin(0.25f, false, false, -1, -1, -1).wait(3).screenshot(w + "_fp_swing25");
-            b.pin(0.5f, false, false, -1, -1, -1).wait(3).screenshot(w + "_fp_swing50");
-            b.pin(-1, false, false, 1f, -1, -1).wait(3).screenshot(w + "_fp_charge");
+        for (int i = 0; i < all.size(); i++) {
+            String w = all.get(i).id();
+            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).look(0, 0).wait(8);
+            // first person: idle and mid swing
+            b.playerView().camera(CameraType.FIRST_PERSON).hud(true).pin(-1, false, false, -1, -1, -1).wait(6).screenshot(w + "_fp_idle");
+            b.pin(0.4f, false, false, -1, -1, -1).wait(3).screenshot(w + "_fp_swing40");
             b.hud(false);
-            // third person, 3/4 front-right and side
-            b.pin(-1, false, false, -1, -1, -1).viewFrom(2.6, 0.2, 2.6).wait(8).screenshot(w + "_tp_idle_front");
-            b.viewFrom(-3.4, 0.3, 0.4).wait(5).screenshot(w + "_tp_idle_side");
-            b.viewFrom(2.6, 0.2, 2.6);
-            for (float t : new float[]{0.22f, 0.4f, 0.6f}) {
-                b.pin(t, false, false, -1, -1, -1).wait(3).screenshot(w + "_tp_swing" + Math.round(t * 100));
-            }
-            b.pin(0.4f, false, true, -1, -1, -1).wait(3).screenshot(w + "_tp_backhand40");
-            b.pin(0.35f, true, false, -1, -1, -1).wait(3).screenshot(w + "_tp_heavy35");
-            b.pin(-1, false, false, 1f, -1, -1).wait(3).screenshot(w + "_tp_charge");
-            b.pin(-1, false, false, -1, 0.25f, -1).wait(3).screenshot(w + "_tp_cast");
-            b.pin(-1, false, false, -1, -1, 0.4f).wait(3).screenshot(w + "_tp_form");
+            // third person: front and side stance, swing keyframes from the front three-quarter view
+            b.pin(-1, false, false, -1, -1, -1).viewFrom(1.2, 0.4, 4.0).wait(6).screenshot(w + "_tp_front");
+            b.viewFrom(4.2, 0.5, 0.6).wait(4).screenshot(w + "_tp_side");
+            b.viewFrom(2.8, 0.4, 3.0);
+            for (float t : new float[]{0.24f, 0.44f, 0.7f}) b.pin(t, false, false, -1, -1, -1).wait(3).screenshot(w + "_tp_swing" + Math.round(t * 100));
             b.pin(-1, false, false, -1, -1, -1);
         }
         b.playerView();
@@ -194,6 +185,46 @@ final class DevScripts {
             b.slot(i).wait(20).screenshot(weapons[i] + "_hud");
             b.menu(def.castables().get(def.castables().size() - 1).id()).wait(20).screenshot(weapons[i] + "_menu").closeScreen().wait(5);
         }
+    }
+
+    /** Every weapon held: third person from the player's right side and from the front, and first person. */
+    private static void holds(ScreenshotDirector.Builder b) {
+        var all = com.fantasyweapons.weapon.Weapons.all();
+        for (var def : all) b.cmd("/fw give " + def.id() + " 1");
+        b.wait(20).look(0, 0);
+        for (int i = 0; i < all.size(); i++) {
+            String w = all.get(i).id();
+            // the hotbar has 9 slots: swap the remaining weapons in as we go
+            if (i == 9) b.cmd("/clear @s").cmd("/fw give " + all.get(9).id() + " 1").cmd("/fw give " + all.get(10).id() + " 1")
+                    .cmd("/fw give " + all.get(11).id() + " 1").cmd("/fw give " + all.get(12).id() + " 1").wait(10);
+            b.slot(i % 9).wait(12).hud(false);
+            b.viewFrom(4.2, 0.5, 0.6).wait(4).screenshot("hold_" + w + "_right");
+            b.viewFrom(0.8, 0.5, 4.2).wait(4).screenshot("hold_" + w + "_front");
+            b.playerView().camera(CameraType.FIRST_PERSON).hud(true).wait(6).screenshot("hold_" + w + "_fp");
+        }
+    }
+
+    /** Handle-yaw candidates for a few asymmetric weapons, first person and third person side view. */
+    private static void yaw(ScreenshotDirector.Builder b) {
+        String[] ws = {"soulreaper", "starforge", "doomcleaver", "solaris", "bloomfall", "eclipse_reaper"};
+        for (String w : ws) b.cmd("/fw give " + w + " 1");
+        b.wait(20).look(0, 0);
+        float[] fps = {0, 60, 90, -60, -90};
+        for (int i = 0; i < ws.length; i++) {
+            b.slot(i).wait(10).playerView().camera(CameraType.FIRST_PERSON).hud(true);
+            for (float y : fps) {
+                b.run(mc -> com.fantasyweapons.client.render.WeaponRenderer.debugFpYaw = y).wait(3).screenshot("yaw_" + ws[i] + "_fp" + Math.round(y));
+            }
+            b.hud(false);
+            for (float y : new float[]{0, 180}) {
+                b.run(mc -> com.fantasyweapons.client.render.WeaponRenderer.debugTpYaw = y).viewFrom(4.2, 0.5, 0.6).wait(3).screenshot("yaw_" + ws[i] + "_tp" + Math.round(y));
+            }
+            b.run(mc -> {
+                com.fantasyweapons.client.render.WeaponRenderer.debugFpYaw = null;
+                com.fantasyweapons.client.render.WeaponRenderer.debugTpYaw = null;
+            });
+        }
+        b.playerView();
     }
 
     private static void voidfang(ScreenshotDirector.Builder b) {

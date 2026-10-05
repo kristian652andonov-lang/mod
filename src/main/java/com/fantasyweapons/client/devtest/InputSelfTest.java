@@ -215,6 +215,20 @@ final class InputSelfTest {
             }
         };
         QUEUE.add(selectStep);
+        // wait for a thrown weapon (scythes, discs) to come back first
+        int[] waited = {0};
+        QUEUE.add(new Step() {
+            @Override
+            public int run(Minecraft mc) {
+                AbilityRuntime rt = mc.player.getData(ModAttachments.ABILITY_RUNTIME);
+                if (rt.isThrown(FantasyWeaponItem.data(held(mc)).idOrNil()) && waited[0]++ < 30) {
+                    QUEUE.addFirst(this);
+                    return 10;
+                }
+                if (waited[0] >= 30) fail(key + ": thrown weapon never came back");
+                return 1;
+            }
+        });
         // a fresh target right in front, then charge with the real ability key, release, verify the cast
         QUEUE.add(mc -> {
             cmd(mc, "/kill @e[type=minecraft:husk]");

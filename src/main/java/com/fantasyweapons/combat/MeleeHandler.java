@@ -36,6 +36,9 @@ import java.util.List;
  * weapons and replaced with this, which uses only the custom VFX system.
  */
 public final class MeleeHandler {
+    /** Swings must wait for (almost) full recovery; a little slack for client/server timing. */
+    public static final float MIN_STRENGTH = 0.85f;
+
     private MeleeHandler() {
     }
 
@@ -48,6 +51,8 @@ public final class MeleeHandler {
         if (rt.isThrown(data.idOrNil())) return;
 
         float strength = player.getAttackStrengthScale(0.5f);
+        // heavy weapons have a real recovery: a swing before the weapon has recovered does nothing at all
+        if (strength < MIN_STRENGTH) return;
         player.resetAttackStrengthTicker();
         ServerLevel level = player.serverLevel();
 
