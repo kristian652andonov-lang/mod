@@ -337,7 +337,8 @@ public final class FWGameTests {
         ExpService.setLevel(p, stack, 15);
         Husk swordTarget = dummy(h, new BlockPos(10, 2, 9), 100000f);
         Husk chainTarget = dummy(h, new BlockPos(15, 2, 9), 100000f);
-        // sword form (form 0)
+        // sword form (form 0); random crits would make the comparison flaky
+        com.fantasyweapons.combat.MeleeHandler.suppressRandomCrits = true;
         ready(p);
         com.fantasyweapons.combat.MeleeHandler.attack(p, swordTarget);
         float swordDamage = swordTarget.getMaxHealth() - swordTarget.getHealth();
@@ -347,6 +348,7 @@ public final class FWGameTests {
         ready(p);
         com.fantasyweapons.combat.MeleeHandler.attack(p, chainTarget);
         float chainDamage = chainTarget.getMaxHealth() - chainTarget.getHealth();
+        com.fantasyweapons.combat.MeleeHandler.suppressRandomCrits = false;
         h.assertTrue(swordDamage > 0 && chainDamage > swordDamage * 1.3f, "chainblade should hit far harder: sword " + swordDamage + " chain " + chainDamage);
         h.assertTrue(StatusService.stacks(chainTarget, StatusType.SEARED) > 0, "chainblade hits should sear");
         h.assertTrue(StatusService.stacks(swordTarget, StatusType.SEARED) == 0, "sword form hits should not sear");

@@ -37,6 +37,9 @@ import java.util.List;
  */
 public final class MeleeHandler {
     /** Swings must wait for (almost) full recovery; a little slack for client/server timing. */
+    /** GameTests only: turns off random critical hits so damage comparisons are deterministic. */
+    public static boolean suppressRandomCrits;
+
     public static final float MIN_STRENGTH = 0.85f;
 
     private MeleeHandler() {
@@ -60,7 +63,7 @@ public final class MeleeHandler {
         WeaponClass cls = def.weaponClass();
         boolean heavy = player.isShiftKeyDown() && strength >= ServerConfig.HEAVY_ATTACK_MIN_STRENGTH.getOrDefault();
         boolean falling = player.fallDistance > 0 && !player.onGround() && !player.onClimbable() && !player.isInWater();
-        boolean crit = strength > 0.9f && (falling || player.getRandom().nextFloat() < def.critChance());
+        boolean crit = strength > 0.9f && (falling || !suppressRandomCrits && player.getRandom().nextFloat() < def.critChance());
 
         float base = ProgressionMath.weaponDamage(def, data) * (form != null ? form.damageFactor() : 1f);
         float damage = base * (0.2f + strength * strength * 0.8f);
