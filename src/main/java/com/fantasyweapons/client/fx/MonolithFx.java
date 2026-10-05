@@ -2,14 +2,14 @@ package com.fantasyweapons.client.fx;
 
 import com.fantasyweapons.client.anim.AnimTracker;
 import com.fantasyweapons.client.vfx.Colors;
-import com.fantasyweapons.client.vfx.Vfx;
+import com.fantasyweapons.client.vfx.GroundMaterial;
 import com.fantasyweapons.client.vfx.VfxManager;
 import com.fantasyweapons.client.vfx.VfxTextures;
 import com.fantasyweapons.client.vfx.effects.DecalVfx;
+import com.fantasyweapons.client.vfx.effects.EarthChunkVfx;
 import com.fantasyweapons.client.vfx.effects.FissureVfx;
 import com.fantasyweapons.client.vfx.effects.FlashVfx;
 import com.fantasyweapons.client.vfx.effects.FollowTrailVfx;
-import com.fantasyweapons.client.vfx.effects.ModelPartVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
 import com.fantasyweapons.client.vfx.effects.SpikeVfx;
@@ -19,13 +19,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Quaternionf;
 
 import java.util.List;
 
 /**
- * Client visuals for Monolith. Everything is custom geometry: the artist's rock fragment meshes as flying debris,
- * procedural jagged rock pillars, glowing ground fissures, dust rings and shockwaves — no vanilla block particles.
+ * Client visuals for Monolith. Everything is custom geometry built from the terrain that is struck (see
+ * {@link GroundShatter}): boulders and clods of the real ground, pillars wearing its texture, plates of earth heaving
+ * along glowing fissures, dust in its colour and shockwaves; no vanilla block particles.
  * Palette: quarried stone, pale limestone, molten amber ground energy, deep earth.
  */
 public final class MonolithFx {
@@ -36,8 +36,6 @@ public final class MonolithFx {
     static final int CORE = 0xFFE7B8;
     static final int DUST = 0x8C7458;
     static final int ROCK = 0x6E5C48;
-    /** Multiplies the artist's pale rock texture down to weathered stone. */
-    static final int STONE_TINT = 0x9A8670;
     private static final Vec3 UP = new Vec3(0, 1, 0);
 
     private MonolithFx() {
@@ -62,37 +60,33 @@ public final class MonolithFx {
         return FrostrendFx.ground(p);
     }
 
-    /** The artist's rock fragments thrown out of the ground on ballistic arcs; they tumble, land and crumble away. */
+    /** Boulders of the ground itself thrown out on ballistic arcs; they tumble, bounce, settle and sink away. */
     static void debris(Vec3 c, float spread, int count, float power, long seed) {
+        Vec3 g = ground(c);
         RandomSource r = RandomSource.create(seed);
+        EarthChunkVfx e = new EarthChunkVfx(GroundMaterial.at(g), 50 + r.nextInt(10));
         for (int i = 0; i < count; i++) {
-            int bone = i % 5;
             double a = r.nextDouble() * Math.PI * 2;
-            double h = (0.12 + r.nextDouble() * 0.22) * power;
-            double vx = Math.cos(a) * h, vz = Math.sin(a) * h;
-            double vy = (0.45 + r.nextDouble() * 0.35) * power;
-            Vec3 from = c.add(Math.cos(a) * spread * r.nextDouble(), 0.2, Math.sin(a) * spread * r.nextDouble());
-            int life = 34 + r.nextInt(14);
-            float size = 1.8f + r.nextFloat() * 1.6f;
-            float spinX = (r.nextFloat() - 0.5f) * 0.9f, spinY = (r.nextFloat() - 0.5f) * 0.7f, spinZ = (r.nextFloat() - 0.5f) * 0.8f;
-            double floor = from.y - 0.1;
-            VfxManager.add(new ModelPartVfx("monolith", from, life, "rock_fragment_" + bone)
-                    .position(t -> {
-                        float tt = t * life;
-                        double y = from.y + vy * tt - 0.045 * tt * tt;
-                        double k = y < floor ? 0.35 : 1; // skids after landing
-                        return new Vec3(from.x + vx * tt * k, Math.max(floor, y), from.z + vz * tt * k);
-                    })
-                    .rotation(t -> new Quaternionf().rotationXYZ(t * life * spinX, t * life * spinY, t * life * spinZ))
-                    .scale(t -> size * (t > 0.75f ? 1 - (t - 0.75f) / 0.25f * 0.6f : 1f))
-                    .alpha(t -> t > 0.75f ? (1 - t) / 0.25f : 1f).spectral(STONE_TINT, 1f, 0f).noGlow());
+            double h = (0.1 + r.nextDouble() * 0.18) * power;
+            Vec3 from = g.add(Math.cos(a) * spread * r.nextDouble(), 0.3, Math.sin(a) * spread * r.nextDouble());
+            e.chunk(from, new Vec3(Math.cos(a) * h, (0.4 + r.nextDouble() * 0.3) * power, Math.sin(a) * h), 0.45f + r.nextFloat() * 0.4f, g.y + 0.2,
+                    r.nextLong());
         }
+        VfxManager.add(e);
     }
 
-    /** Stone rubble and chips (custom rock billboards, alpha blended so they read as stone, not light). */
+    /** Small chips and clods of the ground flung out of a blow. */
     static void rubble(Vec3 c, float speed, int count, long seed) {
-        VfxManager.add(new ShardBurstVfx(c.add(0, 0.4, 0), UP, 0.65f, speed, count, 0.34f, Colors.argb(255, ROCK), Colors.argb(230, EARTH), 30, seed)
-                .texture(VfxTextures.ROCK, false).physics(0.05f, 0.96f).translucent());
+        Vec3 g = ground(c);
+        RandomSource r = RandomSource.create(seed);
+        EarthChunkVfx e = new EarthChunkVfx(GroundMaterial.at(g), 36 + r.nextInt(8));
+        for (int i = 0; i < Math.max(3, count / 2); i++) {
+            double a = r.nextDouble() * Math.PI * 2;
+            double h = (0.25 + r.nextDouble() * 0.6) * speed;
+            e.chunk(g.add(0, 0.2, 0), new Vec3(Math.cos(a) * h, (0.3 + r.nextDouble() * 0.5) * speed * 1.4, Math.sin(a) * h),
+                    0.12f + r.nextFloat() * 0.16f, g.y + 0.06, r.nextLong());
+        }
+        VfxManager.add(e);
     }
 
     /** A ring of dust rolling outward along the ground. */
@@ -102,9 +96,15 @@ public final class MonolithFx {
             double a = i * Math.PI * 2 / puffs + r.nextDouble() * 0.4;
             Vec3 dir = new Vec3(Math.cos(a), 0.12, Math.sin(a));
             VfxManager.add(new ShardBurstVfx(c.add(dir.x * 0.6, 0.35, dir.z * 0.6), dir, 0.25f, radius * 0.055f, 4, 2.4f + radius * 0.08f,
-                    Colors.argb(210, DUST), Colors.argb(0, LIME), 34 + r.nextInt(10), r.nextLong())
+                    Colors.argb(210, dustColor(c)), Colors.argb(0, LIME), 34 + r.nextInt(10), r.nextLong())
                     .texture(VfxTextures.MIST, false).physics(-0.004f, 0.9f).translucent());
         }
+    }
+
+    /** Dust takes the colour of the ground it is kicked up from. */
+    static int dustColor(Vec3 c) {
+        GroundMaterial m = GroundMaterial.at(ground(c));
+        return m.lit(Colors.lerpRgb(m.dust(), 0xE8E0D0, 0.2f), 1f);
     }
 
     /** Ground shockwave: a pale stone ring hugging the ground and a molten energy ring inside it. */
@@ -117,12 +117,15 @@ public final class MonolithFx {
     static void cracks(Vec3 c, List<Vec3> ends, float width, int grow, int life, float curtain, long seed) {
         for (int i = 0; i < ends.size(); i++) {
             VfxManager.add(new FissureVfx(List.of(c, ends.get(i)), width, ENERGY, CORE, grow, life, seed + i * 31L, MonolithFx::ground).curtain(curtain));
+            float len = (float) Math.max(1, c.distanceTo(ends.get(i)));
+            GroundShatter.line(c, ends.get(i), width, 1f, grow / len, seed + i * 57L);
         }
     }
 
     /** Jagged rock pillars bursting out of the ground, leaning away from {@code from}. */
-    static SpikeVfx pillars(int life) {
-        return new SpikeVfx(SpikeVfx.Style.ROCK, Colors.argb(255, 0xA89070), Colors.argb(255, ENERGY), life).timing(3, 12);
+    static SpikeVfx pillars(Vec3 at, int life) {
+        return new SpikeVfx(SpikeVfx.Style.ROCK, Colors.argb(255, 0xA89070), Colors.argb(255, ENERGY), life).timing(3, 12)
+                .material(GroundMaterial.at(ground(at)));
     }
 
     static void pillarRing(SpikeVfx s, Vec3 c, float ringRadius, int count, float h0, float h1, int delay, RandomSource r) {
@@ -165,8 +168,7 @@ public final class MonolithFx {
         // the blade biting into the ground: dust and a seam of light the moment it lands
         FxScheduler.after(drive, () -> {
             VfxManager.add(new FlashVfx(c.add(0, 0.3, 0), 0.5f, 2.6f, Colors.argb(255, CORE), 6).energy());
-            VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), UP, 1.4f, Colors.argb(235, EARTH), VfxTextures.CRACK, Math.max(20, ticks - drive))
-                    .timing(0.05f, 0.25f).translucent());
+            GroundShatter.cracks(ground(c), 1.6f, GroundMaterial.at(ground(c)), Math.max(20, ticks - drive));
             VfxManager.add(new DecalVfx(c.add(0, 0.06, 0), UP, 1.1f, Colors.argb(200, ENERGY), VfxTextures.GLOW, Math.max(20, ticks - drive))
                     .timing(0.05f, 0.4f));
         });
@@ -177,14 +179,14 @@ public final class MonolithFx {
         float r = p.scale();
         RandomSource rnd = RandomSource.create(p.seed());
         cracks(c, p.points(), 1.0f, 6, 80, 0.8f, p.seed());
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), UP, r * 0.55f, Colors.argb(235, EARTH), VfxTextures.CRACK, 90).timing(0.04f, 0.3f).translucent());
+        GroundShatter.impact(c, r * 0.45f, 1.1f, p.seed() * 3 + 1);
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), UP, r * 0.45f, Colors.argb(200, ENERGY), VfxTextures.RUNE_CIRCLE, 40).spin(0.03f).energy()
                 .timing(0.08f, 0.5f));
         shockwave(c, r, 9);
         dust(c, r, 14, p.seed());
         rubble(c, 0.5f, 26, p.seed() * 3);
         debris(c, 1.2f, 7, 1f, p.seed() * 5);
-        SpikeVfx s = pillars(44);
+        SpikeVfx s = pillars(c, 44);
         pillarRing(s, c, r * 0.4f, 7, 1.3f, 2.3f, 0, rnd);
         for (Vec3 end : p.points()) pillarLine(s, c, end, 2.2f, 1.6f, 0.7f, 0.6f, rnd);
         VfxManager.add(s);
@@ -203,7 +205,8 @@ public final class MonolithFx {
         RandomSource rnd = RandomSource.create(p.seed());
         VfxManager.add(new FissureVfx(List.of(start, start.add(dir.scale(length * 0.5)), end), width * 1.15f, ENERGY, CORE, grow, grow + 60, p.seed(),
                 MonolithFx::ground).curtain(1.1f));
-        SpikeVfx s = pillars(grow + 40);
+        GroundShatter.line(start, end, width, 1.2f, 1f / speed, p.seed() * 3);
+        SpikeVfx s = pillars(start, grow + 40);
         pillarLine(s, start, end, 1.5f, 3.0f, 1.8f, 1f / speed, rnd);
         VfxManager.add(s);
         // dust, rubble, debris and tremor travelling with the head of the fissure
@@ -221,7 +224,7 @@ public final class MonolithFx {
         }
         FxScheduler.after(grow, () -> {
             Vec3 e = ground(end);
-            SpikeVfx fin = pillars(40);
+            SpikeVfx fin = pillars(e, 40);
             pillarRing(fin, e, 1.3f, 5, 2.2f, 3.2f, 0, rnd);
             VfxManager.add(fin);
             dust(e, 3f, 8, p.seed() * 17);
@@ -234,13 +237,13 @@ public final class MonolithFx {
         Vec3 c = p.pos();
         float r = p.scale();
         boolean big = p.power() > 0;
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), UP, r * 0.6f, Colors.argb(210, EARTH), VfxTextures.CRACK, 40).timing(0.06f, 0.4f).translucent());
+        GroundShatter.cracks(ground(c), r * 0.6f, GroundMaterial.at(ground(c)), 40);
         VfxManager.add(new ShockwaveVfx(c.add(0, 0.12, 0), UP, 0.4f, r, 0.35f, Colors.argb(190, LIME), 8));
         dust(c, r, big ? 12 : 7, p.seed());
         rubble(c, 0.3f, big ? 14 : 8, p.seed() * 3);
         if (big) {
             RandomSource rnd = RandomSource.create(p.seed());
-            SpikeVfx s = pillars(34);
+            SpikeVfx s = pillars(c, 34);
             for (int i = 0; i < 6; i++) {
                 double a = rnd.nextDouble() * Math.PI * 2, d = 2 + rnd.nextDouble() * (r - 2);
                 Vec3 base = ground(c.add(Math.cos(a) * d, 0, Math.sin(a) * d));
@@ -258,7 +261,7 @@ public final class MonolithFx {
         Vec3 c = p.pos();
         dust(c, 3.5f, 10, p.seed());
         rubble(c, 0.4f, 14, p.seed() * 3);
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), UP, 1.8f, Colors.argb(220, EARTH), VfxTextures.CRACK, 50).timing(0.05f, 0.4f).translucent());
+        GroundShatter.impact(c, 1.6f, 0.7f, p.seed() * 3 + 1);
         Entity e = Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getEntity(p.caster());
         if (e != null) {
             VfxManager.add(new FollowTrailVfx(() -> e.isRemoved() ? null : e.position().add(0, 1.2, 0), 1.2f, Colors.argb(160, ENERGY),
@@ -273,7 +276,7 @@ public final class MonolithFx {
         float r = p.scale();
         RandomSource rnd = RandomSource.create(p.seed());
         cracks(c, p.points(), 1.1f, 7, 90, 0.9f, p.seed());
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), UP, r * 0.6f, Colors.argb(240, EARTH), VfxTextures.CRACK, 100).timing(0.03f, 0.3f).translucent());
+        GroundShatter.impact(c, r * 0.55f, 1.4f, p.seed() * 3 + 1);
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), UP, r * 0.5f, Colors.argb(210, ENERGY), VfxTextures.RUNE_CIRCLE, 46).spin(-0.04f).energy()
                 .timing(0.06f, 0.5f));
         shockwave(c, r, 10);
@@ -281,7 +284,7 @@ public final class MonolithFx {
         dust(c, r, 18, p.seed());
         rubble(c, 0.6f, 34, p.seed() * 3);
         debris(c, 1.5f, 10, 1.2f, p.seed() * 5);
-        SpikeVfx s = pillars(50);
+        SpikeVfx s = pillars(c, 50);
         pillarRing(s, c, r * 0.45f, 8, 2.0f, 3.0f, 0, rnd);
         pillarRing(s, c, r * 0.8f, 11, 1.4f, 2.4f, 3, rnd);
         VfxManager.add(s);
@@ -296,8 +299,7 @@ public final class MonolithFx {
         int eruption = Math.max(10, p.level());
         long seed = p.seed();
         cracks(c, p.points(), 1.7f, 12, duration + 40, 1.3f, seed);
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), UP, r * 0.7f, Colors.argb(245, EARTH), VfxTextures.CRACK, duration + 50).timing(0.03f, 0.2f)
-                .translucent());
+        GroundShatter.cracks(ground(c), r * 0.75f, GroundMaterial.at(ground(c)), duration + 50);
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), UP, r * 0.65f, Colors.argb(220, ENERGY), VfxTextures.RUNE_CIRCLE, duration).spin(0.02f).energy()
                 .timing(0.05f, 0.15f));
         VfxManager.add(new DecalVfx(c.add(0, 0.07, 0), UP, r * 0.35f, Colors.argb(200, CORE), VfxTextures.RUNE_CIRCLE, duration).spin(-0.05f).energy().satellites(0)
@@ -320,36 +322,23 @@ public final class MonolithFx {
                 }
             });
         }
-        // rock fragments torn loose float up around the blade, then the eruption flings them away
+        // boulders of the ground torn loose float up around the blade, then the eruption flings them away
         RandomSource rnd = RandomSource.create(seed * 7);
-        for (int i = 0; i < 10; i++) {
-            double a = i * Math.PI * 2 / 10 + rnd.nextDouble() * 0.4, d = 2.5 + rnd.nextDouble() * (r * 0.5);
+        EarthChunkVfx rocks = new EarthChunkVfx(GroundMaterial.at(ground(c)), eruption + 60);
+        for (int i = 0; i < 12; i++) {
+            double a = i * Math.PI * 2 / 12 + rnd.nextDouble() * 0.4, d = 2.5 + rnd.nextDouble() * (r * 0.5);
             Vec3 base = ground(c.add(Math.cos(a) * d, 0, Math.sin(a) * d));
-            double hover = 1.5 + rnd.nextDouble() * 2.5;
-            int bone = i % 5;
-            float size = 2.0f + rnd.nextFloat() * 1.6f, ph = rnd.nextFloat() * 6f;
-            int life = eruption + 22;
-            Vec3 out = new Vec3(Math.cos(a), 0.6, Math.sin(a));
-            VfxManager.add(new ModelPartVfx("monolith", base, life, "rock_fragment_" + bone)
-                    .position(t -> {
-                        float tt = t * life;
-                        if (tt < eruption) {
-                            float k = Vfx.easeOut(Math.min(1, tt / (eruption * 0.6f)));
-                            return base.add(0, hover * k + Math.sin(tt * 0.15 + ph) * 0.15, 0);
-                        }
-                        float f = tt - eruption;
-                        return base.add(out.x * f * 0.7, hover + out.y * f * 0.7 - 0.03 * f * f, out.z * f * 0.7);
-                    })
-                    .rotation(t -> new Quaternionf().rotationXYZ(t * life * 0.05f + ph, t * life * 0.08f, ph))
-                    .scale(t -> size).alpha(t -> t < 0.05f ? t / 0.05f : t > 0.85f ? (1 - t) / 0.15f : 1f).spectral(STONE_TINT, 1f, 0f).noGlow());
+            Vec3 out = new Vec3(Math.cos(a) * 0.55, 0.45 + rnd.nextDouble() * 0.3, Math.sin(a) * 0.55);
+            rocks.hover(base, 1.5 + rnd.nextDouble() * 2.5, eruption, out, 0.7f + rnd.nextFloat() * 0.6f, rnd.nextLong());
         }
+        VfxManager.add(rocks);
     }
 
     private static void eruption(FxPayload p) {
         Vec3 c = p.pos();
         float r = p.scale();
         RandomSource rnd = RandomSource.create(p.seed() * 3);
-        SpikeVfx s = pillars(60).timing(3, 16);
+        SpikeVfx s = pillars(c, 60).timing(3, 16);
         pillarRing(s, c, 2.2f, 7, 3.8f, 5.5f, 0, rnd);
         pillarRing(s, c, r * 0.5f, 12, 2.6f, 3.8f, 2, rnd);
         pillarRing(s, c, r * 0.9f, 16, 1.8f, 2.8f, 4, rnd);

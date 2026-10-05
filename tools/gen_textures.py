@@ -204,30 +204,62 @@ def vfx():
     img = img.resize((256, 256), Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.4))
     save_alpha('vfx/rune_circle.png', np.asarray(img) / 255.0)
 
-    # ground crack decal
-    s = 256 * SS
+    # ground crack decal: an impact fracture - a crushed centre, fine jagged radial cracks that fork as they run out,
+    # and broken concentric fracture rings between them, over a faint scuff of disturbed ground
+    S = 512
+    s = S * 2
     img = Image.new('L', (s, s), 0)
     d = ImageDraw.Draw(img)
     rng = random.Random(9)
     c = s / 2
-    for i in range(11):
-        a = i / 11 * 2 * math.pi + rng.uniform(-0.2, 0.2)
-        x, y = c, c
-        length = s * rng.uniform(0.32, 0.48)
-        steps = 9
-        width = 7 * SS
+
+    def crack(x, y, a, length, width, depth):
+        steps = max(4, int(length / (s * 0.018)))
         for k in range(steps):
-            a += rng.uniform(-0.35, 0.35)
-            nx, ny = x + math.cos(a) * length / steps, y + math.sin(a) * length / steps
-            d.line([(x, y), (nx, ny)], fill=255, width=max(SS, int(width)))
-            if rng.random() < 0.35 and k > 1:
-                ba = a + rng.choice([-1, 1]) * rng.uniform(0.5, 1.0)
-                bx, by = nx + math.cos(ba) * length / steps * 1.6, ny + math.sin(ba) * length / steps * 1.6
-                d.line([(nx, ny), (bx, by)], fill=200, width=max(SS, int(width * 0.5)))
+            a += rng.gauss(0, 0.22)
+            seg = length / steps * rng.uniform(0.7, 1.3)
+            nx, ny = x + math.cos(a) * seg, y + math.sin(a) * seg
+            w = max(1.6, width * (1 - k / steps * 0.75))
+            d.line([(x, y), (nx, ny)], fill=255, width=int(round(w)))
+            if depth > 0 and k > 1 and rng.random() < 0.1:
+                crack(nx, ny, a + rng.choice([-1, 1]) * rng.uniform(0.35, 0.8), length * rng.uniform(0.25, 0.45), w * 0.7, depth - 1)
             x, y = nx, ny
-            width *= 0.8
-    img = img.resize((256, 256), Image.LANCZOS)
-    save_alpha('vfx/crack.png', np.asarray(img) / 255.0)
+
+    radial = 17
+    angles = []
+    for i in range(radial):
+        a = i / radial * 2 * math.pi + rng.uniform(-0.15, 0.15)
+        angles.append(a)
+        r0 = s * rng.uniform(0.03, 0.06)
+        crack(c + math.cos(a) * r0, c + math.sin(a) * r0, a, s * rng.uniform(0.3, 0.47), 6.5, 2)
+    # concentric fracture segments between neighbouring radial cracks
+    for ring_r in (0.12, 0.21, 0.31):
+        for i in range(radial):
+            if rng.random() < 0.45:
+                continue
+            a0, a1 = angles[i], angles[(i + 1) % radial] + (2 * math.pi if i == radial - 1 else 0)
+            rr = s * ring_r * rng.uniform(0.9, 1.1)
+            pts = []
+            n = 6
+            for k in range(n + 1):
+                t = k / n
+                aa = a0 + (a1 - a0) * t
+                r2 = rr * (1 + rng.gauss(0, 0.04))
+                pts.append((c + math.cos(aa) * r2, c + math.sin(aa) * r2))
+            d.line(pts, fill=230, width=3)
+    # crushed centre
+    for _ in range(40):
+        a = rng.uniform(0, 2 * math.pi)
+        r = s * 0.045 * math.sqrt(rng.random())
+        x, y = c + math.cos(a) * r, c + math.sin(a) * r
+        rad = rng.uniform(4, 12)
+        d.ellipse([x - rad, y - rad, x + rad, y + rad], fill=255)
+    lines = np.asarray(img.resize((S, S), Image.LANCZOS)) / 255.0
+    u, v = np.mgrid[0:S, 0:S] / (S - 1)
+    rr = np.hypot(u - 0.5, v - 0.5) * 2
+    noise = tileable_noise(S, octaves=5, seed=19)
+    scuff = np.clip(1 - rr / 0.7, 0, 1) ** 1.5 * (0.15 + 0.25 * noise)
+    save_alpha('vfx/crack.png', np.clip(lines + scuff, 0, 1) * np.clip((1 - rr) * 6, 0, 1))
 
     # flame tongue (u across, v along: base at v=1)
     w, h = 64, 128

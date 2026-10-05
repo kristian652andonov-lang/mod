@@ -33,8 +33,9 @@ public final class Blast {
             FxScheduler.after(3, () -> VfxManager.add(new ShockwaveVfx(ground.add(0, 0.08, 0), new Vec3(0, 1, 0), 0.3f, radius * 1.0f, 0.4f,
                     Colors.argb(200, pal.core()), 18)));
         }
-        VfxManager.add(new DecalVfx(ground.add(0, 0.03, 0), new Vec3(0, 1, 0), radius * 0.8f, Colors.argb(220, pal.deep()), VfxTextures.CRACK,
-                50 + power * 30).timing(0.04f, 0.4f).translucent());
+        // the ground breaks: fracture cracks, buckled plates, thrown chunks and dust of the real terrain
+        Vec3 floor = FrostrendFx.ground(ground);
+        if (Math.abs(floor.y - ground.y) < 2.0) GroundShatter.impact(floor, radius * 0.8f, 0.6f + 0.45f * power, seed * 13 + 7);
         VfxManager.add(new DecalVfx(ground.add(0, 0.04, 0), new Vec3(0, 1, 0), radius * 0.7f, Colors.argb(200, pal.main()), VfxTextures.GLOW,
                 20 + power * 10).timing(0.05f, 0.7f));
         int n = 24 + power * 20;

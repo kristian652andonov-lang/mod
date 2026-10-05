@@ -35,6 +35,8 @@ public class SpikeVfx extends Vfx {
     private final Style style;
     private final int color;
     private final int edgeColor;
+    @org.jetbrains.annotations.Nullable
+    private com.fantasyweapons.client.vfx.GroundMaterial material;
     private int grow = 3;
     private int sink = 6;
 
@@ -51,6 +53,12 @@ public class SpikeVfx extends Vfx {
         return this;
     }
 
+    /** Texture the spikes with the real ground block's texture (tiled up their height), lit like the terrain. */
+    public SpikeVfx material(com.fantasyweapons.client.vfx.GroundMaterial m) {
+        this.material = m;
+        return this;
+    }
+
     public SpikeVfx timing(int growTicks, int sinkTicks) {
         this.grow = Math.max(1, growTicks);
         this.sink = Math.max(1, sinkTicks);
@@ -62,9 +70,9 @@ public class SpikeVfx extends Vfx {
         float time = age + ctx.partial;
         int baseAlpha = (color >>> 24) & 255;
         boolean curved = style == Style.THORN;
-        int levels = curved ? 4 : 1;
         // ICE/CRYSTAL stay see-through; rock and thorns are modelled solids that hide their own far side
-        var body = style.glowEdges ? ctx.translucent(style.texture) : ctx.solid(style.texture);
+        var body = material != null ? ctx.solid(com.fantasyweapons.client.vfx.GroundMaterial.ATLAS)
+                : style.glowEdges ? ctx.translucent(style.texture) : ctx.solid(style.texture);
         List<Vec3[]> bases = new ArrayList<>();
         List<Vec3> tips = new ArrayList<>();
         List<Float> radii = new ArrayList<>();
@@ -77,6 +85,8 @@ public class SpikeVfx extends Vfx {
             if (h <= 0.02f) continue;
             float r = s.radius() * (0.6f + 0.4f * Math.min(1, g));
             Vec3[] basis = VfxContext.basis(s.dir());
+            // ground-textured spikes are split into one band per block of height so the texture tiles instead of stretching
+            int levels = curved ? 4 : material != null ? Math.max(1, Math.min(6, (int) Math.ceil(h))) : 1;
             // thorns hook over: their axis bends sideways towards the tip
             Vec3 bend = curved ? basis[0].scale(Math.cos(s.twist() * 2)).add(basis[1].scale(Math.sin(s.twist() * 2))) : Vec3.ZERO;
             Vec3[][] rings = new Vec3[levels][];
@@ -88,7 +98,7 @@ public class SpikeVfx extends Vfx {
                     tip = axis;
                     break;
                 }
-                float rr = r * (curved ? (float) Math.pow(1 - f, 0.85) : 1f);
+                float rr = r * (curved ? (float) Math.pow(1 - f, 0.85) : levels > 1 ? 1 - 0.8f * f : 1f);
                 Vec3[] ring = new Vec3[s.sides()];
                 for (int i = 0; i < s.sides(); i++) {
                     double a = s.twist() + i * Math.PI * 2 / s.sides();
@@ -109,6 +119,14 @@ public class SpikeVfx extends Vfx {
                     Vec3 n = b.subtract(a).cross(d.subtract(a));
                     n = n.lengthSqr() < 1e-12 ? s.dir() : n.normalize();
                     float shade = 0.5f + 0.5f * (float) Math.max(0, n.dot(LIGHT));
+                    if (material != null) {
+                        var sp = material.particle();
+                        int tint = Colors.lerpRgb(0xFFFFFF, color & 0xFFFFFF, 0.15f);
+                        int cm = Colors.argb(baseAlpha, material.lit(tint, shade));
+                        float fu = Math.min(1f, (float) a.distanceTo(b));
+                        ctx.quad(body, a, b, c, d, sp.getU(0), sp.getV(0), sp.getU(fu), sp.getV(1), cm, cm, cm, cm);
+                        continue;
+                    }
                     int c0 = Colors.argb(baseAlpha, Colors.scale(shadeAt(f0), shade));
                     int c1 = Colors.argb(baseAlpha, Colors.scale(shadeAt(f1), shade));
                     ctx.quad(body, a, b, c, d, 0, 1 - f1, 1, 1 - f0, c0, c0, c1, c1);

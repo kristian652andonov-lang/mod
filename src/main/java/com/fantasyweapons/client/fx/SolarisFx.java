@@ -129,8 +129,8 @@ public final class SolarisFx {
         VfxManager.add(new BeamVfx(from, g, 0.5f, Colors.argb(255, CORE), 6));
         VfxManager.add(new FlashVfx(g.add(0, 0.5, 0), 0.6f, r * 1.8f, Colors.argb(230, SUN), 9).energy());
         VfxManager.add(new ShockwaveVfx(g.add(0, 0.06, 0), new Vec3(0, 1, 0), 0.2f, r * 1.4f, 0.4f, Colors.argb(220, CORE), 10).energy());
-        VfxManager.add(new DecalVfx(g.add(0, 0.03, 0), new Vec3(0, 1, 0), r * 0.7f, Colors.argb(200, EMBER), VfxTextures.CRACK, 50)
-                .timing(0.05f, 0.4f).translucent());
+        GroundShatter.impact(g, r * 0.6f, 0.6f, p.seed() * 5);
+        VfxManager.add(new DecalVfx(g.add(0, 0.04, 0), new Vec3(0, 1, 0), r * 0.5f, Colors.argb(180, EMBER), VfxTextures.GLOW, 30).timing(0.05f, 0.6f));
         VfxManager.add(new ShardBurstVfx(g.add(0, 0.3, 0), new Vec3(0, 1, 0), 0.7f, 0.32f, 14, 0.3f, Colors.argb(255, CORE), Colors.argb(0, EMBER), 18,
                 p.seed()).texture(VfxTextures.FLAME, false).physics(0.01f, 0.92f));
         CameraShake.add(g, 0.35f, 14);

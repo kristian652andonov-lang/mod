@@ -166,8 +166,7 @@ public final class StormbreakerFx {
         Vec3 start = from.add(rnd.nextGaussian() * 3, 0, rnd.nextGaussian() * 3);
         VfxManager.add(new LightningVfx(start, g, 0.45f, Colors.argb(255, BOLT), 8, p.seed()).branches(4));
         VfxManager.add(new ShockwaveVfx(g.add(0, 0.08, 0), new Vec3(0, 1, 0), 0.2f, 2.4f, 0.3f, Colors.argb(220, CORE), 8).energy());
-        VfxManager.add(new DecalVfx(g.add(0, 0.03, 0), new Vec3(0, 1, 0), 1.2f, Colors.argb(200, STORM), VfxTextures.CRACK, 40)
-                .timing(0.05f, 0.4f).translucent());
+        GroundShatter.cracks(FrostrendFx.ground(g), 1.3f, com.fantasyweapons.client.vfx.GroundMaterial.at(g), 40);
         zap(g.add(0, 0.5, 0), 1.3f, p.seed());
         Vec3 prev = g.add(0, 1, 0);
         int i = 0;

@@ -137,10 +137,10 @@ public final class StarforgeFx {
         float r = p.scale();
         int field = Math.round(p.power());
         Blast.explode(c, r, PALETTE, p.seed(), r > 4 ? 2 : 1, VfxTextures.STAR);
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), new Vec3(0, 1, 0), r, Colors.argb(240, 0x1A0E10), VfxTextures.CRACK, 120 + field)
-                .timing(0.03f, 0.3f).translucent());
-        VfxManager.add(new ShardBurstVfx(c.add(0, 0.5, 0), new Vec3(0, 1, 0), 0.6f, 0.45f + r * 0.03f, 18, 0.45f, Colors.argb(255, 0x4A3A3A),
-                Colors.argb(255, 0x2A2020), 34, p.seed() * 7).texture(VfxTextures.ROCK, false).physics(0.05f, 0.97f));
+        // a crater: the blast already breaks the ground; the fractures linger while the gravity field holds
+        Vec3 floor = FrostrendFx.ground(c);
+        GroundShatter.cracks(floor, r * 1.2f, com.fantasyweapons.client.vfx.GroundMaterial.at(floor), 120 + field);
+        GroundShatter.impact(floor, r * 0.5f, 1.4f, p.seed() * 7);
         VfxManager.add(new ShardBurstVfx(c.add(0, 0.6, 0), new Vec3(0, 1, 0), 0.8f, 0.5f, 26, 0.3f, Colors.argb(255, FIRE), Colors.argb(0, COSMIC), 26,
                 p.seed() * 11).texture(VfxTextures.FLAME, false).physics(0.02f, 0.94f));
         if (field > 0) {
