@@ -134,7 +134,7 @@ public final class SoulreaperAbilities {
         ServerPlayer p = ctx.player();
         double radius = ctx.scaled("radius", "radius_per_level");
         int max = (int) Math.round(ctx.scaled("max_targets", "max_targets_per_level"));
-        List<LivingEntity> marked = new ArrayList<>(Targeting.inRadius(ctx.level(), p, p.position().add(0, 1, 0), radius, FWDamage.Kind.ABILITY));
+        List<LivingEntity> marked = new ArrayList<>(Targeting.inRadius(ctx.level(), p, Kit.feet(p).add(0, 1, 0), radius, FWDamage.Kind.ABILITY));
         if (marked.isEmpty()) throw AbilityContext.fail("No souls to claim");
         if (marked.size() > max) marked = new ArrayList<>(marked.subList(0, max));
         int delay = (int) Math.round(ctx.param("mark_time") * 20);

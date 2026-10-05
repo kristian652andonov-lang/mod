@@ -159,32 +159,33 @@ public final class DoomcleaverAbilities {
         float burst = (float) (total * ctx.param("burst_fraction"));
         double heal = ctx.param("drain_heal");
         StatusService.apply(p, StatusType.BERSERKER, duration + 40, 1, 0.3f, p.getUUID());
-        AreaEffectManager.add(new FieldEffect(ctx, p.position(), radius, duration, 10).follow(p, Vec3.ZERO)
+        Vec3 center = Kit.feet(p); // the blood field stays where it was cast
+        AreaEffectManager.add(new FieldEffect(ctx, center, radius, duration, 10)
                 .onPulse((o, w, f, inside) -> {
                     List<Integer> ids = new ArrayList<>();
                     for (LivingEntity e : inside) {
                         strike(o, w, ctx.weapon(), ctx.data(), e, drain, heal, FWDamage.FLAG_DOT);
-                        Kit.pull(e, o.position(), 0.12);
+                        Kit.pull(e, center.add(0, 0.5, 0), 0.12);
                         ids.add(e.getId());
                     }
                     if (!ids.isEmpty()) {
-                        Kit.fx(o.serverLevel(), FxPayload.of(FxIds.DOOMCLEAVER_DRAIN).caster(o.getId()).pos(o.position()).entities(ids).build());
+                        Kit.fx(o.serverLevel(), FxPayload.of(FxIds.DOOMCLEAVER_DRAIN).caster(o.getId()).pos(center).entities(ids).build());
                     }
                 })
                 .onEnd((o, w, f) -> {
                     List<Integer> hit = new ArrayList<>();
-                    for (LivingEntity e : Targeting.inRadius(o.serverLevel(), o, o.position().add(0, 1, 0), radius, FWDamage.Kind.ABILITY)) {
+                    for (LivingEntity e : Targeting.inRadius(o.serverLevel(), o, center.add(0, 1, 0), radius, FWDamage.Kind.ABILITY)) {
                         strike(o, w, ctx.weapon(), ctx.data(), e, burst, heal * 0.5, FWDamage.FLAG_HEAVY);
-                        Kit.knock(e, o.position(), 1.2, 0.6);
+                        Kit.knock(e, center, 1.2, 0.6);
                         hit.add(e.getId());
                     }
-                    Kit.fx(o.serverLevel(), FxPayload.of(FxIds.DOOMCLEAVER_APOCALYPSE_END).caster(o.getId()).pos(o.position())
+                    Kit.fx(o.serverLevel(), FxPayload.of(FxIds.DOOMCLEAVER_APOCALYPSE_END).caster(o.getId()).pos(center)
                             .scale((float) radius).entities(hit).seed(o.level().random.nextLong()).build());
-                    Kit.sound(o.serverLevel(), o.position(), ModSounds.EXPLOSION.get(), 2.5f, 0.6f);
-                    Kit.sound(o.serverLevel(), o.position(), ModSounds.BLOOD_RAGE.get(), 2f, 0.5f);
+                    Kit.sound(o.serverLevel(), center, ModSounds.EXPLOSION.get(), 2.5f, 0.6f);
+                    Kit.sound(o.serverLevel(), center, ModSounds.BLOOD_RAGE.get(), 2f, 0.5f);
                 }));
         Kit.active(ctx, duration);
-        Kit.fx(ctx.level(), FxPayload.of(FxIds.DOOMCLEAVER_APOCALYPSE).caster(p.getId()).pos(p.position()).scale((float) radius)
+        Kit.fx(ctx.level(), FxPayload.of(FxIds.DOOMCLEAVER_APOCALYPSE).caster(p.getId()).pos(center).scale((float) radius)
                 .power(duration).seed(Kit.seed(ctx.level())).build());
         Kit.sound(ctx.level(), p.position(), ModSounds.BLOOD_RAGE.get(), 2.5f, 0.45f);
         return true;

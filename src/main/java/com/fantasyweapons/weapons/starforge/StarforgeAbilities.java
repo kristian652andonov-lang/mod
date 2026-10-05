@@ -65,7 +65,7 @@ public final class StarforgeAbilities {
     public static boolean gravitySlam(AbilityContext ctx) {
         ServerPlayer p = ctx.player();
         double radius = ctx.scaled("radius", "radius_per_level");
-        Vec3 c = p.position();
+        Vec3 c = Kit.feet(p);
         for (LivingEntity e : Targeting.inRadius(ctx.level(), p, c.add(0, 1, 0), radius * 1.4, FWDamage.Kind.ABILITY)) Kit.pull(e, c, ctx.param("pull"));
         float damage = ctx.damage();
         Delayed.schedule(ctx, 4, (o, w) -> {
@@ -166,7 +166,7 @@ public final class StarforgeAbilities {
 
     public static boolean starfall(AbilityContext ctx) {
         ServerPlayer p = ctx.player();
-        Vec3 c = p.position();
+        Vec3 c = Kit.feet(p);
         double radius = ctx.scaled("radius", "radius_per_level");
         int meteors = (int) Math.round(ctx.scaled("meteors", "meteors_per_level"));
         int duration = (int) Math.round(ctx.param("duration") * 20);

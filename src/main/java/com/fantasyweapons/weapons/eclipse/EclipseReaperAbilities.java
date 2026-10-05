@@ -146,12 +146,12 @@ public final class EclipseReaperAbilities {
         double radius = ctx.scaled("radius", "radius_per_level");
         int marks = (int) ctx.param("marks");
         float damage = ctx.damage() * switchBonus(p, ctx.weapon(), ctx.data());
-        List<Integer> hit = Kit.falloffBurst(p, ctx.stack(), p.position().add(0, 1, 0), radius, damage, 0.6f, Element.CELESTIAL, FWDamage.FLAG_CRIT,
+        List<Integer> hit = Kit.falloffBurst(p, ctx.stack(), Kit.feet(p).add(0, 1, 0), radius, damage, 0.6f, Element.CELESTIAL, FWDamage.FLAG_CRIT,
                 0.9, 0.35, e -> {
                     brand(p, e, false, marks, 0);
                     resonate(p, ctx.stack(), ctx.weapon(), ctx.data(), e);
                 });
-        Kit.fx(ctx.level(), FxPayload.of(FxIds.ECLIPSE_SOLAR_FLARE).caster(p.getId()).pos(p.position()).scale((float) radius).entities(hit)
+        Kit.fx(ctx.level(), FxPayload.of(FxIds.ECLIPSE_SOLAR_FLARE).caster(p.getId()).pos(Kit.feet(p)).scale((float) radius).entities(hit)
                 .seed(Kit.seed(ctx.level())).build());
         Kit.sound(ctx.level(), p.position(), ModSounds.SOLAR_BURST.get(), 1.8f, 1.3f);
         return true;
@@ -201,7 +201,7 @@ public final class EclipseReaperAbilities {
         float beam = (float) (total * ctx.param("beam_fraction"));
         float corona = (float) (total * ctx.param("corona_fraction"));
         float dot = ctx.weaponDamage() * 0.05f;
-        Vec3 center = p.position();
+        Vec3 center = Kit.feet(p);
         Vec3 sun = center.add(0, 13, 0);
         int[] count = {0};
         AreaEffectManager.add(new FieldEffect(ctx, center, radius, duration, interval)

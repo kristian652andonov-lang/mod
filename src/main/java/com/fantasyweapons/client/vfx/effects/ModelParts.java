@@ -58,7 +58,7 @@ public final class ModelParts {
         pose.mulPose(rot);
         pose.scale(scale, scale, scale);
         pose.translate(-pivot.x, -pivot.y, -pivot.z);
-        for (GeoBone bone : bones) drawRest(pose, bone, vc, color);
+        for (GeoBone bone : bones) drawRest(pose, bone, vc, ctx.fade(color));
     }
 
     /** Like {@link #draw} but additionally rotates one bone about its own pivot (e.g. a jaw opening). */
@@ -72,7 +72,7 @@ public final class ModelParts {
         RenderUtil.translateToPivotPoint(pose, bone);
         pose.mulPose(hinge);
         RenderUtil.translateAwayFromPivotPoint(pose, bone);
-        drawRest(pose, bone, vc, color);
+        drawRest(pose, bone, vc, ctx.fade(color));
     }
 
     private static void drawRest(PoseStack pose, GeoBone bone, VertexConsumer vc, int color) {

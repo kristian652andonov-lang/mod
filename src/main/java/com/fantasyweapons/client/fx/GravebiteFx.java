@@ -174,8 +174,7 @@ public final class GravebiteFx {
     }
 
     private static void legion(FxPayload p) {
-        Entity caster = entity(p.caster());
-        if (caster == null) return;
+        Vec3 c = p.pos(); // the host circles the spot where it was summoned
         int duration = Math.round(p.power());
         int n = Math.min(24, p.level());
         // the circling host of souls (purely visual; the server launches the real ones)
@@ -184,14 +183,13 @@ public final class GravebiteFx {
             float h = 0.8f + (i % 4) * 0.45f;
             float rad = 1.8f + (i % 3) * 0.6f;
             com.fantasyweapons.client.vfx.effects.OrbVfx orb = VfxManager.add(new com.fantasyweapons.client.vfx.effects.OrbVfx(
-                    t -> caster.isAlive() ? caster.getPosition(1f).add(Math.cos(phase + t * 0.15) * rad, h + Math.sin(t * 0.2 + phase) * 0.3,
-                            Math.sin(phase + t * 0.15) * rad) : null,
+                    t -> c.add(Math.cos(phase + t * 0.15) * rad, h + Math.sin(t * 0.2 + phase) * 0.3, Math.sin(phase + t * 0.15) * rad),
                     0.22f, SOUL, GHOST, duration).sprite(VfxTextures.SOUL, GHOST, 0f).fades(10, 10));
             VfxManager.add(new FollowTrailVfx(orb::now, 0.25f, Colors.argb(160, SOUL), Colors.argb(0, DEEP), 8, duration + 10));
         }
-        VfxManager.add(new DecalVfx(caster.position().add(0, 0.04, 0), new Vec3(0, 1, 0), 4f, Colors.argb(220, SOUL), VfxTextures.RUNE_CIRCLE, duration)
+        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), 4f, Colors.argb(220, SOUL), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.05f).energy().timing(0.1f, 0.1f));
-        ScreenFx.zoneVignette(GRAVE, 0.35f, duration, caster.position(), 20);
+        ScreenFx.zoneVignette(GRAVE, 0.35f, duration, c, 20);
     }
 
     private static void legionLaunch(FxPayload p) {

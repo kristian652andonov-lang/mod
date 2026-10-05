@@ -182,13 +182,14 @@ public final class GravebiteAbilities {
         double range = ctx.param("range");
         float per = ctx.damage() / souls;
         int[] left = {souls};
-        AreaEffectManager.add(new FieldEffect(ctx, p.position(), range, duration, interval).follow(p, Vec3.ZERO)
+        Vec3 center = Kit.feet(p); // the host gathers where it was summoned
+        AreaEffectManager.add(new FieldEffect(ctx, center, range, duration, interval)
                 .onPulse((o, w, f, inside) -> {
                     if (f.age() < 10 || left[0] <= 0 || inside.isEmpty()) return;
                     ServerLevel level = o.serverLevel();
                     LivingEntity t = inside.get(level.random.nextInt(inside.size()));
                     double a = level.random.nextDouble() * Math.PI * 2;
-                    Vec3 start = o.position().add(Math.cos(a) * 2.2, 1.6 + level.random.nextDouble(), Math.sin(a) * 2.2);
+                    Vec3 start = center.add(Math.cos(a) * 2.2, 1.6 + level.random.nextDouble(), Math.sin(a) * 2.2);
                     Vec3 vel = t.getBoundingBox().getCenter().subtract(start).normalize().add(0, 0.4, 0).normalize().scale(0.95);
                     long seed = launchSoul(ctx, start, vel, t, range + 4, per, level.random.nextLong());
                     left[0]--;
@@ -196,9 +197,9 @@ public final class GravebiteAbilities {
                             .seed(seed).build());
                     if (level.random.nextInt(3) == 0) Kit.sound(level, start, ModSounds.SOUL_PROJECTILE.get(), 0.8f, 1.2f + level.random.nextFloat() * 0.4f);
                 })
-                .onEnd((o, w, f) -> Kit.fx(o.serverLevel(), FxPayload.of(FxIds.GRAVEBITE_LEGION_END).caster(o.getId()).pos(o.position()).build())));
+                .onEnd((o, w, f) -> Kit.fx(o.serverLevel(), FxPayload.of(FxIds.GRAVEBITE_LEGION_END).caster(o.getId()).pos(center).build())));
         Kit.active(ctx, duration);
-        Kit.fx(ctx.level(), FxPayload.of(FxIds.GRAVEBITE_LEGION).caster(p.getId()).pos(p.position()).power(duration).level(souls)
+        Kit.fx(ctx.level(), FxPayload.of(FxIds.GRAVEBITE_LEGION).caster(p.getId()).pos(center).power(duration).level(souls)
                 .seed(Kit.seed(ctx.level())).build());
         Kit.sound(ctx.level(), p.position(), ModSounds.SOUL_PROJECTILE.get(), 2.5f, 0.4f);
         return true;

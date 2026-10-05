@@ -14,7 +14,6 @@ import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 /** Client visuals for Eclipse Reaper. Light: gold and white. Dark: violet and crimson over black. */
@@ -111,16 +110,12 @@ public final class EclipseFx {
 
     private static void total(FxPayload p) {
         Vec3 c = p.pos();
-        Vec3 sun = p.points().isEmpty() ? c.add(0, 13, 0) : p.points().get(0);
         float r = p.scale();
         int duration = Math.round(p.power());
-        // the black sun: void core with a blazing gold corona, and a violet halo behind it
-        VfxManager.add(new SunVfx(sun, 3.2f, GOLD, WHITE, duration + 10).darkCore().grow(25).rays(22));
-        VfxManager.add(new SunVfx(sun, 4.4f, VIOLET, CRIMSON, duration + 10).darkCore().grow(30).rays(10));
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(200, GOLD), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.02f).energy().timing(0.1f, 0.1f));
         VfxManager.add(new DecalVfx(c.add(0, 0.06, 0), new Vec3(0, 1, 0), r * 0.6f, Colors.argb(200, VIOLET), VfxTextures.RUNE_CIRCLE, duration)
-                .spin(-0.035f).energy().timing(0.1f, 0.1f));
+                .spin(-0.035f).energy().satellites(0).timing(0.1f, 0.1f));
         ScreenFx.zoneVignette(BLACK, 0.55f, duration, c, r + 6);
         CameraShake.add(c, 0.3f, r * 2);
     }

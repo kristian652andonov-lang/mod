@@ -209,11 +209,13 @@ public final class StormbreakerAbilities {
         float total = ctx.damage();
         float bolt = (float) (total * ctx.param("bolt_fraction"));
         float fin = (float) (total * ctx.param("final_fraction"));
-        AreaEffectManager.add(new FieldEffect(ctx, p.position(), radius, duration, interval).follow(p, Vec3.ZERO)
+        // the storm stays where it was called down, on the ground below the caster
+        Vec3 center = Kit.feet(p);
+        AreaEffectManager.add(new FieldEffect(ctx, center, radius, duration, interval)
                 .onPulse((o, w, f, inside) -> {
                     if (f.age() < 15) return; // the cloud is gathering
                     ServerLevel level = o.serverLevel();
-                    Vec3 cloud = o.position().add(0, 12, 0);
+                    Vec3 cloud = center.add(0, 12, 0);
                     Vec3 spot;
                     List<Integer> ids = new ArrayList<>();
                     if (!inside.isEmpty()) {
@@ -226,7 +228,7 @@ public final class StormbreakerAbilities {
                         }
                     } else {
                         double a = level.random.nextDouble() * Math.PI * 2, r = Math.sqrt(level.random.nextDouble()) * radius;
-                        spot = Kit.ground(level, o.position().add(Math.cos(a) * r, 4, Math.sin(a) * r), 10);
+                        spot = Kit.ground(level, center.add(Math.cos(a) * r, 4, Math.sin(a) * r), 10);
                     }
                     Kit.fx(level, FxPayload.of(FxIds.STORMBREAKER_BOLT).caster(o.getId()).pos(spot).point(cloud).entities(ids)
                             .seed(level.random.nextLong()).build());
@@ -234,7 +236,7 @@ public final class StormbreakerAbilities {
                 })
                 .onEnd((o, w, f) -> {
                     ServerLevel level = o.serverLevel();
-                    Vec3 c = o.position();
+                    Vec3 c = center;
                     List<Integer> hit = Kit.falloffBurst(o, w, c.add(0, 1, 0), radius, fin, 0.5f, Element.LIGHTNING, FWDamage.FLAG_HEAVY, 1.2, 0.7, null);
                     Kit.fx(level, FxPayload.of(FxIds.STORMBREAKER_WRATH_END).caster(o.getId()).pos(c).point(c.add(0, 12, 0)).scale((float) radius)
                             .entities(hit).seed(level.random.nextLong()).build());
@@ -242,7 +244,7 @@ public final class StormbreakerAbilities {
                     Kit.sound(level, c, ModSounds.EXPLOSION.get(), 2.5f, 0.8f);
                 }));
         Kit.active(ctx, duration);
-        Kit.fx(ctx.level(), FxPayload.of(FxIds.STORMBREAKER_WRATH).caster(p.getId()).pos(p.position()).scale((float) radius).power(duration)
+        Kit.fx(ctx.level(), FxPayload.of(FxIds.STORMBREAKER_WRATH).caster(p.getId()).pos(center).scale((float) radius).power(duration)
                 .seed(Kit.seed(ctx.level())).build());
         Kit.sound(ctx.level(), p.position(), ModSounds.LIGHTNING.get(), 2.5f, 0.4f);
         return true;

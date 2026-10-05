@@ -12,7 +12,6 @@ import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
 import com.fantasyweapons.client.vfx.effects.SlashArcVfx;
 import com.fantasyweapons.client.vfx.effects.SpikeVfx;
-import com.fantasyweapons.client.vfx.effects.SunVfx;
 import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
 import net.minecraft.client.Minecraft;
@@ -159,15 +158,9 @@ public final class DoomcleaverFx {
     }
 
     private static void apocalypse(FxPayload p) {
-        Entity caster = entity(p.caster());
         Vec3 c = p.pos();
         float r = p.scale();
         int duration = Math.round(p.power());
-        // the blood moon follows the caster, high above
-        if (caster != null) {
-            VfxManager.add(new SunVfx(c.add(0, 14, 0), 3.2f, BLOOD, LIGHT, duration + 20).grow(25).rays(16)
-                    .path(t -> caster.getPosition(1f).add(0, 14, 0)));
-        }
         VfxManager.add(new ShockwaveVfx(c.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.5f, r, 0.8f, Colors.argb(230, BLOOD), 18).energy());
         VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(200, BLOOD), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.02f).energy().timing(0.1f, 0.1f));

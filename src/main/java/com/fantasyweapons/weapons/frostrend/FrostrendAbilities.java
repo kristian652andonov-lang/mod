@@ -127,7 +127,7 @@ public final class FrostrendAbilities {
         ServerPlayer p = ctx.player();
         double radius = ctx.scaled("radius", "radius_per_level");
         int duration = (int) Math.round(ctx.scaled("duration", "duration_per_level") * 20);
-        Vec3 center = p.position();
+        Vec3 center = Kit.feet(p);
         float pulse = (float) (ctx.damage() * ctx.param("pulse_fraction"));
         AreaEffectManager.add(new FieldEffect(ctx, center, radius, duration, 10).onPulse((o, w, f, inside) -> {
             for (LivingEntity e : inside) {
@@ -150,7 +150,7 @@ public final class FrostrendAbilities {
         ServerPlayer p = ctx.player();
         double radius = ctx.scaled("radius", "radius_per_level");
         int freeze = (int) Math.round(ctx.scaled("freeze", "freeze_per_level") * 20);
-        Vec3 center = p.position();
+        Vec3 center = Kit.feet(p);
         float total = ctx.damage();
         float flash = (float) (total * ctx.param("flash_fraction"));
         float shatter = (float) (total * ctx.param("shatter_fraction"));

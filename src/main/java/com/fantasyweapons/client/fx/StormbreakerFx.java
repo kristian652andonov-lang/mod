@@ -8,7 +8,6 @@ import com.fantasyweapons.client.vfx.effects.FlashVfx;
 import com.fantasyweapons.client.vfx.effects.LightningVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
-import com.fantasyweapons.client.vfx.effects.SphereVfx;
 import com.fantasyweapons.client.vfx.effects.StormCloudVfx;
 import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
@@ -137,7 +136,6 @@ public final class StormbreakerFx {
         Vec3 top = g.add(0, 14, 0);
         VfxManager.add(new LightningVfx(top, g, 0.9f, Colors.argb(255, BOLT), 12, p.seed()).branches(6).jag(0.18f));
         VfxManager.add(new LightningVfx(top, g, 0.45f, Colors.argb(255, CORE), 8, p.seed() + 1).branches(2).jag(0.12f));
-        VfxManager.add(new SphereVfx(g.add(0, 0.8, 0), 0.3f, r * 0.9f, Colors.argb(140, BOLT), 9, SphereVfx.Mode.GROW));
         Blast.explode(g, r, PALETTE, p.seed(), 1, VfxTextures.SPARK);
         RandomSource rnd = RandomSource.create(p.seed());
         for (int i = 0; i < 6; i++) {
@@ -150,14 +148,15 @@ public final class StormbreakerFx {
     }
 
     private static void wrath(FxPayload p) {
-        Entity caster = entity(p.caster());
+        // the storm stays where it was called down
+        Vec3 c = p.pos();
         float r = p.scale();
         int duration = Math.round(p.power());
-        if (caster == null) return;
-        VfxManager.add(new StormCloudVfx(() -> caster.isAlive() ? caster.getPosition(1f).add(0, 12, 0) : null, r, CLOUD, BOLT, duration + 20, p.seed()));
-        VfxManager.add(new DecalVfx(caster.position().add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(150, BOLT), VfxTextures.RUNE_CIRCLE, duration)
+        Vec3 cloud = c.add(0, 12, 0);
+        VfxManager.add(new StormCloudVfx(() -> cloud, r, CLOUD, BOLT, duration + 20, p.seed()));
+        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(150, BOLT), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.03f).energy().timing(0.1f, 0.1f));
-        ScreenFx.zoneVignette(STORM, 0.4f, duration, caster.position(), r + 4);
+        ScreenFx.zoneVignette(STORM, 0.4f, duration, c, r + 4);
     }
 
     private static void bolt(FxPayload p) {

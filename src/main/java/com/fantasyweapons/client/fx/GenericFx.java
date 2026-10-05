@@ -10,6 +10,7 @@ import com.fantasyweapons.client.vfx.effects.BeamVfx;
 import com.fantasyweapons.client.vfx.effects.DamageNumberVfx;
 import com.fantasyweapons.client.vfx.effects.DecalVfx;
 import com.fantasyweapons.client.vfx.effects.FlashVfx;
+import com.fantasyweapons.client.vfx.effects.LevelUpVfx;
 import com.fantasyweapons.client.vfx.effects.RibbonTrailVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
@@ -215,20 +216,30 @@ public final class GenericFx {
         if (level == null) return;
         Entity e = level.getEntity(p.caster());
         Themes.Theme theme = Themes.ofEntity(p.caster());
-        Vec3 base = e != null ? e.position() : p.pos();
+        Vec3 base = groundBelow(level, e != null ? e.position() : p.pos());
         boolean unlock = p.power() > 0;
-        VfxManager.add(new DecalVfx(base.add(0, 0.04, 0), new Vec3(0, 1, 0), unlock ? 2.6f : 2.0f, Colors.argb(230, theme.primary()),
-                VfxTextures.RUNE_CIRCLE, 40).spin(0.06f).energy());
-        VfxManager.add(new ShockwaveVfx(base.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.5f, unlock ? 5f : 3.5f, 0.5f, Colors.argb(220, theme.light()), 18));
-        // rising light pillars around the player
-        for (int i = 0; i < 8; i++) {
-            double a = i / 8.0 * Math.PI * 2;
-            Vec3 b = base.add(Math.cos(a) * 1.1, 0, Math.sin(a) * 1.1);
-            VfxManager.add(new BeamVfx(b, b.add(0, unlock ? 3.2 : 2.4, 0), 0.25f, Colors.argb(200, i % 2 == 0 ? theme.primary() : theme.light()), 20 + i));
+        boolean max = p.level() >= com.fantasyweapons.progression.ProgressionMath.maxLevel();
+        VfxManager.add(new LevelUpVfx(base, p.level(), max, unlock, theme.primary(), theme.light(), p.seed()));
+        float r = max ? 6.5f : 1.6f + 2.6f * Math.min(1f, p.level() / 100f);
+        VfxManager.add(new ShockwaveVfx(base.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.5f, r * 2.2f, 0.5f, Colors.argb(200, theme.primary()), max ? 26 : 18));
+        VfxManager.add(new ShardBurstVfx(base.add(0, 0.2, 0), new Vec3(0, 1, 0), 0.35f, 0.35f, max ? 60 : 30, 0.25f, Colors.argb(255, theme.light()),
+                Colors.argb(0, theme.primary()), max ? 45 : 30, p.seed()).texture(VfxTextures.SPARK, false).physics(-0.004f, 0.94f));
+        if (e != null) VfxManager.add(new FlashVfx(Vec3.ZERO, 1f, max ? 6f : 3.2f, Colors.argb(160, theme.light()), max ? 24 : 14).follow(e, new Vec3(0, 1, 0)));
+        if (max) {
+            ScreenFx.flash(theme.light(), 0.35f, 20);
+            CameraShake.add(base, 0.35f, 24);
         }
-        VfxManager.add(new ShardBurstVfx(base.add(0, 0.2, 0), new Vec3(0, 1, 0), 0.35f, 0.35f, 30, 0.25f, Colors.argb(255, theme.light()),
-                Colors.argb(0, theme.primary()), 30, p.seed()).texture(VfxTextures.SPARK, false).physics(-0.004f, 0.94f));
-        if (e != null) VfxManager.add(new FlashVfx(Vec3.ZERO, 1f, 3.2f, Colors.argb(160, theme.light()), 14).follow(e, new Vec3(0, 1, 0)));
+    }
+
+    /** The top of the first solid block below {@code pos} (within 32 blocks), so effects land on the ground. */
+    static Vec3 groundBelow(net.minecraft.world.level.Level level, Vec3 pos) {
+        var m = new net.minecraft.core.BlockPos.MutableBlockPos(Math.floor(pos.x), Math.floor(pos.y + 0.2), Math.floor(pos.z));
+        for (int i = 0; i < 32; i++, m.move(0, -1, 0)) {
+            var st = level.getBlockState(m);
+            var shape = st.getCollisionShape(level, m);
+            if (!shape.isEmpty()) return new Vec3(pos.x, m.getY() + shape.max(net.minecraft.core.Direction.Axis.Y), pos.z);
+        }
+        return pos;
     }
 
     private static void formSwitch(FxPayload p) {

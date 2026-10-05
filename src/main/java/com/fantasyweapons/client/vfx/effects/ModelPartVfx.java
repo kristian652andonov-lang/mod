@@ -113,12 +113,12 @@ public class ModelPartVfx extends Vfx {
         pose.scale(s, s, s);
         pose.translate(-pivotCache.x, -pivotCache.y, -pivotCache.z);
 
-        int color = Colors.alpha(a * bodyAlpha, tint);
+        int color = ctx.fade(Colors.alpha(a * bodyAlpha, tint));
         VertexConsumer body = ctx.translucent(texture);
         for (GeoBone bone : found) renderBone(pose, bone, body, color);
         if (glow) {
             VertexConsumer add = ctx.additive(texture);
-            int gc = Colors.alpha(a * glowAlpha, tint);
+            int gc = ctx.fade(Colors.alpha(a * glowAlpha, tint));
             for (GeoBone bone : found) renderBone(pose, bone, add, gc);
         }
     }

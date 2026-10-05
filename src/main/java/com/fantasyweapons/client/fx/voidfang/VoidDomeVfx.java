@@ -58,6 +58,8 @@ public class VoidDomeVfx extends Vfx {
         ctx.disc(ctx.energy(VfxTextures.RUNE_CIRCLE), ground.add(0, 0.05, 0), ax, az, r * 0.98f, time * 0.02f, Colors.alpha(0.85f * k, color));
         ctx.disc(ctx.energy(VfxTextures.RUNE_CIRCLE), ground.add(0, 0.07, 0), ax, az, r * 0.55f, -time * 0.035f, Colors.alpha(0.8f * k, light));
         ctx.disc(ctx.additive(VfxTextures.GLOW), ground.add(0, 0.06, 0), ax, az, r * 1.1f, 0, Colors.alpha(0.25f * k, color));
+        ctx.satellites(ctx.energy(VfxTextures.RUNE_CIRCLE), ground.add(0, 0.08, 0), ax, az, r * 0.77f, r * 0.13f, 4, -time * 0.012f, time * 0.06f,
+                Colors.alpha(0.8f * k, light));
 
         // vertical rift seams on the boundary
         var seam = ctx.energy(VfxTextures.RIFT_EDGE);

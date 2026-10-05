@@ -111,19 +111,12 @@ public final class SolarisFx {
 
     private static void inferno(FxPayload p) {
         Vec3 center = p.pos();
-        Vec3 sun = p.points().isEmpty() ? center.add(0, 10, 0) : p.points().get(0);
         float r = p.scale();
         int duration = Math.round(p.power());
-        // the second sun forms overhead, burns, and falls onto the zone at the very end
-        VfxManager.add(new SunVfx(sun, 2.6f, SUN, CORE, duration + 2).grow(20).rays(18).path(t -> {
-            float fall = Math.max(0, (t - (duration - 8)) / 8f);
-            return sun.lerp(center.add(0, 1, 0), fall * fall);
-        }));
         VfxManager.add(new DecalVfx(center.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(220, SUN), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.02f).energy().timing(0.08f, 0.1f));
         VfxManager.add(new DecalVfx(center.add(0, 0.04, 0), new Vec3(0, 1, 0), r * 1.1f, Colors.argb(130, DEEP), VfxTextures.GLOW, duration)
                 .timing(0.1f, 0.1f));
-        VfxManager.add(new BeamVfx(sun, center, 2.5f, Colors.argb(90, SUN), 24));
         ScreenFx.zoneVignette(SUN, 0.22f, duration, center, r);
         CameraShake.add(center, 0.3f, r * 2);
     }

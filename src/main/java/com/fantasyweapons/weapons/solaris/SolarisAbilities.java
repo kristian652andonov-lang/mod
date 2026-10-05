@@ -90,7 +90,7 @@ public final class SolarisAbilities {
     public static boolean solarBurst(AbilityContext ctx) {
         ServerPlayer p = ctx.player();
         double radius = ctx.scaled("radius", "radius_per_level");
-        Vec3 ground = p.position();
+        Vec3 ground = Kit.feet(p);
         List<Integer> hit = Kit.falloffBurst(p, ctx.stack(), ground.add(0, 1, 0), radius, ctx.damage(), 0.55f, Element.SOLAR, 0,
                 ctx.param("knockback"), 0.45, e -> ignite(ctx, e));
         Kit.fx(ctx.level(), FxPayload.of(FxIds.SOLARIS_SOLAR_BURST).caster(p.getId()).pos(ground).scale((float) radius)

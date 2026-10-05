@@ -65,12 +65,15 @@ public final class VfxManager {
         for (Vfx v : ACTIVE) {
             if (v.isDead()) continue;
             try {
+                ctx.alphaScale = v.tailFade(partial);
+                if (ctx.alphaScale <= 0.003f) continue;
                 v.render(ctx);
             } catch (RuntimeException e) {
                 FantasyWeapons.LOGGER.error("VFX {} failed to render", v.getClass().getSimpleName(), e);
                 v.kill();
             }
         }
+        ctx.alphaScale = 1f;
         com.fantasyweapons.client.fx.StatusVisuals.render(ctx);
         SOURCE.endBatch();
         if (mc.level == null) clear();

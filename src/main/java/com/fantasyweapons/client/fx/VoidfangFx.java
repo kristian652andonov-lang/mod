@@ -150,7 +150,6 @@ public final class VoidfangFx {
         FxScheduler.after(5, () -> {
             VfxManager.add(new FlashVfx(c, 1f, radius * 3.5f, Colors.argb(255, HOT), 10, VfxTextures.FLASH));
             VfxManager.add(new FlashVfx(c, 1f, radius * 4.5f, Colors.argb(200, VOID), 16).energy());
-            VfxManager.add(new SphereVfx(c, 0.5f, radius * 1.6f, Colors.argb(220, VOID), 14, SphereVfx.Mode.GROW));
             VfxManager.add(new ShockwaveVfx(groundBelow(c, radius), new Vec3(0, 1, 0), 0.5f, radius * 2.6f, 0.8f, Colors.argb(230, EDGE), 18));
             VfxManager.add(new ShardBurstVfx(c, Vec3.ZERO, 1f, 0.55f, 40, 0.32f, Colors.argb(255, EDGE), Colors.argb(0, DEEP), 22, p.seed()));
             CameraShake.add(c, 1.0f, 20);
@@ -193,7 +192,6 @@ public final class VoidfangFx {
         if (executed) {
             FxScheduler.after(4, () -> {
                 VfxManager.add(new ShockwaveVfx(c, new Vec3(0, 1, 0), 0.5f, 6f, 0.6f, Colors.argb(240, VOID), 16));
-                VfxManager.add(new SphereVfx(c, 0.4f, 3f, Colors.argb(220, VOID), 12, SphereVfx.Mode.GROW));
                 VfxManager.add(new FlashVfx(c, 1f, 6f, Colors.argb(180, VOID), 14).energy());
             });
             if (isLocalCaster(p)) ScreenFx.flash(0x2A0A55, 0.35f, 10);
@@ -234,7 +232,6 @@ public final class VoidfangFx {
             VfxManager.add(new FlashVfx(c, 1f, radius * 2.6f, Colors.argb(255, HOT), 12, VfxTextures.FLASH));
             VfxManager.add(new FlashVfx(c, 1f, radius * 3.2f, Colors.argb(220, VOID), 20).energy());
             VfxManager.add(new ShockwaveVfx(c.subtract(0, 0.9, 0), new Vec3(0, 1, 0), 0.5f, radius * 1.8f, 1.2f, Colors.argb(240, EDGE), 22));
-            VfxManager.add(new SphereVfx(c, 0.5f, radius * 1.2f, Colors.argb(200, VOID), 18, SphereVfx.Mode.GROW));
             VfxManager.add(new ShardBurstVfx(c, Vec3.ZERO, 1f, 0.9f, 70, 0.4f, Colors.argb(255, EDGE), Colors.argb(0, DEEP), 30, p.seed()));
             CameraShake.add(c, 1.6f, radius * 3);
             ScreenFx.flash(0xE2C8FF, 0.25f, 8);

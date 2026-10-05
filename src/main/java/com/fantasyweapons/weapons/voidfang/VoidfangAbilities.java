@@ -389,7 +389,7 @@ public final class VoidfangAbilities {
         double radius = ctx.scaled("radius", "radius_per_level");
         int duration = (int) Math.round(ctx.scaled("duration", "duration_per_level") * 20);
         int volleys = (int) Math.round(ctx.scaled("strikes", "strikes_per_level"));
-        Vec3 center = p.position().add(0, 1.0, 0);
+        Vec3 center = com.fantasyweapons.ability.kit.Kit.feet(p).add(0, 1.0, 0);
         AreaEffectManager.add(new VoidDimensionEffect(ctx, center, duration, radius, volleys));
         p.getData(ModAttachments.ABILITY_RUNTIME).setActive(ctx.ability().id(), ctx.now() + duration);
         Fx.near(ctx.level(), FxPayload.of(FxIds.VOID_DIMENSION).caster(p.getId()).pos(center).scale((float) radius).power(duration)

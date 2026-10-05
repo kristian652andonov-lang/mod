@@ -126,6 +126,15 @@ public class ChargeAuraVfx extends Vfx {
             ctx.disc(ctx.energy(VfxTextures.RUNE_CIRCLE), feet, new Vec3(1, 0, 0), new Vec3(0, 0, 1), r, (age + ctx.partial) * 0.04f,
                     Colors.alpha(a, color));
             ctx.disc(ctx.additive(VfxTextures.GLOW), feet, new Vec3(1, 0, 0), new Vec3(0, 0, 1), r * 1.2f, 0, Colors.alpha(a * 0.35f, color));
+            // a small circle joins the orbit at each third of the charge
+            var runes = ctx.energy(VfxTextures.RUNE_CIRCLE);
+            float time = age + ctx.partial;
+            for (int i = 0; i < 3; i++) {
+                float in = clamp01((c - 0.33f * i - 0.05f) * 6f);
+                if (in <= 0) continue;
+                ctx.orbitDisc(runes, feet.add(0, 0.01, 0), new Vec3(1, 0, 0), new Vec3(0, 0, 1), r * 1.12f, -time * 0.035f + i * (float) (Math.PI * 2 / 3),
+                        r * 0.26f * (0.5f + 0.5f * in), -time * 0.09f + i, Colors.alpha(a * in, colorLight));
+            }
         }
 
         // full charge: expanding pulse rings around the body

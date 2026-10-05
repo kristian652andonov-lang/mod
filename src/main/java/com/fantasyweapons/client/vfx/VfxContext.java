@@ -22,6 +22,8 @@ public final class VfxContext {
     /** Quality multiplier for segment / element counts. */
     public final float density;
     private final MultiBufferSource buffers;
+    /** Alpha multiplier applied to every vertex (set per effect by VfxManager for the automatic fade-out). */
+    public float alphaScale = 1f;
 
     public VfxContext(Vec3 cam, Vector3f left, Vector3f up, Vector3f look, float partial, float time, float density, MultiBufferSource buffers) {
         this.cam = cam;
@@ -63,7 +65,14 @@ public final class VfxContext {
     // ------------------------------------------------------------------------------------------------------------
 
     public void vertex(VertexConsumer vc, double x, double y, double z, float u, float v, int argb) {
-        vc.addVertex((float) (x - cam.x), (float) (y - cam.y), (float) (z - cam.z)).setUv(u, v).setColor(argb);
+        vc.addVertex((float) (x - cam.x), (float) (y - cam.y), (float) (z - cam.z)).setUv(u, v).setColor(fade(argb));
+    }
+
+    /** Applies the current effect's fade to an ARGB colour (for emitters that write vertices directly). */
+    public int fade(int argb) {
+        if (alphaScale >= 0.999f) return argb;
+        int a = Math.round(((argb >>> 24) & 255) * Math.max(0f, alphaScale));
+        return (a << 24) | (argb & 0xFFFFFF);
     }
 
     public void vertex(VertexConsumer vc, Vec3 p, float u, float v, int argb) {
@@ -177,6 +186,20 @@ public final class VfxContext {
         Vec3 ax = axisX.scale(c * radius).add(axisY.scale(s * radius));
         Vec3 ay = axisX.scale(-s * radius).add(axisY.scale(c * radius));
         plane(vc, center, ax, ay, argb);
+    }
+
+    /**
+     * The mod's rune-circle style: {@code n} small circles orbiting a big one at radius {@code orbit}, the ring turning by
+     * {@code phase} radians while each small circle spins on its own ({@code selfSpin}).
+     */
+    public void satellites(VertexConsumer vc, Vec3 center, Vec3 axisX, Vec3 axisY, float orbit, float size, int n, float phase, float selfSpin, int argb) {
+        for (int i = 0; i < n; i++) orbitDisc(vc, center, axisX, axisY, orbit, phase + (float) (i * Math.PI * 2 / n), size, selfSpin + i * 1.3f, argb);
+    }
+
+    /** One small circle on an orbit around {@code center} at angle {@code angle}. */
+    public void orbitDisc(VertexConsumer vc, Vec3 center, Vec3 axisX, Vec3 axisY, float orbit, float angle, float size, float rotation, int argb) {
+        Vec3 at = center.add(axisX.scale(Math.cos(angle) * orbit)).add(axisY.scale(Math.sin(angle) * orbit));
+        disc(vc, at, axisX, axisY, size, rotation, argb);
     }
 
     /** UV sphere. With fresnel, alpha is highest at the silhouette (energy shell look). */

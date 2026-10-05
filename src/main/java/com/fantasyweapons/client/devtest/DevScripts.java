@@ -21,6 +21,8 @@ final class DevScripts {
             case "menus" -> menus(b);
             case "holds" -> holds(b);
             case "yaw" -> yaw(b);
+            case "levelup" -> levelUp(b);
+            case "anchors" -> anchors(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
@@ -271,5 +273,47 @@ final class DevScripts {
         b.select("void_dimension").wait(5).abilityDown().wait(85).abilityUp().wait(20).screenshot("16_void_dimension").wait(40)
                 .screenshot("17_void_dimension_mid").wait(80).screenshot("18_dimension_collapse");
         b.camera(CameraType.FIRST_PERSON).hud(true).wait(20).screenshot("19_hud_cooldowns");
+    }
+
+    /** Level-up effects at levels 10, 25, 50, 75 and the max level: close view of the circle, then the columns to the sky. */
+    private static void levelUp(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give voidfang 1").wait(20).slot(0).hud(false).look(0, 0).wait(10);
+        for (int lv : new int[]{10, 25, 50, 75, 100}) {
+            b.cmd("/fw level " + (lv - 1)).wait(70).viewFrom(6.5, 4.5, 7.5, 0).wait(2).cmd("/fw level " + lv);
+            b.wait(12).screenshot("lvl" + lv + "_a_close").wait(14).screenshot("lvl" + lv + "_b_close");
+            b.viewFrom(22, 3, 30, 22).wait(14).screenshot("lvl" + lv + "_c_sky").wait(20).screenshot("lvl" + lv + "_d_sky");
+            if (lv == 100) b.viewFrom(6.5, 4.5, 7.5, 0).wait(25).screenshot("lvl100_e_close").wait(25).screenshot("lvl100_f_close").wait(8).screenshot("lvl100_g_fading");
+            b.wait(40);
+        }
+    }
+
+    /**
+     * Area abilities cast while flying 7 blocks up: they must land on the ground below and stay where they were cast
+     * while the caster flies away. Also shows the rune circles with their orbiting small circles.
+     */
+    private static void anchors(ScreenshotDirector.Builder b) {
+        String[][] casts = {{"stormbreaker", "wrath_of_the_storm"}, {"starforge", "gravity_slam"}, {"frostrend", "glacial_domain"},
+                {"doomcleaver", "crimson_apocalypse"}, {"solaris", "celestial_inferno"}, {"gravebite", "legion_of_the_damned"}};
+        b.cmd("/gamemode creative").hud(false);
+        for (String[] c : casts) {
+            var a = com.fantasyweapons.weapon.Weapons.get(c[0]).ability(c[1]);
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/tp @s 0 -53 0 0 20").cmd("/fw give " + c[0] + " 100").wait(15).slot(0)
+                    .cmd("/fw points 200").cmd("/fw cooldowns");
+            for (int i = 0; i < 4; i++) {
+                b.cmd("/summon minecraft:husk " + (i - 1.5) * 2.5 + " -60 " + (3 + (i % 2) * 2)
+                        + " {NoAI:1b,Health:1000f,Attributes:[{Id:\"minecraft:generic.max_health\",Base:1000d}]}");
+            }
+            b.run(mc -> {
+                mc.player.getAbilities().flying = true;
+                mc.player.onUpdateAbilities();
+            });
+            b.select(c[1]).wait(10).viewFrom(13, 1, 13, -4);
+            b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+            b.wait(14).screenshot("anchor_" + c[1] + "_a");
+            b.cmd("/tp @s 9 -48 -9").wait(26).screenshot("anchor_" + c[1] + "_b_moved");
+            b.wait(40).screenshot("anchor_" + c[1] + "_c");
+            b.wait(120);
+        }
+        b.cmd("/gamemode survival");
     }
 }

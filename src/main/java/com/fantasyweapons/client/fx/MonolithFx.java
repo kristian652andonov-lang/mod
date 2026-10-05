@@ -300,7 +300,7 @@ public final class MonolithFx {
                 .translucent());
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), UP, r * 0.65f, Colors.argb(220, ENERGY), VfxTextures.RUNE_CIRCLE, duration).spin(0.02f).energy()
                 .timing(0.05f, 0.15f));
-        VfxManager.add(new DecalVfx(c.add(0, 0.07, 0), UP, r * 0.35f, Colors.argb(200, CORE), VfxTextures.RUNE_CIRCLE, duration).spin(-0.05f).energy()
+        VfxManager.add(new DecalVfx(c.add(0, 0.07, 0), UP, r * 0.35f, Colors.argb(200, CORE), VfxTextures.RUNE_CIRCLE, duration).spin(-0.05f).energy().satellites(0)
                 .timing(0.1f, 0.15f));
         shockwave(c, r, 12);
         dust(c, r, 20, seed);

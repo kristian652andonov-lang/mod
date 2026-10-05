@@ -170,12 +170,17 @@ public final class ScreenshotDirector {
 
         /** Views the player from an offset (relative to the player's feet) through a detached camera entity. */
         public Builder viewFrom(double dx, double dy, double dz) {
+            return viewFrom(dx, dy, dz, 1.15);
+        }
+
+        /** Detached camera at an offset from the player, looking at the point {@code lookY} above the player's feet. */
+        public Builder viewFrom(double dx, double dy, double dz, double lookY) {
             return run(mc -> {
                 var p = mc.player;
                 var cam = new net.minecraft.world.entity.decoration.ArmorStand(net.minecraft.world.entity.EntityType.ARMOR_STAND, mc.level);
                 double x = p.getX() + dx, y = p.getY() + dy, z = p.getZ() + dz;
                 double ey = y + cam.getEyeHeight();
-                double tx = p.getX() - x, ty = p.getY() + 1.15 - ey, tz = p.getZ() - z;
+                double tx = p.getX() - x, ty = p.getY() + lookY - ey, tz = p.getZ() - z;
                 float yaw = (float) (Math.toDegrees(Math.atan2(tz, tx)) - 90);
                 float pitch = (float) -Math.toDegrees(Math.atan2(ty, Math.sqrt(tx * tx + tz * tz)));
                 cam.moveTo(x, y, z, yaw, pitch);

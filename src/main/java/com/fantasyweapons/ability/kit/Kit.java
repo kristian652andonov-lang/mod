@@ -53,6 +53,14 @@ public final class Kit {
         return hit.getType() == HitResult.Type.MISS ? pos : hit.getLocation();
     }
 
+    /**
+     * The ground under a player: their feet when standing, the first surface below when airborne (so area abilities cast
+     * in mid-air land on the ground instead of floating with the caster).
+     */
+    public static Vec3 feet(ServerPlayer p) {
+        return p.onGround() ? p.position() : ground(p.serverLevel(), p.position(), 32);
+    }
+
     /** Where the player aims within range, dropped to the ground below it. */
     public static Vec3 aimGround(ServerPlayer p, double range) {
         Vec3 aim = Targeting.aimPoint(p, range);

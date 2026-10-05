@@ -63,7 +63,7 @@ public class BlackHoleVfx extends Vfx {
             Vec3 p = center.add(rx.scale(Math.cos(a) * d)).add(ry.scale(Math.sin(a) * d));
             ctx.billboard(mote, p, 0.25f, (float) a, Colors.alpha(Math.min(1, cyc * 3), Colors.lerpRgb(cold, hot, cyc)));
         }
-        ctx.billboard(ctx.additive(VfxTextures.GLOW), center, s * 6f, 0, Colors.alpha(0.35f, cold));
+        ctx.billboard(ctx.additive(VfxTextures.GLOW), center, s * 2.2f, 0, Colors.alpha(0.16f, cold));
         // the core: lightless sphere with a photon ring facing the camera
         int lat = ctx.segments(10), lon = ctx.segments(16);
         ctx.sphere(ctx.voidInterior(VfxTextures.WHITE), center, s, lat, lon, Colors.alpha(1f, 0x000000), false);

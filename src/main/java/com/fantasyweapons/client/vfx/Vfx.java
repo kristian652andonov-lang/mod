@@ -24,6 +24,19 @@ public abstract class Vfx {
         return Math.min(1f, (age + partial) / lifetime);
     }
 
+    /**
+     * Automatic fade-out applied on top of each effect's own animation, so nothing ever pops out of existence: the
+     * last ~30% of a short effect (up to 14 ticks for long ones) eases to transparent.
+     */
+    public float tailFade(float partial) {
+        if (lifetime >= Integer.MAX_VALUE / 2) return 1f;
+        float window = Math.max(2f, Math.min(14f, lifetime * 0.3f));
+        float left = lifetime - (age + partial);
+        if (left >= window) return 1f;
+        float k = Math.max(0f, left / window);
+        return k * k * (3 - 2 * k);
+    }
+
     public boolean isDead() {
         return dead;
     }
