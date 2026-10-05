@@ -39,7 +39,7 @@ public final class Solaris {
                 .element(Element.SOLAR)
                 .rarity(Rarity.LEGENDARY)
                 .type(WeaponClass.GREATSWORD)
-                .damage(140f, 2.3f)
+                .damage(11f, 2.3f)
                 .crit(0.08f, 1.9f)
                 .theme(0xFFB627, 0xFFF4C2)
                 .onHit(SolarisAbilities::onMeleeHit)

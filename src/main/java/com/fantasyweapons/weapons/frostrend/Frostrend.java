@@ -39,7 +39,7 @@ public final class Frostrend {
                 .element(Element.ICE)
                 .rarity(Rarity.LEGENDARY)
                 .type(WeaponClass.LONGSWORD)
-                .damage(105f, 2.3f)
+                .damage(8f, 2.3f)
                 .crit(0.12f, 1.8f)
                 .theme(0x6FD8FF, 0xE8FBFF)
                 .onHit(FrostrendAbilities::onMeleeHit)

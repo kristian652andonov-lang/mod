@@ -45,7 +45,7 @@ public final class Infernochain {
                 .element(Element.FIRE)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.CHAINBLADE)
-                .damage(110f, 2.2f)
+                .damage(8f, 2.2f)
                 .crit(0.15f, 2.0f)
                 .theme(0xFF5A1F, 0xFFD38A)
                 // SWORD is entered with the artist's "retract" (Retraction), CHAINBLADE with "transform" (Transform);

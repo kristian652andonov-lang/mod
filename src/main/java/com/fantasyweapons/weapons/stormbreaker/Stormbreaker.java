@@ -39,7 +39,7 @@ public final class Stormbreaker {
                 .element(Element.LIGHTNING)
                 .rarity(Rarity.LEGENDARY)
                 .type(WeaponClass.BATTLEAXE)
-                .damage(150f, 2.2f)
+                .damage(11f, 2.2f)
                 .crit(0.1f, 1.9f)
                 .theme(0x5CB8FF, 0xE6F3FF)
                 .onHit(StormbreakerAbilities::onMeleeHit)

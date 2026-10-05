@@ -92,7 +92,6 @@ public final class ServerConfig {
     // ---- damage ----
     public static final Dbl GLOBAL_DAMAGE_MULTIPLIER;
     public static final Dbl DAMAGE_GROWTH;
-    public static final Dbl DAMAGE_EXPONENT;
     public static final Dbl HEAVY_ATTACK_MIN_STRENGTH;
     public static final Bool ABILITIES_HURT_PLAYERS;
     public static final Bool ABILITIES_HURT_TAMED;
@@ -136,16 +135,16 @@ public final class ServerConfig {
                 "A weapon gets kill credit if it hit the mob within this many ticks before death");
         B.pop();
 
-        B.comment("Damage scaling. damage(L) = base_damage * rarity * global * (1 + growth * (L-1)^exponent)").push("damage");
+        B.comment("Damage scaling, exponential in the weapon level: damage(L) = base_damage * rarity * global * growth_per_level^(L-1).",
+                "Defaults: small at level 1 (close to a diamond sword), about x125 at level 100.").push("damage");
         GLOBAL_DAMAGE_MULTIPLIER = d("global_multiplier", 1.0, 0, 1e6, "Multiplies every weapon's damage");
-        DAMAGE_GROWTH = d("growth", 0.1185, 0, 100, "Damage growth coefficient per level");
-        DAMAGE_EXPONENT = d("exponent", 1.156, 0.1, 3, "Damage growth exponent (1 = linear, <1 diminishing)");
+        DAMAGE_GROWTH = d("growth_per_level", 1.05, 1.0, 2.0, "Damage multiplier gained per weapon level (1.05 = +5% per level, compounding)");
         HEAVY_ATTACK_MIN_STRENGTH = d("heavy_attack_min_strength", 0.95, 0, 1,
                 "Attack-cooldown fraction required for a sneak-attack to count as a HEAVY attack");
         ABILITIES_HURT_PLAYERS = bool("abilities_hurt_players", false, "Whether area abilities damage other players (PvP)");
         ABILITIES_HURT_TAMED = bool("abilities_hurt_tamed", false, "Whether area abilities damage tamed animals");
         CUSTOM_DEATH_EFFECT = bool("custom_death_effect", true, "Mobs killed by fantasy weapons dissolve in an elemental effect instead of the vanilla death puff");
-        B.push("base_damage");
+        B.push("level1_damage");
         for (WeaponDefinition w : Weapons.all()) {
             BASE_DAMAGE.put(w.id(), d(w.id(), w.baseDamage(), 0, 1e9, w.displayName() + " level-1 melee damage"));
         }

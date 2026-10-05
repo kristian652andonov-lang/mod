@@ -39,7 +39,7 @@ public final class Aetherlance {
                 .element(Element.ENERGY)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.LANCE)
-                .damage(130f, 2.2f)
+                .damage(7f, 2.2f)
                 .crit(0.14f, 1.8f)
                 .theme(0x5FF3FF, 0xF2FFFF)
                 .onHit(AetherlanceAbilities::onMeleeHit)

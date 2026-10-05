@@ -39,7 +39,7 @@ public final class Starforge {
                 .element(Element.COSMIC)
                 .rarity(Rarity.ANCIENT)
                 .type(WeaponClass.WARHAMMER)
-                .damage(200f, 2.4f)
+                .damage(14f, 2.4f)
                 .crit(0.08f, 2.0f)
                 .theme(0x8A6CFF, 0xF0EDFF)
                 .onHit(StarforgeAbilities::onMeleeHit)

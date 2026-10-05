@@ -39,7 +39,7 @@ public final class Bloomfall {
                 .element(Element.NATURE)
                 .rarity(Rarity.LEGENDARY)
                 .type(WeaponClass.SCYTHE)
-                .damage(110f, 2.2f)
+                .damage(9f, 2.2f)
                 .crit(0.1f, 1.8f)
                 .theme(0x5BE063, 0xFFE08A)
                 .onHit(BloomfallAbilities::onMeleeHit)

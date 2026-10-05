@@ -37,9 +37,7 @@ public final class ProgressionMath {
      */
     public static float weaponDamage(WeaponDefinition def, int level, float masteryFraction) {
         double base = ServerConfig.baseDamage(def) * def.rarity().damageFactor() * ServerConfig.GLOBAL_DAMAGE_MULTIPLIER.getOrDefault();
-        double growth = ServerConfig.DAMAGE_GROWTH.getOrDefault();
-        double exponent = ServerConfig.DAMAGE_EXPONENT.getOrDefault();
-        double scaled = base * (1.0 + growth * Math.pow(Math.max(0, level - 1), exponent));
+        double scaled = base * Math.pow(ServerConfig.DAMAGE_GROWTH.getOrDefault(), Math.max(0, level - 1));
         return (float) (scaled * (1.0 + MasteryBonus.damageBonus(masteryFraction)));
     }
 

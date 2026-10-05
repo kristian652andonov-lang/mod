@@ -44,7 +44,7 @@ public final class Voidfang {
                 .element(Element.VOID)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.LONGSWORD)
-                .damage(100f, 2.4f)
+                .damage(8f, 2.4f)
                 .crit(0.12f, 1.8f)
                 .theme(0x9B4DFF, 0x4D1A99)
                 .onHit(VoidfangAbilities::onMeleeHit)

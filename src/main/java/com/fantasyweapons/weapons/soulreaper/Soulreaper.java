@@ -39,7 +39,7 @@ public final class Soulreaper {
                 .element(Element.SOUL)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.SCYTHE)
-                .damage(120f, 2.2f)
+                .damage(10f, 2.2f)
                 .crit(0.12f, 1.9f)
                 .theme(0x5A8CFF, 0xCFE0FF)
                 .onHit(SoulreaperAbilities::onMeleeHit)

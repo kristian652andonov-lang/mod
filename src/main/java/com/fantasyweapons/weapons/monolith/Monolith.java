@@ -40,7 +40,7 @@ public final class Monolith {
                 .element(Element.EARTH)
                 .rarity(Rarity.ANCIENT)
                 .type(WeaponClass.COLOSSAL)
-                .damage(320f, 2.5f)
+                .damage(20f, 2.5f)
                 .crit(0.05f, 2.2f)
                 .theme(0xB08A5A, 0xE8D9C0)
                 .onHit(MonolithAbilities::onMeleeHit)

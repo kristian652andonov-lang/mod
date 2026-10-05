@@ -39,7 +39,7 @@ public final class Doomcleaver {
                 .element(Element.BLOOD)
                 .rarity(Rarity.MYTHIC)
                 .type(WeaponClass.BATTLEAXE)
-                .damage(170f, 2.2f)
+                .damage(11f, 2.2f)
                 .crit(0.1f, 1.9f)
                 .lifesteal(0.06f)
                 .theme(0xE0213A, 0xFF9AA8)

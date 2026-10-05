@@ -91,7 +91,12 @@ public final class FWGameTests {
             prev = d;
         }
         float ratio = prev / l1;
-        h.assertTrue(ratio > 10 && ratio < 40, "level-100/level-1 damage ratio out of range: " + ratio);
+        h.assertTrue(ratio > 60 && ratio < 300, "level-100/level-1 damage ratio out of range: " + ratio);
+        h.assertTrue(l1 < 15, "level-1 damage should be small: " + l1);
+        // exponential: every level multiplies damage by the same factor
+        float r1 = ProgressionMath.weaponDamage(def, 11, 0) / ProgressionMath.weaponDamage(def, 10, 0);
+        float r2 = ProgressionMath.weaponDamage(def, 81, 0) / ProgressionMath.weaponDamage(def, 80, 0);
+        h.assertTrue(Math.abs(r1 - r2) < 1e-3, "growth per level should be constant: " + r1 + " vs " + r2);
         h.assertTrue(ProgressionMath.weaponDamage(def, 50, 1f) > ProgressionMath.weaponDamage(def, 50, 0f), "mastery must add damage");
         h.succeed();
     }
@@ -133,7 +138,9 @@ public final class FWGameTests {
         h.assertTrue(d.kills() == 1, "kill should be counted");
         h.assertTrue(d.isUnlocked(slash), "Void Slash unlocks at level 5");
         h.assertFalse(d.isUnlocked(def.ability(Voidfang.VOID_BLINK)), "Void Blink stays locked until level 10");
-        h.assertTrue(p.getMainHandItem().getAttributeModifiers().modifiers().stream().anyMatch(m -> m.modifier().amount() > 100),
+        double expectedAttr = ProgressionMath.weaponDamage(def, d) - 1.0;
+        h.assertTrue(p.getMainHandItem().getAttributeModifiers().modifiers().stream()
+                        .anyMatch(m -> Math.abs(m.modifier().amount() - expectedAttr) < 1e-3 && expectedAttr > ProgressionMath.weaponDamage(def, 1, 0) - 1.0),
                 "attack damage attribute should follow the weapon level");
         cleanup(p);
         h.succeed();
