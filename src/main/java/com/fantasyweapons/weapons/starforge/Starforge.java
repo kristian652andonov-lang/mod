@@ -122,7 +122,7 @@ public final class Starforge {
                         .unlock(100).levels(3, 0).cost(5, 5)
                         .node(2, 3, EVENT_HORIZON)
                         .standard(16.0, 4.0, 100.0)
-                        .param("radius", 15, "Radius of the meteor shower")
+                        .param("radius", 21, "Radius of the meteor shower")
                         .param("radius_per_level", 2, "Extra radius per level")
                         .param("meteors", 14, "Meteors in the shower")
                         .param("meteors_per_level", 4, "Extra meteors per level")

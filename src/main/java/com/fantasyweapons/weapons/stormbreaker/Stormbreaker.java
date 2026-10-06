@@ -126,7 +126,7 @@ public final class Stormbreaker {
                         .unlock(100).levels(3, 0).cost(5, 5)
                         .node(2, 3, THUNDERSTRIKE)
                         .standard(15.0, 3.5, 100.0)
-                        .param("radius", 14, "Radius under the storm")
+                        .param("radius", 20, "Radius under the storm")
                         .param("radius_per_level", 2, "Extra radius per level")
                         .param("duration", 7, "Seconds the storm rages")
                         .param("duration_per_level", 1, "Extra seconds per level")

@@ -125,7 +125,7 @@ public final class Bloomfall {
                         .node(2, 3, OVERGROWTH)
                         .standard(15.0, 3.5, 95.0)
                         .param("range", 28, "Cast distance")
-                        .param("radius", 13, "Radius of the bloom's pull")
+                        .param("radius", 19, "Radius of the bloom's pull")
                         .param("radius_per_level", 2, "Extra radius per level")
                         .param("pull_time", 3, "Seconds the flower pulls enemies in")
                         .param("pull", 0.3, "Pull strength")

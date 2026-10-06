@@ -120,7 +120,7 @@ public final class Soulreaper {
                         .unlock(100).levels(3, 0).cost(5, 5)
                         .node(2, 3, REAPING_WHIRL)
                         .standard(15.0, 3.0, 95.0)
-                        .param("radius", 18, "Marking radius")
+                        .param("radius", 24, "Marking radius")
                         .param("radius_per_level", 2, "Extra radius per level")
                         .param("max_targets", 10, "Enemies the scythe hunts")
                         .param("max_targets_per_level", 3, "Extra hunted enemies per level")

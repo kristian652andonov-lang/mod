@@ -35,6 +35,7 @@ final class DevScripts {
             case "starrings" -> starRings(b);
             case "gravebite" -> gravebite(b);
             case "gravechains" -> graveChains(b);
+            case "ghosts" -> ghosts(b);
             case "swings" -> swings(b, null);
             case "combos" -> combos(b, null);
             case "allabilities" -> allAbilities(b);
@@ -508,7 +509,7 @@ final class DevScripts {
                 b.cmd("/summon minecraft:husk " + (i - 2) * 2 + " -60 " + (4 + (i % 2) * 2)
                         + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
             }
-            b.wait(20).camera(CameraType.FIRST_PERSON).look(0, 30).select(u[1]).wait(5).viewFrom(17, 4, 15, 7);
+            b.wait(20).camera(CameraType.FIRST_PERSON).look(0, 30).select(u[1]).wait(5).viewFrom(24, 7, 21, 6);
             b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
             for (int i = 0; i < 6; i++) b.wait(i < 2 ? 6 : 14).screenshot("wide_" + u[1] + "_far" + i);
             b.playerView().camera(CameraType.FIRST_PERSON).look(0, -65).wait(10).screenshot("wide_" + u[1] + "_under").wait(20).screenshot("wide_" + u[1] + "_under2");
@@ -694,6 +695,22 @@ final class DevScripts {
             }
             b.run(mc -> com.fantasyweapons.client.anim.AnimTracker.debugVariant(mc.player, -1));
         }
+        b.playerView();
+    }
+
+    /** Gravebite's ghosts close up: the Legion host circling, and a Soul Volley, from the side. */
+    private static void ghosts(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give gravebite 100").wait(130).slot(0).cmd("/fw points 300").hud(false).camera(CameraType.FIRST_PERSON).look(0, 0);
+        b.cmd("/summon minecraft:husk 0.5 -60 9 {NoAI:1b,Invulnerable:1b}").wait(5);
+        b.cmd("/fw cooldowns").select("legion_of_the_damned").wait(5).viewAt(4.5, 2.2, 2.5, 0, 1.4, 0);
+        var a = com.fantasyweapons.weapon.Weapons.get("gravebite").ability("legion_of_the_damned");
+        b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+        for (int i = 0; i < 6; i++) b.wait(6).screenshot("gh_legion_" + i);
+        b.viewAt(2.2, 1.9, 1.2, 0, 1.6, 0).wait(2).screenshot("gh_legion_close");
+        b.wait(120).playerView().camera(CameraType.FIRST_PERSON).look(0, 0).cmd("/fw cooldowns").select("soul_volley").wait(5).viewAt(4, 1.8, 3.5, 0, 1.4, 4);
+        var v = com.fantasyweapons.weapon.Weapons.get("gravebite").ability("soul_volley");
+        b.abilityDown().wait(Math.max(2, v.chargeTicks() + 1)).abilityUp();
+        for (int i = 0; i < 5; i++) b.wait(2).screenshot("gh_volley_" + i);
         b.playerView();
     }
 }

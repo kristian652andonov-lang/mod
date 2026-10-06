@@ -127,7 +127,7 @@ public final class Frostrend {
                         .unlock(100).levels(3, 0).cost(5, 5)
                         .node(2, 3, GLACIAL_DOMAIN)
                         .standard(15.0, 3.5, 95.0)
-                        .param("radius", 14, "Radius of the freeze")
+                        .param("radius", 20, "Radius of the freeze")
                         .param("radius_per_level", 2, "Extra radius per level")
                         .param("freeze", 3, "Seconds enemies stay frozen before shattering")
                         .param("freeze_per_level", 0.5, "Extra freeze seconds per level")

@@ -112,6 +112,7 @@ public final class InfernochainFx {
         private final ArrayDeque<Vec3[]> history = new ArrayDeque<>();
         private final ArrayDeque<Long> times = new ArrayDeque<>();
         private long lastNanos;
+        private boolean historyFp;
         private int unseen;
         private int boost;
 
@@ -138,7 +139,8 @@ public final class InfernochainFx {
             boolean spinning = e instanceof LivingEntity le && AnimTracker.spinAngle(le, 0) != 0;
             if ((boost > 0 || spinning) && !history.isEmpty() && age % 2 == 0) {
                 Vec3[] p = history.peekFirst();
-                VfxManager.add(new ShardBurstVfx(p[7], UP, 0.8f, 0.08f, 3, 0.18f, Colors.argb(255, CORE), Colors.argb(0, CRIMSON), 16, age * 31L + entityId)
+                Vec3 tip = historyFp ? ChainTracker.viewToWorld(p[7]) : p[7];
+                VfxManager.add(new ShardBurstVfx(tip, UP, 0.8f, 0.08f, 3, 0.18f, Colors.argb(255, CORE), Colors.argb(0, CRIMSON), 16, age * 31L + entityId)
                         .texture(VfxTextures.SPARK, true).physics(0.01f, 0.92f));
             }
         }
@@ -148,9 +150,16 @@ public final class InfernochainFx {
             ChainTracker.Sample s = ChainTracker.get(entityId, 150);
             if (s == null) return;
             unseen = 0;
+            if (s.firstPerson != historyFp) {
+                history.clear();
+                times.clear();
+                historyFp = s.firstPerson;
+            }
             if (s.nanos != lastNanos) {
                 lastNanos = s.nanos;
-                history.addFirst(s.pts.clone());
+                // through the wielder's own eyes the chain is kept in view space, so turning the head does not
+                // sweep a sheet of fire across the world - only the chain's own lashing does
+                history.addFirst(s.firstPerson ? s.view.clone() : s.pts.clone());
                 times.addFirst(s.nanos);
             }
             long now = System.nanoTime();
@@ -187,9 +196,19 @@ public final class InfernochainFx {
 
             // a sheet of fire swept by the chain between its middle and its tip
             if (history.size() < 2) return;
+            java.util.List<Vec3[]> world = new java.util.ArrayList<>(history.size());
+            for (Vec3[] h : history) {
+                if (!historyFp) {
+                    world.add(h);
+                    continue;
+                }
+                Vec3[] w = new Vec3[h.length];
+                for (int i = 0; i < h.length; i++) w[i] = h[i] == null ? null : ChainTracker.viewToWorld(h[i]);
+                world.add(w);
+            }
             double travel = 0;
             Vec3[] prev = null;
-            for (Vec3[] h : history) {
+            for (Vec3[] h : world) {
                 if (prev != null) travel += h[7].distanceTo(prev[7]);
                 prev = h;
             }
@@ -198,8 +217,8 @@ public final class InfernochainFx {
             // the recorded frames are uneven and few, so the swept band is drawn through a smooth curve resampled
             // from them, with a soft wispy texture (bright along the tip's path, fraying out towards the hand)
             // instead of flat polygons
-            int m = history.size();
-            Vec3[][] hs = history.toArray(new Vec3[0][]);
+            int m = world.size();
+            Vec3[][] hs = world.toArray(new Vec3[0][]);
             int n = Math.min(40, (m - 1) * 4);
             Vec3[] inner = new Vec3[n + 1], outer = new Vec3[n + 1];
             for (int j = 0; j <= n; j++) {
@@ -461,9 +480,9 @@ public final class InfernochainFx {
             double y = hand.y + (from.y - hand.y) * Vfx.easeInOut((float) k);
             rise3.add(new Vec3(center.x + Math.cos(ang) * rad, y, center.z + Math.sin(ang) * rad));
         }
-        DrakeVfx d = VfxManager.add(new DrakeVfx(rise3, target, rise, dive, 3.4f, FIRE, CORE));
-        VfxManager.add(new FollowTrailVfx(() -> d.isDead() ? null : d.head(), 2.4f, Colors.argb(220, FIRE), Colors.argb(0, CRIMSON), 22, rise + dive + 40));
-        VfxManager.add(new FollowTrailVfx(() -> d.isDead() ? null : d.head(), 4.5f, Colors.argb(90, CRIMSON), Colors.argb(0, ASH), 26, rise + dive + 40)
+        DrakeVfx d = VfxManager.add(new DrakeVfx(rise3, target, rise, dive, 5.2f, FIRE, CORE));
+        VfxManager.add(new FollowTrailVfx(() -> d.isDead() ? null : d.head(), 3.6f, Colors.argb(220, FIRE), Colors.argb(0, CRIMSON), 22, rise + dive + 40));
+        VfxManager.add(new FollowTrailVfx(() -> d.isDead() ? null : d.head(), 6.8f, Colors.argb(90, CRIMSON), Colors.argb(0, ASH), 26, rise + dive + 40)
                 .texture(VfxTextures.GLOW, false));
         ScreenFx.zoneVignette(CRIMSON, 0.18f, rise + dive + 20, center, 30);
         FxScheduler.after(rise - 8, () -> CameraShake.add(center, 0.6f, 30)); // the roar

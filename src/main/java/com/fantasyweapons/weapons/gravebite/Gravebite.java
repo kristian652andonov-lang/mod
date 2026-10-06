@@ -124,7 +124,7 @@ public final class Gravebite {
                         .param("souls", 24, "Souls in the legion")
                         .param("souls_per_level", 6, "Extra souls per level")
                         .param("duration", 7, "Seconds the legion lasts")
-                        .param("range", 18, "Hunting range")
+                        .param("range", 26, "Hunting range")
                         .param("interval", 4, "Ticks between launched souls")
                         .stat("TOTAL DAMAGE", AbilityText.damage())
                         .stat("SOULS", AbilityText.scaled("souls", "souls_per_level", "", 0))

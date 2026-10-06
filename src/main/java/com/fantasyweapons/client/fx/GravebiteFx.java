@@ -8,6 +8,7 @@ import com.fantasyweapons.client.vfx.effects.ChainVfx;
 import com.fantasyweapons.client.vfx.effects.DecalVfx;
 import com.fantasyweapons.client.vfx.effects.FlashVfx;
 import com.fantasyweapons.client.vfx.effects.FollowTrailVfx;
+import com.fantasyweapons.client.vfx.effects.GhostVfx;
 import com.fantasyweapons.client.vfx.effects.ModelPartVfx;
 import com.fantasyweapons.client.vfx.effects.RibbonTrailVfx;
 import com.fantasyweapons.client.vfx.effects.SeekerVfx;
@@ -55,16 +56,12 @@ public final class GravebiteFx {
     /** A wailing soul: the artist's soul model riding a homing seeker, with a ghostly trail. */
     static void soul(Vec3 start, Vec3 vel, int target, long seed, int index) {
         SeekerVfx seeker = VfxManager.add(new SeekerVfx(start, vel, target, 0.22, 0.22f, SOUL, GHOST, 80));
-        ModelPartVfx model = VfxManager.add(new ModelPartVfx("gravebite", start, 80, "soul_" + (index % 6))
-                .position(t -> {
-                    Vec3 n = seeker.now();
-                    return n == null ? start : n;
-                })
-                .rotation(t -> {
-                    Vec3 v = seeker.velocity();
-                    return new Quaternionf().rotationY((float) Math.atan2(-v.z, v.x));
-                })
-                .scale(t -> 2.2f).spectral(GHOST, 0.85f, 0.5f));
+        Vec3[] last = {start};
+        GhostVfx model = VfxManager.add(new GhostVfx(t -> {
+            Vec3 n = seeker.now();
+            if (n != null) last[0] = n;
+            return last[0];
+        }, 0.85f, SOUL, GHOST, 80, seed).heading(seeker::velocity).fades(0.06f, 0.08f));
         FollowTrailVfx trail = VfxManager.add(new FollowTrailVfx(seeker::now, 0.45f, Colors.argb(220, SOUL), Colors.argb(0, DEEP), 10, 100)
                 .texture(VfxTextures.STREAK, true));
         FxProjectiles.track(seed, seeker, model);
@@ -74,15 +71,8 @@ public final class GravebiteFx {
      * A 3D ghost - one of the artist's soul models, spectral and see-through - following {@code path} (t = 0..1 of
      * its life), turned to face the way it moves, fading in and out.
      */
-    static ModelPartVfx ghost(java.util.function.Function<Float, Vec3> path, int life, int index, float size) {
-        return VfxManager.add(new ModelPartVfx("gravebite", path.apply(0f), life, "soul_" + Math.floorMod(index, 6))
-                .position(path)
-                .rotation(t -> {
-                    Vec3 d = path.apply(Math.min(1f, t + 0.02f)).subtract(path.apply(Math.max(0f, t - 0.02f)));
-                    return new Quaternionf().rotationY((float) Math.atan2(-d.z, d.x));
-                })
-                .alpha(t -> Math.min(1f, t * 6f) * Math.min(1f, (1 - t) * 2.5f))
-                .scale(t -> size).spectral(GHOST, 0.8f, 0.5f));
+    static GhostVfx ghost(java.util.function.Function<Float, Vec3> path, int life, int index, float size) {
+        return VfxManager.add(new GhostVfx(path, size * 0.55f, SOUL, GHOST, life, index * 7919L + life).fades(0.15f, 0.4f));
     }
 
     /** {@code n} ghosts bursting out of {@code at} (towards {@code dir}, rising), slowing and fading as they go. */
@@ -131,18 +121,11 @@ public final class GravebiteFx {
         VfxManager.add(new FollowTrailVfx(s::now, 0.3f, Colors.argb(200, SOUL), Colors.argb(0, DEEP), 8, 40));
         // the harvested soul itself, flying home
         Vec3[] last = {from};
-        VfxManager.add(new ModelPartVfx("gravebite", from, 24, "soul_" + Math.floorMod((int) p.seed(), 6))
-                .position(t -> {
-                    Vec3 n = s.now();
-                    if (n != null) last[0] = n;
-                    return last[0];
-                })
-                .rotation(t -> {
-                    Vec3 v = s.velocity();
-                    return new Quaternionf().rotationY((float) Math.atan2(-v.z, v.x));
-                })
-                .alpha(t -> Math.min(1f, t * 8f) * Math.min(1f, (1 - t) * 4f))
-                .scale(t -> 1.6f).spectral(GHOST, 0.8f, 0.5f));
+        VfxManager.add(new GhostVfx(t -> {
+            Vec3 n = s.now();
+            if (n != null) last[0] = n;
+            return last[0];
+        }, 0.7f, SOUL, GHOST, 24, p.seed()).heading(s::velocity).fades(0.12f, 0.2f));
     }
 
     private static void chains(FxPayload p) {
@@ -228,28 +211,24 @@ public final class GravebiteFx {
         // the circling host of souls (purely visual; the server launches the real ones)
         for (int i = 0; i < n; i++) {
             float phase = i * 6.283f / n;
-            float h = 0.8f + (i % 4) * 0.45f;
-            float rad = 1.8f + (i % 3) * 0.6f;
-            java.util.function.Function<Float, Vec3> circle = t -> c.add(Math.cos(phase + t * 0.15) * rad, h + Math.sin(t * 0.2 + phase) * 0.3,
-                    Math.sin(phase + t * 0.15) * rad);
+            float h = 1.2f + (i % 4) * 1.0f;
+            float rad = 4.5f + (i % 3) * 2.0f;
+            float spin = 0.6f / rad;
+            java.util.function.Function<Float, Vec3> circle = t -> c.add(Math.cos(phase + t * spin) * rad, h + Math.sin(t * 0.2 + phase) * 0.4,
+                    Math.sin(phase + t * spin) * rad);
             com.fantasyweapons.client.vfx.effects.OrbVfx orb = VfxManager.add(new com.fantasyweapons.client.vfx.effects.OrbVfx(circle, 0.12f, SOUL, GHOST, duration)
                     .fades(10, 10));
             VfxManager.add(new FollowTrailVfx(orb::now, 0.25f, Colors.argb(160, SOUL), Colors.argb(0, DEEP), 8, duration + 10));
             // the ghost itself, circling head first
             int life = duration;
-            int idx = i;
-            VfxManager.add(new ModelPartVfx("gravebite", circle.apply(0f), life, "soul_" + (idx % 6))
-                    .position(t -> circle.apply(t * life))
-                    .rotation(t -> {
-                        double th = phase + t * life * 0.15;
-                        return new Quaternionf().rotationY((float) Math.atan2(-Math.cos(th), -Math.sin(th)));
-                    })
-                    .alpha(t -> Math.min(1f, t * life / 10f) * Math.min(1f, (1 - t) * life / 10f))
-                    .scale(t -> 1.4f).spectral(GHOST, 0.8f, 0.5f));
+            VfxManager.add(new GhostVfx(t -> circle.apply(t * life), 1.15f, SOUL, GHOST, life, i * 131L + p.seed())
+                    .fades(10f / Math.max(10, life), 10f / Math.max(10, life)));
         }
-        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), 4f, Colors.argb(220, SOUL), VfxTextures.RUNE_CIRCLE, duration)
+        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), 10f, Colors.argb(220, SOUL), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.05f).energy().timing(0.1f, 0.1f));
-        ScreenFx.zoneVignette(GRAVE, 0.35f, duration, c, 20);
+        VfxManager.add(new DecalVfx(c.add(0, 0.06, 0), new Vec3(0, 1, 0), 16f, Colors.argb(170, GHOST), VfxTextures.RUNE_CIRCLE, duration)
+                .spin(-0.025f).energy().timing(0.15f, 0.1f));
+        ScreenFx.zoneVignette(GRAVE, 0.35f, duration, c, 26);
     }
 
     private static void legionLaunch(FxPayload p) {
@@ -259,7 +238,7 @@ public final class GravebiteFx {
 
     private static void legionEnd(FxPayload p) {
         Vec3 c = p.pos();
-        VfxManager.add(new ShockwaveVfx(c.add(0, 1, 0), new Vec3(0, 1, 0), 0.5f, 6f, 0.5f, Colors.argb(200, SOUL), 14).energy());
-        ghostBurst(c.add(0, 1.2, 0), new Vec3(0, 1, 0), 8, 1.2f, p.seed());
+        VfxManager.add(new ShockwaveVfx(c.add(0, 1, 0), new Vec3(0, 1, 0), 0.5f, 14f, 0.5f, Colors.argb(200, SOUL), 18).energy());
+        ghostBurst(c.add(0, 1.2, 0), new Vec3(0, 1, 0), 10, 1.6f, p.seed());
     }
 }

@@ -126,7 +126,7 @@ public final class Doomcleaver {
                         .unlock(100).levels(3, 0).cost(5, 5)
                         .node(2, 3, SANGUINE_LEAP)
                         .standard(15.0, 3.0, 100.0)
-                        .param("radius", 13, "Radius of the blood moon")
+                        .param("radius", 19, "Radius of the blood moon")
                         .param("radius_per_level", 2, "Extra radius per level")
                         .param("duration", 5, "Seconds of draining")
                         .param("duration_per_level", 1, "Extra seconds per level")

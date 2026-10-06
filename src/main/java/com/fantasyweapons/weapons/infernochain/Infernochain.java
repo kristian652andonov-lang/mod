@@ -137,7 +137,7 @@ public final class Infernochain {
                         .standard(14.0, 3.0, 100.0)
                         .param("range", 30, "Dive distance")
                         .param("rise", 24, "Ticks the drake rises before diving")
-                        .param("radius", 8, "Explosion radius")
+                        .param("radius", 13, "Explosion radius")
                         .param("radius_per_level", 1, "Extra explosion radius per level")
                         .param("burn", 4, "Seconds the scorched path keeps burning")
                         .fraction("dive_fraction", 0.35, "Damage fraction of the dive")

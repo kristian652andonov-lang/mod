@@ -129,7 +129,7 @@ public final class EclipseReaper {
                         .unlock(100).levels(3, 0).cost(5, 5)
                         .node(2, 3, EQUILIBRIUM)
                         .standard(15.0, 3.5, 100.0)
-                        .param("radius", 14, "Radius of the eclipse")
+                        .param("radius", 20, "Radius of the eclipse")
                         .param("radius_per_level", 2, "Extra radius per level")
                         .param("duration", 6, "Seconds of the eclipse")
                         .param("duration_per_level", 1, "Extra seconds per level")

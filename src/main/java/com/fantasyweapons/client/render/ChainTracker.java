@@ -24,6 +24,9 @@ public final class ChainTracker {
 
     public static final class Sample {
         public final Vec3[] pts = new Vec3[POINTS];
+        /** First person only: the same points in view space (they move with the camera). */
+        public final Vec3[] view = new Vec3[POINTS];
+        public boolean firstPerson;
         public long nanos;
         int found;
     }
@@ -39,6 +42,7 @@ public final class ChainTracker {
 
     static void begin(LivingEntity entity, boolean fp) {
         building = new Sample();
+        building.firstPerson = fp;
         buildingId = entity.getId();
         firstPerson = fp;
     }
@@ -60,8 +64,14 @@ public final class ChainTracker {
         }
         if (i < 0 || i > 6) return;
         if (s.pts[i] == null) s.found++;
-        s.pts[i] = toWorld(pose.transformPosition(new Vector3f(bone.getPivotX() / 16f, bone.getPivotY() / 16f, bone.getPivotZ() / 16f)));
-        if (i == 6) s.pts[7] = toWorld(pose.transformPosition(new Vector3f(bone.getPivotX() / 16f, TIP_Y, bone.getPivotZ() / 16f)));
+        Vector3f v = pose.transformPosition(new Vector3f(bone.getPivotX() / 16f, bone.getPivotY() / 16f, bone.getPivotZ() / 16f));
+        s.view[i] = new Vec3(v.x, v.y, v.z);
+        s.pts[i] = toWorld(v);
+        if (i == 6) {
+            Vector3f tip = pose.transformPosition(new Vector3f(bone.getPivotX() / 16f, TIP_Y, bone.getPivotZ() / 16f));
+            s.view[7] = new Vec3(tip.x, tip.y, tip.z);
+            s.pts[7] = toWorld(tip);
+        }
     }
 
     static void end() {
@@ -70,6 +80,14 @@ public final class ChainTracker {
         if (s == null || s.found < 7 || s.pts[7] == null) return;
         s.nanos = System.nanoTime();
         SAMPLES.put(buildingId, s);
+    }
+
+    /** A first-person view-space point placed in the world through the camera as it is now. */
+    public static Vec3 viewToWorld(Vec3 v) {
+        Camera cam = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Vector3f p = new Vector3f((float) v.x, (float) v.y, (float) v.z);
+        cam.rotation().transform(p);
+        return cam.getPosition().add(p.x, p.y, p.z);
     }
 
     /** Render space → world: third-person item poses are camera-relative and world-aligned, first-person ones are in view space. */

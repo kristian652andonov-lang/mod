@@ -167,7 +167,7 @@ public final class Voidfang {
                         .unlock(100).levels(3, 0).cost(5, 5)
                         .node(2, 4, VOID_EXECUTION)
                         .standard(14.0, 4.0, 90.0)
-                        .param("radius", 12, "Radius of the void dimension")
+                        .param("radius", 17, "Radius of the void dimension")
                         .param("radius_per_level", 2, "Extra radius per level")
                         .param("duration", 6, "Seconds the dimension lasts")
                         .param("duration_per_level", 1, "Extra seconds per level")
