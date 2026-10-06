@@ -100,19 +100,21 @@ public final class WeaponPoses {
 
     private static Key[] swingKeys(WeaponClass cls, Pose stance, boolean backhand) {
         return switch (cls.swingStyle()) {
+            // flat, level sweeps across the body, like the slash they leave in the air: drawn back out to one side
+            // with the blade level, then carried through at shoulder height to the other side
             case SLASH -> backhand
                     ? new Key[]{new Key(0, stance),
-                    new Key(0.24f, pt(-1.3f, -0.9f, -0.1f, 0.1f, 0, -0.1f, 0.45f, 0.02f, 0.65f, -0.35f)),
-                    new Key(0.44f, pt(-1.35f, 0.6f, 0.15f, 0.15f, 0, -0.2f, -0.45f, 0.08f, 0.1f, 0.35f)),
-                    new Key(0.7f, pt(-0.9f, 0.8f, 0.2f, 0.15f, 0, -0.2f, -0.5f, 0.1f, -0.3f, 0.3f)), new Key(1, stance)}
+                    new Key(0.1f, pt(-1.35f, -1.15f, -0.1f, 0.1f, 0, -0.1f, 0.5f, 0.02f, 0.18f, -0.25f)),
+                    new Key(0.26f, pt(-1.5f, 0.2f, 0.05f, 0.15f, 0, -0.2f, -0.25f, 0.06f, 0.02f, 0.1f)),
+                    new Key(0.44f, pt(-1.35f, 1.05f, 0.15f, 0.15f, 0, -0.2f, -0.55f, 0.08f, -0.08f, 0.25f)), new Key(1, stance)}
                     : new Key[]{new Key(0, stance),
-                    new Key(0.24f, pt(-2.2f, 0.55f, 0.2f, 0.15f, 0, -0.2f, -0.35f, -0.04f, 1.9f, 0)),
-                    new Key(0.44f, pt(-1.25f, -0.6f, -0.05f, 0.1f, 0, -0.1f, 0.4f, 0.1f, 0f, 0.4f)),
-                    new Key(0.7f, pt(-0.75f, -0.85f, -0.05f, 0.1f, 0, -0.1f, 0.5f, 0.12f, -0.6f, 0.35f)), new Key(1, stance)};
+                    new Key(0.1f, pt(-1.35f, 1.15f, 0.12f, 0.15f, 0, -0.2f, -0.5f, 0.02f, 0.18f, 0.25f)),
+                    new Key(0.26f, pt(-1.5f, -0.2f, -0.02f, 0.1f, 0, -0.1f, 0.3f, 0.06f, 0.02f, -0.1f)),
+                    new Key(0.44f, pt(-1.35f, -1.05f, -0.05f, 0.1f, 0, -0.1f, 0.6f, 0.08f, -0.08f, -0.25f)), new Key(1, stance)};
             case HEAVY_SLASH -> new Key[]{new Key(0, stance),
-                    new Key(0.3f, pt(-2.1f, 0.45f, 0.1f, -2.0f, 0.9f, 0, -0.6f, -0.08f, 1.75f, 0)),
-                    new Key(0.5f, pt(-1.2f, -0.55f, 0, -1.25f, 0.15f, 0, 0.65f, 0.15f, 0.05f, 0.35f)),
-                    new Key(0.72f, pt(-0.7f, -0.8f, 0, -0.75f, 0f, 0, 0.8f, 0.18f, -0.55f, 0.3f)), new Key(1, stance)};
+                    new Key(0.12f, pt(-1.3f, 1.0f, 0.1f, -1.3f, 1.6f, 0, -0.65f, 0.02f, 0.22f, 0.2f)),
+                    new Key(0.3f, pt(-1.45f, -0.25f, 0, -1.45f, 0.5f, 0, 0.45f, 0.08f, 0.04f, -0.1f)),
+                    new Key(0.5f, pt(-1.3f, -0.95f, 0, -1.3f, -0.1f, 0, 0.85f, 0.1f, -0.1f, -0.2f)), new Key(1, stance)};
             case CHOP -> new Key[]{new Key(0, stance),
                     new Key(0.32f, pt(-2.75f, 0.25f, 0, -2.7f, 0.5f, 0, -0.1f, -0.12f, 2.25f, 0)),
                     new Key(0.5f, pt(-1.05f, -0.1f, 0, -1.1f, 0.4f, 0, 0.05f, 0.3f, -0.25f, 0)),
@@ -216,7 +218,16 @@ public final class WeaponPoses {
         if (form01 >= 0) pose = pose.lerp(form().addPitch(headPitch * 0.3f), bumpSmooth(form01, 0.3f));
 
         float cast = AnimTracker.castProgress(e, partial);
-        if (cast >= 0) pose = pose.lerp(cast(cls).addPitch(headPitch * 0.6f), bumpSmooth(cast, 0.18f));
+        if (cast >= 0) {
+            // blades loose their abilities with the same level sweep as their slashes; the rest thrust or slam
+            WeaponClass.SwingStyle st = cls.swingStyle();
+            if (st == WeaponClass.SwingStyle.SLASH || st == WeaponClass.SwingStyle.HEAVY_SLASH) {
+                Pose sw = sample(swingKeys(cls, stance, false), Math.min(1, cast * 1.25f)).addPitch(headPitch * 0.35f);
+                pose = cls.twoHanded() ? sw : sw.withLeft(pose);
+            } else {
+                pose = pose.lerp(cast(cls).addPitch(headPitch * 0.6f), bumpSmooth(cast, 0.18f));
+            }
+        }
 
         float[] plant = AnimTracker.plantPhase(e, partial);
         if (plant != null) {

@@ -107,7 +107,7 @@ public final class GenericFx {
                     a0 = a1;
                     a1 = tmp;
                 }
-                VfxManager.add(new SlashArcVfx(center, ax, look, reach * scale, 0.55f * scale, a0, a1, col, edge, life));
+                VfxManager.add(new SlashArcVfx(center, ax, look, reach * scale, 0.55f * scale, a0, a1, col, edge, life).sweep(0.5f, 0.6f));
             }
             case REAP -> {
                 Vec3 ax = right.scale(Math.cos(-0.15)).add(up.scale(Math.sin(-0.15)));

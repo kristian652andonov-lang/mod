@@ -58,7 +58,12 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         }
         // ability release: forward thrust
         float cast = AnimTracker.castProgress(player, partialTick);
-        if (cast >= 0) {
+        WeaponClass.SwingStyle castStyle = item.definition().weaponClass().swingStyle();
+        boolean bladeCast = castStyle == WeaponClass.SwingStyle.SLASH || castStyle == WeaponClass.SwingStyle.HEAVY_SLASH;
+        if (cast >= 0 && bladeCast) {
+            // blades loose their abilities with the same level sweep as their slashes
+            levelSweep(pose, side, 1, castStyle == WeaponClass.SwingStyle.HEAVY_SLASH ? 1.2f : 1f, 1f, Math.min(1, cast * 1.25f));
+        } else if (cast >= 0) {
             float k = cast < 0.2f ? smooth(cast / 0.2f) : smooth(1 - (cast - 0.2f) / 0.8f);
             pose.translate(side * -0.15f * k, 0.05f * k, -0.4f * k);
             pose.mulPose(Axis.XP.rotationDegrees(-25 * k));
@@ -98,20 +103,7 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         float dir = AnimTracker.mirrored(player) && !item.definition().weaponClass().twoHanded() ? -1 : 1;
         WeaponClass.SwingStyle style = item.definition().weaponClass().swingStyle();
         switch (style) {
-            case SLASH -> {
-                float wind = s < 0.25f ? smooth(s / 0.25f) : 1 - smooth((s - 0.25f) / 0.75f);
-                pose.translate(side * dir * (0.25f * wind - 0.5f * sweep * k), 0.15f * wind - 0.1f * k, -0.25f * k);
-                pose.mulPose(Axis.YP.rotationDegrees(side * dir * (45 * wind - 70 * sweep * k) * heavy));
-                pose.mulPose(Axis.ZP.rotationDegrees(side * dir * (-35 * wind + 65 * sweep * k)));
-                pose.mulPose(Axis.XP.rotationDegrees((20 * wind - 45 * k) * heavy));
-            }
-            case HEAVY_SLASH -> {
-                float wind = s < 0.3f ? smooth(s / 0.3f) : 1 - smooth((s - 0.3f) / 0.7f);
-                pose.translate(side * (0.35f * wind - 0.75f * sweep * k), -0.05f * k, -0.3f * k);
-                pose.mulPose(Axis.YP.rotationDegrees(side * (70 * wind - 120 * sweep * k) * heavy));
-                pose.mulPose(Axis.ZP.rotationDegrees(side * (30 * wind - 20 * k)));
-                pose.mulPose(Axis.XP.rotationDegrees(-25 * k));
-            }
+            case SLASH, HEAVY_SLASH -> levelSweep(pose, side, dir, style == WeaponClass.SwingStyle.HEAVY_SLASH ? 1.2f : 1f, heavy, s);
             case REAP -> {
                 float wind = s < 0.3f ? smooth(s / 0.3f) : 1 - smooth((s - 0.3f) / 0.7f);
                 pose.translate(side * (0.45f * wind - 0.95f * sweep * k), -0.1f * k, -0.2f * k);
@@ -141,6 +133,22 @@ public class WeaponClientExtensions implements IClientItemExtensions {
             }
         }
         return true;
+    }
+
+    /**
+     * A level sweep from right to left (left to right when {@code dir} is -1), like the slash it leaves: the blade is
+     * laid forward, drawn out to one side, carried across at chest height and eased back. {@code s} is 0..1.
+     */
+    private static void levelSweep(PoseStack pose, int side, float dir, float big, float heavy, float s) {
+        float in = smooth(Math.min(1, s / 0.1f));
+        float out = s > 0.6f ? smooth((s - 0.6f) / 0.4f) : 0;
+        float w = in * (1 - out);
+        float t = smooth(Mth.clamp((s - 0.06f) / 0.36f, 0, 1));
+        float arc = Mth.sin(t * Mth.PI);
+        pose.translate(side * dir * (0.3f - 0.62f * t) * w, (0.2f + 0.04f * arc) * w, (-0.32f - 0.22f * arc) * w * big);
+        pose.mulPose(Axis.YP.rotationDegrees(side * dir * (-55 + 125 * t) * big * heavy * w));
+        pose.mulPose(Axis.XP.rotationDegrees(-36 * w));
+        pose.mulPose(Axis.ZP.rotationDegrees(side * dir * 10 * w));
     }
 
     /** First-person planted offset: x (towards centre), y, z, pitch, roll. */

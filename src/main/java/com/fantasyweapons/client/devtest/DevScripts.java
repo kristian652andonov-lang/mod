@@ -35,6 +35,7 @@ final class DevScripts {
             case "starrings" -> starRings(b);
             case "gravebite" -> gravebite(b);
             case "gravechains" -> graveChains(b);
+            case "swings" -> swings(b, null);
             case "bloom" -> near(b, "bloomfall/entangling_roots,bloomfall/overgrowth,bloomfall/wrath_of_the_wild");
             case "skycircles" -> wide(b, "solaris/celestial_inferno,eclipse_reaper/total_eclipse");
             default -> {
@@ -42,6 +43,7 @@ final class DevScripts {
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
                 else if (name.startsWith("wide:")) wide(b, name.substring(5));
                 else if (name.startsWith("near:")) near(b, name.substring(5));
+                else if (name.startsWith("swings:")) swings(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.startsWith("abilities:")) {
                     for (String k : name.substring(10).split(",")) single(b.cmd("/clear @s").cmd("/kill @e[type=!player]").wait(10), k);
                 }
@@ -551,6 +553,25 @@ final class DevScripts {
             for (int i = 0; i < 8; i++) b.wait(i < 4 ? 5 : 10).screenshot("near_" + u[1] + "_" + i);
             b.viewAt(3.5, 1.4, 3, 1, 0.4, 6).wait(2).screenshot("near_" + u[1] + "_close");
             b.playerView().wait(60);
+        }
+        b.playerView();
+    }
+
+    /** Every weapon's swing: from behind the player (third person) and through its eyes, a frame every two ticks. */
+    private static void swings(ScreenshotDirector.Builder b, java.util.List<String> only) {
+        var all = com.fantasyweapons.weapon.Weapons.all();
+        b.hud(false).look(0, 0);
+        for (var def : all) {
+            String w = def.id();
+            if (only != null && !only.contains(w)) continue;
+            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).wait(30);
+            b.viewAt(1.6, 1.3, -3.4, 0, 1.2, 2.5).wait(3).swing();
+            for (int i = 0; i < 6; i++) b.wait(2).screenshot("sw_" + w + "_tp" + i);
+            b.wait(30).viewAt(0.4, 4.5, -1.2, 0, 1, 1.5).wait(3).swing();
+            for (int i = 0; i < 6; i++) b.wait(2).screenshot("sw_" + w + "_top" + i);
+            b.wait(30).playerView().camera(CameraType.FIRST_PERSON).hud(true).wait(3).swing();
+            for (int i = 0; i < 5; i++) b.wait(2).screenshot("sw_" + w + "_fp" + i);
+            b.hud(false).wait(25);
         }
         b.playerView();
     }
