@@ -208,7 +208,7 @@ final class DevScripts {
 
     /** Progression menu and HUD of the newest weapons. */
     private static void menus(ScreenshotDirector.Builder b) {
-        String[] weapons = {"monolith", "infernochain"};
+        String[] weapons = {"voidfang", "bloomfall", "frostrend", "infernochain", "soulreaper", "solaris"};
         for (String w : weapons) b.cmd("/fw give " + w + " 100");
         b.wait(20).cmd("/fw points 200").camera(CameraType.FIRST_PERSON).hud(true).look(0, 5);
         for (int i = 0; i < weapons.length; i++) {

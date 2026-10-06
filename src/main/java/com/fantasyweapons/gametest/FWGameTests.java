@@ -222,6 +222,20 @@ public final class FWGameTests {
     }
 
     @GameTest(template = ARENA)
+    public static void aimedAbilitiesNeverLandInMidAir(GameTestHelper h) {
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
+        double floor = h.absoluteVec(new Vec3(0, 1, 0)).y;
+        for (float pitch : new float[]{-80f, -35f, 0f, 30f}) {
+            p.setXRot(pitch);
+            p.setYRot(0);
+            Vec3 at = com.fantasyweapons.ability.kit.Kit.aimGround(p, 30);
+            h.assertTrue(Math.abs(at.y - floor) < 1.05, "aiming at pitch " + pitch + " placed the ability at y=" + at.y + ", the floor is at " + floor);
+        }
+        cleanup(p);
+        h.succeed();
+    }
+
+    @GameTest(template = ARENA)
     public static void abilityOnCooldownCannotCharge(GameTestHelper h) {
         ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");

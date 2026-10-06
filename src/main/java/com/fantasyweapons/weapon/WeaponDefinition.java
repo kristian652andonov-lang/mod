@@ -144,6 +144,15 @@ public final class WeaponDefinition {
         return form(data.form());
     }
 
+    /** The weapon's own colours (its first form's, for weapons with forms). */
+    public int themePrimary() {
+        return themePrimary;
+    }
+
+    public int themeSecondary() {
+        return themeSecondary;
+    }
+
     public int themePrimary(WeaponData data) {
         WeaponForm f = form(data);
         return f != null ? f.themePrimary() : themePrimary;

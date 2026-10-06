@@ -176,7 +176,16 @@ public final class Notifications {
 
         @Override
         public void render(GuiGraphics g, float t, float cx, float y, float alpha) {
-            int theme = def.element().primary();
+            int theme = def.themePrimary();
+            UiDraw.theme(theme, def.themeSecondary());
+            try {
+                draw(g, t, cx, y, alpha, theme);
+            } finally {
+                UiDraw.resetTheme();
+            }
+        }
+
+        private void draw(GuiGraphics g, float t, float cx, float y, float alpha, int theme) {
             float w = 216, h = 64;
             UiDraw.glow(g, cx, y + h / 2, 240, Colors.alpha(alpha * 0.14f, theme));
             UiDraw.panel(g, cx - w / 2, y + 8, w, h - 8, theme, alpha);
@@ -200,7 +209,16 @@ public final class Notifications {
 
         @Override
         public void render(GuiGraphics g, float t, float cx, float y, float alpha) {
-            int theme = def.element().primary();
+            int theme = def.themePrimary();
+            UiDraw.theme(theme, def.themeSecondary());
+            try {
+                draw(g, t, cx, y, alpha, theme);
+            } finally {
+                UiDraw.resetTheme();
+            }
+        }
+
+        private void draw(GuiGraphics g, float t, float cx, float y, float alpha, int theme) {
             float w = 252, h = 82;
             float pulse = 0.5f + 0.5f * (float) Math.sin(t * 24);
             UiDraw.glow(g, cx, y + h / 2, 260, Colors.alpha(alpha * 0.14f, theme));

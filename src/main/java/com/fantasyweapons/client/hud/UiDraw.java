@@ -30,18 +30,65 @@ public final class UiDraw {
     public static final ResourceLocation BANNER = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/banner.png");
     public static final ResourceLocation BAR = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/bar.png");
 
+    private static final ResourceLocation FRAME_MONO = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/frame_mono.png");
+    private static final ResourceLocation BUTTON_MONO = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/button_mono.png");
+    private static final ResourceLocation DIVIDER_MONO = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/divider_mono.png");
+    private static final ResourceLocation MEDALLION_MONO = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/medallion_mono.png");
+    private static final ResourceLocation BANNER_MONO = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/banner_mono.png");
+    private static final ResourceLocation BAR_MONO = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/bar_mono.png");
+
     /** Parchment ink: values. */
     public static final int INK = 0xEFE2C4;
-    /** Faded ink: labels. */
-    public static final int INK_MUTED = 0xB49F7A;
-    /** Gold leaf: headings. */
-    public static final int GOLD = 0xE8C26A;
-    public static final int GOLD_LIGHT = 0xFFE7A8;
+    /** Faded ink: labels (tinted by the weapon being shown, see {@link #theme}). */
+    public static int INK_MUTED = 0xB49F7A;
+    /** Gold leaf: headings (in a weapon's own metal while it is shown, see {@link #theme}). */
+    public static int GOLD = 0xE8C26A;
+    public static int GOLD_LIGHT = 0xFFE7A8;
+    private static final int BASE_INK_MUTED = 0xB49F7A, BASE_GOLD = 0xE8C26A, BASE_GOLD_LIGHT = 0xFFE7A8;
+    /** While a weapon's theme is active: the tint of the metal (frames, sockets, dividers, buttons) and of the banner. */
+    private static int metal = -1, ribbon = -1, leather = 0xFFFFFF;
     public static final int GOOD = 0x9CD67A;
     public static final int BAD = 0xE0705A;
     public static final int ARCANE = 0xC9A8F0;
 
     private UiDraw() {
+    }
+
+    /**
+     * Dresses the UI in a weapon's own colours until {@link #resetTheme}: frames, sockets, dividers and buttons are
+     * forged from a metal of its primary colour, its banners are dyed in it, headings are inlaid in its light colour,
+     * labels and the leather take on a trace of it. Voidfang's tome is violet and silver, Bloomfall's green and gold,
+     * Frostrend's icy blue, Infernochain's ember red...
+     */
+    public static void theme(int primary, int light) {
+        metal = Colors.lerpRgb(Colors.lerpRgb(primary, light, 0.45f), 0xFFFFFF, 0.28f);
+        ribbon = Colors.lerpRgb(Colors.scale(primary, 0.95f), 0x200810, 0.25f);
+        leather = Colors.lerpRgb(0xFFFFFF, Colors.lerpRgb(primary, 0x806060, 0.55f), 0.32f);
+        GOLD = Colors.lerpRgb(Colors.lerpRgb(light, primary, 0.25f), 0xFFFFFF, 0.12f);
+        GOLD_LIGHT = Colors.lerpRgb(light, 0xFFFFFF, 0.55f);
+        INK_MUTED = Colors.lerpRgb(BASE_INK_MUTED, light, 0.3f);
+    }
+
+    /** Back to the plain gold-and-crimson tome. */
+    public static void resetTheme() {
+        metal = -1;
+        ribbon = -1;
+        leather = 0xFFFFFF;
+        GOLD = BASE_GOLD;
+        GOLD_LIGHT = BASE_GOLD_LIGHT;
+        INK_MUTED = BASE_INK_MUTED;
+    }
+
+    private static ResourceLocation metalTex(ResourceLocation gold, ResourceLocation mono) {
+        return metal < 0 ? gold : mono;
+    }
+
+    /** {@code argb} tinted by the active metal. */
+    private static int metalTint(int argb) {
+        if (metal < 0) return argb;
+        int rgb = argb & 0xFFFFFF;
+        int r = ((rgb >> 16) & 255) * ((metal >> 16) & 255) / 255, gg = ((rgb >> 8) & 255) * ((metal >> 8) & 255) / 255, b = (rgb & 255) * (metal & 255) / 255;
+        return (argb & 0xFF000000) | (r << 16) | (gg << 8) | b;
     }
 
     public static Font font() {
@@ -99,15 +146,15 @@ public final class UiDraw {
      */
     public static void panel(GuiGraphics g, float x, float y, float w, float h, int theme, float alpha) {
         if (alpha <= 0.01f) return;
-        tile(g, LEATHER, x + 1, y + 1, w - 2, h - 2, 48, Colors.alpha(0.97f * alpha, 0xFFFFFF));
-        hGradient(g, x + 1, y + 1, x + w * 0.6f, y + h - 1, Colors.alpha(0.07f * alpha, theme), Colors.alpha(0f, theme));
+        tile(g, LEATHER, x + 1, y + 1, w - 2, h - 2, 48, Colors.alpha(0.97f * alpha, leather));
+        hGradient(g, x + 1, y + 1, x + w * 0.6f, y + h - 1, Colors.alpha((metal < 0 ? 0.07f : 0.14f) * alpha, theme), Colors.alpha(0f, theme));
         float e = Math.min(14, Math.min(w, h) * 0.3f);
         vGradient(g, x + 1, y + 1, x + w - 1, y + e, Colors.alpha(0.45f * alpha, 0x000000), 0);
         vGradient(g, x + 1, y + h - e, x + w - 1, y + h - 1, 0, Colors.alpha(0.5f * alpha, 0x000000));
         hGradient(g, x + 1, y + 1, x + e, y + h - 1, Colors.alpha(0.35f * alpha, 0x000000), 0);
         hGradient(g, x + w - e, y + 1, x + w - 1, y + h - 1, 0, Colors.alpha(0.35f * alpha, 0x000000));
         float b = Math.min(9, Math.min(w, h) / 2f);
-        nineSlice(g, FRAME, x - 2, y - 2, w + 4, h + 4, b, 96, 96, 24, 0, 96, Colors.alpha(alpha, 0xFFFFFF));
+        nineSlice(g, metalTex(FRAME, FRAME_MONO), x - 2, y - 2, w + 4, h + 4, b, 96, 96, 24, 0, 96, metalTint(Colors.alpha(alpha, 0xFFFFFF)));
     }
 
     /** Progress bar: a dark groove in a bronze frame, filled with a soft gradient and a gentle passing gleam. */
@@ -116,7 +163,7 @@ public final class UiDraw {
         rect(g, x, y, x + w, y + h, Colors.alpha(0.85f * alpha, 0x0E0804));
         float fw = w * fraction;
         if (fw > 0.01f) barFill(g, x, y, w, h, fw, from, to, alpha, shimmerTime);
-        nineSlice(g, BAR, x - 2, y - 2, w + 4, h + 4, Math.min(3, (h + 4) / 2f), 64, 12, 5, 0, 12, Colors.alpha(alpha, 0xFFFFFF));
+        nineSlice(g, metalTex(BAR, BAR_MONO), x - 2, y - 2, w + 4, h + 4, Math.min(3, (h + 4) / 2f), 64, 12, 5, 0, 12, metalTint(Colors.alpha(alpha, 0xFFFFFF)));
     }
 
     private static void barFill(GuiGraphics g, float x, float y, float w, float h, float fw, int from, int to, float alpha, float shimmerTime) {
@@ -167,27 +214,28 @@ public final class UiDraw {
 
     /** A carved bronze button: state 0 normal, 1 hover, 2 disabled. */
     public static void button(GuiGraphics g, float x, float y, float w, float h, int state, float alpha) {
-        nineSlice(g, BUTTON, x, y, w, h, Math.min(5, h / 2f), 64, 72, 8, state * 24, 24, Colors.alpha(alpha, 0xFFFFFF));
+        nineSlice(g, metalTex(BUTTON, BUTTON_MONO), x, y, w, h, Math.min(5, h / 2f), 64, 72, 8, state * 24, 24, metalTint(Colors.alpha(alpha, 0xFFFFFF)));
     }
 
     /** A gold flourish divider centred on {@code cx}. */
     public static void divider(GuiGraphics g, float cx, float y, float w, float alpha) {
-        texture(g, DIVIDER, cx - w / 2, y - w / 24, w, w / 12, Colors.alpha(alpha, 0xFFFFFF));
+        texture(g, metalTex(DIVIDER, DIVIDER_MONO), cx - w / 2, y - w / 24, w, w / 12, metalTint(Colors.alpha(alpha, 0xFFFFFF)));
     }
 
     /** A gold-rimmed round socket of radius {@code r}. */
     public static void medallion(GuiGraphics g, float cx, float cy, float r, int argb) {
-        texture(g, MEDALLION, cx - r, cy - r, r * 2, r * 2, argb);
+        texture(g, metalTex(MEDALLION, MEDALLION_MONO), cx - r, cy - r, r * 2, r * 2, metalTint(argb));
     }
 
     /** A crimson ribbon banner centred on {@code cx}, swallowtail ends keeping their proportions. */
     public static void banner(GuiGraphics g, float cx, float y, float w, float h, float alpha) {
         float end = h * 40f / 48f;
         float x = cx - w / 2;
-        int c = Colors.alpha(alpha, 0xFFFFFF);
-        textureUv(g, BANNER, x, y, end, h, 0, 0, 40 / 256f, 1, c);
-        textureUv(g, BANNER, x + end, y, w - end * 2, h, 40 / 256f, 0, 216 / 256f, 1, c);
-        textureUv(g, BANNER, x + w - end, y, end, h, 216 / 256f, 0, 1, 1, c);
+        int c = Colors.alpha(alpha, ribbon < 0 ? 0xFFFFFF : Colors.lerpRgb(ribbon, 0xFFFFFF, 0.25f));
+        ResourceLocation tex = ribbon < 0 ? BANNER : BANNER_MONO;
+        textureUv(g, tex, x, y, end, h, 0, 0, 40 / 256f, 1, c);
+        textureUv(g, tex, x + end, y, w - end * 2, h, 40 / 256f, 0, 216 / 256f, 1, c);
+        textureUv(g, tex, x + w - end, y, end, h, 216 / 256f, 0, 1, 1, c);
     }
 
     /** "UNLOCKED AT" → "Unlocked At": labels read like a book, not a terminal. Numbers and symbols are kept as is. */

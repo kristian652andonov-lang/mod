@@ -47,10 +47,20 @@ public final class Kit {
 
     /** Top surface below (or at) {@code pos}, searching down up to {@code maxDown} blocks; falls back to {@code pos}. */
     public static Vec3 ground(ServerLevel level, Vec3 pos, int maxDown) {
+        Vec3 g = groundOrNull(level, pos, maxDown);
+        return g == null ? pos : g;
+    }
+
+    /** The first surface at or below {@code pos} within {@code maxDown} blocks, or null if there is none. */
+    @org.jetbrains.annotations.Nullable
+    public static Vec3 groundOrNull(ServerLevel level, Vec3 pos, int maxDown) {
+        // start half a block up (points lying on the ground), unless that is inside a ceiling or wall
         Vec3 from = pos.add(0, 0.5, 0);
-        HitResult hit = level.clip(new ClipContext(from, from.subtract(0, maxDown + 0.5, 0), ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE, net.minecraft.world.phys.shapes.CollisionContext.empty()));
-        return hit.getType() == HitResult.Type.MISS ? pos : hit.getLocation();
+        if (solidAt(level, from)) from = pos.add(0, 0.02, 0);
+        double bottom = Math.max(level.getMinBuildHeight(), from.y - maxDown - 0.5);
+        HitResult hit = level.clip(new ClipContext(from, new Vec3(from.x, bottom, from.z), ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.ANY, net.minecraft.world.phys.shapes.CollisionContext.empty()));
+        return hit.getType() == HitResult.Type.MISS ? null : hit.getLocation();
     }
 
     /**
@@ -58,20 +68,37 @@ public final class Kit {
      * in mid-air land on the ground instead of floating with the caster).
      */
     public static Vec3 feet(ServerPlayer p) {
-        return p.onGround() ? p.position() : ground(p.serverLevel(), p.position(), 32);
+        if (p.onGround()) return p.position();
+        Vec3 g = groundOrNull(p.serverLevel(), p.position(), 384);
+        return g == null ? p.position() : g;
     }
 
-    /** Where the player aims within range, dropped to the ground below it. */
+    /**
+     * Where the player aims within range, always on the ground: the surface below the aim point, or - aiming at the
+     * sky, or over a drop with nothing below in reach - the ground nearest along the line of sight back towards the
+     * player, and at worst the ground under the player. Abilities are never placed in mid-air.
+     */
     public static Vec3 aimGround(ServerPlayer p, double range) {
+        ServerLevel level = p.serverLevel();
         Vec3 aim = Targeting.aimPoint(p, range);
         Vec3 back = aim.subtract(p.getLookAngle().scale(0.3));
-        return ground(p.serverLevel(), back, 24);
+        Vec3 g = groundOrNull(level, back, 48);
+        if (g != null) return g;
+        Vec3 eye = p.getEyePosition();
+        for (int i = 1; i <= 12; i++) {
+            Vec3 at = back.lerp(eye, i / 12.0);
+            g = groundOrNull(level, at, 48);
+            if (g != null) return g;
+        }
+        return feet(p);
     }
 
-    /** Aim point preferring the entity under the crosshair (its feet), else the ground at the aim point. */
+    /** Aim point preferring the entity under the crosshair (the ground under it), else the ground at the aim point. */
     public static Vec3 aimTargetOrGround(ServerPlayer p, double range) {
         LivingEntity e = Targeting.crosshair(p, range, FWDamage.Kind.ABILITY);
-        return e != null ? e.position() : aimGround(p, range);
+        if (e == null) return aimGround(p, range);
+        Vec3 g = groundOrNull(p.serverLevel(), e.position(), 48);
+        return g == null ? aimGround(p, range) : g;
     }
 
     public static boolean solidAt(ServerLevel level, Vec3 pos) {

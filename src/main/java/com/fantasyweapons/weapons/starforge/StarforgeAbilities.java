@@ -48,7 +48,7 @@ public final class StarforgeAbilities {
         int lvl = ctx.data().abilityLevel(gw);
         if (lvl <= 0) return;
         ServerPlayer p = ctx.player();
-        Vec3 point = ctx.target().position();
+        Vec3 point = Kit.ground(p.serverLevel(), ctx.target().position(), 48);
         int ticks = (int) Math.round((gw.param("duration") + gw.param("duration_per_level") * (lvl - 1)) * 20);
         for (LivingEntity e : Targeting.inRadius(p.serverLevel(), p, point.add(0, 1, 0), gw.param("radius"), FWDamage.Kind.ABILITY)) {
             bind(p, e, point, ticks, 0.12f);

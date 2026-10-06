@@ -128,6 +128,17 @@ public class ProgressionScreen extends Screen {
         WeaponData data = FantasyWeaponItem.data(stack);
         int theme = def.themePrimary(data);
         int light = def.themeSecondary(data);
+        // the whole tome is dressed in the weapon's own colours
+        UiDraw.theme(theme, light);
+        try {
+            renderThemed(g, mouseX, mouseY, partial, stack, item, def, data, theme, light);
+        } finally {
+            UiDraw.resetTheme();
+        }
+    }
+
+    private void renderThemed(GuiGraphics g, int mouseX, int mouseY, float partial, ItemStack stack, FantasyWeaponItem item, WeaponDefinition def, WeaponData data,
+                              int theme, int light) {
         long now = Util.getMillis();
         float t = now / 1000f;
         float open = Math.min(1f, (now - openedAt) / 420f);
