@@ -103,9 +103,8 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
      * Models whose business end sits on the other side of the handle (or reads as backwards) are turned around; the
      * first- and third-person holds differ, so each view has its own table.
      */
-    private static final java.util.Map<String, Float> TP_FACING = java.util.Map.of("soulreaper", 180f, "eclipse_reaper", 180f, "starforge", 180f,
-            "bloomfall", 180f, "doomcleaver", 180f, "gravebite", 180f);
-    private static final java.util.Map<String, Float> FP_FACING = java.util.Map.of("bloomfall", 180f);
+    private static final java.util.Map<String, Float> TP_FACING = java.util.Map.of("doomcleaver", 180f, "gravebite", 180f);
+    private static final java.util.Map<String, Float> FP_FACING = java.util.Map.of("starforge", 180f, "soulreaper", 180f, "eclipse_reaper", 180f);
 
     /** Rotation of the weapon about its handle for the given view, in degrees. */
     private static float handleYaw(ItemStack stack, ItemDisplayContext ctx) {

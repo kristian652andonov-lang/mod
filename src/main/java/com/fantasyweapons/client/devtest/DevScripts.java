@@ -36,7 +36,9 @@ final class DevScripts {
             case "gravebite" -> gravebite(b);
             case "gravechains" -> graveChains(b);
             case "swings" -> swings(b, null);
+            case "combos" -> combos(b, null);
             case "allabilities" -> allAbilities(b);
+            case "fpall" -> fpAll(b, null);
             case "bloom" -> near(b, "bloomfall/entangling_roots,bloomfall/overgrowth,bloomfall/wrath_of_the_wild");
             case "skycircles" -> wide(b, "solaris/celestial_inferno,eclipse_reaper/total_eclipse");
             default -> {
@@ -45,6 +47,11 @@ final class DevScripts {
                 else if (name.startsWith("wide:")) wide(b, name.substring(5));
                 else if (name.startsWith("near:")) near(b, name.substring(5));
                 else if (name.startsWith("swings:")) swings(b, java.util.List.of(name.substring(7).split(",")));
+                else if (name.startsWith("fpall:")) fpAll(b, java.util.List.of(name.substring(6).split(",")));
+                else if (name.startsWith("after:")) after(b, name.substring(6));
+                else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
+                else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
+                else if (name.startsWith("holds:")) holds(b, java.util.Arrays.stream(name.substring(6).split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
                 else if (name.startsWith("abilities:")) {
                     for (String k : name.substring(10).split(",")) single(b.cmd("/clear @s").cmd("/kill @e[type=!player]").wait(10), k);
                 }
@@ -215,7 +222,10 @@ final class DevScripts {
 
     /** Every weapon held: third person from the player's right side and from the front, and first person. */
     private static void holds(ScreenshotDirector.Builder b) {
-        var all = com.fantasyweapons.weapon.Weapons.all();
+        holds(b, com.fantasyweapons.weapon.Weapons.all());
+    }
+
+    private static void holds(ScreenshotDirector.Builder b, java.util.List<com.fantasyweapons.weapon.WeaponDefinition> all) {
         for (var def : all) b.cmd("/fw give " + def.id() + " 1");
         b.wait(20).look(0, 0);
         for (int i = 0; i < all.size(); i++) {
@@ -226,6 +236,7 @@ final class DevScripts {
             b.slot(i % 9).wait(12).hud(false);
             b.viewFrom(4.2, 0.5, 0.6).wait(4).screenshot("hold_" + w + "_right");
             b.viewFrom(0.8, 0.5, 4.2).wait(4).screenshot("hold_" + w + "_front");
+            b.viewAt(1.4, 1.5, -3.6, 0, 1.2, 2.5).wait(4).screenshot("hold_" + w + "_back");
             b.playerView().camera(CameraType.FIRST_PERSON).hud(true).wait(6).screenshot("hold_" + w + "_fp");
         }
     }
@@ -596,6 +607,92 @@ final class DevScripts {
                 if (ult) b.wait(50).screenshot("all_" + w + "_" + a.id() + "_d");
                 b.wait(ult ? 120 : 30);
             }
+        }
+        b.playerView();
+    }
+
+    /** Through the player's own eyes: each weapon idle, swung, and every ability charged and released. */
+    private static void fpAll(ScreenshotDirector.Builder b, java.util.List<String> only) {
+        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+            String w = def.id();
+            if (only != null && !only.contains(w)) continue;
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + w + " 100").wait(130).slot(0).cmd("/fw points 300");
+            b.playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 12).wait(5).screenshot("fp_" + w + "_idle");
+            if (def.hasForms()) {
+                b.form(def.forms().get(1).id()).wait(30).screenshot("fp_" + w + "_idle_form");
+                b.swing().wait(4).screenshot("fp_" + w + "_swing_form").wait(20);
+                b.form(def.forms().get(0).id()).wait(30);
+            }
+            b.swing().wait(4).screenshot("fp_" + w + "_swing").wait(20);
+            for (var a : def.castables()) {
+                b.cmd("/kill @e[type=!player]").wait(3);
+                for (int i = 0; i < 3; i++) {
+                    b.cmd("/summon minecraft:husk " + (i - 1) * 2.5 + " -60 " + (6 + (i % 2) * 1.5)
+                            + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+                }
+                b.cmd("/fw cooldowns").select(a.id()).wait(6).abilityDown().wait(Math.max(2, a.chargeTicks() / 2)).screenshot("fp_" + w + "_" + a.id() + "_0")
+                        .wait(Math.max(1, a.chargeTicks() / 2 + 1)).abilityUp();
+                boolean ult = a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE;
+                b.wait(3).screenshot("fp_" + w + "_" + a.id() + "_1").wait(8).screenshot("fp_" + w + "_" + a.id() + "_2");
+                if (ult) b.wait(30).screenshot("fp_" + w + "_" + a.id() + "_3");
+                b.wait(ult ? 140 : 30);
+            }
+        }
+        b.playerView();
+    }
+
+    /** Abilities ("weapon/ability,...") seen from behind the player, every 4 ticks for six seconds after the release. */
+    private static void after(ScreenshotDirector.Builder b, String list) {
+        String last = "";
+        for (String key : list.split(",")) {
+            String[] u = key.split("/");
+            var a = com.fantasyweapons.weapon.Weapons.get(u[0]).ability(u[1]);
+            if (!u[0].equals(last)) b.cmd("/clear @s").cmd("/fw give " + u[0] + " 100").wait(130).slot(0).cmd("/fw points 300");
+            last = u[0];
+            b.cmd("/kill @e[type=!player]").hud(false).playerView().camera(CameraType.FIRST_PERSON).look(0, 10).cmd("/fw cooldowns").select(u[1]).wait(6);
+            b.viewAt(1.4, 1.5, -3.6, 0, 1.2, 2.5).abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+            for (int i = 0; i < 30; i++) {
+                b.wait(4);
+                if (i % 2 == 0) b.viewAt(1.4, 1.5, -3.6, 0, 1.2, 2.5).screenshot("af_" + u[1] + "_" + String.format("%02d", i));
+                else b.viewAt(-2.6, 1.6, 3.4, 0, 1.2, 0).screenshot("af_" + u[1] + "_" + String.format("%02d", i));
+            }
+            b.wait(40);
+        }
+        b.playerView();
+    }
+
+    /** Abilities ("weapon/ability,...") through the player's eyes, every 3 ticks from the release for four seconds. */
+    private static void fpAfter(ScreenshotDirector.Builder b, String list) {
+        String last = "";
+        for (String key : list.split(",")) {
+            String[] u = key.split("/");
+            var a = com.fantasyweapons.weapon.Weapons.get(u[0]).ability(u[1]);
+            if (!u[0].equals(last)) b.cmd("/clear @s").cmd("/fw give " + u[0] + " 100").wait(130).slot(0).cmd("/fw points 300");
+            last = u[0];
+            b.cmd("/kill @e[type=!player]").playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 10).cmd("/fw cooldowns").select(u[1]).wait(10);
+            if (u.length > 2) b.run(mc -> com.fantasyweapons.client.render.WeaponGeoModel.debugBone = u[2].replace('+', ','));
+            b.screenshot("fa_" + u[1] + "_pre").wait(30).screenshot("fa_" + u[1] + "_pre2").wait(60).screenshot("fa_" + u[1] + "_pre3").abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+            for (int i = 0; i < 28; i++) b.wait(3).screenshot("fa_" + u[1] + "_" + String.format("%02d", i));
+            b.run(mc -> com.fantasyweapons.client.render.WeaponGeoModel.debugBone = null).wait(40);
+        }
+        b.playerView();
+    }
+
+    /** Each weapon's three attacks, third person from behind and from above, and first person, at mid-swing. */
+    private static void combos(ScreenshotDirector.Builder b, java.util.List<String> only) {
+        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+            String w = def.id();
+            if (only != null && !only.contains(w)) continue;
+            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).wait(30).look(0, 0);
+            int dur = Math.round(20f / def.weaponClass().attackSpeed()) + 4;
+            for (int v = 0; v < 3; v++) {
+                int vv = v;
+                b.run(mc -> com.fantasyweapons.client.anim.AnimTracker.debugVariant(mc.player, vv)).hud(false);
+                b.viewAt(1.6, 1.3, -3.4, 0, 1.2, 2.5).wait(2).swing().wait(Math.max(2, dur / 5)).screenshot("cb_" + w + "_v" + v + "_tp").wait(dur);
+                b.viewAt(0.4, 4.5, -1.2, 0, 1, 1.5).wait(2).swing().wait(Math.max(2, dur / 5)).screenshot("cb_" + w + "_v" + v + "_top").wait(dur);
+                b.playerView().camera(CameraType.FIRST_PERSON).hud(true).wait(2).swing().wait(Math.max(2, dur / 6)).screenshot("cb_" + w + "_v" + v + "_fp").wait(dur);
+            }
+            b.run(mc -> com.fantasyweapons.client.anim.AnimTracker.debugVariant(mc.player, -1));
         }
         b.playerView();
     }

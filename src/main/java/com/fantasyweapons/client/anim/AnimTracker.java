@@ -24,6 +24,8 @@ public final class AnimTracker {
         double swingStart = -1;
         int swingDuration = 7;
         int swingIndex;
+        int combo;
+        double lastSwing = -1000;
         boolean heavy;
         double castStart = -1;
         double formStart = -1;
@@ -36,6 +38,7 @@ public final class AnimTracker {
         float lastCharge;
         // development screenshot pins (see debugPin)
         float pinSwing = -1, pinCast = -1, pinForm = -1, pinCharge = -1, pinPlant = -1;
+        int pinVariant = -1;
     }
 
     private static final Map<Integer, State> STATES = new HashMap<>();
@@ -68,6 +71,9 @@ public final class AnimTracker {
         double now = now(0);
         // a new swing while the previous one is still early continues the combo instead of snapping back
         s.swingIndex++;
+        // a chain of swings walks through the weapon's three attacks; a pause starts the chain over
+        s.combo = now - s.lastSwing > s.swingDuration * 2.2 ? 0 : (s.combo + 1) % VARIANTS;
+        s.lastSwing = now;
         s.swingStart = now;
         s.heavy = heavy;
         s.swingDuration = swingDuration(def, stack, heavy);
@@ -132,11 +138,17 @@ public final class AnimTracker {
      * DEVELOPMENT ONLY, used by the screenshot director: pins an entity's timeline channels at fixed progress values
      * (-1 = not pinned) so individual keyframes can be captured. Never called in normal play.
      */
+    /** DEVELOPMENT ONLY: forces which attack variant is shown (-1 = normal). */
+    public static void debugVariant(LivingEntity e, int variant) {
+        state(e).pinVariant = variant;
+    }
+
     public static void debugPin(LivingEntity e, float swing, boolean heavy, boolean backhand, float charge, float cast, float form) {
         State s = state(e);
         s.pinSwing = swing;
         s.heavy = heavy;
         s.swingIndex = backhand ? 0 : 1;
+        s.pinVariant = backhand ? 1 : s.pinVariant;
         s.pinCharge = charge;
         s.pinCast = cast;
         s.pinForm = form;
@@ -210,9 +222,19 @@ public final class AnimTracker {
         return p >= 1 ? -1 : (float) Math.max(0, p);
     }
 
-    public static boolean mirrored(LivingEntity e) {
+    /** Each weapon class has this many different attacks, played in turn while the attacks are chained. */
+    public static final int VARIANTS = 3;
+
+    /** Which of the weapon's attacks the current (or last) swing is: 0, 1 or 2. */
+    public static int variant(LivingEntity e) {
         State s = STATES.get(e.getId());
-        return s != null && s.swingIndex % 2 == 0;
+        if (s != null && s.pinVariant >= 0) return s.pinVariant;
+        return s == null ? 0 : s.combo;
+    }
+
+    /** The second attack of the chain is the backhand return of the first. */
+    public static boolean mirrored(LivingEntity e) {
+        return variant(e) == 1;
     }
 
     public static boolean heavy(LivingEntity e) {

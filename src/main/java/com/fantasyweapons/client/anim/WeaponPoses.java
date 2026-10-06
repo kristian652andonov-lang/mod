@@ -98,41 +98,105 @@ public final class WeaponPoses {
     // click); the long follow-through and recovery carry the weight. Arcs stay in front of / outside the body.
     // ------------------------------------------------------------------------------------------------------------
 
-    private static Key[] swingKeys(WeaponClass cls, Pose stance, boolean backhand) {
+    /**
+     * The weapon class's attack number {@code variant} (0-2; chained swings walk through them): every class has its
+     * own three attacks, each matching the slash it leaves in the air.
+     */
+    private static Key[] swingKeys(WeaponClass cls, Pose stance, int variant) {
         return switch (cls.swingStyle()) {
-            // flat, level sweeps across the body, like the slash they leave in the air: drawn back out to one side
-            // with the blade level, then carried through at shoulder height to the other side
-            case SLASH -> backhand
-                    ? new Key[]{new Key(0, stance),
-                    new Key(0.1f, pt(-1.35f, -1.15f, -0.1f, 0.1f, 0, -0.1f, 0.5f, 0.02f, 0.18f, -0.25f)),
-                    new Key(0.26f, pt(-1.5f, 0.2f, 0.05f, 0.15f, 0, -0.2f, -0.25f, 0.06f, 0.02f, 0.1f)),
-                    new Key(0.44f, pt(-1.35f, 1.05f, 0.15f, 0.15f, 0, -0.2f, -0.55f, 0.08f, -0.08f, 0.25f)), new Key(1, stance)}
-                    : new Key[]{new Key(0, stance),
-                    new Key(0.1f, pt(-1.35f, 1.15f, 0.12f, 0.15f, 0, -0.2f, -0.5f, 0.02f, 0.18f, 0.25f)),
-                    new Key(0.26f, pt(-1.5f, -0.2f, -0.02f, 0.1f, 0, -0.1f, 0.3f, 0.06f, 0.02f, -0.1f)),
-                    new Key(0.44f, pt(-1.35f, -1.05f, -0.05f, 0.1f, 0, -0.1f, 0.6f, 0.08f, -0.08f, -0.25f)), new Key(1, stance)};
-            case HEAVY_SLASH -> new Key[]{new Key(0, stance),
-                    new Key(0.12f, pt(-1.3f, 1.0f, 0.1f, -1.3f, 1.6f, 0, -0.65f, 0.02f, 0.22f, 0.2f)),
-                    new Key(0.3f, pt(-1.45f, -0.25f, 0, -1.45f, 0.5f, 0, 0.45f, 0.08f, 0.04f, -0.1f)),
-                    new Key(0.5f, pt(-1.3f, -0.95f, 0, -1.3f, -0.1f, 0, 0.85f, 0.1f, -0.1f, -0.2f)), new Key(1, stance)};
-            case CHOP -> new Key[]{new Key(0, stance),
-                    new Key(0.32f, pt(-2.75f, 0.25f, 0, -2.7f, 0.5f, 0, -0.1f, -0.12f, 2.25f, 0)),
-                    new Key(0.5f, pt(-1.05f, -0.1f, 0, -1.1f, 0.4f, 0, 0.05f, 0.3f, -0.25f, 0)),
-                    new Key(0.74f, pt(-0.6f, -0.1f, 0, -0.65f, 0.4f, 0, 0.05f, 0.35f, -0.7f, 0)), new Key(1, stance)};
-            case REAP -> new Key[]{new Key(0, stance),
-                    new Key(0.3f, pt(-1.25f, 1.0f, 0.1f, -1.35f, 1.3f, 0, -0.9f, 0f, 0.7f, 0.5f)),
-                    new Key(0.52f, pt(-1.2f, -0.6f, 0, -1.3f, 0.1f, 0, 0.75f, 0.1f, 0.55f, 0f)),
-                    new Key(0.76f, pt(-0.95f, -0.95f, 0, -1.0f, -0.2f, 0, 0.95f, 0.12f, 0.4f, -0.1f)), new Key(1, stance)};
-            case SLAM -> new Key[]{new Key(0, stance),
-                    new Key(0.34f, pt(-2.95f, 0.1f, 0, -2.9f, 0.3f, 0, 0, -0.15f, 2.0f, 0)),
-                    new Key(0.44f, pt(-3.05f, 0.1f, 0, -3.0f, 0.3f, 0, 0, -0.18f, 2.15f, 0)),
-                    new Key(0.58f, pt(-0.85f, -0.05f, 0, -0.9f, 0.35f, 0, 0, 0.4f, -0.45f, 0)),
-                    new Key(0.8f, pt(-0.75f, -0.05f, 0, -0.8f, 0.35f, 0, 0, 0.38f, -0.55f, 0)), new Key(1, stance)};
-            case THRUST -> new Key[]{new Key(0, stance),
-                    new Key(0.25f, pt(-0.85f, 0.25f, 0, -0.9f, 0.5f, 0, -0.35f, -0.05f, 0.05f, 0)),
-                    new Key(0.45f, pt(-1.5f, -0.05f, 0, -1.5f, 0.25f, 0, 0.25f, 0.15f, 0f, 0)),
-                    new Key(0.7f, pt(-1.4f, -0.05f, 0, -1.45f, 0.25f, 0, 0.2f, 0.12f, 0f, 0)), new Key(1, stance)};
+            // longsword: forehand and backhand level sweeps, then a rising slash from low right to high left
+            case SLASH -> switch (variant) {
+                case 1 -> new Key[]{new Key(0, stance),
+                        new Key(0.1f, pt(-1.35f, -1.15f, -0.1f, 0.1f, 0, -0.1f, 0.5f, 0.02f, 0.18f, -0.25f)),
+                        new Key(0.26f, pt(-1.5f, 0.2f, 0.05f, 0.15f, 0, -0.2f, -0.25f, 0.06f, 0.02f, 0.1f)),
+                        new Key(0.44f, pt(-1.35f, 1.05f, 0.15f, 0.15f, 0, -0.2f, -0.55f, 0.08f, -0.08f, 0.25f)), new Key(1, stance)};
+                case 2 -> new Key[]{new Key(0, stance),
+                        new Key(0.12f, pt(-0.55f, 0.85f, 0.2f, 0.15f, 0, -0.2f, -0.45f, 0.1f, -0.55f, 0.35f)),
+                        new Key(0.3f, pt(-1.65f, -0.1f, 0f, 0.1f, 0, -0.1f, 0.2f, 0.02f, 0.55f, -0.05f)),
+                        new Key(0.48f, pt(-2.35f, -0.75f, -0.1f, 0.1f, 0, -0.1f, 0.45f, -0.05f, 1.25f, -0.3f)), new Key(1, stance)};
+                default -> new Key[]{new Key(0, stance),
+                        new Key(0.1f, pt(-1.35f, 1.15f, 0.12f, 0.15f, 0, -0.2f, -0.5f, 0.02f, 0.18f, 0.25f)),
+                        new Key(0.26f, pt(-1.5f, -0.2f, -0.02f, 0.1f, 0, -0.1f, 0.3f, 0.06f, 0.02f, -0.1f)),
+                        new Key(0.44f, pt(-1.35f, -1.05f, -0.05f, 0.1f, 0, -0.1f, 0.6f, 0.08f, -0.08f, -0.25f)), new Key(1, stance)};
+            };
+            // greatsword: a level sweep, the backhand sweep back, then a cleave down from high right to low left
+            case HEAVY_SLASH -> switch (variant) {
+                case 1 -> levelBack(stance, 0.06f);
+                case 2 -> new Key[]{new Key(0, stance),
+                        new Key(0.24f, pt(-2.1f, 0.45f, 0.1f, -2.0f, 0.9f, 0, -0.6f, -0.08f, 1.75f, 0)),
+                        new Key(0.42f, pt(-1.2f, -0.55f, 0, -1.25f, 0.15f, 0, 0.65f, 0.15f, 0.05f, 0.35f)),
+                        new Key(0.64f, pt(-0.7f, -0.8f, 0, -0.75f, 0f, 0, 0.8f, 0.18f, -0.55f, 0.3f)), new Key(1, stance)};
+                default -> levelFore(stance, 0.06f);
+            };
+            // battle axe: overhead chop, a flat cleave across, then a diagonal chop from high left to low right
+            case CHOP -> switch (variant) {
+                case 1 -> levelFore(stance, 0.3f);
+                case 2 -> new Key[]{new Key(0, stance),
+                        new Key(0.28f, pt(-2.4f, -0.6f, -0.1f, -2.3f, 0.1f, 0, 0.5f, -0.05f, 1.6f, -0.2f)),
+                        new Key(0.46f, pt(-1.35f, 0.35f, 0, -1.4f, 0.9f, 0, -0.35f, 0.12f, 0.0f, -0.3f)),
+                        new Key(0.7f, pt(-0.8f, 0.8f, 0.1f, -0.85f, 1.2f, 0, -0.6f, 0.15f, -0.5f, -0.3f)), new Key(1, stance)};
+                default -> new Key[]{new Key(0, stance),
+                        new Key(0.32f, pt(-2.75f, 0.25f, 0, -2.7f, 0.5f, 0, -0.1f, -0.12f, 2.25f, 0)),
+                        new Key(0.5f, pt(-1.05f, -0.1f, 0, -1.1f, 0.4f, 0, 0.05f, 0.3f, -0.25f, 0)),
+                        new Key(0.74f, pt(-0.6f, -0.1f, 0, -0.65f, 0.4f, 0, 0.05f, 0.35f, -0.7f, 0)), new Key(1, stance)};
+            };
+            // scythe: forehand reap, backhand reap, then the blade hooked down from overhead
+            case REAP -> switch (variant) {
+                case 1 -> new Key[]{new Key(0, stance),
+                        new Key(0.3f, pt(-1.15f, -0.95f, 0, -1.2f, -0.2f, 0, 0.95f, 0.05f, 0.6f, -0.4f)),
+                        new Key(0.52f, pt(-1.25f, 0.3f, 0, -1.3f, 0.9f, 0, -0.3f, 0.1f, 0.55f, 0.1f)),
+                        new Key(0.76f, pt(-1.0f, 1.05f, 0.1f, -1.1f, 1.4f, 0, -0.85f, 0.1f, 0.45f, 0.4f)), new Key(1, stance)};
+                case 2 -> new Key[]{new Key(0, stance),
+                        new Key(0.3f, pt(-2.7f, 0.2f, 0, -2.6f, 0.5f, 0, -0.1f, -0.1f, 1.9f, 0)),
+                        new Key(0.5f, pt(-1.3f, 0f, 0, -1.35f, 0.4f, 0, 0.05f, 0.25f, 0.2f, 0)),
+                        new Key(0.74f, pt(-0.8f, -0.1f, 0, -0.85f, 0.4f, 0, 0.05f, 0.3f, -0.3f, 0)), new Key(1, stance)};
+                default -> new Key[]{new Key(0, stance),
+                        new Key(0.3f, pt(-1.25f, 1.0f, 0.1f, -1.35f, 1.3f, 0, -0.9f, 0f, 0.7f, 0.5f)),
+                        new Key(0.52f, pt(-1.2f, -0.6f, 0, -1.3f, 0.1f, 0, 0.75f, 0.1f, 0.55f, 0f)),
+                        new Key(0.76f, pt(-0.95f, -0.95f, 0, -1.0f, -0.2f, 0, 0.95f, 0.12f, 0.4f, -0.1f)), new Key(1, stance)};
+            };
+            // hammers: overhead slam, a heavy sweep across, then an uppercut smash
+            case SLAM -> switch (variant) {
+                case 1 -> levelFore(stance, 0.35f);
+                case 2 -> new Key[]{new Key(0, stance),
+                        new Key(0.3f, pt(-0.3f, 0.5f, 0.1f, -0.35f, 0.9f, 0, -0.5f, 0.2f, -0.9f, 0.2f)),
+                        new Key(0.48f, pt(-1.6f, 0f, 0, -1.6f, 0.45f, 0, 0.1f, 0f, 0.5f, 0)),
+                        new Key(0.66f, pt(-2.7f, -0.2f, 0, -2.6f, 0.3f, 0, 0.15f, -0.15f, 1.6f, 0)), new Key(1, stance)};
+                default -> new Key[]{new Key(0, stance),
+                        new Key(0.34f, pt(-2.95f, 0.1f, 0, -2.9f, 0.3f, 0, 0, -0.15f, 2.0f, 0)),
+                        new Key(0.44f, pt(-3.05f, 0.1f, 0, -3.0f, 0.3f, 0, 0, -0.18f, 2.15f, 0)),
+                        new Key(0.58f, pt(-0.85f, -0.05f, 0, -0.9f, 0.35f, 0, 0, 0.4f, -0.45f, 0)),
+                        new Key(0.8f, pt(-0.75f, -0.05f, 0, -0.8f, 0.35f, 0, 0, 0.38f, -0.55f, 0)), new Key(1, stance)};
+            };
+            // lance: a straight thrust, the shaft swept across like a staff, then a thrust driven down from high
+            case THRUST -> switch (variant) {
+                case 1 -> levelFore(stance, -0.05f);
+                case 2 -> new Key[]{new Key(0, stance),
+                        new Key(0.25f, pt(-1.5f, 0.25f, 0, -1.55f, 0.5f, 0, -0.35f, -0.1f, 0.45f, 0)),
+                        new Key(0.45f, pt(-2.05f, -0.05f, 0, -2.05f, 0.25f, 0, 0.25f, 0.12f, -0.3f, 0)),
+                        new Key(0.7f, pt(-1.95f, -0.05f, 0, -1.95f, 0.25f, 0, 0.2f, 0.1f, -0.3f, 0)), new Key(1, stance)};
+                default -> new Key[]{new Key(0, stance),
+                        new Key(0.25f, pt(-0.85f, 0.25f, 0, -0.9f, 0.5f, 0, -0.35f, -0.05f, 0.05f, 0)),
+                        new Key(0.45f, pt(-1.5f, -0.05f, 0, -1.5f, 0.25f, 0, 0.25f, 0.15f, 0f, 0)),
+                        new Key(0.7f, pt(-1.4f, -0.05f, 0, -1.45f, 0.25f, 0, 0.2f, 0.12f, 0f, 0)), new Key(1, stance)};
+            };
         };
+    }
+
+    /** A two-handed level sweep from right to left at shoulder height, the head {@code theta} above level. */
+    private static Key[] levelFore(Pose stance, float theta) {
+        return new Key[]{new Key(0, stance),
+                new Key(0.14f, pt(-1.3f, 1.0f, 0.1f, -1.3f, 1.6f, 0, -0.65f, 0.02f, theta + 0.16f, 0.2f)),
+                new Key(0.34f, pt(-1.45f, -0.25f, 0, -1.45f, 0.5f, 0, 0.45f, 0.08f, theta, -0.1f)),
+                new Key(0.56f, pt(-1.3f, -0.95f, 0, -1.3f, -0.1f, 0, 0.85f, 0.1f, theta - 0.16f, -0.2f)), new Key(1, stance)};
+    }
+
+    /** The backhand of {@link #levelFore}: left to right. */
+    private static Key[] levelBack(Pose stance, float theta) {
+        return new Key[]{new Key(0, stance),
+                new Key(0.14f, pt(-1.3f, -0.95f, 0, -1.3f, -0.1f, 0, 0.85f, 0.02f, theta + 0.16f, -0.2f)),
+                new Key(0.34f, pt(-1.45f, -0.2f, 0, -1.45f, 0.5f, 0, 0.3f, 0.08f, theta, 0.1f)),
+                new Key(0.56f, pt(-1.3f, 1.0f, 0.1f, -1.3f, 1.6f, 0, -0.6f, 0.1f, theta - 0.16f, 0.2f)), new Key(1, stance)};
     }
 
     private static Pose sample(Key[] keys, float t) {
@@ -220,13 +284,10 @@ public final class WeaponPoses {
         float cast = AnimTracker.castProgress(e, partial);
         if (cast >= 0) {
             // blades loose their abilities with the same level sweep as their slashes; the rest thrust or slam
-            WeaponClass.SwingStyle st = cls.swingStyle();
-            if (st == WeaponClass.SwingStyle.SLASH || st == WeaponClass.SwingStyle.HEAVY_SLASH) {
-                Pose sw = sample(swingKeys(cls, stance, false), Math.min(1, cast * 1.25f)).addPitch(headPitch * 0.35f);
-                pose = cls.twoHanded() ? sw : sw.withLeft(pose);
-            } else {
-                pose = pose.lerp(cast(cls).addPitch(headPitch * 0.6f), bumpSmooth(cast, 0.18f));
-            }
+            // every weapon looses its abilities with its own first attack: a clean, designed motion, never a jerk to
+            // a fixed pose
+            Pose sw = sample(swingKeys(cls, stance, 0), Math.min(1, cast * 1.15f)).addPitch(headPitch * 0.35f);
+            pose = cls.twoHanded() ? sw : sw.withLeft(pose);
         }
 
         float[] plant = AnimTracker.plantPhase(e, partial);
@@ -242,8 +303,7 @@ public final class WeaponPoses {
 
         float swing = AnimTracker.swingProgress(e, partial);
         if (swing >= 0) {
-            boolean backhand = !cls.twoHanded() && AnimTracker.mirrored(e);
-            Pose sw = sample(swingKeys(cls, stance, backhand), swing);
+            Pose sw = sample(swingKeys(cls, stance, AnimTracker.variant(e)), swing);
             if (AnimTracker.heavy(e)) sw = sw.amplify(stance, 1.2f);
             if (!cls.twoHanded()) sw = sw.withLeft(pose); // free hand keeps its own pose
             pose = sw.addPitch(headPitch * 0.35f);

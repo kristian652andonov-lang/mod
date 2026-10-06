@@ -10,8 +10,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Weapon level-up: a rune circle on the ground that grows with the weapon's level, gaining a small orbiting circle at
- * levels 25, 50 and 75 (four, and a much larger circle, at the max level), and columns of light that shoot up to the
- * sky, then lift off the ground and dissolve upwards.
+ * levels 25, 50 and 75 (four, and a much larger circle, at the max level), and columns of light round its rim that
+ * shoot up to the sky, then lift off the ground and dissolve upwards.
  */
 public class LevelUpVfx extends Vfx {
     private static final Vec3 X = new Vec3(1, 0, 0);
@@ -132,37 +132,28 @@ public class LevelUpVfx extends Vfx {
         // the track the small circles orbit on
         if (satellites > 0) ring(ctx, c, orbit, size * 0.05f, Colors.alpha(0.4f * a, color));
 
-        // ---- columns of light to the sky (all soft halves first, then all cores) ----
-        float rise = easeOut(Math.min(1f, time / (max ? 16f : 12f)));
+        // ---- columns of light to the sky round the rim (all soft halves first, then all cores); nothing up the
+        // middle, so the stacked halo circles stay clear ----
         float lift = t < hold ? 0f : easeIn((t - hold) / (1f - hold)) * 0.7f;
-        int n = pillars + 1;
+        int n = pillars;
         Vec3[] pb = new Vec3[n];
         float[] top = new float[n], bottom = new float[n], width = new float[n], pa = new float[n], ptime = new float[n];
-        int[] tint = new int[n];
-        pb[0] = ground;
-        top[0] = height * rise;
-        bottom[0] = height * lift;
-        width[0] = max ? 2.2f : 1.0f + radius * 0.12f;
-        pa[0] = a;
-        ptime[0] = time;
-        tint[0] = mid;
         for (int i = 0; i < pillars; i++) {
             float pr = easeOut(clamp01((time - 2 - i * 0.8f) / 12f));
             double ang = i * Math.PI * 2 / pillars + time * 0.01;
-            pb[i + 1] = ground.add(Math.cos(ang) * r * 0.92, 0, Math.sin(ang) * r * 0.92);
-            top[i + 1] = height * 0.55f * pr;
-            bottom[i + 1] = height * 0.55f * lift;
-            width[i + 1] = max ? 0.55f : 0.35f;
-            pa[i + 1] = pr <= 0 ? 0 : a * 0.6f;
-            ptime[i + 1] = time + i * 7;
-            tint[i + 1] = color;
+            pb[i] = ground.add(Math.cos(ang) * r * 0.92, 0, Math.sin(ang) * r * 0.92);
+            top[i] = height * 0.55f * pr;
+            bottom[i] = height * 0.55f * lift;
+            width[i] = max ? 0.55f : 0.35f;
+            pa[i] = pr <= 0 ? 0 : a * 0.6f;
+            ptime[i] = time + i * 7;
         }
         var soft = ctx.additive(VfxTextures.GLOW);
         for (int i = 0; i < n; i++) pillar(ctx, soft, pb[i], top[i], bottom[i], width[i] * 2.6f, pa[i] * 0.35f, color, 0.5f, 0.5f);
         var streak = ctx.energy(VfxTextures.STREAK);
         for (int i = 0; i < n; i++) {
             float scroll = -ptime[i] * 0.03f;
-            pillar(ctx, streak, pb[i], top[i], bottom[i], width[i], pa[i] * 0.75f, tint[i], scroll, scroll + top[i] / 12f);
+            pillar(ctx, streak, pb[i], top[i], bottom[i], width[i], pa[i] * 0.75f, color, scroll, scroll + top[i] / 12f);
         }
 
         // ---- motes spiralling upwards ----

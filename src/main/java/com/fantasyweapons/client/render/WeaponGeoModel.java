@@ -56,10 +56,6 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
     @Override
     public void setCustomAnimations(FantasyWeaponItem animatable, long instanceId, AnimationState<FantasyWeaponItem> state) {
         super.setCustomAnimations(animatable, instanceId, state);
-        if (debugBone != null) {
-            getBone(debugBone).ifPresent(b -> FantasyWeapons.LOGGER.warn("[bone] {} {} {} {}", debugBone, Math.toDegrees(b.getRotX()), Math.toDegrees(b.getRotY()),
-                    Math.toDegrees(b.getRotZ())));
-        }
         var manager = animatable.getAnimatableInstanceCache().getManagerForId(instanceId);
         if (manager == null) return;
         for (BoneSnapshot snap : manager.getBoneSnapshotCollection().values()) {
@@ -72,6 +68,13 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
             if (x != snap.getRotX() || y != snap.getRotY() || z != snap.getRotZ()) snap.updateRotation(x, y, z);
         }
         anchorGrip(animatable);
+        fadeStrays(animatable, manager);
+        if (debugBone != null) {
+            for (String n : debugBone.split(",")) {
+                getBone(n).ifPresent(b -> FantasyWeapons.LOGGER.warn("[bone] {} rot {} {} {} pos {} {} {} scale {}", n, Math.round(Math.toDegrees(b.getRotX())),
+                        Math.round(Math.toDegrees(b.getRotY())), Math.round(Math.toDegrees(b.getRotZ())), b.getPosX(), b.getPosY(), b.getPosZ(), b.getScaleX()));
+            }
+        }
         if ("gravebite".equals(animatable.definition().geoName())) {
             // the spectral chains of the cast animations blink out of the skull and snap back; the Grave Chains
             // ability draws its own chains out of the ground, so they stay hidden in the hand
@@ -147,6 +150,49 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
         if (now.equals(rest, 1e-5f)) return;
         // root * grip(now) must equal root(rest) * grip(rest)
         setLocal(root, local(root, true).mul(rest).mul(now.invert()));
+    }
+
+    /**
+     * Loose pieces of the artist's ability animations - Starforge's meteor fragments and meteor, Aetherlance's bolt
+     * and blade shards, Voidfang's fragments and phase echo, the souls of the reapers, the Monolith's rock shards -
+     * fly a block or more away from the weapon while it casts: they were made for the weapon on its own, as the
+     * projectiles leaving it. In the hand they floated about the wielder like debris, so while a cast, charge, impact
+     * or recovery animation plays they shrink away, and they grow back in idle.
+     */
+    private static final String[] STRAYS = {"meteor_fragment_", "meteor_projectile", "projectile", "blade_fragment_", "fragment_", "phase_echo", "rock_fragment_",
+            "soul_0", "soul_1", "soul_2", "soul_3", "soul_4", "soul_5", "spectral_link_", "chain_hook"};
+    private final Map<String, Float> strayScale = new HashMap<>();
+    private long strayNanos;
+
+    private void fadeStrays(FantasyWeaponItem item, software.bernie.geckolib.animation.AnimatableManager<?> manager) {
+        var controller = manager.getAnimationControllers().get(FantasyWeaponItem.CONTROLLER);
+        var current = controller == null ? null : controller.getCurrentAnimation();
+        String name = current == null ? "" : current.animation().name();
+        boolean casting = !name.endsWith(".idle") && !name.endsWith("_idle") && !name.endsWith(".attack") && !name.endsWith(".heavy_attack")
+                && !name.endsWith(".whip") && !name.isEmpty();
+        long now = System.nanoTime();
+        float step = strayNanos == 0 ? 1 : Math.min(1, (now - strayNanos) / 1e9f * 8f);
+        strayNanos = now;
+        String geo = item.definition().geoName();
+        for (GeoBone b : getAnimationProcessor().getRegisteredBones()) {
+            String n = b.getName();
+            boolean stray = false;
+            for (String k : STRAYS) {
+                if (n.startsWith(k) || n.equals(k)) {
+                    stray = true;
+                    break;
+                }
+            }
+            // the reapers' and Gravebite's souls, the lantern's spark excepted, are the only "soul_" strays
+            if (!stray || n.startsWith("soul_crystal")) continue;
+            String key = geo + "/" + n;
+            float s = strayScale.getOrDefault(key, 1f);
+            s += ((casting ? 0f : 1f) - s) * step;
+            strayScale.put(key, s);
+            if (s < 0.999f) b.updateScale(b.getScaleX() * s, b.getScaleY() * s, b.getScaleZ() * s);
+            if (s < 0.02f) b.setHidden(true);
+            else if (b.isHidden() && !n.startsWith("spectral_chain")) b.setHidden(false);
+        }
     }
 
     /** The first bone named like a grip (see {@link #GRIP_NAMES}) that hangs straight off the root; "" if none. */

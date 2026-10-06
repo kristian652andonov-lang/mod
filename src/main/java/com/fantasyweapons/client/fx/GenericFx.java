@@ -67,7 +67,6 @@ public final class GenericFx {
         if (last != null && now - last < 4) return;
         LAST_SWING.put(entity.getId(), now);
         int count = SWING_COUNT.merge(entity.getId(), 1, Integer::sum);
-        boolean mirror = count % 2 == 0;
 
         WeaponDefinition def = item.definition();
         WeaponForm form = def.form(FantasyWeaponItem.data(stack));
@@ -97,46 +96,58 @@ public final class GenericFx {
         int edge = Colors.argb(255, theme.light());
         int life = heavy ? 14 : 10;
 
-        switch (cls.swingStyle()) {
-            case SLASH, HEAVY_SLASH -> {
-                double tilt = Math.toRadians(cls.swingStyle() == WeaponClass.SwingStyle.HEAVY_SLASH ? 12 : 32) * (mirror ? -1 : 1);
-                Vec3 ax = right.scale(Math.cos(tilt)).add(up.scale(Math.sin(tilt)));
-                float a0 = (float) Math.toRadians(-20), a1 = (float) Math.toRadians(200);
-                if (mirror) {
-                    float tmp = a0;
-                    a0 = a1;
-                    a1 = tmp;
-                }
-                VfxManager.add(new SlashArcVfx(center, ax, look, reach * scale, 0.55f * scale, a0, a1, col, edge, life).sweep(0.5f, 0.6f));
+        // each of the weapon's three chained attacks leaves its own slash: level sweeps both ways, diagonals,
+        // overhead and rising arcs (see WeaponPoses)
+        int variant = AnimTracker.variant(entity);
+        WeaponClass.SwingStyle style = cls.swingStyle();
+        boolean level = (style == WeaponClass.SwingStyle.SLASH || style == WeaponClass.SwingStyle.HEAVY_SLASH) && variant < 2
+                || variant == 1 && (style == WeaponClass.SwingStyle.CHOP || style == WeaponClass.SwingStyle.SLAM || style == WeaponClass.SwingStyle.THRUST)
+                || style == WeaponClass.SwingStyle.REAP && variant < 2;
+        if (level) {
+            boolean back = variant == 1 && (style == WeaponClass.SwingStyle.SLASH || style == WeaponClass.SwingStyle.HEAVY_SLASH || style == WeaponClass.SwingStyle.REAP);
+            boolean reap = style == WeaponClass.SwingStyle.REAP;
+            double tilt = Math.toRadians(reap ? -8 : style == WeaponClass.SwingStyle.HEAVY_SLASH ? 10 : style == WeaponClass.SwingStyle.SLASH ? 14 : 6) * (back ? -1 : 1);
+            Vec3 ax = right.scale(Math.cos(tilt)).add(up.scale(Math.sin(tilt)));
+            float a0 = (float) Math.toRadians(reap ? -50 : -20), a1 = (float) Math.toRadians(reap ? 230 : 200);
+            if (back) {
+                float tmp = a0;
+                a0 = a1;
+                a1 = tmp;
             }
-            case REAP -> {
-                Vec3 ax = right.scale(Math.cos(-0.15)).add(up.scale(Math.sin(-0.15)));
-                float a0 = (float) Math.toRadians(-50), a1 = (float) Math.toRadians(230);
-                if (mirror) {
-                    float tmp = a0;
-                    a0 = a1;
-                    a1 = tmp;
-                }
-                VfxManager.add(new SlashArcVfx(center.subtract(up.scale(0.2)), ax, look, reach * 1.1f * scale, 0.7f * scale, a0, a1, col, edge, life + 2)
-                        .sweep(0.5f, 0.85f));
+            float r = reach * (reap ? 1.1f : 1f) * scale;
+            VfxManager.add(new SlashArcVfx(center.subtract(up.scale(reap ? 0.2 : 0)), ax, look, r, (reap ? 0.7f : style == WeaponClass.SwingStyle.SLASH ? 0.55f : 0.65f) * scale,
+                    a0, a1, col, edge, life + (reap ? 2 : 0)).sweep(0.5f, reap ? 0.85f : 0.6f));
+        } else if (style == WeaponClass.SwingStyle.THRUST) {
+            Vec3 from = fp ? eye.add(look.scale(0.6)).subtract(up.scale(0.15)) : center;
+            Vec3 dir = variant == 2 ? look.add(up.scale(-0.18)).normalize() : look;
+            if (variant == 2) from = from.add(up.scale(0.35));
+            VfxManager.add(new BeamVfx(from, from.add(dir.scale(reach * 1.6f)), 0.35f * scale, col, 7));
+            VfxManager.add(new FlashVfx(from.add(dir.scale(reach * 1.6f)), 0.3f, 1.0f * scale, Colors.argb(200, theme.light()), 6, VfxTextures.SPARK));
+        } else {
+            // vertical and diagonal arcs: overhead chops and slams, scythe hooks, diagonal cleaves, rising slashes
+            double roll = switch (style) {
+                case SLASH -> Math.toRadians(-40);      // rising: low right to high left
+                case HEAVY_SLASH -> Math.toRadians(45); // cleave: high right to low left
+                case CHOP -> variant == 2 ? Math.toRadians(-45) : 0;
+                default -> 0;
+            };
+            Vec3 planeX = up.scale(Math.cos(roll)).add(right.scale(Math.sin(roll)));
+            Vec3 c2 = center.add(right.scale(fp ? 0.15 : 0.25));
+            float a0 = (float) Math.toRadians(-25), a1 = (float) Math.toRadians(165);
+            boolean rising = style == WeaponClass.SwingStyle.SLASH || style == WeaponClass.SwingStyle.SLAM && variant == 2;
+            if (rising) {
+                float tmp = a0;
+                a0 = a1;
+                a1 = tmp;
             }
-            case CHOP, SLAM -> {
-                Vec3 c2 = center.add(right.scale(fp ? 0.15 : 0.25));
-                float a0 = (float) Math.toRadians(-25), a1 = (float) Math.toRadians(165);
-                VfxManager.add(new SlashArcVfx(c2, up, look, reach * scale, 0.65f * scale, a0, a1, col, edge, life + 2).sweep(0.4f, 0.7f));
-            }
-            case THRUST -> {
-                Vec3 from = fp ? eye.add(look.scale(0.6)).subtract(up.scale(0.15)) : center;
-                VfxManager.add(new BeamVfx(from, from.add(look.scale(reach * 1.6f)), 0.35f * scale, col, 7));
-                VfxManager.add(new FlashVfx(from.add(look.scale(reach * 1.6f)), 0.3f, 1.0f * scale, Colors.argb(200, theme.light()), 6, VfxTextures.SPARK));
-            }
+            VfxManager.add(new SlashArcVfx(c2, planeX, look, reach * scale, 0.65f * scale, a0, a1, col, edge, life + 2).sweep(0.4f, 0.7f));
         }
         if (form != null && "chainblade".equals(form.id())) {
             // chainblade lash: a fiery ribbon flicked forward along the extended chain
             List<Vec3> path = new ArrayList<>();
             for (int i = 0; i <= 10; i++) {
                 double t = i / 10.0;
-                double sway = Math.sin(t * Math.PI) * 0.9 * (mirror ? -1 : 1);
+                double sway = Math.sin(t * Math.PI) * 0.9 * (variant == 1 ? -1 : 1);
                 path.add(center.add(look.scale(t * reach * 1.4)).add(right.scale(sway)).subtract(up.scale(t * 0.3)));
             }
             VfxManager.add(new RibbonTrailVfx(path, 0.45f, Colors.argb(230, theme.light()), Colors.argb(160, theme.primary()), 9));
