@@ -10,6 +10,7 @@ import com.fantasyweapons.client.vfx.effects.FollowTrailVfx;
 import com.fantasyweapons.client.vfx.effects.OrbVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
+import com.fantasyweapons.client.vfx.effects.SkyCircleVfx;
 import com.fantasyweapons.client.vfx.effects.SlashArcVfx;
 import com.fantasyweapons.client.vfx.effects.SunVfx;
 import com.fantasyweapons.network.FxIds;
@@ -109,10 +110,17 @@ public final class SolarisFx {
         hitFlashes(p);
     }
 
+    /** The sky circle over each caster's Celestial Inferno, which the strikes pour out of. */
+    private static final java.util.Map<Integer, SkyCircleVfx> SKY = new java.util.HashMap<>();
+
     private static void inferno(FxPayload p) {
         Vec3 center = p.pos();
         float r = p.scale();
         int duration = Math.round(p.power());
+        Vec3 sky = p.points().isEmpty() ? center.add(0, 10, 0) : p.points().get(0);
+        SKY.put(p.caster(), VfxManager.add(new SkyCircleVfx(sky, r * 0.95f, (float) (sky.y - center.y), SUN, DEEP, CORE, duration + 24)));
+        // a column of light joins the circle on the ground to the one opening above it
+        VfxManager.add(new BeamVfx(center.add(0, 0.2, 0), sky, 1.4f, Colors.argb(200, CORE), 22));
         VfxManager.add(new DecalVfx(center.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(220, SUN), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.02f).energy().timing(0.08f, 0.1f));
         VfxManager.add(new DecalVfx(center.add(0, 0.04, 0), new Vec3(0, 1, 0), r * 1.1f, Colors.argb(130, DEEP), VfxTextures.GLOW, duration)
@@ -123,8 +131,16 @@ public final class SolarisFx {
 
     private static void infernoStrike(FxPayload p) {
         Vec3 g = p.pos();
-        Vec3 from = p.points().isEmpty() ? g.add(0, 10, 0) : p.points().get(0);
         float r = p.scale();
+        // every strike falls straight out of the sky circle above its target
+        SkyCircleVfx sky = SKY.get(p.caster());
+        Vec3 from;
+        if (sky != null && !sky.isDead()) {
+            from = sky.sourceAbove(g);
+            sky.emit(from);
+        } else {
+            from = new Vec3(g.x, (p.points().isEmpty() ? g.y + 10 : p.points().get(0).y), g.z);
+        }
         VfxManager.add(new BeamVfx(from, g, 1.3f, Colors.argb(255, SUN), 9));
         VfxManager.add(new BeamVfx(from, g, 0.5f, Colors.argb(255, CORE), 6));
         VfxManager.add(new FlashVfx(g.add(0, 0.5, 0), 0.6f, r * 1.8f, Colors.argb(230, SUN), 9).energy());
@@ -141,7 +157,9 @@ public final class SolarisFx {
         float r = p.scale();
         Blast.explode(g, r * 0.9f, PALETTE, p.seed(), 2, VfxTextures.FLAME);
         VfxManager.add(new SunVfx(g.add(0, 1, 0), r * 0.35f, SUN, CORE, 16).grow(3).rays(20));
-        VfxManager.add(new BeamVfx(g, g.add(0, 18, 0), 4f, Colors.argb(230, CORE), 16));
+        SkyCircleVfx sky = SKY.remove(p.caster());
+        Vec3 top = sky != null && !sky.isDead() ? sky.sourceAbove(g).add(0, 0.05, 0) : g.add(0, 18, 0);
+        VfxManager.add(new BeamVfx(top, g, 4f, Colors.argb(230, CORE), 16));
         hitFlashes(p);
     }
 

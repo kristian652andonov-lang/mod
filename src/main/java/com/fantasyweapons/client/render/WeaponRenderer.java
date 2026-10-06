@@ -59,11 +59,36 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
         }
         LivingEntity tracked = chainHolder(stack, ctx);
         if (tracked != null) ChainTracker.begin(tracked, ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND);
+        LivingEntity holder = holder(stack, ctx);
+        HangingPhysics.begin(holder == null ? -1 : holder.getId(), ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND);
         try {
             super.renderByItem(stack, ctx, pose, buffers, light, overlay);
         } finally {
             if (tracked != null) ChainTracker.end();
+            HangingPhysics.end();
         }
+    }
+
+    @Override
+    public void actuallyRender(PoseStack poseStack, FantasyWeaponItem animatable, BakedGeoModel model, @Nullable RenderType renderType, MultiBufferSource bufferSource,
+                               @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+        // the model's place in the world, for parts that hang and swing (bones are animated inside this call)
+        if (!isReRender) HangingPhysics.pose(poseStack.last().pose());
+        super.actuallyRender(poseStack, animatable, model, renderType, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+    }
+
+    /** The entity holding this stack in hand for this draw, or null (inventory, item frame, dropped). */
+    @Nullable
+    private static LivingEntity holder(ItemStack stack, ItemDisplayContext ctx) {
+        if (ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND) {
+            LivingEntity p = Minecraft.getInstance().player;
+            return p != null && (p.getMainHandItem() == stack || p.getOffhandItem() == stack) ? p : null;
+        }
+        if (ctx == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.THIRD_PERSON_LEFT_HAND) {
+            LivingEntity e = WeaponPoses.renderingEntity();
+            return e != null && (e.getMainHandItem() == stack || e.getOffhandItem() == stack) ? e : null;
+        }
+        return null;
     }
 
     /** DEVELOPMENT ONLY (screenshot director): overrides the first-person / third-person handle yaw. */

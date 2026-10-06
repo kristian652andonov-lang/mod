@@ -72,6 +72,51 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
             if (x != snap.getRotX() || y != snap.getRotY() || z != snap.getRotZ()) snap.updateRotation(x, y, z);
         }
         anchorGrip(animatable);
+        if ("gravebite".equals(animatable.definition().geoName())) {
+            // the spectral chains of the cast animations blink out of the skull and snap back; the Grave Chains
+            // ability draws its own chains out of the ground, so they stay hidden in the hand
+            for (GeoBone b : getAnimationProcessor().getRegisteredBones()) if (b.getName().startsWith("spectral_chain")) b.setHidden(true);
+            swingLantern();
+        }
+    }
+
+    private static final String[] LANTERN = {"lantern_link_0", "lantern_link_1", "lantern_link_2", "lantern_cage", "lantern_soul"};
+
+    /**
+     * Gravebite's lantern hangs from its hook by a short chain: in the hand it swings for real (see {@link
+     * HangingPhysics}), hanging straight down whichever way the weapon is held, lagging behind and swinging past when
+     * the weapon moves. The whole chain and lantern turn about the hook, on top of the artist's own sway.
+     */
+    private void swingLantern() {
+        if (!HangingPhysics.active()) return;
+        GeoBone hook = getBone(LANTERN[0]).orElse(null);
+        GeoBone cage = getBone("lantern_cage").orElse(null);
+        if (hook == null || cage == null || hook.getParent() == null) return;
+        GeoBone root = hook.getParent();
+        Matrix4f rootM = local(root, false);
+        Vector3f pivot = local(hook, false).transformPosition(new Vector3f(hook.getPivotX() / 16f, (hook.getPivotY() + 1) / 16f, hook.getPivotZ() / 16f));
+        float length = (hook.getPivotY() - cage.getPivotY() + 3) / 16f;
+        Vector3f d = HangingPhysics.hang(rootM, pivot, length);
+        // hanging along the haft is the rest pose; never let it swing up through the weapon
+        Vector3f down = new Vector3f(0, -1, 0);
+        float angle = down.angle(d);
+        float max = (float) Math.toRadians(115);
+        if (angle > max) d = new Vector3f(down).lerp(d, max / angle).normalize();
+        org.joml.Quaternionf q = new org.joml.Quaternionf().rotationTo(down, d);
+        Matrix4f turn = new Matrix4f().translation(pivot).rotate(q).translate(-pivot.x, -pivot.y, -pivot.z);
+        for (String n : LANTERN) {
+            GeoBone b = getBone(n).orElse(null);
+            if (b != null) setLocal(b, new Matrix4f(turn).mul(local(b, false)));
+        }
+    }
+
+    /** Poses a bone so its transform relative to its parent is {@code want} (rotation and translation only). */
+    private static void setLocal(GeoBone bone, Matrix4f want) {
+        Vector3f euler = want.get3x3(new Matrix3f()).getEulerAnglesZYX(new Vector3f());
+        bone.updateRotation(euler.x, euler.y, euler.z);
+        bone.updatePosition(0, 0, 0);
+        Vector3f d = want.getTranslation(new Vector3f()).sub(local(bone, false).getTranslation(new Vector3f()));
+        bone.updatePosition(-d.x * 16, d.y * 16, d.z * 16);
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -101,12 +146,7 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
         Matrix4f rest = local(grip, true);
         if (now.equals(rest, 1e-5f)) return;
         // root * grip(now) must equal root(rest) * grip(rest)
-        Matrix4f want = local(root, true).mul(rest).mul(now.invert());
-        Vector3f euler = want.get3x3(new Matrix3f()).getEulerAnglesZYX(new Vector3f());
-        root.updateRotation(euler.x, euler.y, euler.z);
-        root.updatePosition(0, 0, 0);
-        Vector3f d = want.getTranslation(new Vector3f()).sub(local(root, false).getTranslation(new Vector3f()));
-        root.updatePosition(-d.x * 16, d.y * 16, d.z * 16);
+        setLocal(root, local(root, true).mul(rest).mul(now.invert()));
     }
 
     /** The first bone named like a grip (see {@link #GRIP_NAMES}) that hangs straight off the root; "" if none. */

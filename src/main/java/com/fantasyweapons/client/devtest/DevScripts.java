@@ -33,9 +33,15 @@ final class DevScripts {
             case "bonelog" -> boneLog(b);
             case "lanceclip" -> lanceClip(b);
             case "starrings" -> starRings(b);
+            case "gravebite" -> gravebite(b);
+            case "gravechains" -> graveChains(b);
+            case "bloom" -> near(b, "bloomfall/entangling_roots,bloomfall/overgrowth,bloomfall/wrath_of_the_wild");
+            case "skycircles" -> wide(b, "solaris/celestial_inferno,eclipse_reaper/total_eclipse");
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
+                else if (name.startsWith("wide:")) wide(b, name.substring(5));
+                else if (name.startsWith("near:")) near(b, name.substring(5));
                 else if (name.startsWith("abilities:")) {
                     for (String k : name.substring(10).split(",")) single(b.cmd("/clear @s").cmd("/kill @e[type=!player]").wait(10), k);
                 }
@@ -474,6 +480,77 @@ final class DevScripts {
             b.wait(2).abilityUp();
             for (int i = 0; i < 6; i++) b.wait(4).screenshot("sr_" + v + "_cast" + i);
             b.wait(30);
+        }
+        b.playerView();
+    }
+
+    /** Big area abilities ("weapon/ability,..."), seen from afar and from underneath (looking up). */
+    private static void wide(ScreenshotDirector.Builder b, String list) {
+        for (String key : list.split(",")) {
+            String[] u = key.split("/");
+            var a = com.fantasyweapons.weapon.Weapons.get(u[0]).ability(u[1]);
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + u[0] + " 100").wait(130).slot(0).cmd("/fw points 200").hud(false);
+            for (int i = 0; i < 5; i++) {
+                b.cmd("/summon minecraft:husk " + (i - 2) * 2 + " -60 " + (4 + (i % 2) * 2)
+                        + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+            }
+            b.wait(20).camera(CameraType.FIRST_PERSON).look(0, 30).select(u[1]).wait(5).viewFrom(17, 4, 15, 7);
+            b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+            for (int i = 0; i < 6; i++) b.wait(i < 2 ? 6 : 14).screenshot("wide_" + u[1] + "_far" + i);
+            b.playerView().camera(CameraType.FIRST_PERSON).look(0, -65).wait(10).screenshot("wide_" + u[1] + "_under").wait(20).screenshot("wide_" + u[1] + "_under2");
+            b.look(0, 20).wait(100);
+        }
+        b.playerView();
+    }
+
+    /** Gravebite: the lantern swinging as the weapon is swung and turned, Grave Chains coiling, and the 3D ghosts. */
+    private static void gravebite(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give gravebite 100").wait(130).slot(0).cmd("/fw points 200").hud(false).camera(CameraType.FIRST_PERSON).look(0, 0).wait(5);
+        b.viewFrom(-2.6, 0.9, 1.4, 1.5).wait(10).screenshot("gb_lantern_idle").swing().wait(3).screenshot("gb_lantern_swing1").wait(3)
+                .screenshot("gb_lantern_swing2").wait(4).screenshot("gb_lantern_swing3");
+        for (int i = 0; i < 4; i++) b.look(i * 45 + 45, 0).wait(2).screenshot("gb_lantern_turn" + i);
+        b.look(0, 0).wait(30);
+        String[] abilities = {"grave_chains", "soul_volley", "soul_harvest", "deaths_maw", "legion_of_the_damned"};
+        for (String id : abilities) {
+            var a = com.fantasyweapons.weapon.Weapons.get("gravebite").ability(id);
+            b.cmd("/kill @e[type=minecraft:husk]").cmd("/kill @e[type=minecraft:item]").wait(5);
+            b.cmd("/summon minecraft:husk 0.5 -60 5.5 {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+            b.cmd("/summon minecraft:husk 3 -60 7 {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+            b.wait(5).playerView().camera(CameraType.FIRST_PERSON).look(0, 10).cmd("/fw cooldowns").select(id).wait(5).viewAt(6.5, 2.2, 1.5, 1.5, 0.8, 6);
+            b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+            for (int i = 0; i < 6; i++) b.wait(i < 3 ? 4 : 8).screenshot("gb_" + id + "_" + i);
+            b.wait(40);
+        }
+        b.playerView();
+    }
+
+    /** The Grave Chains visual alone (client side) on a dummy that does not die, every few ticks, close up. */
+    private static void graveChains(ScreenshotDirector.Builder b) {
+        b.cmd("/fw give gravebite 1").wait(30).slot(0).hud(false).look(0, 0).camera(CameraType.FIRST_PERSON);
+        b.cmd("/summon minecraft:husk 0.5 -60 5.5 {NoAI:1b,Invulnerable:1b}").wait(10);
+        b.viewAt(3.2, 1.8, 2.6, 0.5, 0.9, 5.5);
+        b.run(mc -> {
+            var husk = mc.level.getEntitiesOfClass(net.minecraft.world.entity.monster.Husk.class, mc.player.getBoundingBox().inflate(12)).get(0);
+            com.fantasyweapons.client.fx.FxDispatcher.dispatch(com.fantasyweapons.network.FxPayload.of(com.fantasyweapons.network.FxIds.GRAVEBITE_CHAINS)
+                    .caster(mc.player.getId()).pos(husk.position()).scale(3f).power(70).entities(husk.getId()).seed(1234L).build());
+        });
+        for (int i = 0; i < 12; i++) b.wait(i < 8 ? 3 : 8).screenshot("gc_" + String.format("%02d", i));
+        b.playerView();
+    }
+
+    /** Abilities ("weapon/ability,...") cast at two fresh dummies, watched from close by, over about three seconds. */
+    private static void near(ScreenshotDirector.Builder b, String list) {
+        for (String key : list.split(",")) {
+            String[] u = key.split("/");
+            var a = com.fantasyweapons.weapon.Weapons.get(u[0]).ability(u[1]);
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + u[0] + " 100").wait(130).slot(0).cmd("/fw points 200").hud(false);
+            b.cmd("/summon minecraft:husk 0.5 -60 5.5 {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+            b.cmd("/summon minecraft:husk 3 -60 7 {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+            b.wait(10).camera(CameraType.FIRST_PERSON).look(0, 25).select(u[1]).wait(5).viewAt(8, 4.5, 0.5, 1, 0.3, 6);
+            b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+            for (int i = 0; i < 8; i++) b.wait(i < 4 ? 5 : 10).screenshot("near_" + u[1] + "_" + i);
+            b.viewAt(3.5, 1.4, 3, 1, 0.4, 6).wait(2).screenshot("near_" + u[1] + "_close");
+            b.playerView().wait(60);
         }
         b.playerView();
     }

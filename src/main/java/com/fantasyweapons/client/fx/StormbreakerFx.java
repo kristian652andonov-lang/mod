@@ -153,7 +153,10 @@ public final class StormbreakerFx {
         float r = p.scale();
         int duration = Math.round(p.power());
         Vec3 cloud = c.add(0, 12, 0);
-        VfxManager.add(new StormCloudVfx(() -> cloud, r, CLOUD, BOLT, duration + 20, p.seed()));
+        // a whole thunderhead over the field, and a second bank rolling the other way round its edge
+        VfxManager.add(new StormCloudVfx(() -> cloud, r * 1.25f, CLOUD, BOLT, duration + 20, p.seed()).dense(2.4f));
+        Vec3 rim = cloud.add(0, 0.6, 0);
+        VfxManager.add(new StormCloudVfx(() -> rim, r * 1.9f, CLOUD, BOLT, duration + 26, p.seed() ^ 0x5DEECE66DL).dense(1.0f).reverse());
         VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(150, BOLT), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.03f).energy().timing(0.1f, 0.1f));
         ScreenFx.zoneVignette(STORM, 0.4f, duration, c, r + 4);

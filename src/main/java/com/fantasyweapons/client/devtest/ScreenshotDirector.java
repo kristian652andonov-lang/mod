@@ -173,6 +173,23 @@ public final class ScreenshotDirector {
             return viewFrom(dx, dy, dz, 1.15);
         }
 
+        /** Detached camera at an offset from the player, looking at another offset from the player. */
+        public Builder viewAt(double dx, double dy, double dz, double tx, double ty, double tz) {
+            return run(mc -> {
+                var p = mc.player;
+                var cam = new net.minecraft.world.entity.decoration.ArmorStand(net.minecraft.world.entity.EntityType.ARMOR_STAND, mc.level);
+                double x = p.getX() + dx, y = p.getY() + dy, z = p.getZ() + dz;
+                double ex = p.getX() + tx - x, ey = p.getY() + ty - (y + cam.getEyeHeight()), ez = p.getZ() + tz - z;
+                float yaw = (float) (Math.toDegrees(Math.atan2(ez, ex)) - 90);
+                float pitch = (float) -Math.toDegrees(Math.atan2(ey, Math.sqrt(ex * ex + ez * ez)));
+                cam.moveTo(x, y, z, yaw, pitch);
+                cam.setYHeadRot(yaw);
+                cam.setInvisible(true);
+                mc.options.setCameraType(CameraType.FIRST_PERSON);
+                mc.setCameraEntity(cam);
+            });
+        }
+
         /** Detached camera at an offset from the player, looking at the point {@code lookY} above the player's feet. */
         public Builder viewFrom(double dx, double dy, double dz, double lookY) {
             return run(mc -> {

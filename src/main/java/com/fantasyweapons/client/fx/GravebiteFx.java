@@ -54,7 +54,7 @@ public final class GravebiteFx {
 
     /** A wailing soul: the artist's soul model riding a homing seeker, with a ghostly trail. */
     static void soul(Vec3 start, Vec3 vel, int target, long seed, int index) {
-        SeekerVfx seeker = VfxManager.add(new SeekerVfx(start, vel, target, 0.22, 0.32f, SOUL, GHOST, 80).sprite(VfxTextures.SOUL));
+        SeekerVfx seeker = VfxManager.add(new SeekerVfx(start, vel, target, 0.22, 0.22f, SOUL, GHOST, 80));
         ModelPartVfx model = VfxManager.add(new ModelPartVfx("gravebite", start, 80, "soul_" + (index % 6))
                 .position(t -> {
                     Vec3 n = seeker.now();
@@ -70,6 +70,36 @@ public final class GravebiteFx {
         FxProjectiles.track(seed, seeker, model);
     }
 
+    /**
+     * A 3D ghost - one of the artist's soul models, spectral and see-through - following {@code path} (t = 0..1 of
+     * its life), turned to face the way it moves, fading in and out.
+     */
+    static ModelPartVfx ghost(java.util.function.Function<Float, Vec3> path, int life, int index, float size) {
+        return VfxManager.add(new ModelPartVfx("gravebite", path.apply(0f), life, "soul_" + Math.floorMod(index, 6))
+                .position(path)
+                .rotation(t -> {
+                    Vec3 d = path.apply(Math.min(1f, t + 0.02f)).subtract(path.apply(Math.max(0f, t - 0.02f)));
+                    return new Quaternionf().rotationY((float) Math.atan2(-d.z, d.x));
+                })
+                .alpha(t -> Math.min(1f, t * 6f) * Math.min(1f, (1 - t) * 2.5f))
+                .scale(t -> size).spectral(GHOST, 0.8f, 0.5f));
+    }
+
+    /** {@code n} ghosts bursting out of {@code at} (towards {@code dir}, rising), slowing and fading as they go. */
+    static void ghostBurst(Vec3 at, Vec3 dir, int n, float spread, long seed) {
+        RandomSource r = RandomSource.create(seed);
+        Vec3 d0 = dir.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : dir.normalize();
+        for (int i = 0; i < n; i++) {
+            Vec3 v = d0.add(r.nextGaussian() * spread, 0.4 + r.nextDouble() * 0.6, r.nextGaussian() * spread).normalize();
+            double dist = 1.6 + r.nextDouble() * 1.8;
+            double wob = r.nextDouble() * 6.28;
+            Vec3 side = v.cross(new Vec3(0, 1, 0)).lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : v.cross(new Vec3(0, 1, 0)).normalize();
+            int life = 18 + r.nextInt(10);
+            ghost(t -> at.add(v.scale(dist * (1 - Math.exp(-3.2 * t)))).add(0, t * 0.9, 0).add(side.scale(Math.sin(t * 9 + wob) * 0.25 * t)),
+                    life, r.nextInt(6), 1.2f + r.nextFloat() * 0.7f);
+        }
+    }
+
     private static void soulVolley(FxPayload p) {
         Vec3 start = p.pos();
         int n = p.level();
@@ -82,16 +112,14 @@ public final class GravebiteFx {
             FxScheduler.after(i / 2, () -> soul(start, vel, target, p.seed() + idx * 7919L, idx));
         }
         VfxManager.add(new FlashVfx(start, 0.4f, 2.2f, Colors.argb(220, SOUL), 10).energy());
-        VfxManager.add(new ShardBurstVfx(start, p.dir(), 0.7f, 0.15f, 12, 0.3f, Colors.argb(230, GHOST), Colors.argb(0, SOUL), 14, p.seed())
-                .texture(VfxTextures.SOUL, false).physics(-0.005f, 0.9f));
+        ghostBurst(start, p.dir(), 3, 0.5f, p.seed());
     }
 
     private static void soulHit(FxPayload p) {
         FxProjectiles.end(p.seed());
         Vec3 at = p.pos();
         VfxManager.add(new FlashVfx(at, 0.3f, 1.8f, Colors.argb(230, SOUL), 8).energy());
-        VfxManager.add(new ShardBurstVfx(at, new Vec3(0, 1, 0), 1f, 0.18f, 10, 0.25f, Colors.argb(255, GHOST), Colors.argb(0, SOUL), 14, p.seed())
-                .texture(VfxTextures.SOUL, false).physics(-0.01f, 0.88f));
+        ghostBurst(at, new Vec3(0, 1, 0), 2, 0.8f, p.seed());
         if (p.level() == 1) VfxManager.add(new ShockwaveVfx(at, new Vec3(0, 1, 0), 0.1f, 1.4f, 0.2f, Colors.argb(200, SOUL), 7).energy());
     }
 
@@ -99,8 +127,22 @@ public final class GravebiteFx {
         Entity caster = entity(p.caster());
         if (caster == null) return;
         Vec3 from = p.pos();
-        SeekerVfx s = VfxManager.add(new SeekerVfx(from, new Vec3(0, 0.35, 0), caster.getId(), 0.25, 0.25f, SOUL, GHOST, 24).sprite(VfxTextures.SOUL));
+        SeekerVfx s = VfxManager.add(new SeekerVfx(from, new Vec3(0, 0.35, 0), caster.getId(), 0.25, 0.16f, SOUL, GHOST, 24));
         VfxManager.add(new FollowTrailVfx(s::now, 0.3f, Colors.argb(200, SOUL), Colors.argb(0, DEEP), 8, 40));
+        // the harvested soul itself, flying home
+        Vec3[] last = {from};
+        VfxManager.add(new ModelPartVfx("gravebite", from, 24, "soul_" + Math.floorMod((int) p.seed(), 6))
+                .position(t -> {
+                    Vec3 n = s.now();
+                    if (n != null) last[0] = n;
+                    return last[0];
+                })
+                .rotation(t -> {
+                    Vec3 v = s.velocity();
+                    return new Quaternionf().rotationY((float) Math.atan2(-v.z, v.x));
+                })
+                .alpha(t -> Math.min(1f, t * 8f) * Math.min(1f, (1 - t) * 4f))
+                .scale(t -> 1.6f).spectral(GHOST, 0.8f, 0.5f));
     }
 
     private static void chains(FxPayload p) {
@@ -115,17 +157,18 @@ public final class GravebiteFx {
         for (int id : p.entities()) {
             Entity e = entity(id);
             if (e == null) continue;
-            // four chains burst from small grave rifts around the target, seek it out and lock a shackle round it
-            for (int k = 0; k < 4; k++) {
-                double a = k * Math.PI / 2 + rnd.nextDouble() * 0.6;
-                double d = 1.8 + rnd.nextDouble() * 0.8;
+            // three chains burst from small grave rifts around the target, slither over the ground at it like
+            // snakes and wind themselves round its body, tightening
+            for (int k = 0; k < 3; k++) {
+                double a = k * Math.PI * 2 / 3 + rnd.nextDouble() * 0.7;
+                double d = 2.6 + rnd.nextDouble() * 1.4;
                 Vec3 anchor = FrostrendFx.ground(e.position().add(Math.cos(a) * d, 0, Math.sin(a) * d));
                 GroundShatter.cracks(anchor, 0.9f, com.fantasyweapons.client.vfx.GroundMaterial.at(anchor), bind + 12, SOUL, GHOST, rnd.nextLong());
                 VfxManager.add(new DecalVfx(anchor.add(0, 0.06, 0), new Vec3(0, 1, 0), 0.9f, Colors.argb(200, SOUL), VfxTextures.GLOW, bind + 12)
                         .timing(0.05f, 0.2f));
-                ChainVfx chain = new ChainVfx(anchor, ChainVfx.toEntity(e, 0.55), Colors.argb(230, SOUL), Colors.argb(240, GHOST), bind).shoot(3 + k * 2);
-                if (k == 0) chain.shackle(e.getBbWidth() * 0.5f + 0.25f);
-                VfxManager.add(chain);
+                float low = 0.04f + k * 0.2f, high = Math.min(0.92f, low + 0.5f);
+                VfxManager.add(new ChainVfx(anchor, ChainVfx.toEntity(e, 0.55), Colors.argb(230, SOUL), Colors.argb(240, GHOST), bind)
+                        .coil(e, 1.6f + k * 0.35f, k == 1 ? -1 : 1, low, high).shoot(13 + k * 3));
             }
             VfxManager.add(new FlashVfx(Vec3.ZERO, 0.3f, e.getBbHeight() * 1.6f, Colors.argb(180, SOUL), 10).follow(e, new Vec3(0, e.getBbHeight() * 0.5, 0)).energy());
         }
@@ -163,8 +206,7 @@ public final class GravebiteFx {
             Vec3 bite = o.add(fwd.scale(range * 0.6));
             VfxManager.add(new FlashVfx(bite, 0.6f, range * 0.8f, Colors.argb(220, SOUL), 10).energy());
             VfxManager.add(new ShockwaveVfx(FrostrendFx.ground(bite).add(0, 0.08, 0), new Vec3(0, 1, 0), 0.3f, range * 0.7f, 0.4f, Colors.argb(220, GHOST), 12).energy());
-            VfxManager.add(new ShardBurstVfx(bite, fwd, 0.9f, 0.25f, 20, 0.3f, Colors.argb(255, GHOST), Colors.argb(0, SOUL), 18, p.seed())
-                    .texture(VfxTextures.SOUL, false).physics(-0.008f, 0.9f));
+            ghostBurst(bite, fwd, 5, 0.6f, p.seed());
             CameraShake.add(bite, 0.6f, 14);
             // stolen souls stream back into the caster
             Entity caster = entity(p.caster());
@@ -188,10 +230,22 @@ public final class GravebiteFx {
             float phase = i * 6.283f / n;
             float h = 0.8f + (i % 4) * 0.45f;
             float rad = 1.8f + (i % 3) * 0.6f;
-            com.fantasyweapons.client.vfx.effects.OrbVfx orb = VfxManager.add(new com.fantasyweapons.client.vfx.effects.OrbVfx(
-                    t -> c.add(Math.cos(phase + t * 0.15) * rad, h + Math.sin(t * 0.2 + phase) * 0.3, Math.sin(phase + t * 0.15) * rad),
-                    0.22f, SOUL, GHOST, duration).sprite(VfxTextures.SOUL, GHOST, 0f).fades(10, 10));
+            java.util.function.Function<Float, Vec3> circle = t -> c.add(Math.cos(phase + t * 0.15) * rad, h + Math.sin(t * 0.2 + phase) * 0.3,
+                    Math.sin(phase + t * 0.15) * rad);
+            com.fantasyweapons.client.vfx.effects.OrbVfx orb = VfxManager.add(new com.fantasyweapons.client.vfx.effects.OrbVfx(circle, 0.12f, SOUL, GHOST, duration)
+                    .fades(10, 10));
             VfxManager.add(new FollowTrailVfx(orb::now, 0.25f, Colors.argb(160, SOUL), Colors.argb(0, DEEP), 8, duration + 10));
+            // the ghost itself, circling head first
+            int life = duration;
+            int idx = i;
+            VfxManager.add(new ModelPartVfx("gravebite", circle.apply(0f), life, "soul_" + (idx % 6))
+                    .position(t -> circle.apply(t * life))
+                    .rotation(t -> {
+                        double th = phase + t * life * 0.15;
+                        return new Quaternionf().rotationY((float) Math.atan2(-Math.cos(th), -Math.sin(th)));
+                    })
+                    .alpha(t -> Math.min(1f, t * life / 10f) * Math.min(1f, (1 - t) * life / 10f))
+                    .scale(t -> 1.4f).spectral(GHOST, 0.8f, 0.5f));
         }
         VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), 4f, Colors.argb(220, SOUL), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.05f).energy().timing(0.1f, 0.1f));
@@ -206,7 +260,6 @@ public final class GravebiteFx {
     private static void legionEnd(FxPayload p) {
         Vec3 c = p.pos();
         VfxManager.add(new ShockwaveVfx(c.add(0, 1, 0), new Vec3(0, 1, 0), 0.5f, 6f, 0.5f, Colors.argb(200, SOUL), 14).energy());
-        VfxManager.add(new ShardBurstVfx(c.add(0, 1.2, 0), new Vec3(0, 1, 0), 1f, 0.25f, 30, 0.3f, Colors.argb(255, GHOST), Colors.argb(0, SOUL), 22, 7L)
-                .texture(VfxTextures.SOUL, false).physics(-0.008f, 0.9f));
+        ghostBurst(c.add(0, 1.2, 0), new Vec3(0, 1, 0), 8, 1.2f, p.seed());
     }
 }

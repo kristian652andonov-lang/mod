@@ -18,14 +18,18 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
+
 /** Client visuals for Bloomfall. Palette: living green, pollen gold, blossom pink, bark brown. */
 public final class BloomfallFx {
     static final int LEAF = 0x5BE063;
     static final int DEEP = 0x1F6B2A;
     static final int POLLEN = 0xFFE08A;
     static final int BLOSSOM = 0xFF8FC8;
-    static final int BARK = 0x6B4A2B;
-    static final int VINE = 0x3E7A2E;
+    static final int BARK = 0x5C4532;
+    static final int VINE = 0x45602F;
+    /** Ground rotted by creeping vines. */
+    static final int ROT = 0x1C1A0C;
     /** The colour of roots splitting the ground. */
     static final int ROOT = 0x1E2A12;
 
@@ -176,20 +180,77 @@ public final class BloomfallFx {
         GroundShatter.cracks(FrostrendFx.ground(c), r, ROOT, pull + 30, LEAF, POLLEN, p.seed() * 3);
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(140, LEAF), VfxTextures.SWIRL, pull)
                 .spin(0.08f).energy().timing(0.1f, 0.1f));
-        // vines reaching inward from the rim, dragging enemies toward the bloom
+        // vines creep in over the ground from all round the rim towards the bloom, each by its own wandering way,
+        // throwing off tendrils and rotting the ground they pass over
         RandomSource rnd = RandomSource.create(p.seed());
-        for (int i = 0; i < 14; i++) {
-            double a = i * Math.PI * 2 / 14 + rnd.nextDouble() * 0.2;
-            Vec3 rim = FrostrendFx.ground(c.add(Math.cos(a) * r * 0.9, 0, Math.sin(a) * r * 0.9));
-            Vec3[] path = new Vec3[12];
-            for (int k = 0; k < 12; k++) {
-                double t = k / 11.0;
-                path[k] = rim.lerp(c, t * 0.85).add(0, Math.sin(t * Math.PI) * 1.2, 0);
+        float bloomR = Math.min(6f, r * 0.45f);
+        int count = 9 + rnd.nextInt(4);
+        for (int i = 0; i < count; i++) {
+            double a = i * Math.PI * 2 / count + rnd.nextGaussian() * 0.25;
+            Vec3 start = FrostrendFx.ground(c.add(Math.cos(a) * r * (0.75 + 0.3 * rnd.nextDouble()), 0, Math.sin(a) * r * (0.75 + 0.3 * rnd.nextDouble())));
+            double ea = a + rnd.nextGaussian() * 0.5;
+            Vec3 end = FrostrendFx.ground(c.add(Math.cos(ea) * bloomR * 0.45, 0, Math.sin(ea) * bloomR * 0.45));
+            float width = 0.18f + 0.2f * rnd.nextFloat();
+            int grow = pull / 2 + rnd.nextInt(8);
+            Vec3[] path = creep(start, end, 1.0 + rnd.nextDouble() * 1.4, rnd);
+            VfxManager.add(new VineVfx(path, width, Colors.argb(255, VINE), Colors.argb(255, LEAF), grow, pull + 6, rnd.nextLong()));
+            corrode(path, width, grow, pull + 50, rnd);
+            // a tendril or two wandering off to the side
+            int tendrils = rnd.nextInt(3);
+            for (int k = 0; k < tendrils; k++) {
+                int from = 3 + rnd.nextInt(path.length - 6);
+                double ta = a + Math.PI + (rnd.nextBoolean() ? 1 : -1) * (0.7 + rnd.nextDouble() * 0.8);
+                Vec3 tEnd = FrostrendFx.ground(path[from].add(Math.cos(ta) * (1.2 + rnd.nextDouble() * 1.8), 0, Math.sin(ta) * (1.2 + rnd.nextDouble() * 1.8)));
+                Vec3[] tp = creep(path[from], tEnd, 0.4, rnd);
+                int delay = grow * from / path.length;
+                long sd = rnd.nextLong();
+                float tw = width * 0.55f;
+                FxScheduler.after(delay, () -> {
+                    VfxManager.add(new VineVfx(tp, tw, Colors.argb(255, VINE), Colors.argb(255, LEAF), grow / 2, pull + 6 - delay, sd));
+                    corrode(tp, tw, grow / 2, pull + 40 - delay, RandomSource.create(sd));
+                });
             }
-            VfxManager.add(new VineVfx(path, 0.3f, Colors.argb(255, VINE), Colors.argb(255, LEAF), pull / 2, pull + 6, rnd.nextLong()));
         }
         ScreenFx.zoneVignette(DEEP, 0.3f, pull + 10, c, r);
         CameraShake.add(c, 0.3f, r * 2);
+    }
+
+    /**
+     * A path creeping over the ground from {@code a} to {@code b}: it meanders from side to side by {@code wander}
+     * blocks at most, follows the lie of the land and now and then arches up off it.
+     */
+    private static Vec3[] creep(Vec3 a, Vec3 b, double wander, RandomSource rnd) {
+        int n = Math.max(6, (int) (a.distanceTo(b) * 1.6));
+        Vec3 d = new Vec3(b.x - a.x, 0, b.z - a.z);
+        Vec3 side = d.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : new Vec3(-d.z, 0, d.x).normalize();
+        double f1 = 1.2 + rnd.nextDouble() * 2, f2 = 3 + rnd.nextDouble() * 3, p1 = rnd.nextDouble() * 6.28, p2 = rnd.nextDouble() * 6.28;
+        double hump = rnd.nextDouble() * 6.28;
+        Vec3[] out = new Vec3[n];
+        for (int k = 0; k < n; k++) {
+            double t = k / (double) (n - 1);
+            double sway = (Math.sin(t * Math.PI * f1 + p1) * 0.75 + Math.sin(t * Math.PI * f2 + p2) * 0.25) * wander * Math.sin(Math.PI * t);
+            Vec3 at = a.lerp(b, t).add(side.scale(sway + rnd.nextGaussian() * 0.08));
+            double lift = Math.pow(Math.max(0, Math.sin(t * Math.PI * 2.3 + hump)), 4) * 0.45;
+            out[k] = FrostrendFx.ground(at).add(0, 0.07 + lift, 0);
+        }
+        out[0] = a.add(0, -0.05, 0);
+        return out;
+    }
+
+    /** The rot a vine leaves in the ground under its path: a dark, cracked groove and blotches of decay. */
+    private static void corrode(Vec3[] path, float width, int grow, int life, RandomSource rnd) {
+        List<Vec3> line = new java.util.ArrayList<>();
+        for (Vec3 v : path) line.add(FrostrendFx.ground(v));
+        VfxManager.add(new com.fantasyweapons.client.vfx.effects.FissureVfx(line, width * 5f, 0, 0, grow, life, rnd.nextLong(), FrostrendFx::ground)
+                .glowless().darkColor(ROT));
+        for (int k = 1; k < path.length; k += 2 + rnd.nextInt(3)) {
+            Vec3 g = FrostrendFx.ground(path[k]).add(rnd.nextGaussian() * 0.25, 0.03, rnd.nextGaussian() * 0.25);
+            int delay = grow * k / path.length;
+            float size = width * (2.5f + 3f * rnd.nextFloat());
+            int col = Colors.argb(150 + rnd.nextInt(60), Colors.lerpRgb(ROT, 0x2E3410, rnd.nextFloat() * 0.5f));
+            FxScheduler.after(delay, () -> VfxManager.add(new DecalVfx(g, new Vec3(0, 1, 0), size, col, VfxTextures.MIST, life - delay)
+                    .translucent().satellites(0).timing(0.15f, 0.2f)));
+        }
     }
 
     private static void wrathEnd(FxPayload p) {

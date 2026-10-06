@@ -9,6 +9,7 @@ import com.fantasyweapons.client.vfx.effects.FlashVfx;
 import com.fantasyweapons.client.vfx.effects.LightningVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
+import com.fantasyweapons.client.vfx.effects.SkyCircleVfx;
 import com.fantasyweapons.client.vfx.effects.SunVfx;
 import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
@@ -108,10 +109,16 @@ public final class EclipseFx {
         CameraShake.add(c, 0.25f, r * 2);
     }
 
+    /** The sky circle over each caster's Total Eclipse, which the beams pour out of. */
+    private static final java.util.Map<Integer, SkyCircleVfx> SKY = new java.util.HashMap<>();
+
     private static void total(FxPayload p) {
         Vec3 c = p.pos();
         float r = p.scale();
         int duration = Math.round(p.power());
+        Vec3 sky = p.points().isEmpty() ? c.add(0, 13, 0) : p.points().get(0);
+        SKY.put(p.caster(), VfxManager.add(new SkyCircleVfx(sky, r * 0.9f, (float) (sky.y - c.y), GOLD, VIOLET, WHITE, duration + 24)));
+        VfxManager.add(new BeamVfx(c.add(0, 0.2, 0), sky, 1.4f, Colors.argb(200, GOLD), 22));
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(200, GOLD), VfxTextures.RUNE_CIRCLE, duration)
                 .spin(0.02f).energy().timing(0.1f, 0.1f));
         VfxManager.add(new DecalVfx(c.add(0, 0.06, 0), new Vec3(0, 1, 0), r * 0.6f, Colors.argb(200, VIOLET), VfxTextures.RUNE_CIRCLE, duration)
@@ -122,7 +129,15 @@ public final class EclipseFx {
 
     private static void beam(FxPayload p) {
         Vec3 g = p.pos();
-        Vec3 from = p.points().isEmpty() ? g.add(0, 13, 0) : p.points().get(0);
+        // every beam falls straight out of the sky circle above its target
+        SkyCircleVfx sky = SKY.get(p.caster());
+        Vec3 from;
+        if (sky != null && !sky.isDead()) {
+            from = sky.sourceAbove(g);
+            sky.emit(from);
+        } else {
+            from = new Vec3(g.x, (p.points().isEmpty() ? g.y + 13 : p.points().get(0).y), g.z);
+        }
         boolean dark = p.level() == 1;
         int col = dark ? VIOLET : GOLD;
         int core = dark ? CRIMSON : WHITE;
@@ -138,7 +153,8 @@ public final class EclipseFx {
     private static void totalEnd(FxPayload p) {
         Vec3 c = p.pos();
         float r = p.scale();
-        Vec3 sun = p.points().isEmpty() ? c.add(0, 13, 0) : p.points().get(0);
+        SkyCircleVfx sky = SKY.remove(p.caster());
+        Vec3 sun = sky != null && !sky.isDead() ? sky.sourceAbove(c) : p.points().isEmpty() ? c.add(0, 13, 0) : p.points().get(0);
         VfxManager.add(new BeamVfx(sun, c, 3f, Colors.argb(230, GOLD), 14));
         Blast.explode(c, r * 0.85f, new Blast.Palette(GOLD, 0xC98A2A, VIOLET), p.seed(), 2, VfxTextures.STAR);
         VfxManager.add(new ShockwaveVfx(c.add(0, 1, 0), new Vec3(0, 1, 0), 0.5f, r * 1.2f, 0.8f, Colors.argb(230, VIOLET), 18).energy().spin(0.1f));

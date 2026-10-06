@@ -12,7 +12,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * A spectral iron chain of real interlocking links. It bursts out of its anchor, curves smoothly onto its (moving)
  * target like a seeking serpent, pulls taut once it has hold, carries pulses of energy along its length, and at the
- * end retracts back into its anchor. With {@link #shackle} it closes a ring around the bound target.
+ * end retracts back into its anchor. With {@link #shackle} it closes a ring around the bound target; with {@link
+ * #coil} it slithers over the ground like a snake and winds itself round the target's body, tightening.
  */
 public class ChainVfx extends Vfx {
     /** End point of the chain at a given partial tick, or null when the target is gone. */
@@ -37,6 +38,9 @@ public class ChainVfx extends Vfx {
     private int retract = 8;
     private float shackle;
     private float scale = 1f;
+    @Nullable
+    private Entity coil;
+    private float turns, coilDir, coilLow, coilHigh;
 
     public ChainVfx(Vec3 anchor, EndPoint end, int color, int linkColor, int lifetime) {
         super(lifetime);
@@ -71,6 +75,20 @@ public class ChainVfx extends Vfx {
         return this;
     }
 
+    /**
+     * Snake mode: the chain slithers out of its anchor along the ground in waves, then winds {@code turns} times round
+     * {@code e} (clockwise if {@code dir} is negative) from {@code low} to {@code high} of its height, tightening as it
+     * binds. {@link #shoot} then covers the whole slither and wind.
+     */
+    public ChainVfx coil(Entity e, float turns, float dir, float low, float high) {
+        this.coil = e;
+        this.turns = turns;
+        this.coilDir = dir < 0 ? -1 : 1;
+        this.coilLow = low;
+        this.coilHigh = high;
+        return this;
+    }
+
     @Override
     public void render(VfxContext ctx) {
         Vec3 target = end.at(ctx.partial);
@@ -83,28 +101,40 @@ public class ChainVfx extends Vfx {
         float alpha = Math.min(1f, time / 3f);
         float hold = clamp01((time - shoot) / 6f);                  // 0 while seeking, 1 once taut
 
-        // a cubic curve: out of the ground along `rise`, bending onto the target; it straightens as it pulls taut
-        double dist = anchor.distanceTo(target);
-        Vec3 c1 = anchor.add(rise.scale(dist * 0.55 * (1 - 0.6 * hold)));
+        Vec3[] curve;
+        double[] arc;
+        int samples;
         Vec3 toward = target.subtract(anchor).normalize();
-        Vec3 c2 = target.subtract(toward.scale(dist * 0.35)).add(0, dist * 0.25 * (1 - hold) - 0.15 * hold * dist * 0.1, 0);
-        double wobble = (1 - hold) * 0.25;
+        if (coil != null) {
+            curve = coilPath(ctx.partial, time, hold, ext);
+            if (curve == null) return;
+            samples = curve.length - 1;
+            arc = new double[samples + 1];
+            for (int i = 1; i <= samples; i++) arc[i] = arc[i - 1] + curve[i].distanceTo(curve[i - 1]);
+        } else {
+            // a cubic curve: out of the ground along `rise`, bending onto the target; it straightens as it pulls taut
+            double dist = anchor.distanceTo(target);
+            Vec3 c1 = anchor.add(rise.scale(dist * 0.55 * (1 - 0.6 * hold)));
+            Vec3 c2 = target.subtract(toward.scale(dist * 0.35)).add(0, dist * 0.25 * (1 - hold) - 0.15 * hold * dist * 0.1, 0);
+            double wobble = (1 - hold) * 0.25;
 
-        // sample the visible part of the curve and walk it in equal steps, one link per step
-        int samples = 48;
-        Vec3[] curve = new Vec3[samples + 1];
-        double[] arc = new double[samples + 1];
-        for (int i = 0; i <= samples; i++) {
-            double t = ext * i / samples;
-            Vec3 p = bezier(anchor, c1, c2, target, t);
-            double w = Math.sin(t * Math.PI * 3 + time * 0.5) * wobble * Math.sin(t * Math.PI);
-            p = p.add(toward.cross(UP).normalize().scale(Double.isNaN(w) ? 0 : w));
-            curve[i] = p;
-            arc[i] = i == 0 ? 0 : arc[i - 1] + p.distanceTo(curve[i - 1]);
+            // sample the visible part of the curve and walk it in equal steps, one link per step
+            samples = 48;
+            curve = new Vec3[samples + 1];
+            arc = new double[samples + 1];
+            for (int i = 0; i <= samples; i++) {
+                double t = ext * i / samples;
+                Vec3 p = bezier(anchor, c1, c2, target, t);
+                double w = Math.sin(t * Math.PI * 3 + time * 0.5) * wobble * Math.sin(t * Math.PI);
+                p = p.add(toward.cross(UP).normalize().scale(Double.isNaN(w) ? 0 : w));
+                curve[i] = p;
+                arc[i] = i == 0 ? 0 : arc[i - 1] + p.distanceTo(curve[i - 1]);
+            }
         }
         double total = arc[samples];
         float pitch = PITCH * scale;
         int links = Math.max(1, (int) (total / pitch));
+        if (total < pitch * 0.5) return;
         Vec3[] pos = new Vec3[links];
         Vec3[] tan = new Vec3[links];
         int seg = 0;
@@ -150,6 +180,56 @@ public class ChainVfx extends Vfx {
             ctx.billboard(spark, curve[idx], 0.45f * scale, 0, Colors.alpha(0.7f * alpha * hold, linkColor));
         }
         if (hold < 1) ctx.billboard(spark, curve[samples], 0.7f * scale, 0, Colors.alpha(0.9f * alpha * (1 - hold), linkColor));
+    }
+
+    /**
+     * The snake's path, cut off where its head has got to ({@code ext} of the way): out of the ground at the anchor,
+     * over the ground in travelling waves to the target's feet, then a tightening spiral up its body.
+     */
+    @Nullable
+    private Vec3[] coilPath(float partial, float time, float hold, float ext) {
+        Entity e = coil;
+        if (e == null || !e.isAlive()) return null;
+        Vec3 feet = e.getPosition(partial);
+        double h = e.getBbHeight();
+        double tighten = easeOut(hold);
+        double radius = (e.getBbWidth() * 0.5 + 0.14) * scale * (1.5 - 0.38 * tighten);
+        Vec3 away = new Vec3(anchor.x - feet.x, 0, anchor.z - feet.z);
+        if (away.lengthSqr() < 1e-4) away = new Vec3(1, 0, 0);
+        away = away.normalize();
+        double a0 = Math.atan2(away.z, away.x);
+        Vec3 entry = feet.add(away.scale(radius)).add(0, h * coilLow, 0);
+        Vec3 side = new Vec3(-away.z, 0, away.x);
+        int groundN = 36, helixN = Math.max(24, Math.round(turns * 22));
+        Vec3[] full = new Vec3[groundN + helixN + 1];
+        double groundY = anchor.y;
+        double amp = 0.38 * (1 - 0.75 * tighten) * scale;
+        for (int i = 0; i <= groundN; i++) {
+            double s = i / (double) groundN;
+            Vec3 base = anchor.lerp(entry, s);
+            // waves travel along the body like a snake's; it bursts up out of the ground at the start
+            double wave = Math.sin(s * Math.PI * 2 * 2.2 - time * 0.45) * Math.sin(Math.PI * Math.min(1, s * 1.15));
+            double y = groundY + 0.1 + (base.y - groundY) * s * s - (s < 0.12 ? 0.4 * (1 - s / 0.12) : 0) + 0.05 * Math.sin(s * 9 - time * 0.3);
+            full[i] = new Vec3(base.x, y, base.z).add(side.scale(wave * amp));
+        }
+        for (int i = 1; i <= helixN; i++) {
+            double u = i / (double) helixN;
+            double ang = a0 + coilDir * u * turns * Math.PI * 2;
+            double r = radius * (1 - 0.1 * u);
+            double y = feet.y + h * (coilLow + (coilHigh - coilLow) * u);
+            full[groundN + i] = new Vec3(feet.x + Math.cos(ang) * r, y, feet.z + Math.sin(ang) * r);
+        }
+        // cut it where the head has got to
+        double[] arc = new double[full.length];
+        for (int i = 1; i < full.length; i++) arc[i] = arc[i - 1] + full[i].distanceTo(full[i - 1]);
+        double headAt = arc[full.length - 1] * ext;
+        int last = 1;
+        while (last < full.length - 1 && arc[last] < headAt) last++;
+        Vec3[] out = new Vec3[last + 1];
+        System.arraycopy(full, 0, out, 0, last);
+        double f = (headAt - arc[last - 1]) / Math.max(1e-6, arc[last] - arc[last - 1]);
+        out[last] = full[last - 1].lerp(full[last], Math.max(0, Math.min(1, f)));
+        return out;
     }
 
     /** One stadium-shaped link: a square-section wire tube following the link's outline. */
