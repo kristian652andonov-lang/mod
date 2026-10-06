@@ -36,6 +36,7 @@ final class DevScripts {
             case "gravebite" -> gravebite(b);
             case "gravechains" -> graveChains(b);
             case "swings" -> swings(b, null);
+            case "allabilities" -> allAbilities(b);
             case "bloom" -> near(b, "bloomfall/entangling_roots,bloomfall/overgrowth,bloomfall/wrath_of_the_wild");
             case "skycircles" -> wide(b, "solaris/celestial_inferno,eclipse_reaper/total_eclipse");
             default -> {
@@ -572,6 +573,29 @@ final class DevScripts {
             b.wait(30).playerView().camera(CameraType.FIRST_PERSON).hud(true).wait(3).swing();
             for (int i = 0; i < 5; i++) b.wait(2).screenshot("sw_" + w + "_fp" + i);
             b.hud(false).wait(25);
+        }
+        b.playerView();
+    }
+
+    /** Every castable ability of every weapon, at release, mid-way and late, from a three-quarter view. */
+    private static void allAbilities(ScreenshotDirector.Builder b) {
+        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+            String w = def.id();
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + w + " 100").wait(130).slot(0).cmd("/fw points 300").hud(false);
+            for (var a : def.castables()) {
+                b.cmd("/kill @e[type=!player]").wait(3);
+                for (int i = 0; i < 3; i++) {
+                    b.cmd("/summon minecraft:husk " + (i - 1) * 2.5 + " -60 " + (6 + (i % 2) * 1.5)
+                            + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+                }
+                b.playerView().camera(CameraType.FIRST_PERSON).look(0, 12).cmd("/fw cooldowns").select(a.id()).wait(6).viewAt(7.5, 3.2, -1.5, 0, 0.8, 4);
+                b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+                boolean ult = a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE;
+                b.wait(3).screenshot("all_" + w + "_" + a.id() + "_a").wait(8).screenshot("all_" + w + "_" + a.id() + "_b").wait(14)
+                        .screenshot("all_" + w + "_" + a.id() + "_c");
+                if (ult) b.wait(50).screenshot("all_" + w + "_" + a.id() + "_d");
+                b.wait(ult ? 120 : 30);
+            }
         }
         b.playerView();
     }

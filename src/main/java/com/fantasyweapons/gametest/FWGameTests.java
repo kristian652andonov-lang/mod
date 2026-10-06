@@ -14,6 +14,7 @@ import com.fantasyweapons.registry.ModItems;
 import com.fantasyweapons.status.StatusService;
 import com.fantasyweapons.status.StatusType;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
+import com.fantasyweapons.weapon.WeaponClass;
 import com.fantasyweapons.weapon.WeaponDefinition;
 import com.fantasyweapons.weapon.Weapons;
 import com.fantasyweapons.weapons.monolith.Monolith;
@@ -218,6 +219,48 @@ public final class FWGameTests {
         h.assertFalse(AbilityService.runtime(p).isCharging(), "a level-1 weapon has nothing to charge");
         cleanup(p);
         h.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void abilityOnCooldownCannotCharge(GameTestHelper h) {
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
+        ItemStack stack = giveWeapon(p, "voidfang");
+        ExpService.setLevel(p, stack, 5);
+        UUID id = FantasyWeaponItem.data(stack).idOrNil();
+        AbilityRuntime rt = AbilityService.runtime(p);
+        rt.setCooldown(id, Voidfang.VOID_SLASH, AbilityService.now(p), 200);
+        AbilityService.handleAbilityKey(p, true);
+        h.assertFalse(rt.isCharging(), "an ability on cooldown must not start charging at all");
+        AbilityService.handleAbilityKey(p, false);
+        cleanup(p);
+        h.succeed();
+    }
+
+    @GameTest(template = ARENA)
+    public static void heavierWeaponsSwingSlower(GameTestHelper h) {
+        // swing speed follows the weight class: the colossal Monolith is slowest, the lance fastest
+        float[] order = {WeaponClass.COLOSSAL.attackSpeed(), WeaponClass.WARHAMMER.attackSpeed(), WeaponClass.GREATSWORD.attackSpeed(),
+                WeaponClass.LONGSWORD.attackSpeed(), WeaponClass.LANCE.attackSpeed()};
+        for (int i = 1; i < order.length; i++) h.assertTrue(order[i - 1] < order[i], "attack speeds should rise from colossal to lance");
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 12.5), 0);
+        giveWeapon(p, "monolith");
+        double monolith = speedOf(p);
+        p.getInventory().clearContent();
+        giveWeapon(p, "aetherlance");
+        double lance = speedOf(p);
+        h.assertTrue(monolith < 1.0 && lance > monolith * 2, "Monolith swings at " + monolith + "/s, Aetherlance at " + lance + "/s");
+        cleanup(p);
+        h.succeed();
+    }
+
+    private static double speedOf(ServerPlayer p) {
+        var attr = p.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_SPEED);
+        double base = attr.getBaseValue();
+        double[] add = {0};
+        p.getMainHandItem().forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND, (a, m) -> {
+            if (a.equals(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_SPEED)) add[0] += m.amount();
+        });
+        return base + add[0];
     }
 
     @GameTest(template = ARENA)
