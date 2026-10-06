@@ -226,12 +226,82 @@ def petal_vein():
     save_rgba('vfx/petal_vein.png', arr)
 
 
+def soil():
+    """Smooth earth for broken-ground meshes (tinted at runtime with the struck block's colour): mottled soil with
+    pebbles, fine grain and hairline cracks, no pixel grid."""
+    from PIL import Image, ImageDraw, ImageFilter
+    import random
+    S = 256
+    rng = random.Random(901)
+    n = tileable_noise(S, octaves=6, seed=902, base=4)
+    fine = tileable_noise(S, octaves=3, seed=903, base=32)
+    lum = 0.72 + 0.32 * (n - 0.5) + 0.12 * (fine - 0.5)
+    peb = Image.new('L', (S, S), 128)
+    d = ImageDraw.Draw(peb)
+    for _ in range(170):
+        x, y, r = rng.uniform(0, S), rng.uniform(0, S), rng.uniform(1.5, 5.5)
+        c = rng.choice([60, 90, 175, 205])
+        for ox in (-S, 0, S):
+            for oy in (-S, 0, S):
+                d.ellipse([x - r + ox, y - r * 0.8 + oy, x + r + ox, y + r * 0.8 + oy], fill=c)
+    peb = np.asarray(peb.filter(ImageFilter.GaussianBlur(0.8))) / 255.0 - 0.5
+    cr = Image.new('L', (S, S), 0)
+    d = ImageDraw.Draw(cr)
+    for _ in range(5):
+        x, y = rng.uniform(0, S), rng.uniform(0, S)
+        a = rng.uniform(0, 6.28)
+        pts = [(x, y)]
+        for _k in range(8):
+            a += rng.uniform(-0.6, 0.6)
+            x += np.cos(a) * 7
+            y += np.sin(a) * 7
+            pts.append((x % S, y % S) if 0 <= x < S and 0 <= y < S else (x, y))
+        d.line(pts, fill=255, width=1)
+    cracks = np.asarray(cr.filter(ImageFilter.GaussianBlur(0.6))) / 255.0
+    lum = np.clip(lum + 0.35 * peb - 0.12 * cracks, 0.25, 1.0)
+    arr = np.zeros((S, S, 4))
+    arr[..., 0] = lum * 255
+    arr[..., 1] = lum * 250
+    arr[..., 2] = lum * 242
+    arr[..., 3] = 255
+    save_rgba('vfx/soil.png', arr)
+
+
+def turf():
+    """Smooth grass turf for the tops of torn-up sods (tinted with the biome's grass colour)."""
+    from PIL import Image, ImageDraw, ImageFilter
+    import random
+    S = 256
+    rng = random.Random(911)
+    n = tileable_noise(S, octaves=5, seed=912, base=8)
+    base = (0.62 + 0.25 * (n - 0.5)) * 255
+    img = Image.fromarray(np.clip(base, 0, 255).astype(np.uint8), 'L')
+    d = ImageDraw.Draw(img)
+    for _ in range(2600):
+        x, y = rng.uniform(0, S), rng.uniform(0, S)
+        ln = rng.uniform(3, 9)
+        a = rng.uniform(-0.5, 0.5) - np.pi / 2
+        c = int(rng.uniform(110, 245))
+        for ox in (-S, 0, S):
+            for oy in (-S, 0, S):
+                d.line([(x + ox, y + oy), (x + ox + np.cos(a) * ln, y + oy + np.sin(a) * ln)], fill=c, width=1)
+    lum = np.asarray(img.filter(ImageFilter.GaussianBlur(0.5))) / 255.0
+    arr = np.zeros((S, S, 4))
+    arr[..., 0] = lum * 255
+    arr[..., 1] = lum * 255
+    arr[..., 2] = lum * 245
+    arr[..., 3] = 255
+    save_rgba('vfx/turf.png', arr)
+
+
 if __name__ == '__main__':
     frost()
     ice()
     snowflake()
     thorn()
     petal_vein()
+    soil()
+    turf()
     rock()
     bark()
     print('materials written')

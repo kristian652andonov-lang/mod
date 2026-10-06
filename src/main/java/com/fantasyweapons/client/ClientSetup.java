@@ -66,12 +66,13 @@ public final class ClientSetup {
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);
         NeoForge.EVENT_BUS.addListener(VfxManager::render);
-        // fantasy weapons' tooltips: a dark tome page in a bronze border instead of the vanilla purple
+        // fantasy weapons' tooltips: a dark page edged in the weapon's own colour instead of the vanilla purple
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderTooltipEvent.Color e) -> {
-            if (e.getItemStack().getItem() instanceof com.fantasyweapons.weapon.FantasyWeaponItem) {
-                e.setBackground(0xF0160E08);
-                e.setBorderStart(0xFFC8A060);
-                e.setBorderEnd(0xFF5E3E1C);
+            int[] c = com.fantasyweapons.weapon.FantasyWeaponItem.tooltipColors(e.getItemStack());
+            if (c != null) {
+                e.setBorderStart(c[0]);
+                e.setBorderEnd(c[1]);
+                e.setBackground(c[2]);
             }
         });
         NeoForge.EVENT_BUS.addListener((ViewportEvent.ComputeCameraAngles e) -> CameraShake.apply(e));

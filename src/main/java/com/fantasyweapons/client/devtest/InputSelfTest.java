@@ -137,7 +137,7 @@ final class InputSelfTest {
         for (AbilityDefinition a : def.castables()) if (a.requiredForm() != null) planAutoTransform(def, a);
     }
 
-    /** Cycling (G) onto an ability that needs the other form must transform the weapon by itself. */
+    /** Cycling (G) onto an ability that needs the other form selects it without transforming the weapon (casting does). */
     private static void planAutoTransform(WeaponDefinition def, AbilityDefinition a) {
         String key = def.id() + "/" + a.id();
         QUEUE.add(mc -> {
@@ -151,12 +151,13 @@ final class InputSelfTest {
             public int run(Minecraft mc) {
                 var data = FantasyWeaponItem.data(held(mc));
                 WeaponForm f = def.form(data);
-                if (AbilityService.selected(def, data) == a && f != null && f.id().equals(a.requiredForm())) {
-                    pass(key + ": cycling onto it transformed the weapon to " + f.id());
+                if (AbilityService.selected(def, data) == a) {
+                    if (f != null && f.id().equals(a.requiredForm())) fail(key + ": cycling onto it transformed the weapon (it should wait for the cast)");
+                    else pass(key + ": cycling onto it selected it and left the weapon in form " + (f == null ? "-" : f.id()));
                     return 1;
                 }
                 if (tries[0]++ > def.castables().size() + 2) {
-                    fail(key + ": cycling never selected it / never transformed (form " + (f == null ? "-" : f.id()) + ")");
+                    fail(key + ": cycling never selected it (form " + (f == null ? "-" : f.id()) + ")");
                     return 1;
                 }
                 tap(mc, KeyBindings.CYCLE);

@@ -74,7 +74,7 @@ public class FantasyWeaponItem extends Item implements GeoItem {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        AnimationController<FantasyWeaponItem> main = new AnimationController<>(this, CONTROLLER, 4, state -> {
+        AnimationController<FantasyWeaponItem> main = new RigidAnimationController<>(this, CONTROLLER, 4, state -> {
             ItemStack stack = state.getData(DataTickets.ITEMSTACK);
             String idle = "idle";
             if (stack != null && stack.getItem() == this) {
@@ -202,21 +202,26 @@ public class FantasyWeaponItem extends Item implements GeoItem {
 
     @Override
     public Component getName(ItemStack stack) {
+        // each weapon's name in its own colour (void purple, wild green, frost blue...), not just its rarity's
+        int theme = def.themePrimary(data(stack));
         return Component.translatableWithFallback(getDescriptionId(stack), def.displayName())
-                .withStyle(s -> s.withColor(def.rarity().color()).withBold(true));
+                .withStyle(s -> s.withColor(mix(theme, 0xFFFFFF, 0.12f)).withBold(true));
     }
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         WeaponData d = data(stack);
-        int ink = 0xD8C9A8, faded = 0x9C8862, gold = 0xE8C26A;
+        // everything is tinted by the weapon's own colour: its name, epithet, runes, headings and border
+        int theme = def.themePrimary(d);
+        int light = mix(theme, 0xFFFFFF, 0.55f);
+        int ink = mix(0xD8C9A8, theme, 0.15f), faded = mix(theme, 0x9C8862, 0.5f), gold = mix(theme, 0xFFFFFF, 0.3f);
         // epithet, kind, and a line of runes engraved along the blade
-        tooltip.add(Component.literal(def.title()).withStyle(s -> s.withColor(def.element().light()).withItalic(true)));
+        tooltip.add(Component.literal(def.title()).withStyle(s -> s.withColor(light).withItalic(true)));
         tooltip.add(Component.literal(def.rarity().displayName() + " " + def.weaponClass().displayName() + " of " + def.element().displayName())
-                .withStyle(s -> s.withColor(mix(def.rarity().color(), gold, 0.35f))));
+                .withStyle(s -> s.withColor(theme)));
         String runes = (def.displayName() + " " + def.title()).toLowerCase().replaceAll("[^a-z ]", "");
         tooltip.add(Component.literal(runes.length() > 30 ? runes.substring(0, 30) : runes)
-                .withStyle(s -> s.withColor(0x7A6646).withFont(ResourceLocation.withDefaultNamespace("alt"))));
+                .withStyle(s -> s.withColor(mix(theme, 0x000000, 0.4f)).withFont(ResourceLocation.withDefaultNamespace("alt"))));
         // the legend
         if (!def.lore().isEmpty()) {
             tooltip.add(Component.empty());
@@ -248,12 +253,19 @@ public class FantasyWeaponItem extends Item implements GeoItem {
         for (AbilityDefinition a : def.abilities()) {
             int lvl = d.abilityLevel(a);
             if (lvl > 0) {
-                tooltip.add(Component.literal(" \u25C6 " + a.name()).withStyle(s -> s.withColor(def.element().primary()))
+                tooltip.add(Component.literal(" \u25C6 " + a.name()).withStyle(s -> s.withColor(light))
                         .append(Component.literal("  rank " + lvl).withStyle(s -> s.withColor(faded))));
             } else {
                 tooltip.add(Component.literal(" \u25C7 " + a.name() + "  sealed until level " + a.unlockLevel()).withStyle(s -> s.withColor(0x5E5444)));
             }
         }
+    }
+
+    /** Tooltip border/background colours for a weapon stack: {top border, bottom border, background}. */
+    public static int[] tooltipColors(ItemStack stack) {
+        if (!(stack.getItem() instanceof FantasyWeaponItem item)) return null;
+        int theme = item.def.themePrimary(data(stack));
+        return new int[]{0xFF000000 | mix(theme, 0xFFFFFF, 0.2f), 0xFF000000 | mix(theme, 0x000000, 0.6f), 0xF0000000 | mix(theme, 0x0A0604, 0.9f)};
     }
 
     private static int mix(int a, int b, float t) {

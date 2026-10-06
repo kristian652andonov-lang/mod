@@ -73,8 +73,16 @@ public class LevelUpVfx extends Vfx {
             satIn[i] = easeOut(clamp01((time - 8 - i * 4) / 8f));
             satAng[i] = -time * 0.025f + (float) (i * Math.PI * 2 / satellites);
         }
-        float hk = max ? easeOut(clamp01((time - 10) / 15f)) : 0f;
-        Vec3 halo = ground.add(0, 3.2 + 0.15 * Math.sin(time * 0.08), 0);
+        // max level: a tower of rune halos above the head, wide at the bottom and narrowing upwards, each tier
+        // appearing a moment after the one below it
+        float bob = 0.15f * (float) Math.sin(time * 0.08);
+        float[] haloK = new float[HALO_R.length];
+        Vec3[] halo = new Vec3[HALO_R.length];
+        for (int k = 0; k < HALO_R.length; k++) {
+            haloK[k] = max ? easeOut(clamp01((time - 10 - k * 5) / 15f)) : 0f;
+            halo[k] = ground.add(0, HALO_Y[k] + bob * (1 + k * 0.3f), 0);
+        }
+        float hk = haloK[0];
 
         // ---- a dark, theme-coloured underlay so the runes read in daylight too ----
         var under = ctx.translucent(VfxTextures.RUNE_CIRCLE);
@@ -87,6 +95,13 @@ public class LevelUpVfx extends Vfx {
         // ---- soft glows under the circles ----
         var glow = ctx.additive(VfxTextures.GLOW);
         ctx.disc(glow, c, X, Z, r * 1.5f, 0, Colors.alpha(0.3f * a, color));
+        // each halo glows, and its rim is a band of light with some height so it still reads seen edge-on
+        for (int k = 0; k < HALO_R.length; k++) {
+            float hr = HALO_R[k] * haloK[k];
+            if (hr <= 0.01f) continue;
+            ctx.disc(glow, halo[k], X, Z, hr * 1.6f, 0, Colors.alpha(0.3f * a * haloK[k], color));
+            rimBand(ctx, glow, halo[k], hr * 0.97f, 0.16f, Colors.alpha(0.75f * a * haloK[k], light));
+        }
         for (int i = 0; i < satellites; i++) {
             if (satIn[i] > 0) ctx.orbitDisc(glow, c, X, Z, orbit, satAng[i], size * 1.5f * satIn[i], 0, Colors.alpha(0.35f * a * satIn[i], color));
         }
@@ -102,11 +117,18 @@ public class LevelUpVfx extends Vfx {
             ctx.orbitDisc(runes, c.add(0, 0.01, 0), X, Z, orbit, satAng[i], size * in, time * 0.08f + i, Colors.alpha(0.95f * a * in, color));
             ctx.orbitDisc(runes, c.add(0, 0.02, 0), X, Z, orbit, satAng[i], size * 0.5f * in, -time * 0.12f, Colors.alpha(0.7f * a * in, mid));
         }
-        // a slowly turning halo of runes above the head at the max level
-        if (hk > 0) {
-            ctx.disc(runes, halo, X, Z, 1.6f * hk, time * 0.06f, Colors.alpha(0.85f * a * hk, light));
-            ctx.satellites(runes, halo, X, Z, 2.0f * hk, 0.4f * hk, 4, -time * 0.05f, time * 0.1f, Colors.alpha(0.8f * a * hk, color));
+        // the halos: three stacked layers each so they have some thickness, turning in alternate directions
+        for (int k = 0; k < HALO_R.length; k++) {
+            float hr = HALO_R[k] * haloK[k];
+            if (hr <= 0.01f) continue;
+            float spin = (k % 2 == 0 ? 1 : -1) * time * (0.06f + 0.02f * k);
+            for (int layer = -1; layer <= 1; layer++) {
+                ctx.disc(runes, halo[k].add(0, layer * 0.05, 0), X, Z, hr * (1 - Math.abs(layer) * 0.04f), spin,
+                        Colors.alpha((layer == 0 ? 0.95f : 0.55f) * a * haloK[k], layer == 0 ? light : color));
+            }
         }
+        if (hk > 0) ctx.satellites(runes, halo[0], X, Z, HALO_R[0] * 1.25f * hk, 0.4f * hk, 4, -time * 0.05f, time * 0.1f,
+                Colors.alpha(0.85f * a * hk, color));
         // the track the small circles orbit on
         if (satellites > 0) ring(ctx, c, orbit, size * 0.05f, Colors.alpha(0.4f * a, color));
 
@@ -159,6 +181,23 @@ public class LevelUpVfx extends Vfx {
         for (int i = 0; i < MOTES; i++) if (ma[i] > 0.01f) ctx.billboard(moteGlow, mp[i], 0.35f, 0, Colors.alpha(0.5f * ma[i], color));
         var spark = ctx.additive(VfxTextures.SPARK);
         for (int i = 0; i < MOTES; i++) if (ma[i] > 0.01f) ctx.billboard(spark, mp[i], 0.16f, time * 0.2f + i, Colors.alpha(ma[i], mid));
+    }
+
+    /** Heights above the ground and radii of the max-level halo tiers, widest at the bottom. */
+    private static final float[] HALO_Y = {3.2f, 3.95f, 4.6f, 5.15f};
+    private static final float[] HALO_R = {1.6f, 1.15f, 0.8f, 0.5f};
+
+    /** A short vertical band of light around a horizontal circle's rim (soft at its top and bottom edges). */
+    private static void rimBand(VfxContext ctx, VertexConsumer vc, Vec3 c, float radius, float height, int argb) {
+        int segs = 32;
+        for (int i = 0; i < segs; i++) {
+            double a0 = i * Math.PI * 2 / segs, a1 = (i + 1) * Math.PI * 2 / segs;
+            Vec3 p0 = c.add(Math.cos(a0) * radius, 0, Math.sin(a0) * radius), p1 = c.add(Math.cos(a1) * radius, 0, Math.sin(a1) * radius);
+            ctx.vertex(vc, p0.add(0, -height / 2, 0), 0.5f, 1f, argb);
+            ctx.vertex(vc, p1.add(0, -height / 2, 0), 0.5f, 1f, argb);
+            ctx.vertex(vc, p1.add(0, height / 2, 0), 0.5f, 0f, argb);
+            ctx.vertex(vc, p0.add(0, height / 2, 0), 0.5f, 0f, argb);
+        }
     }
 
     /** Thin flat ring on the ground (the track the small circles orbit on). */

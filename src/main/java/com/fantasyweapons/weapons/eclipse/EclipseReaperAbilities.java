@@ -131,7 +131,10 @@ public final class EclipseReaperAbilities {
                             .level(dark ? 1 : 0).seed(o.level().random.nextLong()).build());
                     return dealt;
                 })
-                .onCaught(() -> Kit.sound(p.serverLevel(), p.position(), ModSounds.SCYTHE_RETURN.get(), 1f, dark ? 0.8f : 1.2f));
+                .onCaught(() -> {
+                    com.fantasyweapons.weapon.WeaponAnimations.trigger(p, ctx.stack(), "impact");
+                    Kit.sound(p.serverLevel(), p.position(), ModSounds.SCYTHE_RETURN.get(), 1f, dark ? 0.8f : 1.2f);
+                });
         ctx.level().addFreshEntity(e);
         Kit.sound(ctx.level(), start, ModSounds.SCYTHE_THROW.get(), 1.3f, dark ? 0.8f : 1.2f);
         return true;

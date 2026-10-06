@@ -115,10 +115,15 @@ public final class MonolithFx {
 
     /** Cracks from {@code c} to every end point, glowing with ground energy. */
     static void cracks(Vec3 c, List<Vec3> ends, float width, int grow, int life, float curtain, long seed) {
+        RandomSource r = RandomSource.create(seed ^ 0x5DEECE66DL);
         for (int i = 0; i < ends.size(); i++) {
-            VfxManager.add(new FissureVfx(List.of(c, ends.get(i)), width, ENERGY, CORE, grow, life, seed + i * 31L, MonolithFx::ground).curtain(curtain));
-            float len = (float) Math.max(1, c.distanceTo(ends.get(i)));
-            GroundShatter.line(c, ends.get(i), width, 1f, grow / len, seed + i * 57L);
+            // no two cracks run quite the same way or the same distance
+            Vec3 d = ends.get(i).subtract(c);
+            double ang = (r.nextDouble() - 0.5) * 0.4, k = 0.75 + r.nextDouble() * 0.35;
+            Vec3 end = c.add(new Vec3(d.x * Math.cos(ang) - d.z * Math.sin(ang), d.y, d.x * Math.sin(ang) + d.z * Math.cos(ang)).scale(k));
+            VfxManager.add(new FissureVfx(List.of(c, end), width, ENERGY, CORE, grow, life, seed + i * 31L, MonolithFx::ground).curtain(curtain));
+            float len = (float) Math.max(1, c.distanceTo(end));
+            GroundShatter.line(c, end, width, 1f, grow / len, seed + i * 57L);
         }
     }
 
@@ -130,11 +135,14 @@ public final class MonolithFx {
 
     static void pillarRing(SpikeVfx s, Vec3 c, float ringRadius, int count, float h0, float h1, int delay, RandomSource r) {
         for (int i = 0; i < count; i++) {
-            double a = i * Math.PI * 2 / count + r.nextDouble() * 0.5;
+            if (r.nextFloat() < 0.18f) continue;
+            double a = (i + r.nextDouble() * 0.8) * Math.PI * 2 / count;
             Vec3 out = new Vec3(Math.cos(a), 0, Math.sin(a));
-            Vec3 base = ground(c.add(out.scale(ringRadius * (0.85 + r.nextDouble() * 0.3))));
-            Vec3 dir = UP.add(out.scale(0.35 + r.nextDouble() * 0.25));
-            s.add(base.subtract(0, 0.3, 0), dir, h0 + r.nextFloat() * (h1 - h0), 0.45f + r.nextFloat() * 0.35f, delay + r.nextInt(3));
+            Vec3 base = ground(c.add(out.scale(ringRadius * (0.7 + r.nextDouble() * 0.55))));
+            Vec3 dir = UP.add(out.scale(0.15 + r.nextDouble() * 0.5)).add((r.nextDouble() - 0.5) * 0.3, 0, (r.nextDouble() - 0.5) * 0.3);
+            float hh = h0 + r.nextFloat() * (h1 - h0);
+            if (r.nextFloat() < 0.25f) hh *= 0.5f;
+            s.add(base.subtract(0, 0.3, 0), dir, hh, 0.3f + r.nextFloat() * 0.55f, delay + r.nextInt(4));
         }
     }
 
@@ -145,14 +153,15 @@ public final class MonolithFx {
         if (len < 0.5) return;
         Vec3 dir = new Vec3(d.x / len, 0, d.z / len);
         Vec3 side = new Vec3(-dir.z, 0, dir.x);
-        int i = 0;
-        for (double x = step * 0.6; x < len; x += step * (0.8 + r.nextDouble() * 0.4), i++) {
+        for (double x = step * (0.3 + r.nextDouble() * 0.6); x < len; x += step * (0.5 + r.nextDouble() * 1.1)) {
+            if (r.nextFloat() < 0.2f) continue;
             float k = (float) (x / len);
-            double off = (i % 2 == 0 ? 1 : -1) * (0.3 + r.nextDouble() * 0.4);
+            double off = (r.nextBoolean() ? 1 : -1) * (0.25 + r.nextDouble() * 0.6);
             Vec3 base = ground(from.add(dir.scale(x)).add(side.scale(off)));
             Vec3 lean = UP.add(side.scale(off * 0.5)).add(dir.scale(0.2));
-            float h = h1 + (h0 - h1) * k + r.nextFloat() * 0.5f;
-            s.add(base.subtract(0, 0.3, 0), lean, h, 0.35f + 0.25f * (1 - k) + r.nextFloat() * 0.15f, Math.round((float) x * ticksPerBlock));
+            float h = (h1 + (h0 - h1) * k) * (0.55f + 0.7f * r.nextFloat());
+            lean = lean.add((r.nextDouble() - 0.5) * 0.35, 0, (r.nextDouble() - 0.5) * 0.35);
+            s.add(base.subtract(0, 0.3, 0), lean, h, 0.25f + 0.25f * (1 - k) + r.nextFloat() * 0.25f, Math.round((float) x * ticksPerBlock) + r.nextInt(2));
         }
     }
 

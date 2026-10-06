@@ -26,6 +26,8 @@ public final class BloomfallFx {
     static final int BLOSSOM = 0xFF8FC8;
     static final int BARK = 0x6B4A2B;
     static final int VINE = 0x3E7A2E;
+    /** The colour of roots splitting the ground. */
+    static final int ROOT = 0x1E2A12;
 
     private BloomfallFx() {
     }
@@ -79,8 +81,7 @@ public final class BloomfallFx {
         Vec3 c = p.pos();
         float r = p.scale();
         int root = Math.round(p.power());
-        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r * 1.1f, Colors.argb(230, DEEP), VfxTextures.FROST, root + 30)
-                .timing(0.15f, 0.25f).translucent());
+        GroundShatter.cracks(FrostrendFx.ground(c), r * 1.1f, ROOT, root + 30, -1, 0, p.seed() * 3);
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(150, LEAF), VfxTextures.RUNE_CIRCLE, root)
                 .spin(0.03f).energy().timing(0.1f, 0.2f));
         VfxManager.add(new ShockwaveVfx(c.add(0, 0.08, 0), new Vec3(0, 1, 0), 0.3f, r * 1.1f, 0.4f, Colors.argb(200, LEAF), 12).energy());
@@ -129,8 +130,7 @@ public final class BloomfallFx {
         float r = p.scale();
         int duration = Math.round(p.power());
         // a root network spreads over the ground, then the wild erupts
-        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(235, DEEP), VfxTextures.FROST, duration)
-                .timing(0.2f, 0.15f).translucent());
+        GroundShatter.cracks(FrostrendFx.ground(c), r, ROOT, duration, LEAF, POLLEN, p.seed() * 3);
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r * 1.05f, Colors.argb(110, LEAF), VfxTextures.GLOW, duration)
                 .timing(0.2f, 0.15f));
         VfxManager.add(new ShockwaveVfx(c.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.4f, r, 0.6f, Colors.argb(220, LEAF), 18).energy());
@@ -173,8 +173,7 @@ public final class BloomfallFx {
         float r = p.scale();
         int pull = Math.round(p.power());
         VfxManager.add(new FlowerVfx(c.add(0, 0.05, 0), Math.min(6f, r * 0.45f), BLOSSOM, 0xFFE6F2, POLLEN, pull + 14).timing(pull / 2, 8));
-        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(230, DEEP), VfxTextures.FROST, pull + 30)
-                .timing(0.25f, 0.2f).translucent());
+        GroundShatter.cracks(FrostrendFx.ground(c), r, ROOT, pull + 30, LEAF, POLLEN, p.seed() * 3);
         VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(140, LEAF), VfxTextures.SWIRL, pull)
                 .spin(0.08f).energy().timing(0.1f, 0.1f));
         // vines reaching inward from the rim, dragging enemies toward the bloom

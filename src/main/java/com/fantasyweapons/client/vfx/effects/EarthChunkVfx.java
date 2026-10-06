@@ -5,7 +5,6 @@ import com.fantasyweapons.client.vfx.GroundMaterial;
 import com.fantasyweapons.client.vfx.Vfx;
 import com.fantasyweapons.client.vfx.VfxContext;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
@@ -114,16 +113,16 @@ public class EarthChunkVfx extends Vfx {
     public EarthChunkVfx slab(Vec3 base, Vec3 outward, float w, float h, float d, float tilt, float rise, int delay, long seed) {
         RandomSource r = RandomSource.create(seed);
         Piece p = new Piece(true, delay, lifetime - delay, new Vector3f(), base.y);
-        box(p, w, h, d, 0.08f, r);
+        box(p, w, h, d, 0.22f, r);
         Vec3 out = new Vec3(outward.x, 0, outward.z);
         out = out.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : out.normalize();
         p.base = base;
         p.axis = new Vec3(-out.z, 0, out.x);
         p.tilt = tilt;
         p.rise = rise;
-        // the plate is oriented with its depth along the outward direction
-        float yaw = (float) Math.atan2(out.x, out.z);
-        p.rot.rotationY(yaw);
+        // the plate is oriented with its depth along the outward direction, never quite square to it
+        float yaw = (float) Math.atan2(out.x, out.z) + (r.nextFloat() - 0.5f) * 0.9f;
+        p.rot.rotationY(yaw).rotateZ((r.nextFloat() - 0.5f) * 0.35f).rotateX((r.nextFloat() - 0.5f) * 0.15f);
         pieces.add(p);
         return this;
     }
@@ -174,9 +173,9 @@ public class EarthChunkVfx extends Vfx {
     @Override
     public void render(VfxContext ctx) {
         float time = age + ctx.partial;
-        VertexConsumer vc = ctx.solid(GroundMaterial.ATLAS);
         Vector3f tmp = new Vector3f();
-        Vec3[] w = new Vec3[8];
+        List<Vec3[]> shapes = new ArrayList<>();
+        List<Piece> shown = new ArrayList<>();
         for (Piece p : pieces) {
             float local = time - p.delay;
             if (local <= 0) continue;
@@ -198,39 +197,52 @@ public class EarthChunkVfx extends Vfx {
                 q = new Quaternionf(p.prevRot).slerp(p.rot, ctx.partial);
                 at = p.prev.lerp(p.pos, ctx.partial).subtract(0, 0.3 * easeIn(end), 0);
             }
+            Vec3[] w = new Vec3[9];
             for (int i = 0; i < 8; i++) {
                 q.transform(tmp.set(p.corners[i]).mul(scale));
                 w[i] = at.add(tmp.x, tmp.y, tmp.z);
             }
-            for (int f = 0; f < 6; f++) {
-                int[] k = FACES[f];
-                Vec3 n = w[k[1]].subtract(w[k[0]]).cross(w[k[3]].subtract(w[k[0]]));
-                n = n.lengthSqr() < 1e-12 ? new Vec3(0, 1, 0) : n.normalize();
-                Vec3 faceMid = w[k[0]].add(w[k[2]]).scale(0.5);
-                if (n.dot(faceMid.subtract(at)) < 0) n = n.scale(-1);
-                float shade = 0.5f + 0.5f * (float) Math.max(0, n.dot(LIGHT));
-                boolean top = f == 0;
-                TextureAtlasSprite sp = top ? mat.top() : mat.side();
-                int c = Colors.argb(255, mat.lit(top ? mat.topTint() : mat.sideTint(), shade));
-                // each face shows a piece of the texture the size of the face, not the whole block squashed
-                float fu = Math.min(1f, (float) w[k[0]].distanceTo(w[k[1]])), fv = Math.min(1f, (float) w[k[0]].distanceTo(w[k[3]]));
-                float u0 = p.uvOff[0] * (1 - fu), v0 = p.uvOff[1] * (1 - fv);
-                float uA = sp.getU(u0), uB = sp.getU(u0 + fu), vA = sp.getV(v0), vB = sp.getV(v0 + fv);
-                if (f >= 2) {
-                    // sides: the texture's top row along the top edge (grass fringe, sod) of the face
-                    vA = sp.getV(0);
-                    vB = sp.getV(fv);
-                    ctx.vertex(vc, w[k[0]], uA, vB, c);
-                    ctx.vertex(vc, w[k[1]], uB, vB, c);
-                    ctx.vertex(vc, w[k[2]], uB, vA, c);
-                    ctx.vertex(vc, w[k[3]], uA, vA, c);
-                } else {
-                    ctx.vertex(vc, w[k[0]], uA, vA, c);
-                    ctx.vertex(vc, w[k[1]], uB, vA, c);
-                    ctx.vertex(vc, w[k[2]], uB, vB, c);
-                    ctx.vertex(vc, w[k[3]], uA, vB, c);
-                }
-            }
+            w[8] = at;
+            shapes.add(w);
+            shown.add(p);
+        }
+        if (shapes.isEmpty()) return;
+        // smooth earth on every face (and on top unless the ground is turf), then the turf tops in their own pass
+        VertexConsumer soil = ctx.solid(com.fantasyweapons.client.vfx.VfxTextures.SOIL);
+        for (int k = 0; k < shapes.size(); k++) {
+            for (int f = 0; f < 6; f++) if (f != 0 || !mat.turf()) face(ctx, soil, shown.get(k), shapes.get(k), f);
+        }
+        if (mat.turf()) {
+            VertexConsumer turf = ctx.solid(com.fantasyweapons.client.vfx.VfxTextures.TURF);
+            for (int k = 0; k < shapes.size(); k++) face(ctx, turf, shown.get(k), shapes.get(k), 0);
+        }
+    }
+
+    private void face(VfxContext ctx, VertexConsumer vc, Piece p, Vec3[] w, int f) {
+        int[] k = FACES[f];
+        Vec3 n = w[k[1]].subtract(w[k[0]]).cross(w[k[3]].subtract(w[k[0]]));
+        n = n.lengthSqr() < 1e-12 ? new Vec3(0, 1, 0) : n.normalize();
+        Vec3 faceMid = w[k[0]].add(w[k[2]]).scale(0.5);
+        if (n.dot(faceMid.subtract(w[8])) < 0) n = n.scale(-1);
+        float shade = 0.5f + 0.5f * (float) Math.max(0, n.dot(LIGHT));
+        boolean top = f == 0;
+        int base = top ? mat.topColor() : mat.sideColor();
+        int c0 = Colors.argb(255, mat.lit(base, shade));
+        // sides of a torn sod shade up into the turf colour along their top edge
+        int c1 = !top && f >= 2 && mat.turf() ? Colors.argb(255, mat.lit(Colors.lerpRgb(base, mat.topColor(), 0.5f), shade)) : c0;
+        // the texture is laid on at world scale (about 1.8 blocks per repeat) from a random offset, so no two pieces match
+        float fu = (float) w[k[0]].distanceTo(w[k[1]]) * 0.55f, fv = (float) w[k[0]].distanceTo(w[k[3]]) * 0.55f;
+        float u0 = p.uvOff[0] * 4, v0 = p.uvOff[1] * 4;
+        if (f >= 2) {
+            ctx.vertex(vc, w[k[0]], u0, v0 + fv, c0);
+            ctx.vertex(vc, w[k[1]], u0 + fu, v0 + fv, c0);
+            ctx.vertex(vc, w[k[2]], u0 + fu, v0, c1);
+            ctx.vertex(vc, w[k[3]], u0, v0, c1);
+        } else {
+            ctx.vertex(vc, w[k[0]], u0, v0, c0);
+            ctx.vertex(vc, w[k[1]], u0 + fu, v0, c0);
+            ctx.vertex(vc, w[k[2]], u0 + fu, v0 + fv, c0);
+            ctx.vertex(vc, w[k[3]], u0, v0 + fv, c0);
         }
     }
 }

@@ -5,6 +5,7 @@ import com.fantasyweapons.client.vfx.Colors;
 import com.fantasyweapons.client.vfx.VfxManager;
 import com.fantasyweapons.client.vfx.VfxTextures;
 import com.fantasyweapons.client.vfx.effects.DecalVfx;
+import com.fantasyweapons.client.vfx.effects.FissureVfx;
 import com.fantasyweapons.client.vfx.effects.FlashVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
@@ -104,8 +105,9 @@ public final class FrostrendFx {
             }
         }
         VfxManager.add(spikes);
-        VfxManager.add(new DecalVfx(ground(start.add(dir.scale(length * 0.5))).add(0, 0.03, 0), new Vec3(0, 1, 0), length * 0.55f,
-                Colors.argb(150, ICE), VfxTextures.FROST, (int) (length / speed) + 50).timing(0.3f, 0.3f));
+        // a frozen crack racing along under the spikes
+        VfxManager.add(new FissureVfx(java.util.List.of(start, start.add(dir.scale(length))), 1.6f, ICE, FROST, Math.max(2, Math.round(length / speed)),
+                Math.round(length / speed) + 50, p.seed() * 5, FrostrendFx::ground).darkColor(0x0E2A40).curtain(0.3f));
     }
 
     private static void freeze(FxPayload p) {

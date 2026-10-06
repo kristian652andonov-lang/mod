@@ -59,6 +59,7 @@ public class ThrownWeaponEntity extends Entity {
     private int orbitTicks;
     private double orbitRadius = 3.5;
     private double orbitAngle;
+    private int orbitAge;
     private final Deque<Integer> huntTargets = new ArrayDeque<>();
     private int rehitTicks = 1000;
     private final Map<Integer, Integer> lastHit = new HashMap<>();
@@ -104,6 +105,10 @@ public class ThrownWeaponEntity extends Entity {
         this.speed = speed;
         setMode(Mode.ORBIT);
         return this;
+    }
+
+    private static double smooth(double k) {
+        return k * k * (3 - 2 * k);
     }
 
     public ThrownWeaponEntity hunt(List<? extends Entity> targets, double speed) {
@@ -182,10 +187,17 @@ public class ThrownWeaponEntity extends Entity {
                 yield next;
             }
             case ORBIT -> {
-                orbitAngle += speed / Math.max(0.5, orbitRadius);
+                // spirals out from the hand, circles at full reach, then spirals back in and is caught: no sharp turns
                 Vec3 c = owner.position().add(0, 1.1, 0);
-                if (--orbitTicks <= 0) setMode(Mode.RETURN);
-                yield c.add(Math.cos(orbitAngle) * orbitRadius, Math.sin(orbitAngle * 2) * 0.25, Math.sin(orbitAngle) * orbitRadius);
+                if (orbitAge == 0) orbitAngle = Math.atan2(from.z - c.z, from.x - c.x);
+                orbitAge++;
+                double in = smooth(Math.min(1, orbitAge / 10.0));
+                double out = smooth(Math.min(1, orbitTicks / 12.0));
+                double r = 0.8 + (orbitRadius - 0.8) * in * out;
+                orbitAngle += speed / Math.max(1.0, orbitRadius) * (0.6 + 0.4 * in);
+                Vec3 at = c.add(Math.cos(orbitAngle) * r, Math.sin(orbitAngle * 2) * 0.25 * in * out, Math.sin(orbitAngle) * r);
+                if (--orbitTicks <= 0) finish(owner);
+                yield at;
             }
             case HUNT -> {
                 Entity t = null;

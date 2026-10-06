@@ -298,6 +298,27 @@ public final class FWGameTests {
     }
 
     @GameTest(template = ARENA, timeoutTicks = 120)
+    public static void otherFormAbilityTransformsOnlyWhenCast(GameTestHelper h) {
+        ServerPlayer p = player(h, new Vec3(12.5, 2, 4.5), 0);
+        ItemStack stack = giveWeapon(p, "eclipse_reaper");
+        ExpService.setLevel(p, stack, 20);
+        var def = ((FantasyWeaponItem) stack.getItem()).definition();
+        UUID id = FantasyWeaponItem.data(stack).idOrNil();
+        h.assertTrue("light".equals(def.form(FantasyWeaponItem.data(stack)).id()), "starts in light form");
+        AbilityService.handleSelect(p, 0, id, com.fantasyweapons.weapons.eclipse.EclipseReaper.UMBRAL_VORTEX);
+        var data = FantasyWeaponItem.data(stack);
+        h.assertTrue("light".equals(def.form(data).id()), "selecting Umbral Vortex must not transform the weapon");
+        h.assertTrue(AbilityService.selected(def, data) == def.ability(com.fantasyweapons.weapons.eclipse.EclipseReaper.UMBRAL_VORTEX),
+                "Umbral Vortex should be the selected ability");
+        AbilityService.handleAbilityKey(p, true);
+        h.assertTrue("dark".equals(def.form(FantasyWeaponItem.data(stack)).id()), "casting Umbral Vortex transforms the weapon to dark form");
+        h.assertTrue(AbilityService.runtime(p).isCharging(), "and starts charging it");
+        AbilityService.handleAbilityKey(p, false);
+        cleanup(p);
+        h.succeed();
+    }
+
+    @GameTest(template = ARENA, timeoutTicks = 120)
     public static void voidBlinkStopsAtWalls(GameTestHelper h) {
         ServerPlayer p = player(h, new Vec3(12.5, 2, 4.5), 0);
         ItemStack stack = giveWeapon(p, "voidfang");

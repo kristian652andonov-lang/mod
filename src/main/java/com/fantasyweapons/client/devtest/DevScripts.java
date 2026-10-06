@@ -26,6 +26,13 @@ final class DevScripts {
             case "rift" -> rift(b);
             case "ray" -> ray(b);
             case "tooltips" -> tooltips(b);
+            case "facing" -> facing(b);
+            case "spinend" -> spinEnd(b);
+            case "scythe" -> scythe(b);
+            case "blockspam" -> blockSpam(b);
+            case "bonelog" -> boneLog(b);
+            case "lanceclip" -> lanceClip(b);
+            case "starrings" -> starRings(b);
             default -> {
                 if (name.startsWith("weapon:")) showcase(b, name.substring(7));
                 else if (name.startsWith("ability:")) single(b, name.substring(8));
@@ -290,7 +297,10 @@ final class DevScripts {
             b.cmd("/fw level " + (lv - 1)).wait(70).viewFrom(6.5, 4.5, 7.5, 0).wait(2).cmd("/fw level " + lv);
             b.wait(12).screenshot("lvl" + lv + "_a_close").wait(14).screenshot("lvl" + lv + "_b_close");
             b.viewFrom(22, 3, 30, 22).wait(14).screenshot("lvl" + lv + "_c_sky").wait(20).screenshot("lvl" + lv + "_d_sky");
-            if (lv == 100) b.viewFrom(6.5, 4.5, 7.5, 0).wait(25).screenshot("lvl100_e_close").wait(25).screenshot("lvl100_f_close").wait(8).screenshot("lvl100_g_fading");
+            if (lv == 100) {
+                b.viewFrom(6.5, 4.5, 7.5, 0).wait(10).screenshot("lvl100_e_close").viewFrom(9, 3.2, 0.5, 3.5).wait(6).screenshot("lvl100_side")
+                        .wait(25).screenshot("lvl100_f_close").wait(8).screenshot("lvl100_g_fading");
+            }
             b.wait(40);
         }
     }
@@ -362,5 +372,109 @@ final class DevScripts {
             b.cmd("/clear @s").cmd("/fw give " + w + " 40").wait(140).slot(0);
             b.run(mc -> mc.setScreen(new TooltipPreviewScreen(mc.player.getMainHandItem()))).wait(10).screenshot("tooltip_" + w).closeScreen().wait(5);
         }
+    }
+
+    /** Every weapon held, seen from behind the player (the usual third-person view) and from its right; with "flip" variants. */
+    private static void facing(ScreenshotDirector.Builder b) {
+        var all = com.fantasyweapons.weapon.Weapons.all();
+        b.hud(false).look(0, 0);
+        for (var def : all) {
+            String w = def.id();
+            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).wait(6);
+            b.run(mc -> com.fantasyweapons.client.render.WeaponRenderer.debugTpYaw = null);
+            b.viewFrom(1.1, 1.0, -3.6).wait(4).screenshot("face_" + w + "_back");
+            b.viewFrom(-4.0, 0.6, 0.4).wait(4).screenshot("face_" + w + "_right");
+            if (w.equals("doomcleaver") || w.equals("gravebite") || w.equals("starforge")) {
+                b.playerView().camera(CameraType.FIRST_PERSON).hud(true).wait(4).screenshot("face_" + w + "_fp").hud(false);
+            }
+            if (w.equals("doomcleaver") || w.equals("gravebite")) {
+                b.run(mc -> com.fantasyweapons.client.render.WeaponRenderer.debugTpYaw = 180f);
+                b.viewFrom(1.1, 1.0, -3.6).wait(4).screenshot("face_" + w + "_back_flip");
+                b.viewFrom(-4.0, 0.6, 0.4).wait(4).screenshot("face_" + w + "_right_flip");
+                b.run(mc -> com.fantasyweapons.client.render.WeaponRenderer.debugTpYaw = null);
+            }
+        }
+        b.playerView();
+    }
+
+    /** The last moments of Stormbreaker's Tempest Spin and the blend back to idle, every two ticks, from the caster's eyes. */
+    private static void spinEnd(ScreenshotDirector.Builder b) {
+        var a = com.fantasyweapons.weapon.Weapons.get("stormbreaker").ability("tempest_spin");
+        b.cmd("/fw give stormbreaker 100").wait(130).slot(0).cmd("/fw points 200").hud(false).look(0, 15).camera(CameraType.FIRST_PERSON).playerView();
+        b.select("tempest_spin").wait(10).viewFrom(-3.2, 0.8, 1.2, 1.4).abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp().wait(24);
+        for (int t = 0; t < 16; t++) b.wait(2).screenshot("spinend_" + String.format("%02d", 24 + t * 2));
+    }
+
+    /** Soulreaper's two throws from above and to the side, every four ticks, through to the catch. */
+    private static void scythe(ScreenshotDirector.Builder b) {
+        var def = com.fantasyweapons.weapon.Weapons.get("soulreaper");
+        b.cmd("/fw give soulreaper 100").wait(130).slot(0).cmd("/fw points 200").hud(false).look(0, 0).camera(CameraType.FIRST_PERSON).playerView();
+        for (String id : new String[]{"reaping_whirl", "reapers_throw"}) {
+            var a = def.ability(id);
+            b.cmd("/fw cooldowns").select(id).wait(10).viewFrom(5.5, 6.5, 5.5, 1);
+            b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+            for (int t = 0; t < 22; t++) b.wait(4).screenshot("scythe_" + id + "_" + String.format("%02d", t * 4));
+            b.wait(40);
+        }
+        b.playerView();
+    }
+
+    /** Clicks attack on the ground every two ticks for three seconds with a slow weapon and logs how many swings happened. */
+    private static void blockSpam(ScreenshotDirector.Builder b) {
+        int[] swings = {0};
+        boolean[] was = {false};
+        b.cmd("/fw give monolith 1").wait(30).slot(0).look(0, 80).wait(10);
+        b.run(mc -> net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientTickEvent.Post e) -> {
+            var p = mc.player;
+            if (p == null) return;
+            if (p.swinging && !was[0]) swings[0]++;
+            was[0] = p.swinging;
+        }));
+        for (int i = 0; i < 30; i++) b.run(mc -> net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey())).wait(2);
+        b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("[blockspam] {} swings in 60 ticks with Monolith (attack delay {} ticks)", swings[0],
+                Math.round(20 / com.fantasyweapons.weapon.WeaponClass.COLOSSAL.attackSpeed())));
+    }
+
+    /** Logs Eclipse Reaper's eclipse_ring through a Solar Flare charge, cast and the blend back to idle. */
+    private static void boneLog(ScreenshotDirector.Builder b) {
+        var a = com.fantasyweapons.weapon.Weapons.get("eclipse_reaper").ability("solar_flare");
+        b.cmd("/fw give eclipse_reaper 100").wait(130).slot(0).cmd("/fw points 200").hud(false).camera(CameraType.FIRST_PERSON).playerView();
+        b.select("solar_flare").wait(10).viewFrom(-3.5, 1, 1.5, 1.4).run(mc -> com.fantasyweapons.client.render.WeaponGeoModel.debugBone = "eclipse_ring");
+        b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp().wait(60);
+        b.run(mc -> com.fantasyweapons.client.render.WeaponGeoModel.debugBone = null);
+    }
+
+    /** Aetherlance held through and after each of its castable abilities, seen from in front of the player. */
+    private static void lanceClip(ScreenshotDirector.Builder b) {
+        var def = com.fantasyweapons.weapon.Weapons.get("aetherlance");
+        b.cmd("/fw give aetherlance 100").wait(130).slot(0).cmd("/fw points 200").hud(false).camera(CameraType.FIRST_PERSON).look(0, 0).wait(5);
+        b.viewFrom(-2.6, 0.9, 3.8, 1.0).wait(5).screenshot("lc_idle");
+        for (var a : def.castables()) {
+            String id = a.id();
+            b.playerView().camera(CameraType.FIRST_PERSON).look(0, 0).cmd("/fw cooldowns").wait(5).select(id).wait(5).viewFrom(-2.6, 0.9, 3.8, 1.0);
+            b.abilityDown().wait(Math.max(2, a.chargeTicks() / 2)).screenshot("lc_" + id + "_charge").wait(Math.max(1, a.chargeTicks() / 2 + 1)).abilityUp();
+            int n = a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE ? 14 : 8;
+            for (int i = 0; i < n; i++) b.wait(i < 3 ? 3 : 6).viewFrom(-2.6, 0.9, 3.8, 1.0).screenshot("lc_" + id + "_t" + String.format("%02d", i));
+        }
+        b.playerView();
+    }
+
+    /** Starforge's gravity rings through a charge and cast, from the side (third person) and through the player's eyes. */
+    private static void starRings(ScreenshotDirector.Builder b) {
+        var def = com.fantasyweapons.weapon.Weapons.get("starforge");
+        var a = def.castables().get(0);
+        b.cmd("/fw give starforge 100").wait(130).slot(0).cmd("/fw points 200").hud(false).camera(CameraType.FIRST_PERSON).look(0, 0).wait(5);
+        for (int pass = 0; pass < 2; pass++) {
+            String v = pass == 0 ? "tp" : "fp";
+            b.cmd("/fw cooldowns").select(a.id()).wait(5);
+            if (pass == 0) b.viewFrom(-3.2, 0.9, 1.6, 1.4);
+            else b.playerView().camera(CameraType.FIRST_PERSON).hud(true);
+            b.wait(4).screenshot("sr_" + v + "_idle").abilityDown();
+            for (int i = 0; i < 4; i++) b.wait(Math.max(2, a.chargeTicks() / 4)).screenshot("sr_" + v + "_charge" + i);
+            b.wait(2).abilityUp();
+            for (int i = 0; i < 6; i++) b.wait(4).screenshot("sr_" + v + "_cast" + i);
+            b.wait(30);
+        }
+        b.playerView();
     }
 }

@@ -69,7 +69,7 @@ public final class EclipseReaper {
                         .stat("CHARGE", AbilityText.charge())
                         .stat("COOLDOWN", AbilityText.cooldown())
                         .upgrades(Upgrades.create().damagePerLevel(0.18).perLevel("RANGE", 1.5, "m").cooldownPerLevel(0.05).build())
-                        .animations("charge", "ability_execution")
+                        .animations("charge", "attack")
                         .executor(EclipseReaperAbilities::eclipseDisc)
                         .build())
                 .ability(AbilityDefinition.builder(SOLAR_FLARE, AbilityKind.ACTIVE)

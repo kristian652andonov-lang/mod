@@ -39,8 +39,20 @@ public final class InputHandler {
         if (!event.isAttack()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || !(mc.player.getMainHandItem().getItem() instanceof FantasyWeaponItem)) return;
-        if (mc.hitResult != null && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) return;
-        if (mc.player.getAttackStrengthScale(0f) < 0.97f) {
+        boolean ready = mc.player.getAttackStrengthScale(0f) >= 0.97f;
+        if (mc.hitResult != null && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            // a block can still be broken by holding attack, but the weapon only swings at its own pace: a fresh click
+            // waits for the cooldown like any other attack, and every swing restarts it
+            boolean mining = mc.gameMode != null && mc.gameMode.isDestroying();
+            if (!ready) {
+                event.setSwingHand(false);
+                if (!mining) event.setCanceled(true);
+            } else {
+                mc.player.resetAttackStrengthTicker();
+            }
+            return;
+        }
+        if (!ready) {
             event.setCanceled(true);
             event.setSwingHand(false);
         }

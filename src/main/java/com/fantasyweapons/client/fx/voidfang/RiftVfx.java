@@ -53,6 +53,9 @@ public class RiftVfx extends Vfx {
             drift += (r.nextFloat() - 0.5f) * 0.18f;
             lean[i] = drift;
         }
+        // keep the jagged wander but pin both ends to the centre line, so the tear stands over its rune circle
+        float end = lean[SEGMENTS];
+        for (int i = 0; i <= SEGMENTS; i++) lean[i] = (lean[i] - end * i / SEGMENTS) * 0.6f;
         for (int i = 0; i < STREAKS; i++) {
             streakAngle[i] = r.nextFloat() * 6.283f;
             streakPhase[i] = r.nextFloat();

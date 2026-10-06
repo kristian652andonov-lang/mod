@@ -66,15 +66,14 @@ public final class AbilityService {
         if (rt.isCharging()) return;
         WeaponDefinition def = item.definition();
         WeaponData data = FantasyWeaponItem.data(stack);
-        // every unlocked ability is in the cycle; picking one that needs the other form transforms the weapon
-        boolean canSwitch = canSwitchForm(player, def, data);
-        List<AbilityDefinition> usable = def.castables().stream()
-                .filter(a -> data.isUnlocked(a) && (formAllows(def, data, a) || canSwitch)).toList();
+        // every unlocked ability is in the cycle; one that needs the other form is only selected here, the weapon
+        // transforms when it is cast
+        List<AbilityDefinition> usable = def.castables().stream().filter(data::isUnlocked).toList();
         if (usable.isEmpty()) return;
         AbilityDefinition current = selected(def, data);
         int idx = current == null ? 0 : usable.indexOf(current);
         AbilityDefinition next = usable.get(Math.floorMod(idx + (direction >= 0 ? 1 : -1), usable.size()));
-        choose(player, stack, def, next);
+        stack.set(ModComponents.WEAPON_DATA.get(), data.withSelected(next.id()));
     }
 
     public static void handleSelect(ServerPlayer player, int slot, UUID weaponId, String abilityId) {
@@ -85,26 +84,6 @@ public final class AbilityService {
         WeaponData data = FantasyWeaponItem.data(stack);
         AbilityDefinition a = item.definition().ability(abilityId);
         if (a == null || !a.kind().castable() || !data.isUnlocked(a)) return;
-        if (stack == player.getMainHandItem() && !formAllows(item.definition(), data, a) && !runtime(player).isCharging()) {
-            choose(player, stack, item.definition(), a);
-            return;
-        }
-        stack.set(ModComponents.WEAPON_DATA.get(), data.withSelected(a.id()));
-    }
-
-    /** Selects an ability on the held weapon, transforming it first if the ability needs the other form. */
-    private static void choose(ServerPlayer player, ItemStack stack, WeaponDefinition def, AbilityDefinition a) {
-        WeaponData data = FantasyWeaponItem.data(stack);
-        if (!formAllows(def, data, a)) {
-            int target = -1;
-            for (int i = 0; i < def.forms().size(); i++) if (def.forms().get(i).id().equals(a.requiredForm())) target = i;
-            if (target < 0 || !canSwitchForm(player, def, data)) {
-                deny(player, def, a.name() + " needs " + (target < 0 ? "another" : def.forms().get(target).displayName()) + " form");
-                return;
-            }
-            switchForm(player, stack, def, target);
-            data = FantasyWeaponItem.data(stack);
-        }
         stack.set(ModComponents.WEAPON_DATA.get(), data.withSelected(a.id()));
     }
 
@@ -192,9 +171,8 @@ public final class AbilityService {
         AbilityRuntime rt = runtime(player);
         long now = now(player);
         WeaponForm form = def.forms().get(next);
+        // the selected ability stays selected: if it belongs to the other form, casting it transforms back
         WeaponData nd = data.withForm(next);
-        AbilityDefinition sel = selected(def, nd);
-        if (sel != null && !formAllows(def, nd, sel)) nd = nd.withSelected("");
         stack.set(ModComponents.WEAPON_DATA.get(), nd);
         com.fantasyweapons.weapon.WeaponHooks.fireFormSwitch(def.id(), player, stack, form);
         rt.setCooldown(data.idOrNil(), FORM_COOLDOWN, now, 20);
@@ -239,6 +217,20 @@ public final class AbilityService {
             deny(player, def, ability.name() + " is on cooldown");
             player.syncData(ModAttachments.ABILITY_RUNTIME);
             return;
+        }
+        // an ability of the other form: the weapon transforms as the cast begins
+        if (!formAllows(def, data, ability)) {
+            int target = formIndex(def, ability.requiredForm());
+            if (target < 0) {
+                deny(player, def, ability.name() + " needs another form");
+                return;
+            }
+            if (!canSwitchForm(player, def, data)) {
+                deny(player, def, "Still transforming");
+                return;
+            }
+            switchForm(player, stack, def, target);
+            data = FantasyWeaponItem.data(stack);
         }
         float mastery = ProgressionMath.mastery(def, data);
         int chargeTicks = ProgressionMath.chargeTicks(ability, mastery);
@@ -377,14 +369,25 @@ public final class AbilityService {
     }
 
     /** The ability bound to the ability key: the stored selection if usable, else the first usable one. */
+    /**
+     * The ability the ability key casts: the one the player picked (even if it belongs to the weapon's other form:
+     * casting it transforms the weapon), otherwise the first unlocked one the current form can cast.
+     */
     @Nullable
     public static AbilityDefinition selected(WeaponDefinition def, WeaponData data) {
         AbilityDefinition sel = def.ability(data.selected());
-        if (sel != null && sel.kind().castable() && data.isUnlocked(sel) && formAllows(def, data, sel)) return sel;
+        if (sel != null && sel.kind().castable() && data.isUnlocked(sel) && (formAllows(def, data, sel) || formIndex(def, sel.requiredForm()) >= 0)) return sel;
         for (AbilityDefinition a : def.castables()) {
             if (data.isUnlocked(a) && formAllows(def, data, a)) return a;
         }
         return null;
+    }
+
+    /** Index of the form with this id, or -1. */
+    private static int formIndex(WeaponDefinition def, @Nullable String formId) {
+        if (formId == null) return -1;
+        for (int i = 0; i < def.forms().size(); i++) if (def.forms().get(i).id().equals(formId)) return i;
+        return -1;
     }
 
     public static boolean formAllows(WeaponDefinition def, WeaponData data, AbilityDefinition a) {

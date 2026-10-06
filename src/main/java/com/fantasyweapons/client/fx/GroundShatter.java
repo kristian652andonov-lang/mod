@@ -6,6 +6,7 @@ import com.fantasyweapons.client.vfx.VfxManager;
 import com.fantasyweapons.client.vfx.VfxTextures;
 import com.fantasyweapons.client.vfx.effects.DecalVfx;
 import com.fantasyweapons.client.vfx.effects.EarthChunkVfx;
+import com.fantasyweapons.client.vfx.effects.FissureVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
@@ -33,18 +34,27 @@ public final class GroundShatter {
         cracks(g, radius * 1.15f, m, life + 30);
 
         EarthChunkVfx e = new EarthChunkVfx(m, life);
-        int plates = Math.max(5, Math.min(22, Math.round(radius * 2.2f)));
-        float plateW = Math.max(0.55f, Math.min(1.5f, radius * 0.26f));
+        // plates of ground heaved up around the blow: uneven spacing, gaps, odd sizes, the odd one tipped inwards,
+        // and broken shards beside some of them; nothing in neat rings
+        int plates = Math.max(4, Math.min(24, Math.round(radius * 2.2f * (0.7f + 0.6f * r.nextFloat()))));
+        float plateW = Math.max(0.5f, Math.min(1.5f, radius * 0.26f));
         for (int i = 0; i < plates; i++) {
-            double a = i * Math.PI * 2 / plates + r.nextDouble() * 0.35;
+            if (r.nextFloat() < 0.2f) continue;
+            double a = (i + r.nextDouble() * 0.9) * Math.PI * 2 / plates;
             Vec3 dir = new Vec3(Math.cos(a), 0, Math.sin(a));
-            double dist = radius * (0.3 + 0.45 * r.nextDouble());
+            double dist = radius * (0.22 + 0.65 * r.nextDouble());
             Vec3 base = FrostrendFx.ground(g.add(dir.scale(dist)));
-            float w = plateW * (0.75f + 0.5f * r.nextFloat());
-            e.slab(base, dir, w, 0.32f + 0.14f * r.nextFloat(), w * (0.65f + 0.3f * r.nextFloat()),
-                    (0.3f + 0.4f * r.nextFloat()) * Math.min(1.2f, power), 0.18f + 0.22f * power * r.nextFloat(), (int) (dist / radius * 4), r.nextLong());
+            float w = plateW * (0.5f + r.nextFloat());
+            float tilt = (r.nextFloat() < 0.15f ? -0.25f : 0.15f + 0.65f * r.nextFloat()) * Math.min(1.2f, power);
+            int delay = (int) (dist / radius * 4) + r.nextInt(3);
+            e.slab(base, dir, w, 0.22f + 0.28f * r.nextFloat(), w * (0.5f + 0.5f * r.nextFloat()), tilt, 0.05f + 0.4f * power * r.nextFloat(), delay,
+                    r.nextLong());
+            if (r.nextFloat() < 0.3f) {
+                Vec3 nb = FrostrendFx.ground(base.add(dir.scale(w * 0.6)).add(-dir.z * (r.nextDouble() - 0.5), 0, dir.x * (r.nextDouble() - 0.5)));
+                e.slab(nb, dir, w * 0.45f, 0.18f, w * 0.35f, tilt * 1.3f, 0.1f + 0.2f * r.nextFloat(), delay + 1, r.nextLong());
+            }
         }
-        int chunks = Math.max(6, Math.min(40, Math.round((8 + radius * 3) * power)));
+        int chunks = Math.max(6, Math.min(40, Math.round((8 + radius * 3) * power * (0.8f + 0.4f * r.nextFloat()))));
         double speed = Math.sqrt(Math.max(1, radius) / 3.0);
         for (int i = 0; i < chunks; i++) {
             double a = r.nextDouble() * Math.PI * 2;
@@ -52,7 +62,9 @@ public final class GroundShatter {
             double h = (0.08 + 0.18 * r.nextDouble()) * power * speed;
             double vy = (0.3 + 0.35 * r.nextDouble()) * power;
             Vec3 from = g.add(dir.scale(radius * 0.3 * r.nextDouble())).add(0, 0.15, 0);
-            e.chunk(from, dir.scale(h).add(0, vy, 0), 0.16f + 0.28f * r.nextFloat() * Math.min(1.5f, power), g.y + 0.08, r.nextLong());
+            // mostly small clods, the odd big lump
+            float size = 0.12f + 0.42f * r.nextFloat() * r.nextFloat() * Math.min(1.5f, power);
+            e.chunk(from, dir.scale(h).add(0, vy, 0), size, g.y + 0.08, r.nextLong());
         }
         VfxManager.add(e);
         dust(g, radius, power, m, r.nextLong());
@@ -72,20 +84,26 @@ public final class GroundShatter {
         Vec3 side = new Vec3(-dir.z, 0, dir.x);
         int life = 60 + (int) (len * delayPerBlock);
         EarthChunkVfx e = new EarthChunkVfx(m, life);
-        for (double s = 0.6; s < len; s += 0.75 + r.nextDouble() * 0.4) {
+        // plates lifted along the tear: uneven steps, sometimes one side only, sometimes a gap, all different
+        for (double s = 0.4 + r.nextDouble() * 0.6; s < len; s += 0.55 + r.nextDouble() * 1.05) {
             int delay = (int) (s * delayPerBlock);
+            float roll = r.nextFloat();
+            if (roll < 0.08f) continue;
             for (int k = -1; k <= 1; k += 2) {
-                Vec3 base = FrostrendFx.ground(from.add(dir.scale(s)).add(side.scale(k * (width * 0.55 + r.nextDouble() * 0.25))));
-                float w = 0.6f + 0.35f * r.nextFloat();
-                e.slab(base, side.scale(k), w, 0.3f + 0.12f * r.nextFloat(), 0.55f + 0.25f * r.nextFloat(),
-                        (0.35f + 0.35f * r.nextFloat()) * Math.min(1.2f, power), 0.15f + 0.2f * power * r.nextFloat(), delay, r.nextLong());
+                if (roll < 0.33f && k == 1 || roll >= 0.33f && roll < 0.58f && k == -1) continue;
+                float w = 0.35f + 0.75f * r.nextFloat();
+                float dep = 0.3f + 0.5f * r.nextFloat();
+                double off = width * 0.18 + dep * 0.45 + r.nextDouble() * 0.35;
+                Vec3 base = FrostrendFx.ground(from.add(dir.scale(s + (r.nextDouble() - 0.5) * 0.4)).add(side.scale(k * off)));
+                e.slab(base, side.scale(k), w, 0.2f + 0.2f * r.nextFloat(), dep, (0.2f + 0.55f * r.nextFloat()) * Math.min(1.2f, power),
+                        0.08f + 0.27f * power * r.nextFloat(), delay + r.nextInt(2), r.nextLong());
             }
-            if (r.nextFloat() < 0.6f) {
+            if (r.nextFloat() < 0.5f) {
                 Vec3 at = FrostrendFx.ground(from.add(dir.scale(s)));
-                Vec3 v = side.scale((r.nextDouble() - 0.5) * 0.25).add(0, (0.25 + 0.25 * r.nextDouble()) * power, 0);
-                e.chunk(at.add(0, 0.1, 0), v, 0.15f + 0.2f * r.nextFloat(), at.y + 0.08, r.nextLong());
+                Vec3 v = side.scale((r.nextDouble() - 0.5) * 0.3).add(0, (0.2 + 0.3 * r.nextDouble()) * power, 0);
+                e.chunk(at.add(0, 0.1, 0), v, 0.1f + 0.22f * r.nextFloat() * r.nextFloat(), at.y + 0.08, r.nextLong());
             }
-            if (r.nextFloat() < 0.35f) {
+            if (r.nextFloat() < 0.3f) {
                 Vec3 at = FrostrendFx.ground(from.add(dir.scale(s)));
                 int dl = delay;
                 long sd = r.nextLong();
@@ -95,11 +113,34 @@ public final class GroundShatter {
         VfxManager.add(e);
     }
 
-    /** Fine fracture cracks radiating from {@code g}. */
+    /** Fine fracture cracks radiating from {@code g}: plain dark fractures in the ground's own darkest colour. */
     public static void cracks(Vec3 g, float radius, GroundMaterial m, int life) {
-        int dark = Colors.lerpRgb(Colors.darken(m.dust(), 0.82f), 0x0E0A07, 0.5f);
-        VfxManager.add(new DecalVfx(g.add(0, 0.02, 0), UP, radius, Colors.argb(235, dark), VfxTextures.CRACK, life)
-                .timing(0.03f, 0.35f).translucent().satellites(0));
+        cracks(g, radius, m, life, -1, 0, (long) (g.x * 7919 + g.z * 104729));
+    }
+
+    /**
+     * Thin fractal cracks radiating from {@code g} at uneven angles and lengths, forking into hairlines. With a
+     * {@code glow} colour (not -1) embers smoulder deep inside them (fire, ground energy); otherwise they are plain.
+     */
+    public static void cracks(Vec3 g, float radius, GroundMaterial m, int life, int glow, int core, long seed) {
+        cracks(g, radius, Colors.lerpRgb(Colors.darken(m.dust(), 0.82f), 0x0E0A07, 0.5f), life, glow, core, seed);
+    }
+
+    /** As above with an explicit colour for the gash (roots, frost, blood...). */
+    public static void cracks(Vec3 g, float radius, int dark, int life, int glow, int core, long seed) {
+        RandomSource r = RandomSource.create(seed);
+        int n = Math.max(3, Math.min(10, Math.round(radius * 1.6f + r.nextFloat() * 2)));
+        int grow = Math.max(3, Math.round(radius * 1.2f));
+        double a0 = r.nextDouble() * Math.PI * 2;
+        for (int i = 0; i < n; i++) {
+            double a = a0 + (i + (r.nextDouble() - 0.5) * 0.8) * Math.PI * 2 / n;
+            double len = radius * (0.45 + 0.6 * r.nextDouble());
+            Vec3 end = g.add(Math.cos(a) * len, 0, Math.sin(a) * len);
+            float w = (0.5f + 0.5f * r.nextFloat()) * Math.min(1.4f, 0.6f + radius * 0.15f);
+            FissureVfx f = new FissureVfx(java.util.List.of(g, end), w, glow < 0 ? 0 : glow, glow < 0 ? 0 : core, grow, life, r.nextLong(), FrostrendFx::ground)
+                    .darkColor(dark);
+            VfxManager.add(glow < 0 ? f.glowless() : f.curtain(0.4f));
+        }
     }
 
     /** A ring of dust in the ground's colour rolling outward, and a cloud rising from the middle. */

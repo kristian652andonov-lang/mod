@@ -13,23 +13,26 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * A crack tearing open along the ground: a jagged dark gash with molten ground energy glowing inside it, a heat
- * curtain rising out of it and side cracks branching off. It races from its start to its end, stays open, and then
- * the glow dies and the gash closes. Purely visual; it never touches blocks.
+ * A crack tearing open along the ground, the way real fractures look: a thin, dark rift whose course is jagged at
+ * every scale (fractal midpoint displacement, never a regular zigzag), pinching and widening along its length, with a
+ * faint ember glow deep inside, a little heat haze, and hairline side cracks forking off it. It races from its start
+ * to its end, stays open, and then the glow dies and the gash closes. Purely visual; it never touches blocks.
  */
 public class FissureVfx extends Vfx {
     private static final class Crack {
         final Vec3[] pts;
         final float[] jl, jr;
         final float width;
+        final boolean hairline;
         final float start; // 0..1 of the growth phase at which this crack starts
         final float span;  // share of the growth phase it takes to grow
 
-        Crack(Vec3[] pts, float[] jl, float[] jr, float width, float start, float span) {
+        Crack(Vec3[] pts, float[] jl, float[] jr, float width, float start, float span, boolean hairline) {
             this.pts = pts;
             this.jl = jl;
             this.jr = jr;
             this.width = width;
+            this.hairline = hairline;
             this.start = start;
             this.span = span;
         }
@@ -40,6 +43,7 @@ public class FissureVfx extends Vfx {
     private final int core;
     private final int growTicks;
     private float curtain = 0.9f;
+    private boolean glowing = true;
     private int dark = 0x120C08;
 
     /**
@@ -52,28 +56,47 @@ public class FissureVfx extends Vfx {
         this.core = core;
         this.growTicks = Math.max(1, growTicks);
         RandomSource r = RandomSource.create(seed);
-        Crack main = build(path, width, 0, 1, r, ground, 0.55f);
+        // real cracks are thin: the requested width is the size of the disturbance, the gash itself is a fraction of it
+        float w = width * WIDTH_SCALE;
+        Crack main = build(path, w, 0, 1, r, ground, false);
         cracks.add(main);
-        // side cracks branching off the main one
-        int branches = Math.max(1, (int) (length(main.pts) / 2.5f));
-        for (int b = 0; b < branches; b++) {
-            int i = 1 + r.nextInt(Math.max(1, main.pts.length - 2));
-            Vec3 at = main.pts[i];
-            Vec3 along = main.pts[Math.min(main.pts.length - 1, i + 1)].subtract(main.pts[i - 1]);
+        // side cracks forking off at uneven intervals, some of them forking again into hairlines
+        float len = length(main.pts);
+        for (float at = 0.6f + r.nextFloat() * 1.2f; at < len - 0.5f; at += 0.8f + r.nextFloat() * 2.2f) {
+            int i = Math.max(1, Math.min(main.pts.length - 2, Math.round(at / len * (main.pts.length - 1))));
+            Vec3 along = main.pts[i + 1].subtract(main.pts[i - 1]);
             along = new Vec3(along.x, 0, along.z);
             if (along.lengthSqr() < 1e-6) continue;
             along = along.normalize();
             Vec3 side = new Vec3(-along.z, 0, along.x).scale(r.nextBoolean() ? 1 : -1);
-            Vec3 dir = along.scale(0.6).add(side.scale(0.8)).normalize();
-            double len = 0.8 + r.nextDouble() * 1.8 * Math.max(0.6, width);
-            List<Vec3> bp = List.of(at, at.add(dir.scale(len * 0.5)).add(side.scale(0.15)), at.add(dir.scale(len)));
+            double ang = 0.35 + r.nextDouble() * 0.8;
+            Vec3 dir = along.scale(Math.cos(ang)).add(side.scale(Math.sin(ang))).normalize();
+            double blen = (0.6 + r.nextDouble() * 1.6) * Math.max(0.7, width);
+            Vec3 from = main.pts[i];
+            Vec3 to = from.add(dir.scale(blen));
             float start = (float) i / main.pts.length;
-            cracks.add(build(bp, width * 0.45f, start, 0.25f, r, ground, 0.8f));
+            Crack br = build(List.of(from, to), w * (0.35f + 0.25f * r.nextFloat()), start, 0.2f + 0.15f * r.nextFloat(), r, ground, true);
+            cracks.add(br);
+            if (r.nextFloat() < 0.45f && br.pts.length > 3) {
+                Vec3 f2 = br.pts[br.pts.length / 2];
+                Vec3 d2 = dir.add(side.scale(r.nextBoolean() ? 0.9 : -0.9)).normalize();
+                cracks.add(build(List.of(f2, f2.add(d2.scale(blen * 0.45))), w * 0.22f, start + 0.1f, 0.2f, r, ground, true));
+            }
         }
     }
 
+    /** The gash is this fraction of the requested width. */
+    private static final float WIDTH_SCALE = 0.3f;
+
     public FissureVfx curtain(float height) {
         this.curtain = height;
+        return this;
+    }
+
+    /** A plain fracture: dark gash and margin only, no ember glow, heat haze or spark. */
+    public FissureVfx glowless() {
+        this.glowing = false;
+        this.curtain = 0;
         return this;
     }
 
@@ -88,30 +111,39 @@ public class FissureVfx extends Vfx {
         return l;
     }
 
-    /** Subdivides a path into ~0.45 block steps with lateral jitter (a crack never runs straight). */
-    private static Crack build(List<Vec3> path, float width, float start, float span, RandomSource r, UnaryOperator<Vec3> ground, float jitter) {
+    /**
+     * Fractal course: each segment is split at a midpoint pushed sideways by a share of its length, recursively, so
+     * the crack wanders at large scale and is jagged at small scale like a real fracture.
+     */
+    private static Crack build(List<Vec3> path, float width, float start, float span, RandomSource r, UnaryOperator<Vec3> ground, boolean hairline) {
         List<Vec3> out = new ArrayList<>();
-        for (int s = 0; s < path.size() - 1; s++) {
-            Vec3 a = path.get(s), b = path.get(s + 1);
-            Vec3 d = b.subtract(a);
-            Vec3 flat = new Vec3(d.x, 0, d.z);
-            Vec3 side = flat.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : new Vec3(-flat.z, 0, flat.x).normalize();
-            int steps = Math.max(1, (int) Math.ceil(d.length() / 0.45));
-            for (int i = 0; i < steps; i++) {
-                double k = (double) i / steps;
-                double off = (s == 0 && i == 0) ? 0 : (r.nextDouble() - 0.5) * jitter * Math.max(0.5, width);
-                out.add(a.add(d.scale(k)).add(side.scale(off)));
-            }
-        }
-        out.add(path.get(path.size() - 1));
+        out.add(path.get(0));
+        for (int s = 0; s < path.size() - 1; s++) subdivide(out, path.get(s), path.get(s + 1), r, 0);
         Vec3[] pts = new Vec3[out.size()];
         float[] jl = new float[pts.length], jr = new float[pts.length];
+        // width that pinches and swells smoothly along the crack, with a little roughness on each lip
+        double ph1 = r.nextDouble() * 6.28, ph2 = r.nextDouble() * 6.28;
         for (int i = 0; i < pts.length; i++) {
             pts[i] = ground.apply(out.get(i)).add(0, 0.03, 0);
-            jl[i] = 0.5f + r.nextFloat() * 0.8f;
-            jr[i] = 0.5f + r.nextFloat() * 0.8f;
+            double sw = 0.65 + 0.35 * Math.sin(i * 0.23 + ph1) + 0.2 * Math.sin(i * 0.71 + ph2);
+            jl[i] = (float) Math.max(0.2, sw * (0.75 + r.nextFloat() * 0.5));
+            jr[i] = (float) Math.max(0.2, sw * (0.75 + r.nextFloat() * 0.5));
         }
-        return new Crack(pts, jl, jr, width, start, span);
+        return new Crack(pts, jl, jr, width, start, span, hairline);
+    }
+
+    private static void subdivide(List<Vec3> out, Vec3 a, Vec3 b, RandomSource r, int depth) {
+        Vec3 d = b.subtract(a);
+        double len = Math.sqrt(d.x * d.x + d.z * d.z);
+        if (len < 0.16 || depth > 9) {
+            out.add(b);
+            return;
+        }
+        Vec3 side = new Vec3(-d.z, 0, d.x).scale(1 / Math.max(1e-6, len));
+        double push = (r.nextDouble() - 0.5) * len * (depth < 2 ? 0.32 : 0.5);
+        Vec3 mid = a.add(d.scale(0.4 + r.nextDouble() * 0.2)).add(side.scale(push));
+        subdivide(out, a, mid, r, depth + 1);
+        subdivide(out, mid, b, r, depth + 1);
     }
 
     @Override
@@ -124,25 +156,31 @@ public class FissureVfx extends Vfx {
         float darkA = t < 0.75f ? 1 : clamp01(1 - (t - 0.75f) / 0.25f);
         float pulse = 0.8f + 0.2f * (float) Math.sin(age * 0.5f);
 
+        // a soft dark margin where the lips have sunk, the black gash, then a faint ember glow deep inside it
         var dk = ctx.translucent(VfxTextures.WHITE);
-        for (Crack c : cracks) strip(ctx, dk, c, grow, 1.0f, Colors.alpha(0.88f * darkA, dark), Colors.alpha(0.88f * darkA, dark), 0.02);
+        for (Crack c : cracks) strip(ctx, dk, c, grow, 2.4f, Colors.alpha(0.22f * darkA, dark), Colors.alpha(0.22f * darkA, dark), 0.015);
+        for (Crack c : cracks) strip(ctx, dk, c, grow, 1.0f, Colors.alpha(0.95f * darkA, dark), Colors.alpha(0.95f * darkA, dark), 0.02);
+        if (!glowing) return;
         var add = ctx.additive(VfxTextures.GLOW);
         for (Crack c : cracks) {
-            strip(ctx, add, c, grow, 0.55f, Colors.alpha(0.95f * glowA * pulse, glow), Colors.alpha(0.95f * glowA * pulse, glow), 0.04);
+            if (c.hairline) continue;
+            strip(ctx, add, c, grow, 0.75f, Colors.alpha(0.55f * glowA * pulse, glow), Colors.alpha(0.55f * glowA * pulse, glow), 0.03);
         }
         var hot = ctx.additive(VfxTextures.WHITE);
-        for (Crack c : cracks) strip(ctx, hot, c, grow, 0.18f, Colors.alpha(0.9f * glowA, core), Colors.alpha(0.9f * glowA, core), 0.05);
-        // heat curtain rising out of the crack
+        for (Crack c : cracks) {
+            if (!c.hairline) strip(ctx, hot, c, grow, 0.16f, Colors.alpha(0.6f * glowA * pulse, core), Colors.alpha(0.6f * glowA * pulse, core), 0.035);
+        }
+        // heat haze rising out of the main crack
         if (curtain > 0) {
             var cur = ctx.additive(VfxTextures.STREAK);
-            for (Crack c : cracks) curtain(ctx, cur, c, grow, Colors.alpha(0.45f * glowA * pulse, glow), age);
+            for (Crack c : cracks) if (!c.hairline) curtain(ctx, cur, c, grow, Colors.alpha(0.22f * glowA * pulse, glow), age);
         }
-        // spark at the racing head
+        // a spark at the racing head
         if (grow < 1) {
             Crack m = cracks.get(0);
             Vec3 head = at(m, grow);
             var sp = ctx.additive(VfxTextures.FLASH);
-            ctx.billboard(sp, head.add(0, 0.25, 0), 1.4f * Math.max(0.6f, m.width), age * 0.3f, Colors.alpha(0.9f, core));
+            ctx.billboard(sp, head.add(0, 0.15, 0), 0.9f, age * 0.3f, Colors.alpha(0.75f, core));
         }
     }
 
@@ -190,9 +228,9 @@ public class FissureVfx extends Vfx {
         int clear = color & 0xFFFFFF;
         for (int i = 0; i < c.pts.length - 1 && i < f; i++) {
             Vec3 a = c.pts[i], b = c.pts[i + 1];
-            float h0 = curtain * c.width * (0.6f + 0.4f * (float) Math.sin(age * 0.4 + i * 1.3));
-            float h1 = curtain * c.width * (0.6f + 0.4f * (float) Math.sin(age * 0.4 + (i + 1) * 1.3));
-            float u0 = i * 0.2f - age * 0.03f, u1 = (i + 1) * 0.2f - age * 0.03f;
+            float h0 = curtain * c.width * 2.2f * (0.6f + 0.4f * (float) Math.sin(age * 0.4 + i * 1.3));
+            float h1 = curtain * c.width * 2.2f * (0.6f + 0.4f * (float) Math.sin(age * 0.4 + (i + 1) * 1.3));
+            float u0 = i * 0.06f - age * 0.03f, u1 = (i + 1) * 0.06f - age * 0.03f;
             ctx.quad(vc, a, b, b.add(0, h1, 0), a.add(0, h0, 0), u0, 0, u1, 1, color, color, clear, clear);
         }
     }

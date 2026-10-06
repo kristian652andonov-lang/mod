@@ -181,7 +181,7 @@ public final class StatusVisuals {
             }
             case STAGGERED -> {
                 // stone chips circling the head, dust shaken loose at the feet
-                var rock = ctx.translucent(VfxTextures.ROCK);
+                var rock = ctx.translucent(VfxTextures.SHARD);
                 for (int i = 0; i < 3; i++) {
                     double a = t * 0.18 + i * 2.094;
                     Vec3 p = top.add(Math.cos(a) * (w * 0.5 + 0.2), 0.25 + Math.sin(t * 0.3 + i) * 0.05, Math.sin(a) * (w * 0.5 + 0.2));

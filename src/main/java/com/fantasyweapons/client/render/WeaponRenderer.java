@@ -74,23 +74,27 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
      * sword edges) points into the screen instead of showing the flat side.
      */
     private static final float FP_YAW_HEAVY = 55f, FP_YAW_BLADE = 35f;
-    /** Models whose business end sits on the other side of the handle (or reads as backwards) are turned around. */
-    private static final java.util.Map<String, Float> FACING = java.util.Map.of("soulreaper", 180f, "eclipse_reaper", 180f, "starforge", 180f,
-            "bloomfall", 180f);
+    /**
+     * Models whose business end sits on the other side of the handle (or reads as backwards) are turned around; the
+     * first- and third-person holds differ, so each view has its own table.
+     */
+    private static final java.util.Map<String, Float> TP_FACING = java.util.Map.of("soulreaper", 180f, "eclipse_reaper", 180f, "starforge", 180f,
+            "bloomfall", 180f, "doomcleaver", 180f, "gravebite", 180f);
+    private static final java.util.Map<String, Float> FP_FACING = java.util.Map.of("bloomfall", 180f);
 
     /** Rotation of the weapon about its handle for the given view, in degrees. */
     private static float handleYaw(ItemStack stack, ItemDisplayContext ctx) {
         boolean fp = ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
         boolean tp = ctx == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
         if (!fp && !tp || !(stack.getItem() instanceof FantasyWeaponItem item)) return 0;
-        float facing = FACING.getOrDefault(item.definition().id(), 0f);
+        String id = item.definition().id();
         // blades keep a sliver of their flat side in view; axes, hammers and scythes point their head into the screen
         float fpYaw = switch (item.definition().weaponClass().swingStyle()) {
             case CHOP, SLAM, REAP -> FP_YAW_HEAVY;
             default -> FP_YAW_BLADE;
         };
-        if (fp) return debugFpYaw != null ? debugFpYaw : facing + fpYaw;
-        return debugTpYaw != null ? debugTpYaw : facing;
+        if (fp) return debugFpYaw != null ? debugFpYaw : FP_FACING.getOrDefault(id, 0f) + fpYaw;
+        return debugTpYaw != null ? debugTpYaw : TP_FACING.getOrDefault(id, 0f);
     }
 
     /** The entity whose held Infernochain is being drawn in hand right now (its segments get tracked), or null. */

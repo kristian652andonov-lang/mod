@@ -22,7 +22,7 @@ import java.util.List;
  * there (VFX shaders are unlit, so modelled debris is darkened by hand at night and in caves).
  */
 public record GroundMaterial(BlockState state, TextureAtlasSprite top, int topTint, TextureAtlasSprite side, int sideTint, TextureAtlasSprite particle,
-                             int dust, float light) {
+                             int dust, float light, int topColor, int sideColor, boolean turf) {
     public static final net.minecraft.resources.ResourceLocation ATLAS = InventoryMenu.BLOCK_ATLAS;
 
     /** The first solid block at or below {@code at} (searching 6 blocks down); stone if there is none. */
@@ -66,7 +66,13 @@ public record GroundMaterial(BlockState state, TextureAtlasSprite top, int topTi
             float skyK = sky / 15f * daylight;
             light = 0.22f + 0.78f * Math.max(block / 15f, skyK);
         }
-        return new GroundMaterial(state, top, topTint, side, sideTint, particle, dust, light);
+        // colours for the smooth soil/turf textures used on modelled debris (block sprites look like a pixel grid
+        // when stretched over rocks and plates): earth under grass, the biome's grass on top, the map colour otherwise
+        boolean turf = topTint != 0xFFFFFF;
+        int mapCol = level == null ? 0x8C7458 : state.getMapColor(level, pos).col;
+        int sideColor = state.is(net.minecraft.tags.BlockTags.DIRT) ? 0x86644A : mapCol;
+        int topColor = turf ? Colors.scale(topTint, 0.85f) : mapCol;
+        return new GroundMaterial(state, top, topTint, side, sideTint, particle, dust, light, topColor, sideColor, turf);
     }
 
     private static int tint(Level level, BlockState state, BlockPos pos, BakedQuad q) {

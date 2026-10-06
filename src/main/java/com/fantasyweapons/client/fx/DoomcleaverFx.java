@@ -96,8 +96,8 @@ public final class DoomcleaverFx {
             }
         }
         VfxManager.add(spikes);
-        VfxManager.add(new DecalVfx(o.add(fwd.scale(range * 0.5)).add(0, 0.03, 0), new Vec3(0, 1, 0), range * 0.6f, Colors.argb(210, DARK),
-                VfxTextures.CRACK, 60).timing(0.05f, 0.4f).translucent());
+        Vec3 cg = FrostrendFx.ground(o.add(fwd.scale(range * 0.5)));
+        GroundShatter.cracks(cg, range * 0.6f, com.fantasyweapons.client.vfx.GroundMaterial.at(cg), 60, BLOOD, 0xFF8A9A, p.seed() * 7);
         VfxManager.add(new ShardBurstVfx(o.add(fwd.scale(2)).add(0, 0.5, 0), fwd.add(0, 0.8, 0), 0.6f, 0.4f, 24, 0.22f, Colors.argb(255, BLOOD),
                 Colors.argb(0, DARK), 22, p.seed()).texture(VfxTextures.SHARD, false).physics(0.04f, 0.95f));
         CameraShake.add(o, 0.6f, 12);

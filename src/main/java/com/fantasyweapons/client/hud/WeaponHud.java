@@ -32,7 +32,7 @@ import java.util.List;
  */
 public final class WeaponHud {
     public static final int W = 176;
-    public static final int H = 96;
+    public static final int H = 104;
     private static final ResourceLocation LOCK = FantasyWeapons.id("textures/gui/lock.png");
 
     private static ItemStack shownStack = ItemStack.EMPTY;
@@ -276,7 +276,7 @@ public final class WeaponHud {
         }
         // key hints on their own row, clear of the icons
         String hint = keyName(KeyBindings.CYCLE) + " next ability   " + keyName(KeyBindings.MENU) + " open the tome";
-        UiDraw.textCentered(g, hint, W / 2f, H - 8.5f, Colors.alpha(a * 0.85f, UiDraw.INK_MUTED), 0.46f, false);
+        UiDraw.textCentered(g, hint, W / 2f, H - 14f, Colors.alpha(a * 0.85f, UiDraw.INK_MUTED), 0.46f, false);
     }
 
     private static void renderStatuses(GuiGraphics g, float a) {

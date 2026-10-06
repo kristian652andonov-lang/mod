@@ -18,6 +18,7 @@ import com.fantasyweapons.status.StatusType;
 import com.fantasyweapons.weapon.Element;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -51,7 +52,10 @@ public final class SoulreaperAbilities {
         p.syncData(ModAttachments.ABILITY_RUNTIME);
         Vec3 start = p.getEyePosition().subtract(0, 0.45, 0).add(p.getLookAngle().scale(0.8));
         ThrownWeaponEntity e = ThrownWeaponEntity.create(p, ctx.stack(), ctx.data().idOrNil(), start);
+        ItemStack weapon = ctx.stack();
         e.onCaught(() -> {
+            // the scythe lands back in the hand with a short recoil rather than spinning on
+            com.fantasyweapons.weapon.WeaponAnimations.trigger(p, weapon, "impact");
             Kit.fx(p.serverLevel(), FxPayload.of(FxIds.SOULREAPER_CATCH).caster(p.getId()).pos(p.position()).build());
             Kit.sound(p.serverLevel(), p.position(), ModSounds.SCYTHE_RETURN.get(), 1f, 1f);
         });

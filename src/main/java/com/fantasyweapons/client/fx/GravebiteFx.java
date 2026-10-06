@@ -109,8 +109,8 @@ public final class GravebiteFx {
         int bind = Math.round(p.power());
         VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(220, SOUL), VfxTextures.RUNE_CIRCLE, bind + 10)
                 .spin(-0.04f).energy().timing(0.1f, 0.2f));
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), new Vec3(0, 1, 0), r * 1.1f, Colors.argb(200, GRAVE), VfxTextures.CRACK, bind + 20)
-                .timing(0.05f, 0.3f).translucent());
+        Vec3 cg = FrostrendFx.ground(c);
+        GroundShatter.cracks(cg, r * 1.1f, com.fantasyweapons.client.vfx.GroundMaterial.at(cg), bind + 20, SOUL, GHOST, p.seed() * 3);
         RandomSource rnd = RandomSource.create(p.seed());
         for (int id : p.entities()) {
             Entity e = entity(id);
@@ -120,8 +120,7 @@ public final class GravebiteFx {
                 double a = k * Math.PI / 2 + rnd.nextDouble() * 0.6;
                 double d = 1.8 + rnd.nextDouble() * 0.8;
                 Vec3 anchor = FrostrendFx.ground(e.position().add(Math.cos(a) * d, 0, Math.sin(a) * d));
-                VfxManager.add(new DecalVfx(anchor.add(0, 0.05, 0), new Vec3(0, 1, 0), 0.7f, Colors.argb(230, GRAVE), VfxTextures.CRACK, bind + 12)
-                        .timing(0.05f, 0.2f).translucent());
+                GroundShatter.cracks(anchor, 0.9f, com.fantasyweapons.client.vfx.GroundMaterial.at(anchor), bind + 12, SOUL, GHOST, rnd.nextLong());
                 VfxManager.add(new DecalVfx(anchor.add(0, 0.06, 0), new Vec3(0, 1, 0), 0.9f, Colors.argb(200, SOUL), VfxTextures.GLOW, bind + 12)
                         .timing(0.05f, 0.2f));
                 ChainVfx chain = new ChainVfx(anchor, ChainVfx.toEntity(e, 0.55), Colors.argb(230, SOUL), Colors.argb(240, GHOST), bind).shoot(3 + k * 2);

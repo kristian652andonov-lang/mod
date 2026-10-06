@@ -169,7 +169,7 @@ public final class GenericFx {
         if (heavy) {
             Vec3 ground = new Vec3(p.pos().x, Math.floor(p.pos().y - 0.5) + 0.05, p.pos().z);
             VfxManager.add(new ShockwaveVfx(ground, new Vec3(0, 1, 0), 0.3f, 3.5f, 0.6f, Colors.argb(200, theme.primary()), 14));
-            VfxManager.add(new DecalVfx(ground, new Vec3(0, 1, 0), 1.6f, Colors.argb(160, 0x000000), VfxTextures.CRACK, 40).translucent().timing(0.05f, 0.5f));
+            GroundShatter.cracks(ground, 1.6f, com.fantasyweapons.client.vfx.GroundMaterial.at(ground), 40);
             CameraShake.add(p.pos(), 0.6f, 10);
         }
     }

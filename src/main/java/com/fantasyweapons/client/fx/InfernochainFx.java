@@ -195,28 +195,61 @@ public final class InfernochainFx {
             }
             float sheet = (float) Math.min(1, travel / 2.5) * Math.max(active, chain ? 0.35f : 0.15f);
             if (sheet < 0.03f) return;
+            // the recorded frames are uneven and few, so the swept band is drawn through a smooth curve resampled
+            // from them, with a soft wispy texture (bright along the tip's path, fraying out towards the hand)
+            // instead of flat polygons
             int m = history.size();
             Vec3[][] hs = history.toArray(new Vec3[0][]);
-            var vc = ctx.additive(VfxTextures.WHITE);
-            for (int j = 0; j < m - 1; j++) {
-                float k0 = (float) j / (m - 1), k1 = (float) (j + 1) / (m - 1);
-                int c0 = Colors.alpha(sheet * (1 - k0) * 0.6f, Colors.lerpRgb(EMBER, CRIMSON, k0 * 1.4f));
-                int c1 = Colors.alpha(sheet * (1 - k1) * 0.6f, Colors.lerpRgb(EMBER, CRIMSON, k1 * 1.4f));
-                int e0 = Colors.alpha(sheet * (1 - k0) * 0.15f, CRIMSON), e1 = Colors.alpha(sheet * (1 - k1) * 0.15f, CRIMSON);
-                ctx.quad(vc, hs[j][3], hs[j][7], hs[j + 1][7], hs[j + 1][3], k0, 0, k1, 1, e0, c0, c1, e1);
+            int n = Math.min(40, (m - 1) * 4);
+            Vec3[] inner = new Vec3[n + 1], outer = new Vec3[n + 1];
+            for (int j = 0; j <= n; j++) {
+                float f = j * (m - 1) / (float) n;
+                inner[j] = catmull(hs, 3, f);
+                outer[j] = catmull(hs, 7, f);
+            }
+            for (int pass = 0; pass < 2; pass++) {
+                var vc = pass == 0 ? ctx.energy(VfxTextures.SLASH) : ctx.additive(VfxTextures.SLASH);
+                float aMul = pass == 0 ? 0.5f : 0.6f;
+                for (int j = 0; j < n; j++) {
+                    float k0 = j / (float) n, k1 = (j + 1) / (float) n;
+                    // the band narrows towards its old end and tucks in towards the tip there
+                    float in0 = 1 - k0 * 0.55f, in1 = 1 - k1 * 0.55f;
+                    Vec3 a0 = outer[j].lerp(inner[j], pass == 0 ? in0 : in0 * 0.45f), a1 = outer[j + 1].lerp(inner[j + 1], pass == 0 ? in1 : in1 * 0.45f);
+                    int c0 = Colors.alpha(sheet * fadeTail(k0) * aMul, Colors.lerpRgb(pass == 0 ? FIRE : EMBER, CRIMSON, k0 * 1.2f));
+                    int c1 = Colors.alpha(sheet * fadeTail(k1) * aMul, Colors.lerpRgb(pass == 0 ? FIRE : EMBER, CRIMSON, k1 * 1.2f));
+                    ctx.vertex(vc, a0, 1 - k0, 0, c0);
+                    ctx.vertex(vc, a1, 1 - k1, 0, c1);
+                    ctx.vertex(vc, outer[j + 1], 1 - k1, 0.8f, c1);
+                    ctx.vertex(vc, outer[j], 1 - k0, 0.8f, c0);
+                }
             }
             // white-hot edge along the tip's path
-            Vec3[] tip = new Vec3[m];
-            float[] w = new float[m];
-            int[] cs = new int[m];
-            for (int j = 0; j < m; j++) {
-                float k = (float) j / Math.max(1, m - 1);
-                tip[j] = hs[j][7];
-                w[j] = 0.22f * (1 - k) * Math.max(0.4f, sheet);
-                cs[j] = Colors.alpha(sheet * (1 - k) * 0.85f, Colors.lerpRgb(CORE, FIRE, 0.3f + k));
+            float[] w = new float[n + 1];
+            int[] cs = new int[n + 1];
+            for (int j = 0; j <= n; j++) {
+                float k = j / (float) n;
+                w[j] = 0.2f * (1 - k) * Math.max(0.4f, sheet);
+                cs[j] = Colors.alpha(sheet * fadeTail(k) * 0.85f, Colors.lerpRgb(CORE, FIRE, 0.3f + k));
             }
-            ctx.ribbon(ctx.additive(VfxTextures.STREAK), tip, w, cs, 0, 0.1f);
+            ctx.ribbon(ctx.additive(VfxTextures.STREAK), outer, w, cs, 0, 0.1f);
         }
+    }
+
+    /** Fades the swept band out over its last stretch (k = 0 newest .. 1 oldest), softly instead of linearly. */
+    private static float fadeTail(float k) {
+        float t = 1 - k;
+        return t * t * (3 - 2 * t);
+    }
+
+    /** Point {@code idx} of the recorded chain, smoothly interpolated (Catmull-Rom) at fractional frame {@code f}. */
+    private static Vec3 catmull(Vec3[][] hs, int idx, float f) {
+        int last = hs.length - 1;
+        int i = Math.min(last - 1, (int) Math.floor(f));
+        float t = f - i;
+        Vec3 p0 = hs[Math.max(0, i - 1)][idx], p1 = hs[i][idx], p2 = hs[i + 1][idx], p3 = hs[Math.min(last, i + 2)][idx];
+        float t2 = t * t, t3 = t2 * t;
+        double a = -0.5 * t3 + t2 - 0.5 * t, b = 1.5 * t3 - 2.5 * t2 + 1, c = -1.5 * t3 + 2 * t2 + 0.5 * t, d = 0.5 * t3 - 0.5 * t2;
+        return new Vec3(p0.x * a + p1.x * b + p2.x * c + p3.x * d, p0.y * a + p1.y * b + p2.y * c + p3.y * d, p0.z * a + p1.z * b + p2.z * c + p3.z * d);
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -375,8 +408,8 @@ public final class InfernochainFx {
                         new Vec3(-Math.sin(spin), 0, Math.cos(spin)), r * 0.15f, r * 1.02f, 40, Colors.alpha(a * 0.35f, FIRE));
             }
         });
-        VfxManager.add(new DecalVfx(caster.position().add(0, 0.04, 0), UP, r, Colors.argb(200, ASH), VfxTextures.CRACK, duration + 30)
-                .timing(0.1f, 0.3f).translucent());
+        Vec3 cg = FrostrendFx.ground(caster.position());
+        GroundShatter.cracks(cg, r, com.fantasyweapons.client.vfx.GroundMaterial.at(cg), duration + 30, FIRE, EMBER, p.seed() * 3);
         for (int t = 0; t < duration; t += 4) {
             int tt = t;
             FxScheduler.after(tt, () -> {
@@ -445,7 +478,8 @@ public final class InfernochainFx {
         int burn = Math.max(20, Math.round(p.power()));
         Vec3 from = p.points().isEmpty() ? c : p.points().get(0);
         Blast.explode(c, r, PALETTE, p.seed(), 2, VfxTextures.FLAME);
-        VfxManager.add(new DecalVfx(c.add(0, 0.03, 0), UP, r * 0.9f, Colors.argb(240, ASH), VfxTextures.CRACK, burn + 40).timing(0.03f, 0.3f).translucent());
+        Vec3 cg = FrostrendFx.ground(c);
+        GroundShatter.cracks(cg, r * 1.1f, com.fantasyweapons.client.vfx.GroundMaterial.at(cg), burn + 40, FIRE, EMBER, p.seed() * 5);
         VfxManager.add(new ShockwaveVfx(c.add(0, 0.3, 0), UP, 1f, r * 1.4f, 0.7f, Colors.argb(220, FIRE), 12).energy());
         CameraShake.add(c, 1.3f, r * 4);
         ScreenFx.flash(EMBER, 0.15f, 6);
@@ -454,8 +488,8 @@ public final class InfernochainFx {
         Vec3 pathFrom = FrostrendFx.ground(from.lerp(c, 0.35));
         for (int i = 0; i <= 6; i++) {
             Vec3 at = FrostrendFx.ground(pathFrom.lerp(c, i / 6.0));
-            VfxManager.add(new DecalVfx(at.add(0, 0.04, 0), UP, 2.2f + rnd.nextFloat(), Colors.argb(220, ASH), VfxTextures.CRACK, burn + 30)
-                    .timing(0.05f, 0.3f).translucent());
+            if (i % 2 == 0) GroundShatter.cracks(at, 2.0f + rnd.nextFloat(), com.fantasyweapons.client.vfx.GroundMaterial.at(at), burn + 30, FIRE, EMBER,
+                    rnd.nextLong());
         }
         for (int t = 0; t < burn; t += 3) {
             int tt = t;
