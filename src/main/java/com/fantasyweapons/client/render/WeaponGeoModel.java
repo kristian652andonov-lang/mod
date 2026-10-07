@@ -143,7 +143,10 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
      */
     private void anchorGrip(FantasyWeaponItem item, String anim, @org.jetbrains.annotations.Nullable com.fantasyweapons.weapon.RigidAnimationController<?> controller) {
         String name = gripBones.computeIfAbsent(item.definition().geoName(), k -> findGrip());
-        if (name.isEmpty()) return;
+        if (name.isEmpty()) {
+            if (rigidStats != null) rigidStats.merge(item.definition().geoName() + " ~nogrip", 1f, Float::sum);
+            return;
+        }
         GeoBone grip = getBone(name).orElse(null);
         if (grip == null || grip.getParent() == null || grip.getParent().getParent() != null) return;
         GeoBone root = grip.getParent();
@@ -171,7 +174,10 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
                             @org.jetbrains.annotations.Nullable com.fantasyweapons.weapon.RigidAnimationController<?> controller) {
         if (controller == null) return;
         double[] gs = controller.segments.get(grip.getName());
-        if (gs == null || Double.isNaN(gs[0]) || !sameTiming(gs)) return;
+        if (gs == null || Double.isNaN(gs[0]) || !sameTiming(gs)) {
+            if (rigidStats != null) rigidStats.merge(item.definition().geoName() + " ~skip-grip " + anim + (gs == null ? " none" : Double.isNaN(gs[0]) ? " norot" : " timing"), 1f, Float::sum);
+            return;
+        }
         double f = gs[13] <= 0 ? 1 : Math.min(1, Math.max(0, gs[12] / gs[13]));
         Matrix4f g0 = localAt(grip, gs, false), g1 = localAt(grip, gs, true);
         if (g0.equals(g1, 1e-6f)) return;
@@ -180,10 +186,14 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
         for (GeoBone b : root.getChildBones()) {
             if (b == grip) continue;
             double[] bs = controller.segments.get(b.getName());
-            if (bs == null || Double.isNaN(bs[0]) || !sameTiming(bs)) continue;
+            if (bs == null || Double.isNaN(bs[0])) continue;
             boolean together = bs[12] == gs[12] && bs[13] == gs[13];
             for (int i = 0; i < 6 && together; i++) together = Math.abs(bs[i] - gs[i]) < 1e-4;
             if (!together) continue;
+            if (!sameTiming(bs)) {
+                if (rigidStats != null) rigidStats.merge(item.definition().geoName() + " ~skip-bone-timing " + anim + " " + b.getName(), 1f, Float::sum);
+                continue;
+            }
             Matrix4f rel = blend(new Matrix4f(g0inv).mul(localAt(b, bs, false)), new Matrix4f(g1inv).mul(localAt(b, bs, true)), (float) f);
             Matrix4f want = new Matrix4f(gNow).mul(rel);
             if (rigidStats != null) {

@@ -536,8 +536,7 @@ final class DevScripts {
         }
         b.run(mc -> {
             var stats = com.fantasyweapons.client.render.WeaponGeoModel.rigidStats;
-            stats.entrySet().stream().sorted((x, y) -> Float.compare(y.getValue(), x.getValue())).limit(80)
-                    .forEach(e -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("[rigid] {} {}", String.format("%.4f", e.getValue()), e.getKey()));
+            stats.forEach((k, v) -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("[rigid] {} {}", String.format("%.4f", v), k));
         });
     }
 
