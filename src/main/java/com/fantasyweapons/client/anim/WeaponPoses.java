@@ -272,10 +272,7 @@ public final class WeaponPoses {
         float charge = AnimTracker.charge(e, partial);
         if (charge > 0) {
             float w = smooth(Math.min(1, charge * 3f));
-            float tremble = Mth.sin(time * 2.3f) * 0.025f * charge;
-            Pose c = charge(cls, stance).addPitch(headPitch * 0.4f);
-            c = new Pose(c.rx() + tremble, c.ry() + tremble, c.rz(), c.lx() - tremble, c.ly(), c.lz(), c.by(), c.bx(), c.gx(), c.gz());
-            pose = pose.lerp(c, w);
+            pose = pose.lerp(charge(cls, stance).addPitch(headPitch * 0.4f), w);
         }
 
         float form01 = AnimTracker.formProgress(e, partial);

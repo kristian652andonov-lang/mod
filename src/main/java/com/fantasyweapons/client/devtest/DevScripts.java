@@ -49,6 +49,7 @@ final class DevScripts {
                 else if (name.startsWith("near:")) near(b, name.substring(5));
                 else if (name.startsWith("swings:")) swings(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.startsWith("fpall:")) fpAll(b, java.util.List.of(name.substring(6).split(",")));
+                else if (name.startsWith("kills:")) kills(b, name.substring(6));
                 else if (name.startsWith("after:")) after(b, name.substring(6));
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
@@ -497,6 +498,23 @@ final class DevScripts {
             b.wait(30);
         }
         b.playerView();
+    }
+
+    /** The death effect of mobs killed by each weapon ("weapon,..."), from the side and from the wielder's eyes. */
+    private static void kills(ScreenshotDirector.Builder b, String list) {
+        for (String w : list.split(",")) {
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + w + " 100").wait(130).slot(0).hud(false);
+            for (int pass = 0; pass < 2; pass++) {
+                String v = w + (pass == 0 ? "_side" : "_fp");
+                b.cmd("/kill @e[type=!player]").wait(5).cmd("/summon minecraft:husk 0 -60 2.6 {NoAI:1b,Health:1f}").wait(10);
+                b.playerView().camera(CameraType.FIRST_PERSON).look(0, 15).wait(5).swing();
+                if (pass == 0) b.viewAt(4.5, 1.6, 5.5, 0, 1.4, 2.6);
+                b.wait(19);
+                for (int i = 0; i < 5; i++) b.wait(i == 0 ? 1 : 3).screenshot("kill_" + v + "_" + i);
+                b.wait(20);
+            }
+            b.playerView();
+        }
     }
 
     /** Big area abilities ("weapon/ability,..."), seen from afar and from underneath (looking up). */

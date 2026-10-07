@@ -22,7 +22,7 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
  *   <li>Third person: a custom arm pose (stance, swings, heavy attacks, charge, release, transform) per weapon class,
  *       see {@link com.fantasyweapons.client.anim.WeaponPoses}.</li>
  *   <li>First person: replaces vanilla's generic arm swing with the same per-weapon timeline (own swing durations,
- *       backhands, heavy wind-ups, charge raise with tremble, release thrust).</li>
+ *       backhands, heavy wind-ups, charge raise, release thrust).</li>
  * </ul>
  */
 public class WeaponClientExtensions implements IClientItemExtensions {
@@ -46,13 +46,12 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         float time = (player.tickCount + partialTick) * 0.05f;
         pose.translate(0, Mth.sin(time) * 0.008f, 0);
 
-        // ability charge: weapon rises and trembles with power
+        // ability charge: the weapon is raised and held steady (power shows in its glow, not in a shaking hand)
         float charge = AnimTracker.charge(player, partialTick);
         if (charge > 0) {
             float w = smooth(Math.min(1, charge * 3));
-            float tremble = Mth.sin((player.tickCount + partialTick) * 2.3f) * 0.012f * charge;
             boolean big = item.definition().weaponClass().twoHanded();
-            pose.translate(side * ((big ? -0.04f : -0.08f) * w + tremble), 0.12f * w + tremble, -0.04f * w);
+            pose.translate(side * (big ? -0.04f : -0.08f) * w, 0.12f * w, -0.04f * w);
             pose.mulPose(Axis.ZP.rotationDegrees(side * (big ? 10 : 14) * w));
             pose.mulPose(Axis.XP.rotationDegrees((big ? 4 : 6) * w));
         }

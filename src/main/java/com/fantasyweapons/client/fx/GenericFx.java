@@ -301,8 +301,8 @@ public final class GenericFx {
                     Colors.argb(190, el.primary()), Colors.argb(0, el.dark()), 28 + i * 2, p.seed() * 31 + i)
                     .texture(VfxTextures.MIST, false).physics(-0.004f, 0.92f));
         }
-        // a short column of light where the body stood
-        VfxManager.add(new BeamVfx(feet, feet.add(0, h + 0.8, 0), 0.5f * w + 0.3f, Colors.argb(200, el.primary()), 12));
+        // a column of light where the body stood, dissolving into the air as it rises
+        VfxManager.add(new com.fantasyweapons.client.vfx.effects.LightColumnVfx(feet, h * 1.6f + 1.6f, 0.5f * w + 0.3f, Colors.argb(210, el.primary()), 18));
         VfxManager.add(new FlashVfx(c, w * 0.8f, w * 2.2f + 0.8f, Colors.argb(190, el.primary()), 12).energy());
         VfxManager.add(new ShockwaveVfx(feet, new Vec3(0, 1, 0), 0.2f, w * 1.5f + 1.2f, 0.35f, Colors.argb(220, el.primary()), 16));
     }

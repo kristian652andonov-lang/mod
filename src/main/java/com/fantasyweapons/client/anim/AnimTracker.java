@@ -50,9 +50,16 @@ public final class AnimTracker {
         return STATES.computeIfAbsent(e.getId(), k -> new State());
     }
 
+    /** Client ticks while a world is loaded and running: only ever counts up, unlike the server-corrected game time. */
+    private static long clientTicks;
+
+    /**
+     * The clock swings, casts and the other poses run on. The level's game time is resynced from the server every
+     * second and can step back a tick when the two drift apart, which made a swing in progress hitch backwards; this
+     * counts the client's own ticks instead.
+     */
     public static double now(float partial) {
-        var level = Minecraft.getInstance().level;
-        return level == null ? 0 : level.getGameTime() + partial;
+        return clientTicks + partial;
     }
 
     /**
@@ -114,11 +121,13 @@ public final class AnimTracker {
 
     /** Detects charge → release transitions for every visible player (works for remote players too). */
     public static void tick() {
-        var level = Minecraft.getInstance().level;
+        var mc = Minecraft.getInstance();
+        var level = mc.level;
         if (level == null) {
             STATES.clear();
             return;
         }
+        if (!mc.isPaused()) clientTicks++;
         for (Player p : level.players()) {
             AbilityRuntime rt = p.getExistingDataOrNull(ModAttachments.ABILITY_RUNTIME);
             State s = state(p);
