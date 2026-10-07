@@ -53,6 +53,8 @@ final class DevScripts {
                 else if (name.startsWith("kills:")) kills(b, name.substring(6));
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
+                else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
+                else if (name.startsWith("fpcal:")) fpCalibrate(b, name.substring(6));
                 else if (name.startsWith("after:")) after(b, name.substring(6));
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
@@ -568,6 +570,35 @@ final class DevScripts {
                         .wait(60).screenshot("hud_" + w + "_" + lvl);
             }
         }
+    }
+
+    /** Each of a weapon's three attacks in first person ("weapon,..."), a frame every tick. */
+    private static void fpSwings(ScreenshotDirector.Builder b, String list) {
+        for (String w : list.split(",")) {
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + w + " 1").wait(40).slot(0)
+                    .playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 5).wait(30);
+            for (int v = 0; v < 3; v++) {
+                int variant = v;
+                b.run(mc -> com.fantasyweapons.client.anim.AnimTracker.debugVariant(mc.player, variant)).wait(2).swing();
+                for (int i = 0; i < 16; i++) b.wait(1).screenshot("fps_" + w + "_v" + v + "_" + String.format("%02d", i));
+                b.wait(30);
+            }
+            b.run(mc -> com.fantasyweapons.client.anim.AnimTracker.debugVariant(mc.player, -1));
+        }
+    }
+
+    /** First-person orientation calibration: the held weapon in a grid of fixed yaw / pitch / twist poses. */
+    private static void fpCalibrate(ScreenshotDirector.Builder b, String w) {
+        b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(40).slot(0).playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 5).wait(30);
+        float[][] poses = {{0, 0.15f, 0, 0, 0, 0}, {0, 0.15f, 0, 180, 0, 0}, {0, 0.15f, 0, 90, 0, 0}, {0, 0.15f, 0, -90, 0, 0}, {0, 0.15f, 0, 0, 45, 0},
+                {0, 0.15f, 0, 180, 45, 0}, {0, 0.15f, 0, 90, 45, 0}, {0, 0.15f, 0, -90, 45, 0}, {0, 0.15f, 0, 0, 89, 0}, {0, 0.15f, 0, 44.6f, 55.6f, 0}};
+        int n = 0;
+        for (float[] p : poses) {
+            int idx = n++;
+            b.run(mc -> com.fantasyweapons.client.render.FirstPersonAttacks.debugPose = p).wait(3)
+                    .screenshot(String.format("cal_%s_%02d_y%d_e%d_r%d", w, idx, (int) p[3], (int) p[4], (int) p[5]));
+        }
+        b.run(mc -> com.fantasyweapons.client.render.FirstPersonAttacks.debugPose = null);
     }
 
     /** Big area abilities ("weapon/ability,..."), seen from afar and from underneath (looking up). */
