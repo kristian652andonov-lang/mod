@@ -205,11 +205,11 @@ public final class EclipseReaperAbilities {
         float corona = (float) (total * ctx.param("corona_fraction"));
         float dot = ctx.weaponDamage() * 0.05f;
         Vec3 center = Kit.feet(p);
-        Vec3 sun = center.add(0, 13, 0);
+        Vec3 sun = center.add(0, 18, 0);
         int[] count = {0};
         AreaEffectManager.add(new FieldEffect(ctx, center, radius, duration, interval)
                 .onPulse((o, w, f, inside) -> {
-                    if (f.age() < 20 || inside.isEmpty()) return;
+                    if (f.age() < 28 || inside.isEmpty()) return;  // the crescents fall once the moon covers the sun
                     ServerLevel level = o.serverLevel();
                     boolean darkBeam = (count[0]++ & 1) == 1;
                     LivingEntity t = inside.get(level.random.nextInt(inside.size()));

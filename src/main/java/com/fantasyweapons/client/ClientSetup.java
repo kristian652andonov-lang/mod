@@ -66,6 +66,8 @@ public final class ClientSetup {
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);
         NeoForge.EVENT_BUS.addListener(VfxManager::render);
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.SkyDarkness::onRenderStage);
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.SkyDarkness::onFogColor);
         // fantasy weapons' tooltips: a dark page edged in the weapon's own colour instead of the vanilla purple
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderTooltipEvent.Color e) -> {
             int[] c = com.fantasyweapons.weapon.FantasyWeaponItem.tooltipColors(e.getItemStack());

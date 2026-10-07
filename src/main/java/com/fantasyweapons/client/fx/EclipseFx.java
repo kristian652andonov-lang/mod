@@ -9,7 +9,6 @@ import com.fantasyweapons.client.vfx.effects.FlashVfx;
 import com.fantasyweapons.client.vfx.effects.LightningVfx;
 import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
-import com.fantasyweapons.client.vfx.effects.SkyCircleVfx;
 import com.fantasyweapons.client.vfx.effects.SunVfx;
 import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
@@ -109,56 +108,119 @@ public final class EclipseFx {
         CameraShake.add(c, 0.25f, r * 2);
     }
 
-    /** The sky circle over each caster's Total Eclipse, which the beams pour out of. */
-    private static final java.util.Map<Integer, SkyCircleVfx> SKY = new java.util.HashMap<>();
+    /** The eclipse hanging over each caster's Total Eclipse, which the crescents fall out of. */
+    private static final java.util.Map<Integer, com.fantasyweapons.client.vfx.effects.EclipseSunVfx> ECLIPSES = new java.util.HashMap<>();
 
+    /**
+     * Total Eclipse: high above, a black moon slides across a blazing sun until only its corona is left; beneath it
+     * day turns to night - a shadow spreads over the ground, the light dies and stars come out in the darkened air.
+     */
     private static void total(FxPayload p) {
         Vec3 c = p.pos();
         float r = p.scale();
         int duration = Math.round(p.power());
-        Vec3 sky = p.points().isEmpty() ? c.add(0, 13, 0) : p.points().get(0);
-        SKY.put(p.caster(), VfxManager.add(new SkyCircleVfx(sky, r * 0.9f, (float) (sky.y - c.y), GOLD, VIOLET, WHITE, duration + 24)));
-        VfxManager.add(new BeamVfx(c.add(0, 0.2, 0), sky, 1.4f, Colors.argb(200, GOLD), 22));
-        VfxManager.add(new DecalVfx(c.add(0, 0.05, 0), new Vec3(0, 1, 0), r, Colors.argb(200, GOLD), VfxTextures.RUNE_CIRCLE, duration)
-                .spin(0.02f).energy().timing(0.1f, 0.1f));
-        VfxManager.add(new DecalVfx(c.add(0, 0.06, 0), new Vec3(0, 1, 0), r * 0.6f, Colors.argb(200, VIOLET), VfxTextures.RUNE_CIRCLE, duration)
-                .spin(-0.035f).energy().satellites(0).timing(0.1f, 0.1f));
-        ScreenFx.zoneVignette(BLACK, 0.55f, duration, c, r + 6);
-        CameraShake.add(c, 0.3f, r * 2);
+        Vec3 sky = p.points().isEmpty() ? c.add(0, 18, 0) : p.points().get(0);
+        int contact = 24;
+        ECLIPSES.put(p.caster(), VfxManager.add(new com.fantasyweapons.client.vfx.effects.EclipseSunVfx(sky, Math.max(3f, r * 0.2f), WHITE, GOLD, BLACK,
+                contact, duration + contact + 10)));
+        VfxManager.add(new Umbra(c, r, sky, duration + 20, p.seed()));
+        ScreenFx.zoneVignette(BLACK, 0.6f, duration + 10, c, r + 6);
+        CameraShake.add(c, 0.25f, r * 2);
     }
 
+    /** The shadow of the eclipse over the battlefield: the ground darkens, a twilight rim glows, stars come out. */
+    private static final class Umbra extends com.fantasyweapons.client.vfx.Vfx {
+        private static final int STARS = 70;
+        private final Vec3 c, sky;
+        private final float r;
+        private final float[] sx = new float[STARS], sy = new float[STARS], sz = new float[STARS], ph = new float[STARS];
+
+        Umbra(Vec3 c, float r, Vec3 sky, int lifetime, long seed) {
+            super(lifetime);
+            this.c = c;
+            this.r = r;
+            this.sky = sky;
+            RandomSource rnd = RandomSource.create(seed);
+            for (int i = 0; i < STARS; i++) {
+                double a = rnd.nextDouble() * Math.PI * 2, d = Math.sqrt(rnd.nextDouble()) * r;
+                sx[i] = (float) (Math.cos(a) * d);
+                sz[i] = (float) (Math.sin(a) * d);
+                sy[i] = 3 + rnd.nextFloat() * (float) Math.max(4, sky.y - c.y - 4);
+                ph[i] = rnd.nextFloat() * 6.283f;
+            }
+        }
+
+        @Override
+        public void render(com.fantasyweapons.client.vfx.VfxContext ctx) {
+            float time = age + ctx.partial;
+            // the shadow sweeps in as the moon covers the sun and lifts as it leaves
+            float dark = easeInOut(clamp01((time - 4) / 22f)) * clamp01((lifetime - time) / 16f);
+            if (dark <= 0.01f) return;
+            // the sky darkens for anyone standing in (or near) the shadow
+            double away = ctx.cam.distanceTo(new Vec3(c.x, ctx.cam.y, c.z)) - r;
+            SkyDarkness.request(dark * (float) Math.max(0, Math.min(1, 1 - away / 12)));
+            Vec3 X = new Vec3(1, 0, 0), Z = new Vec3(0, 0, 1);
+            Vec3 g = c.add(0, 0.05, 0);
+            ctx.disc(ctx.translucent(VfxTextures.GLOW), g, X, Z, r * 1.35f, 0, Colors.alpha(0.62f * dark, BLACK));
+            ctx.disc(ctx.translucent(VfxTextures.GLOW), g.add(0, 0.01, 0), X, Z, r * 0.8f, 0, Colors.alpha(0.35f * dark, 0x1A0830));
+            // the twilight rim where the shadow ends: gold on the outside, violet within
+            var ring = ctx.additive(VfxTextures.RING);
+            int segs = ctx.segments(64);
+            ctx.ring(ring, g.add(0, 0.03, 0), X, Z, r * 0.98f, r * 1.04f, segs, Colors.alpha(0.55f * dark, GOLD));
+            ctx.ring(ring, g.add(0, 0.03, 0), X, Z, r * 0.9f, r * 0.94f, segs, Colors.alpha(0.4f * dark, VIOLET));
+            // stars coming out in the darkened air, twinkling
+            var star = ctx.additive(VfxTextures.STAR);
+            for (int i = 0; i < STARS; i++) {
+                float tw = 0.55f + 0.45f * (float) Math.sin(time * 0.15f + ph[i]);
+                float show = clamp01((dark - (i % 7) * 0.08f) * 2);
+                if (show <= 0) continue;
+                ctx.billboard(star, c.add(sx[i], sy[i], sz[i]), 0.25f + 0.2f * (i % 3), ph[i], Colors.alpha(show * tw * 0.9f, i % 4 == 0 ? GOLD : 0xE8E4FF));
+            }
+        }
+    }
+
+    /** A crescent of light or shadow curves down out of the corona onto its target and cuts it with a crossed slash. */
     private static void beam(FxPayload p) {
         Vec3 g = p.pos();
-        // every beam falls straight out of the sky circle above its target
-        SkyCircleVfx sky = SKY.get(p.caster());
-        Vec3 from;
-        if (sky != null && !sky.isDead()) {
-            from = sky.sourceAbove(g);
-            sky.emit(from);
-        } else {
-            from = new Vec3(g.x, (p.points().isEmpty() ? g.y + 13 : p.points().get(0).y), g.z);
-        }
+        var ecl = ECLIPSES.get(p.caster());
+        Vec3 sun = ecl != null && !ecl.isDead() ? ecl.center() : (p.points().isEmpty() ? g.add(0, 18, 0) : p.points().get(0));
         boolean dark = p.level() == 1;
-        int col = dark ? VIOLET : GOLD;
-        int core = dark ? CRIMSON : WHITE;
-        VfxManager.add(new BeamVfx(from, g, 1.1f, Colors.argb(255, col), 9));
-        VfxManager.add(new BeamVfx(from, g, 0.4f, Colors.argb(255, core), 7));
-        VfxManager.add(new FlashVfx(g.add(0, 0.6, 0), 0.5f, 2.6f, Colors.argb(230, col), 9).energy());
-        VfxManager.add(new ShockwaveVfx(g.add(0, 0.06, 0), new Vec3(0, 1, 0), 0.2f, 2.6f, 0.3f, Colors.argb(220, core), 9).energy());
-        if (dark) {
-            VfxManager.add(new SunVfx(g.add(0, 0.8, 0), 0.8f, VIOLET, CRIMSON, 10).darkCore().grow(2).rays(8));
-        }
+        int col = dark ? VIOLET : WHITE;
+        int edge = dark ? CRIMSON : GOLD;
+        RandomSource rnd = RandomSource.create(p.seed());
+        Vec3 toward = new Vec3(g.x - sun.x, 0, g.z - sun.z);
+        Vec3 flat = toward.lengthSqr() < 1e-4 ? new Vec3(1, 0, 0) : toward.normalize();
+        Vec3 from = sun.add(flat.scale(ecl != null ? ecl.radius() * 1.3 : 3));
+        Vec3 side = new Vec3(-flat.z, 0, flat.x).scale(rnd.nextBoolean() ? 1 : -1);
+        Vec3 hit = g.add(0, 1.0, 0);
+        int flight = 12;
+        VfxManager.add(new com.fantasyweapons.client.vfx.effects.CrescentStrikeVfx(from, hit, side, 2.2f, col, edge, flight));
+        FxScheduler.after(flight, () -> {
+            Vec3 face = new Vec3(-flat.x, 0, -flat.z);
+            Vec3 across = new Vec3(-face.z, 0, face.x);
+            Vec3 d1 = across.add(0, 1, 0).normalize(), d2 = across.scale(-1).add(0, 1, 0).normalize();
+            VfxManager.add(new com.fantasyweapons.client.vfx.effects.SlashArcVfx(hit, d1, face, 1.5f, 0.35f, -1.2f, 1.2f, Colors.argb(255, col), Colors.argb(255, edge), 8));
+            VfxManager.add(new com.fantasyweapons.client.vfx.effects.SlashArcVfx(hit, d2, face, 1.5f, 0.35f, -1.2f, 1.2f, Colors.argb(255, col), Colors.argb(255, edge), 8));
+            VfxManager.add(new FlashVfx(hit, 0.5f, 2.4f, Colors.argb(230, edge), 8).energy());
+            VfxManager.add(new ShockwaveVfx(g.add(0, 0.06, 0), new Vec3(0, 1, 0), 0.2f, 2.4f, 0.3f, Colors.argb(220, edge), 9).energy());
+            VfxManager.add(new ShardBurstVfx(hit, new Vec3(0, 1, 0), 1.2f, 0.18f, 10, 0.18f, Colors.argb(255, col), Colors.argb(0, edge), 14, p.seed())
+                    .texture(VfxTextures.STAR, false).physics(-0.004f, 0.9f).energy());
+        });
     }
 
+    /** The sun comes back: the moon slides off with a flash of the diamond ring and the corona blazes across the field. */
     private static void totalEnd(FxPayload p) {
         Vec3 c = p.pos();
         float r = p.scale();
-        SkyCircleVfx sky = SKY.remove(p.caster());
-        Vec3 sun = sky != null && !sky.isDead() ? sky.sourceAbove(c) : p.points().isEmpty() ? c.add(0, 13, 0) : p.points().get(0);
-        VfxManager.add(new BeamVfx(sun, c, 3f, Colors.argb(230, GOLD), 14));
-        Blast.explode(c, r * 0.85f, new Blast.Palette(GOLD, 0xC98A2A, VIOLET), p.seed(), 2, VfxTextures.STAR);
-        VfxManager.add(new ShockwaveVfx(c.add(0, 1, 0), new Vec3(0, 1, 0), 0.5f, r * 1.2f, 0.8f, Colors.argb(230, VIOLET), 18).energy().spin(0.1f));
+        ECLIPSES.remove(p.caster());
+        Blast.explode(c, r * 0.6f, new Blast.Palette(GOLD, 0xC98A2A, VIOLET), p.seed(), 2, VfxTextures.STAR);
+        // light and shadow sweeping out across the ground together
+        VfxManager.add(new ShockwaveVfx(c.add(0, 0.3, 0), new Vec3(0, 1, 0), 0.5f, r * 1.25f, 0.9f, Colors.argb(240, GOLD), 20).energy().spin(0.08f));
+        FxScheduler.after(3, () -> VfxManager.add(new ShockwaveVfx(c.add(0, 0.25, 0), new Vec3(0, 1, 0), 0.5f, r * 1.1f, 0.7f, Colors.argb(220, VIOLET), 20)
+                .energy().spin(-0.08f)));
+        VfxManager.add(new FlashVfx(c.add(0, 1.5, 0), 1f, r * 0.9f, Colors.argb(220, WHITE), 12).energy());
         var mc = Minecraft.getInstance();
-        if (mc.player != null && mc.player.position().distanceTo(c) < r + 8) ScreenFx.flash(GOLD, 0.3f, 10);
+        if (mc.player != null && mc.player.position().distanceTo(c) < r + 8) ScreenFx.flash(GOLD, 0.35f, 12);
+        CameraShake.add(c, 0.5f, r * 2);
     }
 }

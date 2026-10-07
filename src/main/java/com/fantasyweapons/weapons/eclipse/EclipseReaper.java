@@ -125,7 +125,7 @@ public final class EclipseReaper {
                         .build())
                 .ability(AbilityDefinition.builder(TOTAL_ECLIPSE, AbilityKind.ULTIMATE)
                         .name("Total Eclipse")
-                        .description("ULTIMATE. The moon devours the sun. Beneath the black sun, beams of light and shadow strike every enemy in turn, and the eclipse ends in a blinding corona.")
+                        .description("ULTIMATE. The moon devours the sun and day turns to night. Crescents of light and shadow fall from the black sun to cut down every enemy in turn, and when the sun returns its corona blazes across the battlefield.")
                         .unlock(100).levels(3, 0).cost(5, 5)
                         .node(2, 3, EQUILIBRIUM)
                         .standard(15.0, 3.5, 100.0)
