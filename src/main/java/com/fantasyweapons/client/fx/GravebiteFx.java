@@ -145,7 +145,8 @@ public final class GravebiteFx {
             for (int k = 0; k < 3; k++) {
                 double a = k * Math.PI * 2 / 3 + rnd.nextDouble() * 0.7;
                 double d = 2.6 + rnd.nextDouble() * 1.4;
-                Vec3 anchor = FrostrendFx.ground(e.position().add(Math.cos(a) * d, 0, Math.sin(a) * d));
+                Vec3 anchor = FrostrendFx.groundOrNull(e.position().add(Math.cos(a) * d, 0, Math.sin(a) * d), 6.5);
+                if (anchor == null) continue; // nothing to burst out of under a target high in the air
                 GroundShatter.cracks(anchor, 0.9f, com.fantasyweapons.client.vfx.GroundMaterial.at(anchor), bind + 12, SOUL, GHOST, rnd.nextLong());
                 VfxManager.add(new DecalVfx(anchor.add(0, 0.06, 0), new Vec3(0, 1, 0), 0.9f, Colors.argb(200, SOUL), VfxTextures.GLOW, bind + 12)
                         .timing(0.05f, 0.2f));
@@ -158,7 +159,8 @@ public final class GravebiteFx {
         // more chains lashing up out of grave rifts across the circle
         for (int k = 0; k < 6; k++) {
             double a = rnd.nextDouble() * Math.PI * 2, d = rnd.nextDouble() * r;
-            Vec3 base = FrostrendFx.ground(c.add(Math.cos(a) * d, 0, Math.sin(a) * d));
+            Vec3 base = FrostrendFx.groundOrNull(c.add(Math.cos(a) * d, 0, Math.sin(a) * d), 6.5);
+            if (base == null) continue;
             VfxManager.add(new com.fantasyweapons.client.vfx.effects.SoulRiftVfx(base, 0.35f, SOUL, GHOST, 30));
             Vec3 top = base.add(rnd.nextGaussian() * 0.6, 1.8 + rnd.nextDouble() * 1.5, rnd.nextGaussian() * 0.6);
             VfxManager.add(new ChainVfx(base, partial -> top, Colors.argb(200, SOUL), Colors.argb(220, GHOST), 18 + rnd.nextInt(8)).shoot(4).scale(0.85f));
@@ -189,7 +191,10 @@ public final class GravebiteFx {
         FxScheduler.after(8, () -> {
             Vec3 bite = o.add(fwd.scale(range * 0.6));
             VfxManager.add(new FlashVfx(bite, 0.6f, range * 0.8f, Colors.argb(220, SOUL), 10).energy());
-            VfxManager.add(new ShockwaveVfx(FrostrendFx.ground(bite).add(0, 0.08, 0), new Vec3(0, 1, 0), 0.3f, range * 0.7f, 0.4f, Colors.argb(220, GHOST), 12).energy());
+            Vec3 bitten = FrostrendFx.groundOrNull(bite, 3.5);
+            if (bitten != null) {
+                VfxManager.add(new ShockwaveVfx(bitten.add(0, 0.08, 0), new Vec3(0, 1, 0), 0.3f, range * 0.7f, 0.4f, Colors.argb(220, GHOST), 12).energy());
+            }
             ghostBurst(bite, fwd, 5, 0.6f, p.seed());
             CameraShake.add(bite, 0.6f, 14);
             // stolen souls stream back into the caster

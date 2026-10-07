@@ -185,7 +185,7 @@ public final class StarforgeAbilities {
                 double a = level.random.nextDouble() * Math.PI * 2, r = 2 + Math.sqrt(level.random.nextDouble()) * (radius - 2);
                 spot = c.add(Math.cos(a) * r, 0, Math.sin(a) * r);
             }
-            Vec3 ground = Kit.ground(level, spot.add(0, 6, 0), 14);
+            Vec3 ground = Kit.groundAt(level, spot, c);
             int delay = 10 + i * Math.max(1, duration / meteors);
             long seed = level.random.nextLong();
             Delayed.schedule(ctx, delay, (o, w) -> meteor(ctx, ground, mr, small, 12, 0.6f, 0, 0, 0, seed));

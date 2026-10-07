@@ -478,6 +478,90 @@ public final class FWGameTests {
         return tests;
     }
 
+    // ------------------------------------------------------------------------------------------------------------
+    // mid-air audit: every ability, cast while airborne (level and aimed down) and aimed at the sky, must not leave
+    // ground effects floating in the air: any effect placed more than 2.5 blocks above the ground beneath it fails the
+    // test, except effects that belong in the air (projectiles, slashes and auras around the caster, sky features).
+    // ------------------------------------------------------------------------------------------------------------
+
+    private static final java.util.Set<String> AIRBORNE_FX = java.util.Set.of(
+            // projectiles and where they end
+            "aetherlance/bolt", "aetherlance/bolt_end", "gravebite/legion_launch", "gravebite/soul_hit", "gravebite/soul_volley",
+            "infernochain/hook", "infernochain/hook_end", "solaris/supernova", "solaris/supernova_impact", "stormbreaker/chain",
+            "infernochain/drake",
+            // slashes, lashes, beams and auras centred on the caster (their ground parts are grounded client-side)
+            "aetherlance/ray", "bloomfall/thorn_sweep", "doomcleaver/rage", "doomcleaver/feed", "doomcleaver/cleave", "doomcleaver/leap",
+            "infernochain/cyclone", "infernochain/lash", "monolith/leap", "solaris/radiant_slash", "soulreaper/catch", "stormbreaker/spin",
+            // the test player never falls (no gravity), so the leap "lands" where it was cast
+            "doomcleaver/leap_land");
+    private static final Map<Integer, java.util.List<com.fantasyweapons.network.FxPayload>> RECORDED = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @GameTestGenerator
+    public static java.util.Collection<TestFunction> midAirAudit() {
+        com.fantasyweapons.network.Fx.recorder = fx -> RECORDED.computeIfAbsent(fx.caster(), k -> java.util.Collections.synchronizedList(new java.util.ArrayList<>())).add(fx);
+        java.util.List<TestFunction> tests = new java.util.ArrayList<>();
+        for (WeaponDefinition def : Weapons.all()) {
+            for (AbilityDefinition a : def.castables()) {
+                for (String scenario : new String[]{"air", "airdown", "skyward"}) {
+                    tests.add(new TestFunction("midair", "midair_" + def.id() + "_" + a.id() + "_" + scenario, FantasyWeapons.MOD_ID + ":" + ARENA, 200, 0,
+                            true, h -> midAirTest(h, def, a, scenario)));
+                }
+            }
+        }
+        return tests;
+    }
+
+    private static void midAirTest(GameTestHelper h, WeaponDefinition def, AbilityDefinition a, String scenario) {
+        boolean air = !scenario.equals("skyward");
+        ServerPlayer p = player(h, new Vec3(12.5, air ? 8 : 2, 4.5), 0);
+        p.setNoGravity(true);
+        ItemStack stack = giveWeapon(p, def.id());
+        ExpService.setLevel(p, stack, 100);
+        WeaponData d = FantasyWeaponItem.data(stack);
+        if (a.requiredForm() != null) {
+            for (int i = 0; i < def.forms().size(); i++) if (def.forms().get(i).id().equals(a.requiredForm())) d = d.withForm(i);
+        }
+        stack.set(ModComponents.WEAPON_DATA.get(), d.withSelected(a.id()));
+        dummy(h, new BlockPos(12, 2, 10), 1e6f);
+        dummy(h, new BlockPos(14, 2, 12), 1e6f);
+        dummy(h, new BlockPos(10, 2, 9), 1e6f);
+        float pitch = scenario.equals("air") ? 0 : scenario.equals("airdown") ? 40 : -40;
+        p.teleportTo(h.getLevel(), p.getX(), p.getY(), p.getZ(), 0, pitch);
+        RECORDED.remove(p.getId());
+        AbilityService.handleAbilityKey(p, true);
+        AbilityRuntime rt = AbilityService.runtime(p);
+        int charge = rt.isCharging() ? rt.chargeTicks() : 0;
+        h.runAfterDelay(charge + 1, () -> {
+            if (rt.isCharging()) AbilityService.handleAbilityKey(p, false);
+        });
+        h.runAfterDelay(charge + 100, () -> {
+            java.util.List<com.fantasyweapons.network.FxPayload> sent = RECORDED.remove(p.getId());
+            Map<String, Double> worst = new java.util.TreeMap<>();
+            if (sent != null) {
+                synchronized (sent) {
+                    for (var fx : sent) {
+                        double above = heightAboveGround(h.getLevel(), fx.pos());
+                        String id = fx.fx().getPath();
+                        if (above > 2.5 && !AIRBORNE_FX.contains(id)) worst.merge(id + "@" + String.format("%.1f,%.1f,%.1f", fx.pos().x - p.getX(), fx.pos().y - h.absoluteVec(new Vec3(0, 1, 0)).y, fx.pos().z - p.getZ()), above, Math::max);
+                    }
+                }
+            }
+            cleanup(p);
+            if (!worst.isEmpty()) h.fail(def.id() + "/" + a.id() + " " + scenario + " left effects in the air: " + worst);
+            else h.succeed();
+        });
+    }
+
+    /** How far {@code pos} is above the first solid block beneath it (0 inside a block, 99 over the void). */
+    private static double heightAboveGround(ServerLevel level, Vec3 pos) {
+        BlockPos b = BlockPos.containing(pos);
+        for (int i = 0; i < 64; i++) {
+            BlockPos q = b.below(i);
+            if (!level.getBlockState(q).getCollisionShape(level, q).isEmpty()) return Math.max(0, pos.y - (q.getY() + 1));
+        }
+        return 99;
+    }
+
     /** Ability ids whose effect is a self buff / utility and deals no damage by itself. */
     private static final java.util.Set<String> NON_DAMAGING = java.util.Set.of("doomcleaver/blood_rage");
 

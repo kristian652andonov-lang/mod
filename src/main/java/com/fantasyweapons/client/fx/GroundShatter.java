@@ -27,7 +27,8 @@ public final class GroundShatter {
      * chunks and a rolling ring of dust. {@code power} (about 0.5 - 2) scales how violently the ground breaks.
      */
     public static void impact(Vec3 at, float radius, float power, long seed) {
-        Vec3 g = FrostrendFx.ground(at);
+        Vec3 g = FrostrendFx.groundOrNull(at, 6.5);
+        if (g == null) return; // no ground to break
         GroundMaterial m = GroundMaterial.at(g);
         RandomSource r = RandomSource.create(seed);
         int life = 50 + Math.round(radius * 4);
@@ -43,15 +44,16 @@ public final class GroundShatter {
             double a = (i + r.nextDouble() * 0.9) * Math.PI * 2 / plates;
             Vec3 dir = new Vec3(Math.cos(a), 0, Math.sin(a));
             double dist = radius * (0.22 + 0.65 * r.nextDouble());
-            Vec3 base = FrostrendFx.ground(g.add(dir.scale(dist)));
+            Vec3 base = FrostrendFx.groundOrNull(g.add(dir.scale(dist)), 6.5);
+            if (base == null) continue; // over a drop
             float w = plateW * (0.5f + r.nextFloat());
             float tilt = (r.nextFloat() < 0.15f ? -0.25f : 0.15f + 0.65f * r.nextFloat()) * Math.min(1.2f, power);
             int delay = (int) (dist / radius * 4) + r.nextInt(3);
             e.slab(base, dir, w, 0.22f + 0.28f * r.nextFloat(), w * (0.5f + 0.5f * r.nextFloat()), tilt, 0.05f + 0.4f * power * r.nextFloat(), delay,
                     r.nextLong());
             if (r.nextFloat() < 0.3f) {
-                Vec3 nb = FrostrendFx.ground(base.add(dir.scale(w * 0.6)).add(-dir.z * (r.nextDouble() - 0.5), 0, dir.x * (r.nextDouble() - 0.5)));
-                e.slab(nb, dir, w * 0.45f, 0.18f, w * 0.35f, tilt * 1.3f, 0.1f + 0.2f * r.nextFloat(), delay + 1, r.nextLong());
+                Vec3 nb = FrostrendFx.groundOrNull(base.add(dir.scale(w * 0.6)).add(-dir.z * (r.nextDouble() - 0.5), 0, dir.x * (r.nextDouble() - 0.5)), 6.5);
+                if (nb != null) e.slab(nb, dir, w * 0.45f, 0.18f, w * 0.35f, tilt * 1.3f, 0.1f + 0.2f * r.nextFloat(), delay + 1, r.nextLong());
             }
         }
         int chunks = Math.max(6, Math.min(40, Math.round((8 + radius * 3) * power * (0.8f + 0.4f * r.nextFloat()))));
@@ -75,7 +77,8 @@ public final class GroundShatter {
      * popping out of it and dust along its length. {@code delayPerBlock} lets the tear travel from {@code from}.
      */
     public static void line(Vec3 from, Vec3 to, float width, float power, float delayPerBlock, long seed) {
-        Vec3 g0 = FrostrendFx.ground(from);
+        Vec3 g0 = FrostrendFx.groundOrNull(from, 6.5);
+        if (g0 == null) return;
         GroundMaterial m = GroundMaterial.at(g0);
         RandomSource r = RandomSource.create(seed);
         Vec3 d = to.subtract(from);
@@ -94,17 +97,18 @@ public final class GroundShatter {
                 float w = 0.35f + 0.75f * r.nextFloat();
                 float dep = 0.3f + 0.5f * r.nextFloat();
                 double off = width * 0.18 + dep * 0.45 + r.nextDouble() * 0.35;
-                Vec3 base = FrostrendFx.ground(from.add(dir.scale(s + (r.nextDouble() - 0.5) * 0.4)).add(side.scale(k * off)));
+                Vec3 base = FrostrendFx.groundOrNull(from.add(dir.scale(s + (r.nextDouble() - 0.5) * 0.4)).add(side.scale(k * off)), 6.5);
+                if (base == null) continue;
                 e.slab(base, side.scale(k), w, 0.2f + 0.2f * r.nextFloat(), dep, (0.2f + 0.55f * r.nextFloat()) * Math.min(1.2f, power),
                         0.08f + 0.27f * power * r.nextFloat(), delay + r.nextInt(2), r.nextLong());
             }
+            Vec3 at = FrostrendFx.groundOrNull(from.add(dir.scale(s)), 6.5);
+            if (at == null) continue;
             if (r.nextFloat() < 0.5f) {
-                Vec3 at = FrostrendFx.ground(from.add(dir.scale(s)));
                 Vec3 v = side.scale((r.nextDouble() - 0.5) * 0.3).add(0, (0.2 + 0.3 * r.nextDouble()) * power, 0);
                 e.chunk(at.add(0, 0.1, 0), v, 0.1f + 0.22f * r.nextFloat() * r.nextFloat(), at.y + 0.08, r.nextLong());
             }
             if (r.nextFloat() < 0.3f) {
-                Vec3 at = FrostrendFx.ground(from.add(dir.scale(s)));
                 int dl = delay;
                 long sd = r.nextLong();
                 FxScheduler.after(dl, () -> puff(at, 1.2f + width * 0.5f, m, sd));

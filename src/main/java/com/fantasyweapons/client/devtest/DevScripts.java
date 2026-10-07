@@ -51,6 +51,7 @@ final class DevScripts {
                 else if (name.startsWith("swings:")) swings(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.startsWith("fpall:")) fpAll(b, java.util.List.of(name.substring(6).split(",")));
                 else if (name.startsWith("kills:")) kills(b, name.substring(6));
+                else if (name.startsWith("groundaudit")) groundAudit(b, name.length() > 12 ? java.util.List.of(name.substring(12).split(",")) : null);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -526,6 +527,44 @@ final class DevScripts {
      * Swings every weapon through its three attacks and casts every ability in first person, recording how far the
      * weld moved each piece of the weapon back onto the grip (see WeaponGeoModel#weldToGrip), then logs the largest.
      */
+    /**
+     * Casts every castable ability of every weapon (or of the listed ones) hovering at jump height, hovering eight blocks
+     * up and standing while aiming at the sky, and has {@link GroundAudit} log every ground effect left in the air.
+     */
+    private static void groundAudit(ScreenshotDirector.Builder b, java.util.List<String> only) {
+        b.cmd("/gamemode creative").hud(false);
+        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+            String w = def.id();
+            if (only != null && !only.contains(w)) continue;
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + w + " 100").wait(40).slot(0).cmd("/fw points 300");
+            for (var a : def.castables()) {
+                for (String scenario : new String[]{"jump", "high", "skyward"}) {
+                    b.cmd("/kill @e[type=!player]").wait(3);
+                    for (int i = 0; i < 3; i++) {
+                        b.cmd("/summon minecraft:husk " + (i - 1) * 2.5 + " -60 " + (6 + (i % 2) * 1.5)
+                                + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+                    }
+                    b.cmd("/fw cooldowns");
+                    if (a.requiredForm() != null) b.form(a.requiredForm()).wait(40).cmd("/fw cooldowns");
+                    boolean fly = !scenario.equals("skyward");
+                    // up first, then fly: a flying player standing on the ground drops out of flight at once
+                    b.cmd("/tp @s 0 " + (scenario.equals("jump") ? -58.8 : scenario.equals("high") ? -52 : -60) + " 0 0 " + (fly ? 10 : -40)).wait(2);
+                    b.run(mc -> {
+                        mc.player.getAbilities().flying = fly;
+                        mc.player.onUpdateAbilities();
+                        mc.player.setDeltaMovement(0, 0, 0);
+                    }).wait(2);
+                    b.select(a.id()).wait(5);
+                    String label = w + "/" + a.id() + " " + scenario;
+                    b.run(mc -> GroundAudit.begin(label + String.format(" (cast %.1f above ground)", mc.player.getY() + 60)));
+                    b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+                    b.wait(a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE ? 110 : 45);
+                }
+            }
+        }
+        b.run(mc -> GroundAudit.flush()).cmd("/gamemode survival").wait(5).quit();
+    }
+
     private static void rigid(ScreenshotDirector.Builder b) {
         b.run(mc -> com.fantasyweapons.client.render.WeaponGeoModel.rigidStats = new java.util.TreeMap<>());
         for (var def : com.fantasyweapons.weapon.Weapons.all()) {

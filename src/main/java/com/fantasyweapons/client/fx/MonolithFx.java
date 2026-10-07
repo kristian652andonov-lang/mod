@@ -243,7 +243,9 @@ public final class MonolithFx {
     }
 
     private static void aftershock(FxPayload p) {
-        Vec3 c = p.pos();
+        // the ground under the struck enemy shakes - unless it was struck in the air, high above any ground
+        Vec3 c = FrostrendFx.groundOrNull(p.pos(), 2.5);
+        if (c == null) return;
         float r = p.scale();
         boolean big = p.power() > 0;
         GroundShatter.cracks(ground(c), r * 0.6f, GroundMaterial.at(ground(c)), 40);
@@ -267,10 +269,13 @@ public final class MonolithFx {
     }
 
     private static void leap(FxPayload p) {
-        Vec3 c = p.pos();
-        dust(c, 3.5f, 10, p.seed());
-        rubble(c, 0.4f, 14, p.seed() * 3);
-        GroundShatter.impact(c, 1.6f, 0.7f, p.seed() * 3 + 1);
+        // the ground bursts under the take-off (not when leaping out of mid-air)
+        Vec3 c = FrostrendFx.groundOrNull(p.pos(), 1.5);
+        if (c != null) {
+            dust(c, 3.5f, 10, p.seed());
+            rubble(c, 0.4f, 14, p.seed() * 3);
+            GroundShatter.impact(c, 1.6f, 0.7f, p.seed() * 3 + 1);
+        }
         Entity e = Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getEntity(p.caster());
         if (e != null) {
             VfxManager.add(new FollowTrailVfx(() -> e.isRemoved() ? null : e.position().add(0, 1.2, 0), 1.2f, Colors.argb(160, ENERGY),

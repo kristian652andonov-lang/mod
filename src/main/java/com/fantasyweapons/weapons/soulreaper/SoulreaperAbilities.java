@@ -144,7 +144,7 @@ public final class SoulreaperAbilities {
         int delay = (int) Math.round(ctx.param("mark_time") * 20);
         for (LivingEntity e : marked) StatusService.apply(e, StatusType.SOUL_DRAIN, delay + 60, 1, 0f, p.getUUID());
         List<Integer> ids = marked.stream().map(LivingEntity::getId).toList();
-        Kit.fx(ctx.level(), FxPayload.of(FxIds.SOULREAPER_TOLL).caster(p.getId()).pos(p.position()).power(delay).scale((float) radius).entities(ids)
+        Kit.fx(ctx.level(), FxPayload.of(FxIds.SOULREAPER_TOLL).caster(p.getId()).pos(Kit.feet(p)).power(delay).scale((float) radius).entities(ids)
                 .seed(Kit.seed(ctx.level())).build());
         Kit.sound(ctx.level(), p.position(), ModSounds.SOUL_PROJECTILE.get(), 2.5f, 0.35f);
         float per = (float) (ctx.damage() * ctx.param("hit_fraction"));

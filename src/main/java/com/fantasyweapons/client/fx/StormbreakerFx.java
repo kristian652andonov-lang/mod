@@ -106,13 +106,18 @@ public final class StormbreakerFx {
                     Vec3 tip = c.add(Math.cos(a) * r * 0.9, (k == 0 ? 0.3 : -0.3), Math.sin(a) * r * 0.9);
                     VfxManager.add(new LightningVfx(c, tip, 0.14f, Colors.argb(230, BOLT), 3, (long) (tt * 13 + k)).branches(2).jag(0.35f));
                 }
-                if (tt % 6 == 0) {
-                    VfxManager.add(new ShockwaveVfx(e.position().add(0, 0.15, 0), new Vec3(0, 1, 0), r * 0.3f, r, 0.25f, Colors.argb(200, BOLT), 6).energy());
+                Vec3 g = tt % 6 == 0 ? FrostrendFx.groundOrNull(e.position(), 2.5) : null;
+                if (g != null) {
+                    VfxManager.add(new ShockwaveVfx(g.add(0, 0.15, 0), new Vec3(0, 1, 0), r * 0.3f, r, 0.25f, Colors.argb(200, BOLT), 6).energy());
                 }
             });
         }
+        // the swirl scorched into the ground travels under the caster as they spin (and is gone while they are high up)
         VfxManager.add(new DecalVfx(e.position().add(0, 0.04, 0), new Vec3(0, 1, 0), r, Colors.argb(200, BOLT), VfxTextures.SWIRL, duration)
-                .spin(0.4f).energy().timing(0.1f, 0.2f));
+                .spin(0.4f).energy().timing(0.1f, 0.2f).follow(pt -> {
+                    Vec3 g = FrostrendFx.groundOrNull(e.getPosition(pt), 2.5);
+                    return g == null ? null : g.add(0, 0.04, 0);
+                }));
         VfxManager.add(new FlashVfx(Vec3.ZERO, r * 0.8f, r * 1.4f, Colors.argb(140, BOLT), duration).follow(e, new Vec3(0, 1, 0)).peak(0.1f).energy());
     }
 
@@ -168,8 +173,12 @@ public final class StormbreakerFx {
         RandomSource rnd = RandomSource.create(p.seed());
         Vec3 start = from.add(rnd.nextGaussian() * 3, 0, rnd.nextGaussian() * 3);
         VfxManager.add(new LightningVfx(start, g, 0.45f, Colors.argb(255, BOLT), 8, p.seed()).branches(4));
-        VfxManager.add(new ShockwaveVfx(g.add(0, 0.08, 0), new Vec3(0, 1, 0), 0.2f, 2.4f, 0.3f, Colors.argb(220, CORE), 8).energy());
-        GroundShatter.cracks(FrostrendFx.ground(g), 1.3f, com.fantasyweapons.client.vfx.GroundMaterial.at(g), 40);
+        // the ground it strikes scorches and cracks (a bolt striking something in the air leaves no mark below)
+        Vec3 struck = FrostrendFx.groundOrNull(g, 1.0);
+        if (struck != null) {
+            VfxManager.add(new ShockwaveVfx(struck.add(0, 0.08, 0), new Vec3(0, 1, 0), 0.2f, 2.4f, 0.3f, Colors.argb(220, CORE), 8).energy());
+            GroundShatter.cracks(struck, 1.3f, com.fantasyweapons.client.vfx.GroundMaterial.at(struck), 40);
+        }
         zap(g.add(0, 0.5, 0), 1.3f, p.seed());
         Vec3 prev = g.add(0, 1, 0);
         int i = 0;

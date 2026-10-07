@@ -64,6 +64,16 @@ public final class Kit {
     }
 
     /**
+     * The ground at a spot scattered around an area (a strike, a bolt, a meteor): the first surface from a few blocks
+     * above the spot down a long way, or {@code fallback} (a point on the ground, e.g. the area's centre) if the spot
+     * is over a void - so scattered effects never hang in the air over a cliff edge.
+     */
+    public static Vec3 groundAt(ServerLevel level, Vec3 spot, Vec3 fallback) {
+        Vec3 g = groundOrNull(level, spot.add(0, 4, 0), 52);
+        return g != null ? g : fallback;
+    }
+
+    /**
      * The ground under a player: their feet when standing, the first surface below when airborne (so area abilities cast
      * in mid-air land on the ground instead of floating with the caster).
      */

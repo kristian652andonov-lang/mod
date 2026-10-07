@@ -154,7 +154,7 @@ public final class SolarisAbilities {
                     for (int i = 0; i < Math.min(perStrike, pool.size()); i++) spots.add(pool.get(i).position());
                     while (spots.size() < Math.max(1, perStrike - 1)) {
                         double a = o.level().random.nextDouble() * Math.PI * 2, r = Math.sqrt(o.level().random.nextDouble()) * radius;
-                        spots.add(Kit.ground(o.serverLevel(), center.add(Math.cos(a) * r, 3, Math.sin(a) * r), 8));
+                        spots.add(Kit.groundAt(o.serverLevel(), center.add(Math.cos(a) * r, 0, Math.sin(a) * r), center));
                     }
                     for (Vec3 s : spots) {
                         Kit.burst(o, weapon, s.add(0, 1, 0), pillar, strike, Element.SOLAR, 0, 0.3, 0.3,

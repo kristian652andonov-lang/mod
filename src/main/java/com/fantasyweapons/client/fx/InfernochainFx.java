@@ -427,8 +427,8 @@ public final class InfernochainFx {
                         new Vec3(-Math.sin(spin), 0, Math.cos(spin)), r * 0.15f, r * 1.02f, 40, Colors.alpha(a * 0.35f, FIRE));
             }
         });
-        Vec3 cg = FrostrendFx.ground(caster.position());
-        GroundShatter.cracks(cg, r, com.fantasyweapons.client.vfx.GroundMaterial.at(cg), duration + 30, FIRE, EMBER, p.seed() * 3);
+        Vec3 cg = FrostrendFx.groundOrNull(caster.position(), 2.5);
+        if (cg != null) GroundShatter.cracks(cg, r, com.fantasyweapons.client.vfx.GroundMaterial.at(cg), duration + 30, FIRE, EMBER, p.seed() * 3);
         for (int t = 0; t < duration; t += 4) {
             int tt = t;
             FxScheduler.after(tt, () -> {
@@ -504,10 +504,12 @@ public final class InfernochainFx {
         ScreenFx.flash(EMBER, 0.15f, 6);
         // the scorched path keeps burning
         RandomSource rnd = RandomSource.create(p.seed());
-        Vec3 pathFrom = FrostrendFx.ground(from.lerp(c, 0.35));
+        Vec3 mid = from.lerp(c, 0.35);
+        Vec3 pathStart = FrostrendFx.groundOrNull(new Vec3(mid.x, c.y + 2, mid.z), 12);
+        Vec3 pathFrom = pathStart != null ? pathStart : c;
         for (int i = 0; i <= 6; i++) {
-            Vec3 at = FrostrendFx.ground(pathFrom.lerp(c, i / 6.0));
-            if (i % 2 == 0) GroundShatter.cracks(at, 2.0f + rnd.nextFloat(), com.fantasyweapons.client.vfx.GroundMaterial.at(at), burn + 30, FIRE, EMBER,
+            Vec3 at = FrostrendFx.groundOrNull(pathFrom.lerp(c, i / 6.0), 6.5);
+            if (at != null && i % 2 == 0) GroundShatter.cracks(at, 2.0f + rnd.nextFloat(), com.fantasyweapons.client.vfx.GroundMaterial.at(at), burn + 30, FIRE, EMBER,
                     rnd.nextLong());
         }
         for (int t = 0; t < burn; t += 3) {
@@ -515,7 +517,9 @@ public final class InfernochainFx {
             FxScheduler.after(tt, () -> {
                 RandomSource rr = RandomSource.create(p.seed() + tt);
                 for (int k = 0; k < 3; k++) {
-                    Vec3 at = FrostrendFx.ground(pathFrom.lerp(c, rr.nextDouble())).add(rr.nextGaussian() * 0.8, 0.1, rr.nextGaussian() * 0.8);
+                    Vec3 g = FrostrendFx.groundOrNull(pathFrom.lerp(c, rr.nextDouble()), 6.5);
+                    if (g == null) continue;
+                    Vec3 at = g.add(rr.nextGaussian() * 0.8, 0.1, rr.nextGaussian() * 0.8);
                     VfxManager.add(new ShardBurstVfx(at, UP, 0.25f, 0.08f, 3, 0.6f, Colors.argb(230, EMBER), Colors.argb(0, CRIMSON), 22, rr.nextLong())
                             .texture(VfxTextures.FLAME, false).physics(-0.012f, 0.92f));
                 }

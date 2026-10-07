@@ -228,7 +228,7 @@ public final class StormbreakerAbilities {
                         }
                     } else {
                         double a = level.random.nextDouble() * Math.PI * 2, r = Math.sqrt(level.random.nextDouble()) * radius;
-                        spot = Kit.ground(level, center.add(Math.cos(a) * r, 4, Math.sin(a) * r), 10);
+                        spot = Kit.groundAt(level, center.add(Math.cos(a) * r, 0, Math.sin(a) * r), center);
                     }
                     Kit.fx(level, FxPayload.of(FxIds.STORMBREAKER_BOLT).caster(o.getId()).pos(spot).point(cloud).entities(ids)
                             .seed(level.random.nextLong()).build());

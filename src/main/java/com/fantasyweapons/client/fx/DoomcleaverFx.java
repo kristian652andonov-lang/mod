@@ -90,14 +90,16 @@ public final class DoomcleaverFx {
             for (int k = 0; k < n; k++) {
                 double a = (n == 1 ? 0 : -half + 2 * half * k / (n - 1)) + (r.nextDouble() - 0.5) * 0.15;
                 Vec3 dir = fwd.scale(Math.cos(a)).add(right.scale(Math.sin(a)));
-                Vec3 at = FrostrendFx.ground(o.add(dir.scale(d)));
+                // out of the ground in front - swung high in the air, the chop has no spikes to raise
+                Vec3 at = FrostrendFx.groundOrNull(o.add(dir.scale(d)), 3.0);
+                if (at == null) continue;
                 spikes.add(at, dir.scale(0.45).add(0, 1, 0), (0.5f + r.nextFloat() * 0.7f) * (1.1f - (float) (d / range) * 0.4f), 0.18f,
                         (int) (d * 1.4));
             }
         }
         VfxManager.add(spikes);
-        Vec3 cg = FrostrendFx.ground(o.add(fwd.scale(range * 0.5)));
-        GroundShatter.cracks(cg, range * 0.6f, com.fantasyweapons.client.vfx.GroundMaterial.at(cg), 60, BLOOD, 0xFF8A9A, p.seed() * 7);
+        Vec3 cg = FrostrendFx.groundOrNull(o.add(fwd.scale(range * 0.5)), 3.0);
+        if (cg != null) GroundShatter.cracks(cg, range * 0.6f, com.fantasyweapons.client.vfx.GroundMaterial.at(cg), 60, BLOOD, 0xFF8A9A, p.seed() * 7);
         VfxManager.add(new ShardBurstVfx(o.add(fwd.scale(2)).add(0, 0.5, 0), fwd.add(0, 0.8, 0), 0.6f, 0.4f, 24, 0.22f, Colors.argb(255, BLOOD),
                 Colors.argb(0, DARK), 22, p.seed()).texture(VfxTextures.SHARD, false).physics(0.04f, 0.95f));
         CameraShake.add(o, 0.6f, 12);
@@ -107,9 +109,13 @@ public final class DoomcleaverFx {
     private static void rage(FxPayload p) {
         Entity e = entity(p.caster());
         Vec3 o = p.pos();
-        VfxManager.add(new ShockwaveVfx(o.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.3f, 5f, 0.6f, Colors.argb(230, BLOOD), 14).energy());
-        VfxManager.add(new DecalVfx(o.add(0, 0.04, 0), new Vec3(0, 1, 0), 2.5f, Colors.argb(220, BLOOD), VfxTextures.RUNE_CIRCLE, 30)
-                .spin(0.1f).energy().timing(0.1f, 0.5f));
+        // the ring and the rune circle lie on the ground under the caster (none when they rage high in the air)
+        Vec3 g = FrostrendFx.groundOrNull(o, 3.0);
+        if (g != null) {
+            VfxManager.add(new ShockwaveVfx(g.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.3f, 5f, 0.6f, Colors.argb(230, BLOOD), 14).energy());
+            VfxManager.add(new DecalVfx(g.add(0, 0.04, 0), new Vec3(0, 1, 0), 2.5f, Colors.argb(220, BLOOD), VfxTextures.RUNE_CIRCLE, 30)
+                    .spin(0.1f).energy().timing(0.1f, 0.5f));
+        }
         VfxManager.add(new ShardBurstVfx(o.add(0, 1, 0), new Vec3(0, 1, 0), 0.8f, 0.3f, 30, 0.35f, Colors.argb(255, LIGHT), Colors.argb(0, DARK), 22,
                 p.seed()).texture(VfxTextures.FLAME, false).physics(-0.01f, 0.9f));
         if (e != null) VfxManager.add(new FlashVfx(Vec3.ZERO, 1f, 4f, Colors.argb(200, BLOOD), 12).follow(e, new Vec3(0, 1, 0)).energy());
@@ -128,7 +134,9 @@ public final class DoomcleaverFx {
     private static void leap(FxPayload p) {
         Entity e = entity(p.caster());
         Vec3 o = p.pos();
-        VfxManager.add(new ShockwaveVfx(o.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.3f, 3f, 0.4f, Colors.argb(220, BLOOD), 10).energy());
+        // the ground cracks under the take-off (only when leaping off the ground)
+        Vec3 g = FrostrendFx.groundOrNull(o, 1.5);
+        if (g != null) VfxManager.add(new ShockwaveVfx(g.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.3f, 3f, 0.4f, Colors.argb(220, BLOOD), 10).energy());
         VfxManager.add(new ShardBurstVfx(o.add(0, 0.3, 0), new Vec3(0, 1, 0), 0.7f, 0.3f, 16, 0.25f, Colors.argb(255, BLOOD), Colors.argb(0, DARK),
                 18, p.seed()).texture(VfxTextures.SHARD, false).physics(0.04f, 0.95f));
         if (e instanceof LivingEntity le) {
@@ -150,7 +158,8 @@ public final class DoomcleaverFx {
         for (int i = 0; i < 14; i++) {
             double a = i * Math.PI * 2 / 14 + rnd.nextDouble() * 0.2;
             double d = r * (0.45 + rnd.nextDouble() * 0.4);
-            Vec3 at = FrostrendFx.ground(g.add(Math.cos(a) * d, 0, Math.sin(a) * d));
+            Vec3 at = FrostrendFx.groundOrNull(g.add(Math.cos(a) * d, 0, Math.sin(a) * d), 3.0);
+            if (at == null) continue;
             crown.add(at, new Vec3(Math.cos(a) * 0.7, 1, Math.sin(a) * 0.7), 1.0f + rnd.nextFloat() * 1.2f, 0.3f, (int) (d / r * 4));
         }
         VfxManager.add(crown);
@@ -185,7 +194,9 @@ public final class DoomcleaverFx {
         for (int id : p.entities()) {
             Entity v = entity(id);
             if (v == null) continue;
-            Vec3 at = v.position();
+            // crystals impale it from the ground (not when it was thrown up into the air)
+            Vec3 at = FrostrendFx.groundOrNull(v.position(), 2.5);
+            if (at == null) continue;
             VfxManager.add(new SpikeVfx(SpikeVfx.Style.CRYSTAL, Colors.argb(235, BLOOD), LIGHT, 30).timing(2, 10)
                     .add(at.add(0.3, 0, 0), new Vec3(0.4, 1, 0), v.getBbHeight() * 1.3f, 0.3f, 0)
                     .add(at.add(-0.3, 0, 0.2), new Vec3(-0.4, 1, 0.2), v.getBbHeight(), 0.25f, 1)

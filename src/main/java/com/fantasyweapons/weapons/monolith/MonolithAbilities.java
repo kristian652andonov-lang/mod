@@ -61,10 +61,15 @@ public final class MonolithAbilities {
     // shared mechanics
     // ------------------------------------------------------------------------------------------------------------
 
-    /** Point on the ground where the blade is driven in. */
+    /** Point on the ground where the blade is driven in: in front of the wielder, on the ground below them if airborne. */
     static Vec3 plantPoint(ServerPlayer p) {
-        Vec3 look = Targeting.flatLook(p);
-        return Kit.ground(p.serverLevel(), p.position().add(look.scale(PLANT_REACH)).add(0, 1.5, 0), 4);
+        return plantPoint(p.serverLevel(), Kit.feet(p), Targeting.flatLook(p));
+    }
+
+    /** The ground {@link #PLANT_REACH} in front of {@code feet} (a point on the ground), or {@code feet} itself over a drop. */
+    static Vec3 plantPoint(ServerLevel level, Vec3 feet, Vec3 look) {
+        Vec3 g = Kit.groundOrNull(level, feet.add(look.scale(PLANT_REACH)).add(0, 1.5, 0), 4);
+        return g != null ? g : feet;
     }
 
     /**
@@ -257,8 +262,8 @@ public final class MonolithAbilities {
             }
             if (f.age() < 4 || !(o.onGround() || o.isInWater() || f.age() >= 68)) return;
             ServerLevel level = o.serverLevel();
-            Vec3 land = Kit.ground(level, o.position().add(0, 0.5, 0), 3);
-            Vec3 point = Kit.ground(level, land.add(Targeting.flatLook(o).scale(PLANT_REACH)).add(0, 1.5, 0), 4);
+            Vec3 land = Kit.feet(o);
+            Vec3 point = plantPoint(level, land, Targeting.flatLook(o));
             plant(ctx, o, point, 26, true);
             List<Vec3> ends = new ArrayList<>();
             RandomSource r = RandomSource.create(seed);

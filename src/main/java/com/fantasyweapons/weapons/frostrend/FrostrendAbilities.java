@@ -102,7 +102,10 @@ public final class FrostrendAbilities {
     public static boolean iceSpikes(AbilityContext ctx) {
         ServerPlayer p = ctx.player();
         Vec3 flat = Targeting.flatLook(p);
-        Vec3 start = p.position().add(flat.scale(1.2));
+        // the spikes run along the ground in front - the ground below when cast in mid-air
+        Vec3 feet = Kit.feet(p).add(flat.scale(1.2));
+        Vec3 g = Kit.groundOrNull(ctx.level(), feet.add(0, 1.5, 0), 4);
+        Vec3 start = g != null ? g : feet;
         double length = ctx.scaled("length", "length_per_level");
         float damage = ctx.damage();
         int stacks = (int) ctx.param("frost_stacks");

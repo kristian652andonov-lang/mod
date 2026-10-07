@@ -98,7 +98,9 @@ public final class VoidfangFx {
                 Colors.argb(235, VOID), Colors.argb(255, HOT), 12));
         VfxManager.add(new SlashArcVfx(arrive.add(0, -0.25, 0), right.add(0, -0.3, 0), fwd, 2.2f, 0.55f, (float) Math.toRadians(210),
                 (float) Math.toRadians(-30), Colors.argb(200, DEEP), Colors.argb(255, EDGE), 14));
-        VfxManager.add(new ShockwaveVfx(dest.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.4f, 4f, 0.5f, Colors.argb(220, VOID), 14));
+        // the ring on the ground where they land (none when the blink ends in the air)
+        Vec3 landing = FrostrendFx.groundOrNull(dest, 1.5);
+        if (landing != null) VfxManager.add(new ShockwaveVfx(landing.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.4f, 4f, 0.5f, Colors.argb(220, VOID), 14));
         VfxManager.add(new FlashVfx(arrive, 0.5f, 3.0f, Colors.argb(230, HOT), 8, VfxTextures.FLASH));
         CameraShake.add(dest, 0.5f, 8);
 
@@ -120,8 +122,11 @@ public final class VoidfangFx {
         RandomSource r = RandomSource.create(p.seed());
 
         VfxManager.add(new RiftVfx(c, p.dir(), height, radius * 0.95f, VOID, EDGE, duration + 6, p.seed()));
-        VfxManager.add(new DecalVfx(groundBelow(c, height * 0.5), new Vec3(0, 1, 0), radius * 1.4f, Colors.argb(220, VOID),
-                VfxTextures.RUNE_CIRCLE, duration + 6).spin(0.05f).energy());
+        Vec3 floor = FrostrendFx.groundOrNull(c, height * 0.5 + 1);
+        if (floor != null) {
+            VfxManager.add(new DecalVfx(floor.add(0, 0.02, 0), new Vec3(0, 1, 0), radius * 1.4f, Colors.argb(220, VOID), VfxTextures.RUNE_CIRCLE,
+                    duration + 6).spin(0.05f).energy());
+        }
         VfxManager.add(new ShockwaveVfx(c, p.dir(), 0.5f, radius * 1.6f, 0.4f, Colors.argb(200, EDGE), 12));
         // matter being dragged in, in waves
         for (int wave = 0; wave < Math.max(1, duration / 12); wave++) {
@@ -142,7 +147,8 @@ public final class VoidfangFx {
         FxScheduler.after(5, () -> {
             VfxManager.add(new FlashVfx(c, 1f, radius * 3.5f, Colors.argb(255, HOT), 10, VfxTextures.FLASH));
             VfxManager.add(new FlashVfx(c, 1f, radius * 4.5f, Colors.argb(200, VOID), 16).energy());
-            VfxManager.add(new ShockwaveVfx(groundBelow(c, radius), new Vec3(0, 1, 0), 0.5f, radius * 2.6f, 0.8f, Colors.argb(230, EDGE), 18));
+            Vec3 floor = FrostrendFx.groundOrNull(c, radius + 1);
+            if (floor != null) VfxManager.add(new ShockwaveVfx(floor.add(0, 0.02, 0), new Vec3(0, 1, 0), 0.5f, radius * 2.6f, 0.8f, Colors.argb(230, EDGE), 18));
             VfxManager.add(new ShardBurstVfx(c, Vec3.ZERO, 1f, 0.55f, 40, 0.32f, Colors.argb(255, EDGE), Colors.argb(0, DEEP), 22, p.seed()));
             CameraShake.add(c, 1.0f, 20);
         });
@@ -248,16 +254,5 @@ public final class VoidfangFx {
     private static boolean isLocalCaster(FxPayload p) {
         var mc = Minecraft.getInstance();
         return mc.player != null && mc.player.getId() == p.caster();
-    }
-
-    static Vec3 groundBelow(Vec3 c, double maxDown) {
-        var level = Minecraft.getInstance().level;
-        if (level == null) return c.subtract(0, maxDown, 0);
-        for (double d = 0; d <= maxDown + 3; d += 0.25) {
-            Vec3 q = c.subtract(0, d, 0);
-            var pos = BlockPos.containing(q);
-            if (!level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()) return new Vec3(c.x, pos.getY() + 1.02, c.z);
-        }
-        return c.subtract(0, maxDown, 0);
     }
 }

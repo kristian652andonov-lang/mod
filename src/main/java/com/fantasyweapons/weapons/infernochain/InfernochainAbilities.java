@@ -271,11 +271,12 @@ public final class InfernochainAbilities {
                     .entities(hit).seed(seed).build());
             Kit.sound(l, target, ModSounds.EXPLOSION.get(), 3f, 0.6f);
             Kit.sound(l, target, ModSounds.FIRE_WHOOSH.get(), 2.5f, 0.6f);
-            // the scorched path keeps burning
-            Vec3 groundFrom = Kit.ground(l, from.lerp(target, 0.35), 12);
+            // the scorched path keeps burning, on the ground under the dive (however high up the wielder was)
+            Vec3 mid = from.lerp(target, 0.35);
+            Vec3 groundFrom = Kit.groundAt(l, new Vec3(mid.x, target.y, mid.z), target);
             int pulses = Math.max(1, burnTicks / 10);
             for (int i = 0; i <= 3; i++) {
-                Vec3 at = Kit.ground(l, groundFrom.lerp(target, i / 3.0).add(0, 2, 0), 8);
+                Vec3 at = Kit.groundAt(l, groundFrom.lerp(target, i / 3.0), target);
                 AreaEffectManager.add(new FieldEffect(ctx, at, i == 3 ? radius * 0.7 : 3.0, burnTicks, 10).onPulse((oo, ww, f, inside) -> {
                     for (LivingEntity e : inside) {
                         FWDamage.deal(oo, ww, e, burn / pulses / 4f, FWDamage.Kind.ABILITY, Element.FIRE, 0);

@@ -114,7 +114,8 @@ public final class SoulreaperFx {
             toCaster = toCaster.lengthSqr() < 1e-4 ? new Vec3(1, 0, 0) : toCaster.normalize();
             Vec3 side = new Vec3(-toCaster.z, 0, toCaster.x);
             for (int k = -1; k <= 1; k += 2) {
-                Vec3 rift = FrostrendFx.ground(at.add(side.scale(k * 1.7)).add(toCaster.scale(0.9)));
+                Vec3 rift = FrostrendFx.groundOrNull(at.add(side.scale(k * 1.7)).add(toCaster.scale(0.9)), 6.5);
+                if (rift == null) continue; // no ground to tear open under a soul high in the air
                 VfxManager.add(new SoulRiftVfx(rift, 0.65f, SOUL, SPIRIT, delay + 16));
                 double h = k < 0 ? 0.55 : 0.72;
                 FxScheduler.after(2, () -> VfxManager.add(new ChainVfx(rift, ChainVfx.toEntity(v, h), Colors.argb(200, SOUL), Colors.argb(220, SPIRIT), delay + 4)

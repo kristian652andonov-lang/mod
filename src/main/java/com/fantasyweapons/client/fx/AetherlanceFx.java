@@ -92,8 +92,10 @@ public final class AetherlanceFx {
     private static void charge(FxPayload p) {
         Entity e = entity(p.caster());
         int ticks = Math.round(p.power());
+        // a ring bursts off the ground at the start of the charge (not when charging out of mid-air)
         Vec3 o = p.pos();
-        VfxManager.add(new ShockwaveVfx(o.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.3f, 3f, 0.4f, Colors.argb(220, AETHER), 10).energy());
+        Vec3 g = FrostrendFx.groundOrNull(o, 1.5);
+        if (g != null) VfxManager.add(new ShockwaveVfx(g.add(0, 0.1, 0), new Vec3(0, 1, 0), 0.3f, 3f, 0.4f, Colors.argb(220, AETHER), 10).energy());
         VfxManager.add(new FlashVfx(o.add(0, 1, 0), 0.5f, 2.5f, Colors.argb(200, LIGHT), 8).energy());
         if (e instanceof LivingEntity le) {
             int[] left = {ticks + 2};

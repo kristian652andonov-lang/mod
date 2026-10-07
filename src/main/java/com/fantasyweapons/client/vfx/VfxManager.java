@@ -34,6 +34,11 @@ public final class VfxManager {
         return vfx;
     }
 
+    /** The live effects (read only). */
+    public static List<Vfx> active() {
+        return java.util.Collections.unmodifiableList(ACTIVE);
+    }
+
     public static void tick() {
         ticking = true;
         try {

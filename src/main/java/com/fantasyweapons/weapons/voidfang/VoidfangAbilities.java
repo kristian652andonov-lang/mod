@@ -231,17 +231,15 @@ public final class VoidfangAbilities {
     public static boolean riftTear(AbilityContext ctx) {
         ServerPlayer p = ctx.player();
         double range = ctx.param("range");
-        Vec3 eye = ctx.eye();
         Vec3 look = ctx.look();
-        HitResult hit = ctx.level().clip(new ClipContext(eye, eye.add(look.scale(range)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
         LivingEntity aimed = Targeting.crosshair(p, range, FWDamage.Kind.ABILITY);
+        // the rift hangs a body's height over the ground: at the enemy aimed at, else where the aim meets the ground
+        // (aiming at the sky or into a wall, the ground nearest along the line of sight) - never up in the air
         Vec3 center;
-        if (aimed != null) {
+        if (aimed != null && aimed.onGround()) {
             center = aimed.getBoundingBox().getCenter();
-        } else if (hit.getType() != HitResult.Type.MISS) {
-            center = hit.getLocation().subtract(look.scale(1.2)).add(0, 1.0, 0);
         } else {
-            center = eye.add(look.scale(range));
+            center = com.fantasyweapons.ability.kit.Kit.aimTargetOrGround(p, range).add(0, 1.0, 0);
         }
         double radius = ctx.scaled("radius", "radius_per_level");
         int duration = (int) Math.round(ctx.scaled("duration", "duration_per_level") * 20);

@@ -52,6 +52,7 @@ public final class ScreenshotDirector {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
         if (++inWorldTicks < 60) return;
+        GroundAudit.tick(mc);
         if (index >= STEPS.size()) return;
         if (wait > 0) {
             wait--;

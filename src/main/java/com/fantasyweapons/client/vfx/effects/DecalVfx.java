@@ -22,6 +22,8 @@ public class DecalVfx extends Vfx {
     private boolean translucent;
     /** Small rune circles orbiting the rim; -1 = automatic (rune circles get 2-4 by size, other decals none). */
     private int satellites = -1;
+    /** Where it is drawn each frame instead of {@link #center} (hidden while it gives null). */
+    private java.util.function.Function<Float, Vec3> track;
 
     public DecalVfx(Vec3 center, Vec3 normal, float radius, int color, ResourceLocation texture, int lifetime) {
         super(lifetime);
@@ -56,6 +58,12 @@ public class DecalVfx extends Vfx {
         return this;
     }
 
+    /** Moves with {@code where} (given the partial tick), hidden while it gives null. */
+    public DecalVfx follow(java.util.function.Function<Float, Vec3> where) {
+        this.track = where;
+        return this;
+    }
+
     /** Alpha-blended (for dark decals like cracks). */
     public DecalVfx translucent() {
         this.translucent = true;
@@ -64,6 +72,8 @@ public class DecalVfx extends Vfx {
 
     @Override
     public void render(VfxContext ctx) {
+        Vec3 center = track == null ? this.center : track.apply(ctx.partial);
+        if (center == null) return;
         float t = progress(ctx.partial);
         float grow = growTime <= 0 ? 1 : easeOut(Math.min(1, t / growTime));
         float fade = t > 1 - fadeTime ? 1 - (t - (1 - fadeTime)) / fadeTime : 1;

@@ -72,7 +72,9 @@ public final class BloomfallFx {
         for (int i = 0; i <= 12; i++) {
             double a = a0 + (a1 - a0) * i / 12.0;
             Vec3 dir = right.scale(Math.cos(a)).add(fwd.scale(Math.sin(a)));
-            Vec3 at = FrostrendFx.ground(o.add(dir.scale(range * (0.55 + r.nextDouble() * 0.4))));
+            // thorns burst out of the ground under the sweep - not when it is swung high in the air
+            Vec3 at = FrostrendFx.groundOrNull(o.add(dir.scale(range * (0.55 + r.nextDouble() * 0.4))), 3.0);
+            if (at == null) continue;
             thorns.add(at, dir.scale(0.6).add(0, 1, 0), 0.7f + r.nextFloat() * 0.8f, 0.13f, i / 2);
             if (i % 3 == 0) sprout(at, 1.0 + r.nextDouble(), 0.3, 6, 40, p.seed() + i, i % 6 == 0);
         }

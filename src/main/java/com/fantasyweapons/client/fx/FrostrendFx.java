@@ -41,12 +41,19 @@ public final class FrostrendFx {
 
     /** Ground height under a point on the client (for placing crystals). */
     static Vec3 ground(Vec3 p) {
+        Vec3 g = groundOrNull(p, 6.5);
+        return g == null ? p : g;
+    }
+
+    /** The ground surface from 1.5 blocks above {@code p} down to {@code down} blocks below it, or null if there is none. */
+    @org.jetbrains.annotations.Nullable
+    static Vec3 groundOrNull(Vec3 p, double down) {
         var level = Minecraft.getInstance().level;
-        if (level == null) return p;
+        if (level == null) return null;
         Vec3 from = p.add(0, 1.5, 0);
-        HitResult hit = level.clip(new ClipContext(from, from.subtract(0, 8, 0), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+        HitResult hit = level.clip(new ClipContext(from, from.subtract(0, 1.5 + down, 0), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
                 net.minecraft.world.phys.shapes.CollisionContext.empty()));
-        return hit.getType() == HitResult.Type.MISS ? p : hit.getLocation();
+        return hit.getType() == HitResult.Type.MISS ? null : hit.getLocation();
     }
 
     private static void frostSlash(FxPayload p) {
@@ -59,7 +66,9 @@ public final class FrostrendFx {
         RandomSource r = RandomSource.create(p.seed());
         SpikeVfx crystals = new SpikeVfx(SpikeVfx.Style.ICE, Colors.argb(200, CRYSTAL), FROST, (int) (dist / p.power()) + 40).timing(3, 10);
         for (double d = 2; d < dist; d += 1.4) {
-            Vec3 at = ground(p.pos().add(p.dir().scale(d)));
+            // only where the wave skims the ground: fired upward or from high up, nothing grows in the air
+            Vec3 at = groundOrNull(p.pos().add(p.dir().scale(d)), 2.5);
+            if (at == null) continue;
             int delay = (int) (d / p.power());
             Vec3 side = p.dir().cross(new Vec3(0, 1, 0)).normalize().scale((r.nextDouble() - 0.5) * 1.6);
             crystals.add(at.add(side), new Vec3(r.nextGaussian() * 0.25, 1, r.nextGaussian() * 0.25), 0.5f + r.nextFloat() * 0.6f,
@@ -82,7 +91,8 @@ public final class FrostrendFx {
         SpikeVfx spikes = new SpikeVfx(SpikeVfx.Style.ICE, Colors.argb(225, CRYSTAL), FROST, (int) (length / speed) + 34).timing(2, 8);
         Vec3 side = dir.cross(new Vec3(0, 1, 0)).normalize();
         for (double d = 0; d <= length; d += 0.75) {
-            Vec3 at = ground(start.add(dir.scale(d)));
+            Vec3 at = groundOrNull(start.add(dir.scale(d)), 6.5);
+            if (at == null) continue; // over a drop: no spikes standing on thin air
             int delay = (int) (d / speed);
             float scale = 1f + (float) (d / length) * 0.6f;
             // a tall central spike flanked by smaller ones, all leaning outward
