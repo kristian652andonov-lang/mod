@@ -52,6 +52,7 @@ final class DevScripts {
                 else if (name.startsWith("fpall:")) fpAll(b, java.util.List.of(name.substring(6).split(",")));
                 else if (name.startsWith("kills:")) kills(b, name.substring(6));
                 else if (name.startsWith("groundaudit")) groundAudit(b, name.length() > 12 ? java.util.List.of(name.substring(12).split(",")) : null);
+                else if (name.startsWith("aircasts:")) airCasts(b, name.substring(9));
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -563,6 +564,30 @@ final class DevScripts {
             }
         }
         b.run(mc -> GroundAudit.flush()).cmd("/gamemode survival").wait(5).quit();
+    }
+
+    /** Each "weapon/ability" cast hovering six blocks up, seen from the side a moment after release. */
+    private static void airCasts(ScreenshotDirector.Builder b, String list) {
+        b.cmd("/gamemode creative").hud(false);
+        for (String key : list.split(",")) {
+            String[] k = key.split("/");
+            var a = com.fantasyweapons.weapon.Weapons.get(k[0]).ability(k[1]);
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + k[0] + " 100").wait(30).slot(0).cmd("/fw points 300");
+            for (int i = 0; i < 3; i++) {
+                b.cmd("/summon minecraft:husk " + (i - 1) * 2.5 + " -60 " + (6 + (i % 2) * 1.5)
+                        + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+            }
+            b.cmd("/fw cooldowns").cmd("/tp @s 0 -54 0 0 15").wait(2).run(mc -> {
+                mc.player.getAbilities().flying = true;
+                mc.player.onUpdateAbilities();
+                mc.player.setDeltaMovement(0, 0, 0);
+            }).wait(3);
+            b.select(a.id()).wait(5).viewAt(12, -1.5, 3, 0, -3, 3.5);
+            b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+            b.wait(a.id().equals("supernova") ? 16 : 8).screenshot("air_" + k[1]).wait(a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE ? 100 : 40);
+            b.playerView();
+        }
+        b.cmd("/gamemode survival").wait(5).quit();
     }
 
     private static void rigid(ScreenshotDirector.Builder b) {

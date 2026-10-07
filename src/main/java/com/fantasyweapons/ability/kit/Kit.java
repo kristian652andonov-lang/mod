@@ -78,7 +78,7 @@ public final class Kit {
      * in mid-air land on the ground instead of floating with the caster).
      */
     public static Vec3 feet(ServerPlayer p) {
-        if (p.onGround()) return p.position();
+        // measured rather than trusting onGround, which can be stale for a player just leaving or hovering over the ground
         Vec3 g = groundOrNull(p.serverLevel(), p.position(), 384);
         return g == null ? p.position() : g;
     }

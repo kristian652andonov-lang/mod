@@ -73,8 +73,12 @@ public final class SoulreaperFx {
         // the reaping arc sweeps from left to right, a wide soul-blue crescent with a spirit edge
         VfxManager.add(new SlashArcVfx(o, right, fwd, range * 0.85f, range * 0.35f, a0, a1, Colors.argb(230, SOUL), Colors.argb(255, SPIRIT), 12));
         VfxManager.add(new SlashArcVfx(o.add(0, -0.3, 0), right, fwd, range * 1.0f, range * 0.2f, a0, a1, Colors.argb(170, ABYSS), Colors.argb(220, SOUL), 15));
-        VfxManager.add(new DecalVfx(o.subtract(0, 0.95, 0), new Vec3(0, 1, 0), range, Colors.argb(150, SOUL), VfxTextures.SWIRL, 20)
-                .spin(-0.15f).energy().timing(0.1f, 0.5f));
+        // the swirl swept across the ground under the reap (none when it is swung high in the air)
+        Vec3 floor = FrostrendFx.groundOrNull(o.subtract(0, 0.95, 0), 2.0);
+        if (floor != null) {
+            VfxManager.add(new DecalVfx(floor.add(0, 0.05, 0), new Vec3(0, 1, 0), range, Colors.argb(150, SOUL), VfxTextures.SWIRL, 20)
+                    .spin(-0.15f).energy().timing(0.1f, 0.5f));
+        }
         for (int id : p.entities()) {
             Entity v = entity(id);
             if (v == null) continue;

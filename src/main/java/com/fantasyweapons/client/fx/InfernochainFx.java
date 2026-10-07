@@ -299,7 +299,9 @@ public final class InfernochainFx {
                 VfxManager.add(new ShardBurstVfx(at, UP, 0.6f, 0.12f, 5, 0.55f, Colors.argb(240, EMBER), Colors.argb(0, CRIMSON), 20, r.nextLong())
                         .texture(VfxTextures.FLAME, false).physics(-0.01f, 0.9f));
             }
-            if (!chain) VfxManager.add(new ShockwaveVfx(c.add(0, -0.6, 0), UP, 0.5f, range * 1.1f, 0.28f, Colors.argb(140, FIRE), 8).energy());
+            // a ring of fire rolling over the ground around the lash (none when it is cracked high in the air)
+            Vec3 floor = chain ? null : FrostrendFx.groundOrNull(c.add(0, -0.6, 0), 1.5);
+            if (floor != null) VfxManager.add(new ShockwaveVfx(floor.add(0, 0.3, 0), UP, 0.5f, range * 1.1f, 0.28f, Colors.argb(140, FIRE), 8).energy());
             CameraShake.add(c, chain ? 0.35f : 0.5f, range * 2);
         });
     }
