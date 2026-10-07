@@ -155,10 +155,11 @@ public final class GravebiteFx {
             }
             VfxManager.add(new FlashVfx(Vec3.ZERO, 0.3f, e.getBbHeight() * 1.6f, Colors.argb(180, SOUL), 10).follow(e, new Vec3(0, e.getBbHeight() * 0.5, 0)).energy());
         }
-        // chains lashing up from empty ground for drama
+        // more chains lashing up out of grave rifts across the circle
         for (int k = 0; k < 6; k++) {
             double a = rnd.nextDouble() * Math.PI * 2, d = rnd.nextDouble() * r;
             Vec3 base = FrostrendFx.ground(c.add(Math.cos(a) * d, 0, Math.sin(a) * d));
+            VfxManager.add(new com.fantasyweapons.client.vfx.effects.SoulRiftVfx(base, 0.35f, SOUL, GHOST, 30));
             Vec3 top = base.add(rnd.nextGaussian() * 0.6, 1.8 + rnd.nextDouble() * 1.5, rnd.nextGaussian() * 0.6);
             VfxManager.add(new ChainVfx(base, partial -> top, Colors.argb(200, SOUL), Colors.argb(220, GHOST), 18 + rnd.nextInt(8)).shoot(4).scale(0.85f));
         }

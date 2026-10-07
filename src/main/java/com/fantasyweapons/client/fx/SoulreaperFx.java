@@ -12,6 +12,7 @@ import com.fantasyweapons.client.vfx.effects.ShardBurstVfx;
 import com.fantasyweapons.client.vfx.effects.ShockwaveVfx;
 import com.fantasyweapons.client.vfx.effects.SkyCircleVfx;
 import com.fantasyweapons.client.vfx.effects.SlashArcVfx;
+import com.fantasyweapons.client.vfx.effects.SoulRiftVfx;
 import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
 import net.minecraft.client.Minecraft;
@@ -103,12 +104,22 @@ public final class SoulreaperFx {
                 .spin(0.06f).energy().timing(0.1f, 0.2f));
         VfxManager.add(new DecalVfx(o.add(0, 0.06, 0), new Vec3(0, 1, 0), radius * 0.7f, Colors.argb(170, SPIRIT), VfxTextures.RUNE_CIRCLE, delay + 40)
                 .spin(-0.03f).energy().timing(0.15f, 0.2f));
-        // every marked soul is chained to the reaper and burns with a sigil
+        // every marked soul is seized by two chains that burst out of rifts torn in the ground either side of it,
+        // and burns with a sigil
         for (int id : p.entities()) {
             Entity v = entity(id);
             if (v == null || caster == null) continue;
-            VfxManager.add(new ChainVfx(caster.position().add(0, 1.2, 0), ChainVfx.toEntity(v, 0.6),
-                    Colors.argb(200, SOUL), Colors.argb(220, SPIRIT), delay + 6).shoot(6));
+            Vec3 at = v.position();
+            Vec3 toCaster = new Vec3(caster.getX() - at.x, 0, caster.getZ() - at.z);
+            toCaster = toCaster.lengthSqr() < 1e-4 ? new Vec3(1, 0, 0) : toCaster.normalize();
+            Vec3 side = new Vec3(-toCaster.z, 0, toCaster.x);
+            for (int k = -1; k <= 1; k += 2) {
+                Vec3 rift = FrostrendFx.ground(at.add(side.scale(k * 1.7)).add(toCaster.scale(0.9)));
+                VfxManager.add(new SoulRiftVfx(rift, 0.65f, SOUL, SPIRIT, delay + 16));
+                double h = k < 0 ? 0.55 : 0.72;
+                FxScheduler.after(2, () -> VfxManager.add(new ChainVfx(rift, ChainVfx.toEntity(v, h), Colors.argb(200, SOUL), Colors.argb(220, SPIRIT), delay + 4)
+                        .shoot(5)));
+            }
             VfxManager.add(new FlashVfx(Vec3.ZERO, 0.5f, 1.2f, Colors.argb(230, SOUL), delay + 30).follow(v, new Vec3(0, v.getBbHeight() + 0.6, 0))
                     .peak(0.1f).energy());
         }
