@@ -52,7 +52,7 @@ public class FlowerVfx extends Vfx {
         Vec3 c = center.add(0, -radius * 0.25 * (1 - rise) - radius * 0.3 * easeIn(close), 0);
         float spin = time * 0.004f;
 
-        VertexConsumer leaf = ctx.solid(VfxTextures.PETAL_VEIN);
+        VertexConsumer leaf = ctx.cutout(VfxTextures.LEAF_SOFT);
         // sepals: broad green leaves lying out under the bloom
         for (int i = 0; i < 6; i++) {
             float v = vary(i, 0);
@@ -62,6 +62,7 @@ public class FlowerVfx extends Vfx {
                     -0.15f - 0.15f * vary(i, 3), 0.25f, Colors.darken(SEPAL, 0.45f), Colors.scale(SEPAL, 0.8f + 0.2f * v),
                     Colors.lerpRgb(Colors.scale(SEPAL, 0.85f + 0.25f * v), 0x9AA85A, 0.25f), 1f, i * 31L);
         }
+        VertexConsumer petals = ctx.cutout(VfxTextures.PETAL_SOFT);
         // three rings of petals: the outer ones open widest, the inner ones stay cupped round the heart
         float[] len = {1f, 0.78f, 0.55f};
         int[] count = {8, 8, 6};
@@ -77,7 +78,7 @@ public class FlowerVfx extends Vfx {
                 int base = Colors.darken(petalColor, 0.35f + 0.15f * ring);
                 int body = Colors.scale(Colors.lerpRgb(petalColor, Colors.darken(petalColor, 0.3f), 0.25f * ring), 0.85f + 0.25f * v);
                 int tip = vary(id, 4) > 0.8f ? Colors.lerpRgb(tipColor, 0xC8A27A, 0.35f) : tipColor;
-                petal(ctx, leaf, c.add(0, lift[ring] * size * 0.3, 0), out, size * len[ring] * (0.85f + 0.3f * vary(id, 5)),
+                petal(ctx, petals, c.add(0, lift[ring] * size * 0.3, 0), out, size * len[ring] * (0.85f + 0.3f * vary(id, 5)),
                         size * 0.27f * len[ring] * (0.8f + 0.4f * vary(id, 6)), tilt, curl, 0.35f + 0.25f * ring, base, Colors.lerpRgb(body, tip, 0.15f),
                         tip, 1f, id * 97L);
             }
@@ -129,17 +130,19 @@ public class FlowerVfx extends Vfx {
     }
 
     /**
-     * A petal coloured from a deep {@code c0} at its base through {@code c1} to a pale {@code c2} at the tip, with
-     * ruffled edges (waving in and out and up and down, different for every {@code seed}) and soft light.
+     * A petal coloured from a deep {@code c0} at its base through {@code c1} to a pale {@code c2} at the tip: a smooth,
+     * cupped blade (five strips across, a dozen along) with a gently ruffled margin, softly lit from above and glowing a
+     * little warmer where it is seen from underneath, as thin petals do against the light. Its outline - rounded tip,
+     * narrow claw at the base - comes from the texture's alpha (drawn with a cutout render type).
      */
     static void petal(VfxContext ctx, VertexConsumer vc, Vec3 base, Vec3 out, float len, float width, float tilt, float curl, float cup,
                       int c0, int c1, int c2, float alpha, long seed) {
-        final int segs = 7;
+        final int segs = 12, cols = 5;
         Vec3 side = UP.cross(out).normalize();
-        Vec3[] l = new Vec3[segs + 1], m = new Vec3[segs + 1], r = new Vec3[segs + 1];
-        int[] col = new int[segs + 1], edge = new int[segs + 1];
+        Vec3[][] grid = new Vec3[segs + 1][cols + 1];
+        int[][] col = new int[segs + 1][cols + 1];
         double ph1 = (seed & 1023) / 1023.0 * 6.28, ph2 = ((seed >> 10) & 1023) / 1023.0 * 6.28;
-        float twist = (((seed >> 20) & 255) / 255f - 0.5f) * 0.35f;
+        float twist = (((seed >> 20) & 255) / 255f - 0.5f) * 0.3f;
         Vec3 p = base;
         for (int k = 0; k <= segs; k++) {
             float s = k / (float) segs;
@@ -147,25 +150,40 @@ public class FlowerVfx extends Vfx {
             Vec3 d = out.scale(Math.cos(th)).add(UP.scale(Math.sin(th)));
             Vec3 n = side.cross(d).normalize().scale(-1);
             if (n.y < 0) n = n.scale(-1);
-            float w = width * (s < 0.6f ? 0.22f + 0.78f * (float) Math.sin(s / 0.6f * Math.PI / 2) : 0.08f + 0.92f * (float) Math.cos((s - 0.6f) / 0.4f * Math.PI / 2));
-            // ruffled margins, more so towards the tip
-            float wl = w * (1 + 0.13f * s * (float) Math.sin(s * 17 + ph1));
-            float wr = w * (1 + 0.13f * s * (float) Math.sin(s * 15 + ph2));
-            float fl = 0.22f * s * (float) Math.sin(s * 11 + ph2), fr = 0.22f * s * (float) Math.sin(s * 13 + ph1);
-            m[k] = p.add(n.scale(twist * w * s));
-            l[k] = p.subtract(side.scale(wl)).add(n.scale((cup + fl) * wl - twist * w * s));
-            r[k] = p.add(side.scale(wr)).add(n.scale((cup + fr) * wr + twist * w * s));
-            float shade = 0.66f + 0.34f * (float) Math.max(0, n.dot(LIGHT));
+            // broad for most of its length; the texture rounds the tip and narrows the claw
+            float w = width * (0.42f + 0.58f * smooth01(s / 0.38f)) * (1 - 0.3f * smooth01((s - 0.72f) / 0.28f));
             int rgb = s < 0.5f ? Colors.lerpRgb(c0, c1, s / 0.5f) : Colors.lerpRgb(c1, c2, (s - 0.5f) / 0.5f);
-            col[k] = Colors.argb(Math.round(255 * alpha), Colors.scale(rgb, shade));
-            // the thin margins are paler and let a little light through
-            edge[k] = Colors.argb(Math.round(225 * alpha), Colors.scale(Colors.lerpRgb(rgb, c2, 0.3f), shade * 1.04f));
+            for (int j = 0; j <= cols; j++) {
+                float x = j / (float) cols * 2 - 1;                                   // -1 .. 1 across
+                float ruffle = 1 + 0.06f * s * (float) Math.sin(s * 9 + (x < 0 ? ph1 : ph2)) * Math.abs(x);
+                float lift = (cup * x * x + 0.1f * s * (float) Math.sin(s * 7 + ph2) * x * x) * w + twist * w * s * x;
+                Vec3 q = p.add(side.scale(x * w * ruffle)).add(n.scale(lift));
+                grid[k][j] = q;
+                // the surface normal tips sideways with the cupping
+                Vec3 nn = n.subtract(side.scale(2 * cup * x)).normalize();
+                float lit = 0.62f + 0.38f * (float) Math.max(0, nn.dot(LIGHT));
+                Vec3 view = ctx.cam.subtract(q);
+                boolean under = view.dot(nn) < 0;
+                int shaded = Colors.scale(rgb, lit);
+                if (under) shaded = Colors.lerpRgb(shaded, Colors.lerpRgb(c2, 0xFFF4E0, 0.3f), 0.28f);   // light shining through
+                // pale, thin margins
+                shaded = Colors.lerpRgb(shaded, c2, 0.18f * x * x);
+                col[k][j] = Colors.argb(Math.round(255 * alpha), shaded);
+            }
             p = p.add(d.scale(len / segs));
         }
         for (int k = 0; k < segs; k++) {
             float v1 = 1 - k / (float) segs, v0 = 1 - (k + 1) / (float) segs;
-            ctx.quad(vc, l[k], m[k], m[k + 1], l[k + 1], 0f, v0, 0.5f, v1, edge[k], col[k], col[k + 1], edge[k + 1]);
-            ctx.quad(vc, m[k], r[k], r[k + 1], m[k + 1], 0.5f, v0, 1f, v1, col[k], edge[k], edge[k + 1], col[k + 1]);
+            for (int j = 0; j < cols; j++) {
+                float u0 = j / (float) cols, u1 = (j + 1) / (float) cols;
+                ctx.quad(vc, grid[k][j], grid[k][j + 1], grid[k + 1][j + 1], grid[k + 1][j], u0, v0, u1, v1,
+                        col[k][j], col[k][j + 1], col[k + 1][j + 1], col[k + 1][j]);
+            }
         }
+    }
+
+    private static float smooth01(float t) {
+        t = Math.max(0, Math.min(1, t));
+        return t * t * (3 - 2 * t);
     }
 }

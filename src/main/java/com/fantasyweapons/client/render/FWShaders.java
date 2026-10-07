@@ -12,6 +12,7 @@ public final class FWShaders {
     public static ShaderInstance vfxAdditive;
     public static ShaderInstance vfxEnergy;
     public static ShaderInstance vfxVoid;
+    public static ShaderInstance vfxCutout;
 
     private FWShaders() {
     }
@@ -24,6 +25,8 @@ public final class FWShaders {
                     s -> vfxEnergy = s);
             event.registerShader(new ShaderInstance(event.getResourceProvider(), FantasyWeapons.id("vfx_void"), DefaultVertexFormat.POSITION_TEX_COLOR),
                     s -> vfxVoid = s);
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), FantasyWeapons.id("vfx_cutout"), DefaultVertexFormat.POSITION_TEX_COLOR),
+                    s -> vfxCutout = s);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load Fantasy Weapons shaders", e);
         }

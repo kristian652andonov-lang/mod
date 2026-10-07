@@ -254,7 +254,7 @@ public class VineVfx extends Vfx {
             float open = easeOut(clamp01((time - growTicks) / 10f)) * (1 - easeIn(wither));
             if (open > 0.01f) {
                 Vec3 tip = pts[count - 1];
-                var petals = ctx.solid(VfxTextures.PETAL_VEIN);
+                var petals = ctx.cutout(VfxTextures.PETAL_SOFT);
                 for (int i = 0; i < 6; i++) {
                     double a = i * Math.PI / 3 + time * 0.01;
                     Vec3 out = new Vec3(Math.cos(a), 0, Math.sin(a));

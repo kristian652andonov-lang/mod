@@ -41,6 +41,7 @@ public final class FWRenderTypes extends RenderType {
     private static final ShaderStateShard ADDITIVE_SHADER = new ShaderStateShard(() -> FWShaders.vfxAdditive);
     private static final ShaderStateShard ENERGY_SHADER = new ShaderStateShard(() -> FWShaders.vfxEnergy);
     private static final ShaderStateShard VOID_SHADER = new ShaderStateShard(() -> FWShaders.vfxVoid);
+    private static final ShaderStateShard CUTOUT_SHADER = new ShaderStateShard(() -> FWShaders.vfxCutout);
 
     private static final Function<ResourceLocation, RenderType> ADDITIVE = Util.memoize(tex -> create("fw_vfx_additive",
             DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
@@ -68,6 +69,17 @@ public final class FWRenderTypes extends RenderType {
             DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
             CompositeState.builder()
                     .setShaderState(ADDITIVE_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_DEPTH_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> CUTOUT = Util.memoize(tex -> create("fw_vfx_cutout",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(CUTOUT_SHADER)
                     .setTextureState(new TextureStateShard(tex, true, false))
                     .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
                     .setDepthTestState(LEQUAL_DEPTH_TEST)
@@ -135,6 +147,11 @@ public final class FWRenderTypes extends RenderType {
     /** Opaque-looking textured geometry that writes depth (vines, thorns, petals, chain links) so it occludes itself. */
     public static RenderType solid(ResourceLocation texture) {
         return SOLID.apply(texture);
+    }
+
+    /** Opaque geometry whose outline is cut out by its texture's alpha (petals, leaves). */
+    public static RenderType cutout(ResourceLocation texture) {
+        return CUTOUT.apply(texture);
     }
 
     public static RenderType translucent(ResourceLocation texture) {

@@ -44,4 +44,8 @@ public final class VfxTextures {
     public static final ResourceLocation SOIL = t("soil");
     public static final ResourceLocation TURF = t("turf");
     public static final ResourceLocation PETAL_VEIN = t("petal_vein");
+    /** A natural petal: fine veins fanning from the base, soft mottling, pale margins; alpha cuts its outline. */
+    public static final ResourceLocation PETAL_SOFT = t("petal_soft");
+    /** A natural leaf: pale midrib, side veins sweeping to the tip, waxy sheen; alpha cuts its serrated outline. */
+    public static final ResourceLocation LEAF_SOFT = t("leaf_soft");
 }

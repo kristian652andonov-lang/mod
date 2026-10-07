@@ -53,6 +53,11 @@ public final class VfxContext {
         return buffers.getBuffer(FWRenderTypes.solid(tex));
     }
 
+    /** Opaque geometry cut out by its texture's alpha (see {@link FWRenderTypes#cutout}). */
+    public VertexConsumer cutout(ResourceLocation tex) {
+        return buffers.getBuffer(FWRenderTypes.cutout(tex));
+    }
+
     public VertexConsumer translucent(ResourceLocation tex) {
         return buffers.getBuffer(FWRenderTypes.translucent(tex));
     }
