@@ -52,6 +52,7 @@ final class DevScripts {
                 else if (name.startsWith("fpall:")) fpAll(b, java.util.List.of(name.substring(6).split(",")));
                 else if (name.startsWith("kills:")) kills(b, name.substring(6));
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
+                else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("after:")) after(b, name.substring(6));
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
@@ -557,6 +558,16 @@ final class DevScripts {
             }
         }
         b.playerView();
+    }
+
+    /** The weapon HUD of each weapon ("weapon,...") at level 1 (nothing awakened) and level 100. */
+    private static void hud(ScreenshotDirector.Builder b, String list) {
+        for (String w : list.split(",")) {
+            for (int lvl : new int[]{1, 100}) {
+                b.cmd("/clear @s").cmd("/fw give " + w + " " + lvl).wait(40).slot(0).playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 30)
+                        .wait(60).screenshot("hud_" + w + "_" + lvl);
+            }
+        }
     }
 
     /** Big area abilities ("weapon/ability,..."), seen from afar and from underneath (looking up). */
