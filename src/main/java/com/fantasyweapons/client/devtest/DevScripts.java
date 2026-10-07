@@ -51,6 +51,7 @@ final class DevScripts {
                 else if (name.startsWith("swings:")) swings(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.startsWith("fpall:")) fpAll(b, java.util.List.of(name.substring(6).split(",")));
                 else if (name.startsWith("kills:")) kills(b, name.substring(6));
+                else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("after:")) after(b, name.substring(6));
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
@@ -538,6 +539,24 @@ final class DevScripts {
             var stats = com.fantasyweapons.client.render.WeaponGeoModel.rigidStats;
             stats.forEach((k, v) -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("[rigid] {} {}", String.format("%.4f", v), k));
         });
+    }
+
+    /** Each form of a weapon ("weapon,...") held in third person (side, front, back) and in first person. */
+    private static void forms(ScreenshotDirector.Builder b, String list) {
+        for (String w : list.split(",")) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            b.cmd("/clear @s").cmd("/fw give " + w + " 100").wait(130).slot(0).hud(false).look(0, 0);
+            var order = new java.util.ArrayList<>(def.forms());
+            java.util.Collections.reverse(order);
+            for (var form : order) {
+                b.playerView().cmd("/fw cooldowns").hud(true).camera(CameraType.FIRST_PERSON).wait(5).form(form.id()).wait(80).hud(false);
+                b.viewFrom(4.2, 0.5, 0.6).wait(4).screenshot("form_" + w + "_" + form.id() + "_right");
+                b.viewFrom(0.8, 0.5, 4.2).wait(4).screenshot("form_" + w + "_" + form.id() + "_front");
+                b.viewAt(1.4, 1.5, -3.6, 0, 1.2, 2.5).wait(4).screenshot("form_" + w + "_" + form.id() + "_back");
+                b.playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 10).wait(4).screenshot("form_" + w + "_" + form.id() + "_fp").look(0, 0);
+            }
+        }
+        b.playerView();
     }
 
     /** Big area abilities ("weapon/ability,..."), seen from afar and from underneath (looking up). */

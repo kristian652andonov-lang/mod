@@ -105,6 +105,11 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
      */
     private static final java.util.Map<String, Float> TP_FACING = java.util.Map.of("doomcleaver", 180f, "gravebite", 180f, "bloomfall", 180f);
     private static final java.util.Map<String, Float> FP_FACING = java.util.Map.of("starforge", 180f, "soulreaper", 180f, "eclipse_reaper", 180f);
+    /**
+     * Forms whose model carries its business end on the other side of the handle from the weapon's base form (Eclipse
+     * Reaper's dark blade grows out of the far side of the staff): turned round in both views so it faces the same way.
+     */
+    private static final java.util.Map<String, Float> FORM_FACING = java.util.Map.of("eclipse_reaper/dark", 180f);
 
     /** Rotation of the weapon about its handle for the given view, in degrees. */
     private static float handleYaw(ItemStack stack, ItemDisplayContext ctx) {
@@ -117,8 +122,10 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
             case CHOP, SLAM, REAP -> FP_YAW_HEAVY;
             default -> FP_YAW_BLADE;
         };
-        if (fp) return debugFpYaw != null ? debugFpYaw : FP_FACING.getOrDefault(id, 0f) + fpYaw;
-        return debugTpYaw != null ? debugTpYaw : TP_FACING.getOrDefault(id, 0f);
+        var form = item.definition().form(FantasyWeaponItem.data(stack));
+        float formYaw = form == null ? 0 : FORM_FACING.getOrDefault(id + "/" + form.id(), 0f);
+        if (fp) return debugFpYaw != null ? debugFpYaw : FP_FACING.getOrDefault(id, 0f) + fpYaw + formYaw;
+        return debugTpYaw != null ? debugTpYaw : TP_FACING.getOrDefault(id, 0f) + formYaw;
     }
 
     /** The entity whose held Infernochain is being drawn in hand right now (its segments get tracked), or null. */
