@@ -27,6 +27,13 @@ import java.util.Map;
  */
 public class RigidAnimationController<T extends GeoAnimatable> extends AnimationController<T> {
     private AnimationProcessor.QueuedAnimation restated;
+    /**
+     * The keyframe segment each animated bone is in this frame, captured before GeckoLib consumes it:
+     * {rotation start x,y,z, rotation end x,y,z, position start x,y,z, position end x,y,z, rotation tick, rotation
+     * length, position tick, position length}; a channel the animation leaves alone is NaN. Read by the weapon model
+     * to keep pieces that move with the grip on it (see WeaponGeoModel#weldToGrip).
+     */
+    public final Map<String, double[]> segments = new java.util.HashMap<>();
 
     public RigidAnimationController(T animatable, String name, int transitionTicks, AnimationStateHandler<T> handler) {
         super(animatable, name, transitionTicks, handler);
@@ -36,6 +43,7 @@ public class RigidAnimationController<T extends GeoAnimatable> extends Animation
     public void process(GeoModel<T> model, AnimationState<T> state, Map<String, GeoBone> bones, Map<String, BoneSnapshot> snapshots, double seekTime,
                         boolean crashWhenCantFindBone) {
         super.process(model, state, bones, snapshots, seekTime, crashWhenCantFindBone);
+        recordSegments();
         if (animationState != State.TRANSITIONING || currentAnimation == null) {
             restated = null;
             return;
@@ -53,6 +61,28 @@ public class RigidAnimationController<T extends GeoAnimatable> extends Animation
             double[] from = closestEuler(snap.getRotX() - init.getRotX(), snap.getRotY() - init.getRotY(), snap.getRotZ() - init.getRotZ(),
                     px.animationEndValue(), py.animationEndValue(), pz.animationEndValue());
             snap.updateRotation((float) from[0] + init.getRotX(), (float) from[1] + init.getRotY(), (float) from[2] + init.getRotZ());
+        }
+    }
+
+    private void recordSegments() {
+        segments.clear();
+        for (Map.Entry<String, BoneAnimationQueue> e : boneAnimationQueues.entrySet()) {
+            BoneAnimationQueue q = e.getValue();
+            AnimationPoint rx = q.rotationXQueue().peekLast(), ry = q.rotationYQueue().peekLast(), rz = q.rotationZQueue().peekLast();
+            AnimationPoint px = q.positionXQueue().peekLast(), py = q.positionYQueue().peekLast(), pz = q.positionZQueue().peekLast();
+            double[] seg = new double[16];
+            java.util.Arrays.fill(seg, Double.NaN);
+            if (rx != null && ry != null && rz != null) {
+                seg[0] = rx.animationStartValue(); seg[1] = ry.animationStartValue(); seg[2] = rz.animationStartValue();
+                seg[3] = rx.animationEndValue(); seg[4] = ry.animationEndValue(); seg[5] = rz.animationEndValue();
+                seg[12] = rx.currentTick(); seg[13] = rx.transitionLength();
+            }
+            if (px != null && py != null && pz != null) {
+                seg[6] = px.animationStartValue(); seg[7] = py.animationStartValue(); seg[8] = pz.animationStartValue();
+                seg[9] = px.animationEndValue(); seg[10] = py.animationEndValue(); seg[11] = pz.animationEndValue();
+                seg[14] = px.currentTick(); seg[15] = px.transitionLength();
+            }
+            segments.put(e.getKey(), seg);
         }
     }
 

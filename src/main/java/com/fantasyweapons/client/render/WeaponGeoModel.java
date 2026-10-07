@@ -67,7 +67,9 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
             float x = (float) e[0] + rest.getRotX(), y = (float) e[1] + rest.getRotY(), z = (float) e[2] + rest.getRotZ();
             if (x != snap.getRotX() || y != snap.getRotY() || z != snap.getRotZ()) snap.updateRotation(x, y, z);
         }
-        anchorGrip(animatable);
+        var main = manager.getAnimationControllers().get(FantasyWeaponItem.CONTROLLER);
+        anchorGrip(animatable, main == null || main.getCurrentAnimation() == null ? "" : main.getCurrentAnimation().animation().name(),
+                main instanceof com.fantasyweapons.weapon.RigidAnimationController<?> rigid ? rigid : null);
         fadeStrays(animatable, manager);
         if (debugBone != null) {
             for (String n : debugBone.split(",")) {
@@ -139,7 +141,7 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
      * hand holds it, at rest, while every part keeps its animated motion relative to it (rings spinning, petals
      * opening, chain links paying out). The weapon as a whole moves only with the arm.
      */
-    private void anchorGrip(FantasyWeaponItem item) {
+    private void anchorGrip(FantasyWeaponItem item, String anim, @org.jetbrains.annotations.Nullable com.fantasyweapons.weapon.RigidAnimationController<?> controller) {
         String name = gripBones.computeIfAbsent(item.definition().geoName(), k -> findGrip());
         if (name.isEmpty()) return;
         GeoBone grip = getBone(name).orElse(null);
@@ -150,6 +152,75 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
         if (now.equals(rest, 1e-5f)) return;
         // root * grip(now) must equal root(rest) * grip(rest)
         setLocal(root, local(root, true).mul(rest).mul(now.invert()));
+        weldToGrip(item, anim, root, grip, controller);
+    }
+
+    /**
+     * The artist's models are built of separate pieces hanging straight off the root - the haft, the head, the blade
+     * - and a piece belonging to the weapon's body is animated with exactly the same rotation as the grip and a
+     * position that carries it round with it. GeckoLib moves positions in a straight line from one keyframe to the
+     * next while the piece turns, though, so on a big, fast turn (every swing and cast) the head cuts the corner, off
+     * the arc it should follow, and snaps back onto it at the next keyframe: with the grip held still in the hand, the
+     * top of the weapon shook on every hit. So every piece turning exactly as the grip does is placed by where it sits
+     * relative to the grip at the two keyframes either side, blended in the grip's own frame: exactly the artist's
+     * pose at each keyframe, and in between it travels with the grip instead of cutting across. Pieces that also move
+     * on their own (chain links paying out, orbiting souls) keep that motion; pieces that turn differently (spinning
+     * rings, moons) are left to GeckoLib.
+     */
+    private void weldToGrip(FantasyWeaponItem item, String anim, GeoBone root, GeoBone grip,
+                            @org.jetbrains.annotations.Nullable com.fantasyweapons.weapon.RigidAnimationController<?> controller) {
+        if (controller == null) return;
+        double[] gs = controller.segments.get(grip.getName());
+        if (gs == null || Double.isNaN(gs[0]) || !sameTiming(gs)) return;
+        double f = gs[13] <= 0 ? 1 : Math.min(1, Math.max(0, gs[12] / gs[13]));
+        Matrix4f g0 = localAt(grip, gs, false), g1 = localAt(grip, gs, true);
+        if (g0.equals(g1, 1e-6f)) return;
+        Matrix4f g0inv = new Matrix4f(g0).invert(), g1inv = new Matrix4f(g1).invert();
+        Matrix4f gNow = local(grip, false);
+        for (GeoBone b : root.getChildBones()) {
+            if (b == grip) continue;
+            double[] bs = controller.segments.get(b.getName());
+            if (bs == null || Double.isNaN(bs[0]) || !sameTiming(bs)) continue;
+            boolean together = bs[12] == gs[12] && bs[13] == gs[13];
+            for (int i = 0; i < 6 && together; i++) together = Math.abs(bs[i] - gs[i]) < 1e-4;
+            if (!together) continue;
+            Matrix4f rel = blend(new Matrix4f(g0inv).mul(localAt(b, bs, false)), new Matrix4f(g1inv).mul(localAt(b, bs, true)), (float) f);
+            Matrix4f want = new Matrix4f(gNow).mul(rel);
+            if (rigidStats != null) {
+                Vector3f piv = new Vector3f(b.getPivotX() / 16f, b.getPivotY() / 16f, b.getPivotZ() / 16f);
+                float err = want.transformPosition(new Vector3f(piv)).distance(local(b, false).transformPosition(new Vector3f(piv)));
+                rigidStats.merge(item.definition().geoName() + " " + anim + " " + b.getName(), err, Math::max);
+            }
+            setLocal(b, want);
+        }
+    }
+
+    /** Whether a bone's position keyframes (if any) run on the same timing as its rotation keyframes. */
+    private static boolean sameTiming(double[] seg) {
+        return Double.isNaN(seg[14]) || (seg[14] == seg[12] && seg[15] == seg[13]);
+    }
+
+    /** The bone's transform relative to its parent at the start or end of its current keyframe segment. */
+    private static Matrix4f localAt(GeoBone bone, double[] seg, boolean end) {
+        float px = bone.getPosX(), py = bone.getPosY(), pz = bone.getPosZ(), rx = bone.getRotX(), ry = bone.getRotY(), rz = bone.getRotZ();
+        BoneSnapshot init = bone.getInitialSnapshot();
+        int r = end ? 3 : 0, p = end ? 9 : 6;
+        bone.updateRotation((float) seg[r] + init.getRotX(), (float) seg[r + 1] + init.getRotY(), (float) seg[r + 2] + init.getRotZ());
+        if (!Double.isNaN(seg[p])) bone.updatePosition((float) seg[p], (float) seg[p + 1], (float) seg[p + 2]);
+        Matrix4f m = local(bone, false);
+        bone.updatePosition(px, py, pz);
+        bone.updateRotation(rx, ry, rz);
+        return m;
+    }
+
+    /** DEVELOPMENT ONLY: the largest weld correction per weapon / animation / piece, in blocks (null: not recording). */
+    public static Map<String, Float> rigidStats;
+
+    /** A rigid transform part way from {@code a} to {@code b}. */
+    private static Matrix4f blend(Matrix4f a, Matrix4f b, float t) {
+        org.joml.Quaternionf q = a.getNormalizedRotation(new org.joml.Quaternionf()).slerp(b.getNormalizedRotation(new org.joml.Quaternionf()), t);
+        Vector3f p = a.getTranslation(new Vector3f()).lerp(b.getTranslation(new Vector3f()), t);
+        return new Matrix4f().translation(p).rotate(q);
     }
 
     /**

@@ -40,6 +40,7 @@ final class DevScripts {
             case "combos" -> combos(b, null);
             case "allabilities" -> allAbilities(b);
             case "fpall" -> fpAll(b, null);
+            case "rigid" -> rigid(b);
             case "bloom" -> near(b, "bloomfall/entangling_roots,bloomfall/overgrowth,bloomfall/wrath_of_the_wild");
             case "skycircles" -> wide(b, "solaris/celestial_inferno,eclipse_reaper/total_eclipse");
             default -> {
@@ -515,6 +516,29 @@ final class DevScripts {
             }
             b.playerView();
         }
+    }
+
+    /**
+     * Swings every weapon through its three attacks and casts every ability in first person, recording how far the
+     * weld moved each piece of the weapon back onto the grip (see WeaponGeoModel#weldToGrip), then logs the largest.
+     */
+    private static void rigid(ScreenshotDirector.Builder b) {
+        b.run(mc -> com.fantasyweapons.client.render.WeaponGeoModel.rigidStats = new java.util.TreeMap<>());
+        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+            String w = def.id();
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + w + " 100").wait(130).slot(0).cmd("/fw points 300");
+            b.playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 10).wait(10);
+            for (int i = 0; i < 3; i++) b.swing().wait(14);
+            b.wait(30);
+            for (var a : def.castables()) {
+                b.cmd("/fw cooldowns").select(a.id()).wait(6).abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp().wait(70);
+            }
+        }
+        b.run(mc -> {
+            var stats = com.fantasyweapons.client.render.WeaponGeoModel.rigidStats;
+            stats.entrySet().stream().sorted((x, y) -> Float.compare(y.getValue(), x.getValue())).limit(80)
+                    .forEach(e -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("[rigid] {} {}", String.format("%.4f", e.getValue()), e.getKey()));
+        });
     }
 
     /** Big area abilities ("weapon/ability,..."), seen from afar and from underneath (looking up). */
