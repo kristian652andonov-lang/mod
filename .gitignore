@@ -1,0 +1,23 @@
+# Gradle / build output
+.gradle/
+build/
+out/
+bin/
+
+# Minecraft run directories (worlds, logs, screenshots, generated configs)
+run/
+runs/
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+
+# misc
+*.log
+__pycache__/

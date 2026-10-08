@@ -1,0 +1,138 @@
+package com.fantasyweapons.network;
+
+import com.fantasyweapons.FantasyWeapons;
+import net.minecraft.resources.ResourceLocation;
+
+/** Identifiers of every custom effect the server can ask clients to play. */
+public final class FxIds {
+    private FxIds() {
+    }
+
+    // ---- generic ----
+    public static final ResourceLocation MELEE_HIT = FantasyWeapons.id("melee_hit");
+    public static final ResourceLocation DAMAGE_NUMBER = FantasyWeapons.id("damage_number");
+    public static final ResourceLocation LEVEL_UP = FantasyWeapons.id("level_up");
+    public static final ResourceLocation FORM_SWITCH = FantasyWeapons.id("form_switch");
+    public static final ResourceLocation ABILITY_FIZZLE = FantasyWeapons.id("ability_fizzle");
+    public static final ResourceLocation STATUS_BURST = FantasyWeapons.id("status_burst");
+    public static final ResourceLocation DEATH_DISSOLVE = FantasyWeapons.id("death_dissolve");
+
+    // ---- voidfang ----
+    public static final ResourceLocation VOID_SLASH = FantasyWeapons.id("voidfang/void_slash");
+    public static final ResourceLocation VOID_BLINK = FantasyWeapons.id("voidfang/void_blink");
+    public static final ResourceLocation VOID_RIFT = FantasyWeapons.id("voidfang/rift");
+    public static final ResourceLocation VOID_RIFT_COLLAPSE = FantasyWeapons.id("voidfang/rift_collapse");
+    public static final ResourceLocation VOID_MARK_POP = FantasyWeapons.id("voidfang/mark_pop");
+    public static final ResourceLocation VOID_EXECUTION = FantasyWeapons.id("voidfang/void_execution");
+    public static final ResourceLocation VOID_DIMENSION = FantasyWeapons.id("voidfang/void_dimension");
+    public static final ResourceLocation VOID_DIMENSION_STRIKE = FantasyWeapons.id("voidfang/dimension_strike");
+    public static final ResourceLocation VOID_DIMENSION_COLLAPSE = FantasyWeapons.id("voidfang/dimension_collapse");
+
+    // ---- solaris ----
+    public static final ResourceLocation SOLARIS_RADIANT_SLASH = FantasyWeapons.id("solaris/radiant_slash");
+    public static final ResourceLocation SOLARIS_SOLAR_BURST = FantasyWeapons.id("solaris/solar_burst");
+    public static final ResourceLocation SOLARIS_SUPERNOVA = FantasyWeapons.id("solaris/supernova");
+    public static final ResourceLocation SOLARIS_SUPERNOVA_IMPACT = FantasyWeapons.id("solaris/supernova_impact");
+    public static final ResourceLocation SOLARIS_INFERNO = FantasyWeapons.id("solaris/inferno");
+    public static final ResourceLocation SOLARIS_INFERNO_STRIKE = FantasyWeapons.id("solaris/inferno_strike");
+    public static final ResourceLocation SOLARIS_INFERNO_COLLAPSE = FantasyWeapons.id("solaris/inferno_collapse");
+
+    // ---- frostrend ----
+    public static final ResourceLocation FROSTREND_FROST_SLASH = FantasyWeapons.id("frostrend/frost_slash");
+    public static final ResourceLocation FROSTREND_ICE_SPIKES = FantasyWeapons.id("frostrend/ice_spikes");
+    public static final ResourceLocation FROSTREND_FREEZE = FantasyWeapons.id("frostrend/freeze");
+    public static final ResourceLocation FROSTREND_GLACIAL_DOMAIN = FantasyWeapons.id("frostrend/glacial_domain");
+    public static final ResourceLocation FROSTREND_ABSOLUTE_ZERO = FantasyWeapons.id("frostrend/absolute_zero");
+    public static final ResourceLocation FROSTREND_SHATTER = FantasyWeapons.id("frostrend/shatter");
+    public static final ResourceLocation FROSTREND_ABSOLUTE_ZERO_END = FantasyWeapons.id("frostrend/absolute_zero_end");
+
+    // ---- doomcleaver ----
+    public static final ResourceLocation DOOMCLEAVER_CLEAVE = FantasyWeapons.id("doomcleaver/cleave");
+    public static final ResourceLocation DOOMCLEAVER_RAGE = FantasyWeapons.id("doomcleaver/rage");
+    public static final ResourceLocation DOOMCLEAVER_FEED = FantasyWeapons.id("doomcleaver/feed");
+    public static final ResourceLocation DOOMCLEAVER_LEAP = FantasyWeapons.id("doomcleaver/leap");
+    public static final ResourceLocation DOOMCLEAVER_LEAP_LAND = FantasyWeapons.id("doomcleaver/leap_land");
+    public static final ResourceLocation DOOMCLEAVER_APOCALYPSE = FantasyWeapons.id("doomcleaver/apocalypse");
+    public static final ResourceLocation DOOMCLEAVER_DRAIN = FantasyWeapons.id("doomcleaver/drain");
+    public static final ResourceLocation DOOMCLEAVER_APOCALYPSE_END = FantasyWeapons.id("doomcleaver/apocalypse_end");
+
+    // ---- stormbreaker ----
+    public static final ResourceLocation STORMBREAKER_CHAIN = FantasyWeapons.id("stormbreaker/chain");
+    public static final ResourceLocation STORMBREAKER_ARCS = FantasyWeapons.id("stormbreaker/arcs");
+    public static final ResourceLocation STORMBREAKER_SPIN = FantasyWeapons.id("stormbreaker/spin");
+    public static final ResourceLocation STORMBREAKER_STRIKE_WARN = FantasyWeapons.id("stormbreaker/strike_warn");
+    public static final ResourceLocation STORMBREAKER_STRIKE = FantasyWeapons.id("stormbreaker/strike");
+    public static final ResourceLocation STORMBREAKER_WRATH = FantasyWeapons.id("stormbreaker/wrath");
+    public static final ResourceLocation STORMBREAKER_BOLT = FantasyWeapons.id("stormbreaker/bolt");
+    public static final ResourceLocation STORMBREAKER_WRATH_END = FantasyWeapons.id("stormbreaker/wrath_end");
+
+    // ---- gravebite ----
+    public static final ResourceLocation GRAVEBITE_SOUL_VOLLEY = FantasyWeapons.id("gravebite/soul_volley");
+    public static final ResourceLocation GRAVEBITE_SOUL_HIT = FantasyWeapons.id("gravebite/soul_hit");
+    public static final ResourceLocation GRAVEBITE_HARVEST = FantasyWeapons.id("gravebite/harvest");
+    public static final ResourceLocation GRAVEBITE_CHAINS = FantasyWeapons.id("gravebite/chains");
+    public static final ResourceLocation GRAVEBITE_MAW = FantasyWeapons.id("gravebite/maw");
+    public static final ResourceLocation GRAVEBITE_LEGION = FantasyWeapons.id("gravebite/legion");
+    public static final ResourceLocation GRAVEBITE_LEGION_LAUNCH = FantasyWeapons.id("gravebite/legion_launch");
+    public static final ResourceLocation GRAVEBITE_LEGION_END = FantasyWeapons.id("gravebite/legion_end");
+
+    // ---- soulreaper ----
+    public static final ResourceLocation SOULREAPER_REAP = FantasyWeapons.id("soulreaper/reap");
+    public static final ResourceLocation SOULREAPER_CATCH = FantasyWeapons.id("soulreaper/catch");
+    public static final ResourceLocation SOULREAPER_REND = FantasyWeapons.id("soulreaper/rend");
+    public static final ResourceLocation SOULREAPER_TOLL = FantasyWeapons.id("soulreaper/toll");
+
+    // ---- bloomfall ----
+    public static final ResourceLocation BLOOMFALL_THORN_SWEEP = FantasyWeapons.id("bloomfall/thorn_sweep");
+    public static final ResourceLocation BLOOMFALL_ROOTS = FantasyWeapons.id("bloomfall/roots");
+    public static final ResourceLocation BLOOMFALL_SPORES = FantasyWeapons.id("bloomfall/spores");
+    public static final ResourceLocation BLOOMFALL_OVERGROWTH = FantasyWeapons.id("bloomfall/overgrowth");
+    public static final ResourceLocation BLOOMFALL_WRATH = FantasyWeapons.id("bloomfall/wrath");
+    public static final ResourceLocation BLOOMFALL_WRATH_END = FantasyWeapons.id("bloomfall/wrath_end");
+
+    // ---- eclipse reaper ----
+    public static final ResourceLocation ECLIPSE_DISC_HIT = FantasyWeapons.id("eclipse/disc_hit");
+    public static final ResourceLocation ECLIPSE_RESONANCE = FantasyWeapons.id("eclipse/resonance");
+    public static final ResourceLocation ECLIPSE_SOLAR_FLARE = FantasyWeapons.id("eclipse/solar_flare");
+    public static final ResourceLocation ECLIPSE_UMBRAL_VORTEX = FantasyWeapons.id("eclipse/umbral_vortex");
+    public static final ResourceLocation ECLIPSE_TOTAL = FantasyWeapons.id("eclipse/total");
+    public static final ResourceLocation ECLIPSE_BEAM = FantasyWeapons.id("eclipse/beam");
+    public static final ResourceLocation ECLIPSE_TOTAL_END = FantasyWeapons.id("eclipse/total_end");
+
+    // ---- starforge ----
+    public static final ResourceLocation STARFORGE_WELL = FantasyWeapons.id("starforge/well");
+    public static final ResourceLocation STARFORGE_SLAM = FantasyWeapons.id("starforge/slam");
+    public static final ResourceLocation STARFORGE_SLAM_IMPACT = FantasyWeapons.id("starforge/slam_impact");
+    public static final ResourceLocation STARFORGE_METEOR = FantasyWeapons.id("starforge/meteor");
+    public static final ResourceLocation STARFORGE_METEOR_IMPACT = FantasyWeapons.id("starforge/meteor_impact");
+    public static final ResourceLocation STARFORGE_HORIZON = FantasyWeapons.id("starforge/horizon");
+    public static final ResourceLocation STARFORGE_HORIZON_END = FantasyWeapons.id("starforge/horizon_end");
+    public static final ResourceLocation STARFORGE_STARFALL = FantasyWeapons.id("starforge/starfall");
+
+    // ---- aetherlance ----
+    public static final ResourceLocation AETHERLANCE_THRUST = FantasyWeapons.id("aetherlance/thrust");
+    public static final ResourceLocation AETHERLANCE_BOLT = FantasyWeapons.id("aetherlance/bolt");
+    public static final ResourceLocation AETHERLANCE_PIERCE = FantasyWeapons.id("aetherlance/pierce");
+    public static final ResourceLocation AETHERLANCE_BOLT_END = FantasyWeapons.id("aetherlance/bolt_end");
+    public static final ResourceLocation AETHERLANCE_CHARGE = FantasyWeapons.id("aetherlance/charge");
+    public static final ResourceLocation AETHERLANCE_RAY = FantasyWeapons.id("aetherlance/ray");
+
+    // Monolith
+    public static final ResourceLocation MONOLITH_PLANT = FantasyWeapons.id("monolith/plant");
+    public static final ResourceLocation MONOLITH_SHATTER = FantasyWeapons.id("monolith/shatter");
+    public static final ResourceLocation MONOLITH_FISSURE = FantasyWeapons.id("monolith/fissure");
+    public static final ResourceLocation MONOLITH_AFTERSHOCK = FantasyWeapons.id("monolith/aftershock");
+    public static final ResourceLocation MONOLITH_LEAP = FantasyWeapons.id("monolith/leap");
+    public static final ResourceLocation MONOLITH_SLAM = FantasyWeapons.id("monolith/slam");
+    public static final ResourceLocation MONOLITH_WORLDBREAKER = FantasyWeapons.id("monolith/worldbreaker");
+    public static final ResourceLocation MONOLITH_ERUPTION = FantasyWeapons.id("monolith/eruption");
+
+    // Infernochain
+    public static final ResourceLocation INFERNO_LASH = FantasyWeapons.id("infernochain/lash");
+    public static final ResourceLocation INFERNO_HOOK = FantasyWeapons.id("infernochain/hook");
+    public static final ResourceLocation INFERNO_HOOK_END = FantasyWeapons.id("infernochain/hook_end");
+    public static final ResourceLocation INFERNO_CYCLONE = FantasyWeapons.id("infernochain/cyclone");
+    public static final ResourceLocation INFERNO_MELTDOWN = FantasyWeapons.id("infernochain/meltdown");
+    public static final ResourceLocation INFERNO_DRAKE = FantasyWeapons.id("infernochain/drake");
+    public static final ResourceLocation INFERNO_DRAKE_END = FantasyWeapons.id("infernochain/drake_end");
+}
