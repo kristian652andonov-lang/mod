@@ -57,6 +57,7 @@ final class DevScripts {
                 else if (name.equals("refinery")) refinery(b);
                 else if (name.equals("armor")) armor(b);
                 else if (name.startsWith("setfx")) setFx(b, name.length() > 6 ? java.util.List.of(name.substring(6).split(",")) : null);
+                else if (name.equals("infuse")) infuse(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -713,6 +714,35 @@ final class DevScripts {
                 b.wait(30).run(mc -> mc.gui.getChat().clearMessages(false)).hud(true).wait(2).screenshot("setfx_soulreaper_souls").hud(false);
             }
         }
+    }
+
+    /** A Voidfang infused with two Void Cores in the inventory's crafting grid: the tooltips, the grid and the level-up. */
+    private static void infuse(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode survival").cmd("/clear @s").cmd("/fw give voidfang 5").wait(140).cmd("/give @s fantasyweapons:void_core 2")
+                .cmd("/give @s fantasyweapons:voidfang_chestplate").wait(10).slot(0).hud(true);
+        b.run(mc -> mc.setScreen(new TooltipPreviewScreen(mc.player.getInventory().getItem(0)))).wait(10).screenshot("infuse_weapon_tooltip").closeScreen();
+        b.run(mc -> mc.setScreen(new TooltipPreviewScreen(mc.player.getInventory().getItem(1)))).wait(10).screenshot("infuse_core_tooltip").closeScreen();
+        b.run(mc -> mc.setScreen(new TooltipPreviewScreen(mc.player.getInventory().getItem(2)))).wait(10).screenshot("infuse_armor_tooltip").closeScreen();
+        b.run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(10).run(mc -> {
+            int id = mc.player.inventoryMenu.containerId;
+            var pickup = net.minecraft.world.inventory.ClickType.PICKUP;
+            mc.gameMode.handleInventoryMouseClick(id, 36, 0, pickup, mc.player); // the weapon...
+            mc.gameMode.handleInventoryMouseClick(id, 1, 0, pickup, mc.player); // ...into the grid
+            mc.gameMode.handleInventoryMouseClick(id, 37, 0, pickup, mc.player); // the cores...
+            mc.gameMode.handleInventoryMouseClick(id, 2, 1, pickup, mc.player); // ...one each into the grid
+            mc.gameMode.handleInventoryMouseClick(id, 3, 1, pickup, mc.player);
+        }).wait(10).screenshot("infuse_grid");
+        b.run(mc -> mc.gameMode.handleInventoryMouseClick(mc.player.inventoryMenu.containerId, 0, 0,
+                net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player)).wait(5).closeScreen().wait(12).screenshot("infuse_levelup").wait(70).screenshot("infuse_banner").wait(40);
+        b.run(mc -> {
+            var inv = mc.player.getInventory();
+            for (int i = 0; i < inv.getContainerSize(); i++) {
+                if (inv.getItem(i).getItem() instanceof com.fantasyweapons.weapon.FantasyWeaponItem) {
+                    com.fantasyweapons.FantasyWeapons.LOGGER.warn("[infuse] crafted weapon now level {}",
+                            com.fantasyweapons.weapon.FantasyWeaponItem.data(inv.getItem(i)).level());
+                }
+            }
+        });
     }
 
     private static void rigid(ScreenshotDirector.Builder b) {

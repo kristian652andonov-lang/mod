@@ -239,6 +239,13 @@ public class FantasyWeaponItem extends Item implements GeoItem {
         tooltip.add(Component.literal("\u2726 Level " + d.level() + " of " + ProgressionMath.maxLevel()).withStyle(s -> s.withColor(gold))
                 .append(Component.literal(need > 0 ? "   " + String.format("%,d / %,d experience", d.exp(), need) : "   Mastered")
                         .withStyle(s -> s.withColor(faded))));
+        if (need > 0) {
+            var core = com.fantasyweapons.material.Material.ofWeapon(def.id());
+            if (core != null) {
+                String article = "AEIOU".indexOf(core.refinedName().charAt(0)) >= 0 ? "an " : "a ";
+                tooltip.add(Component.literal("   Infuse " + article + core.refinedName() + " for a level").withStyle(s -> s.withColor(faded).withItalic(true)));
+            }
+        }
         tooltip.add(Component.literal(String.format("\u2694 %,.0f Damage", ProgressionMath.weaponDamage(def, d))).withStyle(s -> s.withColor(0xF0A080)));
         int pct = Math.round(ProgressionMath.mastery(def, d) * 100);
         tooltip.add(Component.literal("\u2727 Mastery " + pct + "%").withStyle(s -> s.withColor(0xC9A8F0))

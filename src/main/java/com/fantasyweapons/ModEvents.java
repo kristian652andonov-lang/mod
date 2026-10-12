@@ -42,6 +42,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onDamaged);
         bus.addListener(ModEvents::onPearl);
         bus.addListener(ModEvents::onChorus);
+        bus.addListener(ModEvents::onCrafted);
         bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
     }
 
@@ -128,6 +129,19 @@ public final class ModEvents {
 
     private static void onChorus(net.neoforged.neoforge.event.entity.EntityTeleportEvent.ChorusFruit event) {
         if (!event.isCanceled() && event.getEntityLiving() instanceof ServerPlayer player) com.fantasyweapons.armor.SetAbilities.onTeleport(player);
+    }
+
+    /** A weapon infused with refined cores: its level-up is announced like any other. */
+    private static void onCrafted(net.neoforged.neoforge.event.entity.player.PlayerEvent.ItemCraftedEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !(event.getCrafting().getItem() instanceof FantasyWeaponItem item)) return;
+        var grid = event.getInventory();
+        for (int i = 0; i < grid.getContainerSize(); i++) {
+            var input = grid.getItem(i);
+            if (input.getItem() == item) {
+                ExpService.announceLevelUp(player, item.definition(), FantasyWeaponItem.data(input), FantasyWeaponItem.data(event.getCrafting()));
+                return;
+            }
+        }
     }
 
     private static void onCommands(RegisterCommandsEvent event) {

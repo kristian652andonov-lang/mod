@@ -63,6 +63,9 @@ public class FWRecipes extends RecipeProvider {
             b.define('R', refined).define('N', Items.NETHERITE_INGOT).define('B', Items.BLAZE_ROD)
                     .unlockedBy("has_" + m.refinedId(), has(refined)).save(out);
         }
+        // infusion: a weapon and refined cores of its material, one level per core
+        net.minecraft.data.recipes.SpecialRecipeBuilder.special(com.fantasyweapons.material.InfusionRecipe::new)
+                .save(out, FantasyWeapons.id("weapon_infusion"));
         // raw -> refined, one per material
         for (Material m : Material.values()) {
             out.accept(FantasyWeapons.id("refining/" + m.refinedId()),

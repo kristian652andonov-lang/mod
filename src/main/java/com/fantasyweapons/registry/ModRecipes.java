@@ -17,6 +17,11 @@ public final class ModRecipes {
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<RefiningRecipe>> REFINING_SERIALIZER = SERIALIZERS.register("refining",
             RefiningRecipe.Serializer::new);
 
+    /** A weapon crafted with refined cores of its material: one level higher for each. */
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<com.fantasyweapons.material.InfusionRecipe>> INFUSION_SERIALIZER =
+            SERIALIZERS.register("weapon_infusion",
+                    () -> new net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer<>(com.fantasyweapons.material.InfusionRecipe::new));
+
     private ModRecipes() {
     }
 }

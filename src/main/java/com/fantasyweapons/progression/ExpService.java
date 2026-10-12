@@ -135,19 +135,43 @@ public final class ExpService {
             PacketDistributor.sendToPlayer(player, new ProgressionEventPayload(ProgressionEventPayload.Kind.EXP, def.id(),
                     oldLevel, level, oldDamage, oldDamage, amount, List.of(), ""));
         }
-        if (level > oldLevel) {
-            float newDamage = ProgressionMath.weaponDamage(def, nd);
-            List<String> unlocked = new ArrayList<>();
-            for (AbilityDefinition a : def.abilities()) {
-                if (a.unlockLevel() > oldLevel && a.unlockLevel() <= level) unlocked.add(a.id());
-            }
-            PacketDistributor.sendToPlayer(player, new ProgressionEventPayload(ProgressionEventPayload.Kind.LEVEL_UP, def.id(),
-                    oldLevel, level, oldDamage, newDamage, nd.masteryPoints() - d.masteryPoints(), unlocked, ""));
-            Fx.tracking(player, FxPayload.of(FxIds.LEVEL_UP).caster(player.getId()).pos(player.position())
-                    .level(level).power(unlocked.isEmpty() ? 0 : 1).build());
-            player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(),
-                    unlocked.isEmpty() ? ModSounds.LEVEL_UP.get() : ModSounds.ABILITY_UNLOCK.get(), SoundSource.PLAYERS, 1f, 1f);
+        announceLevelUp(player, def, d, nd);
+    }
+
+    /** Tells the owner a weapon went up from {@code before} to {@code after}: the banner, unlocked abilities, the effect and the sound. */
+    public static void announceLevelUp(ServerPlayer player, WeaponDefinition def, WeaponData before, WeaponData after) {
+        int oldLevel = before.level(), level = after.level();
+        if (level <= oldLevel) return;
+        float oldDamage = ProgressionMath.weaponDamage(def, before);
+        float newDamage = ProgressionMath.weaponDamage(def, after);
+        List<String> unlocked = new ArrayList<>();
+        for (AbilityDefinition a : def.abilities()) {
+            if (a.unlockLevel() > oldLevel && a.unlockLevel() <= level) unlocked.add(a.id());
         }
+        PacketDistributor.sendToPlayer(player, new ProgressionEventPayload(ProgressionEventPayload.Kind.LEVEL_UP, def.id(),
+                oldLevel, level, oldDamage, newDamage, after.masteryPoints() - before.masteryPoints(), unlocked, ""));
+        Fx.tracking(player, FxPayload.of(FxIds.LEVEL_UP).caster(player.getId()).pos(player.position())
+                .level(level).power(unlocked.isEmpty() ? 0 : 1).build());
+        player.serverLevel().playSound(null, player.getX(), player.getY(), player.getZ(),
+                unlocked.isEmpty() ? ModSounds.LEVEL_UP.get() : ModSounds.ABILITY_UNLOCK.get(), SoundSource.PLAYERS, 1f, 1f);
+    }
+
+    /**
+     * {@code d} raised {@code levels} whole levels (no further than the maximum), keeping its progress towards the
+     * next one: the experience those levels are worth and the mastery points they grant are added.
+     */
+    public static WeaponData withLevels(WeaponData d, int levels) {
+        int max = ProgressionMath.maxLevel();
+        int level = d.level();
+        long total = d.totalExp();
+        int points = d.masteryPoints();
+        for (int i = 0; i < levels && level < max; i++) {
+            total += ProgressionMath.expToNext(level);
+            level++;
+            points += ProgressionMath.masteryPointsForLevel(level);
+        }
+        long exp = level >= max ? 0 : Math.min(d.exp(), ProgressionMath.expToNext(level) - 1);
+        return d.withProgress(level, exp, total, points);
     }
 
     /** Sets a weapon to an exact level (commands / testing). Grants the mastery points those levels would have. */
