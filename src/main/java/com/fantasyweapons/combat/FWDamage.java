@@ -82,7 +82,8 @@ public final class FWDamage {
         if (!canHarm(attacker, rawTarget, kind)) return 0;
         ServerLevel level = attacker.serverLevel();
 
-        float scaled = amount * StatusService.incomingMultiplier(target, element);
+        float scaled = amount * StatusService.incomingMultiplier(target, element)
+                * com.fantasyweapons.armor.ArmorEffects.elementDamage(attacker, element) * com.fantasyweapons.armor.ArmorEffects.incomingElement(target, element);
         float before = target.getHealth() + target.getAbsorptionAmount();
         boolean hurt = rawTarget.hurt(source(level, kind, attacker), scaled);
         if (!hurt) return 0;
@@ -92,6 +93,7 @@ public final class FWDamage {
         if (!weapon.isEmpty() && weapon.getItem() instanceof FantasyWeaponItem) {
             recordHit(attacker, weapon, target);
         }
+        if (kind != Kind.DOT) com.fantasyweapons.armor.ArmorEffects.afterDamage(attacker, target, dealt, element);
         Fx.only(attacker, FxPayload.of(FxIds.DAMAGE_NUMBER).caster(attacker.getId()).pos(target.position().add(0, target.getBbHeight(), 0))
                 .power(dealt > 0 ? dealt : scaled).level(flags | (kind == Kind.ABILITY ? FLAG_ABILITY : 0) | (kind == Kind.DOT ? FLAG_DOT : 0))
                 .entities(target.getId()).build());

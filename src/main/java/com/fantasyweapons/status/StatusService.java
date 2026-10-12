@@ -38,6 +38,7 @@ public final class StatusService {
      * potency takes the stronger value.
      */
     public static StatusEffects.Instance apply(LivingEntity target, StatusType type, int duration, int addStacks, float potency, @Nullable UUID source) {
+        duration = com.fantasyweapons.armor.ArmorEffects.statusDuration(target, type, duration, source);
         StatusEffects effects = target.getData(ModAttachments.STATUS);
         StatusEffects.Instance inst = effects.get(type);
         if (inst == null) {

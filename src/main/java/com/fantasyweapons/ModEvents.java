@@ -38,6 +38,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onServerStopped);
         bus.addListener(ModEvents::onCommands);
         bus.addListener(ModEvents::onIncomingDamage);
+        bus.addListener(ModEvents::onFall);
         bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
     }
 
@@ -60,7 +61,10 @@ public final class ModEvents {
     }
 
     private static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (event.getEntity() instanceof ServerPlayer player) AbilityService.tick(player);
+        if (event.getEntity() instanceof ServerPlayer player) {
+            AbilityService.tick(player);
+            com.fantasyweapons.armor.ArmorEffects.tick(player);
+        }
     }
 
     private static void onEntityTick(EntityTickEvent.Post event) {
@@ -93,7 +97,17 @@ public final class ModEvents {
         if (event.getSource().getEntity() instanceof LivingEntity attacker && !attacker.level().isClientSide
                 && com.fantasyweapons.status.StatusService.stacks(attacker, com.fantasyweapons.status.StatusType.FROZEN) > 0) {
             event.setCanceled(true);
+            return;
         }
+        // frost, fire and undead resistance from armor
+        float armor = com.fantasyweapons.armor.ArmorEffects.incoming(event.getEntity(), event.getSource());
+        if (armor != 1f) event.setAmount(event.getAmount() * armor);
+    }
+
+    private static void onFall(net.neoforged.neoforge.event.entity.living.LivingFallEvent event) {
+        float mult = com.fantasyweapons.armor.ArmorEffects.fallDamage(event.getEntity());
+        if (mult <= 0) event.setCanceled(true);
+        else if (mult != 1f) event.setDamageMultiplier(event.getDamageMultiplier() * mult);
     }
 
     private static void onCommands(RegisterCommandsEvent event) {

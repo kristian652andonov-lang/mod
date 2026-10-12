@@ -611,7 +611,7 @@ public final class FWGameTests {
      * A survival mock player with a NeoForge-configured mock connection, so payloads (HUD sync, FX, notifications)
      * can be sent to it like to a real client.
      */
-    private static ServerPlayer player(GameTestHelper h, Vec3 relative, float yaw) {
+    static ServerPlayer player(GameTestHelper h, Vec3 relative, float yaw) {
         ServerLevel level = h.getLevel();
         GameProfile profile = new GameProfile(UUID.randomUUID(), "fwtest" + PLAYERS.incrementAndGet());
         CommonListenerCookie cookie = CommonListenerCookie.createInitial(profile, false);
@@ -646,11 +646,11 @@ public final class FWGameTests {
         }
     }
 
-    private static void cleanup(ServerPlayer p) {
+    static void cleanup(ServerPlayer p) {
         p.server.getPlayerList().remove(p);
     }
 
-    private static ItemStack giveWeapon(ServerPlayer p, String weapon) {
+    static ItemStack giveWeapon(ServerPlayer p, String weapon) {
         ItemStack stack = new ItemStack(ModItems.WEAPONS.get(weapon).get());
         stack.set(ModComponents.WEAPON_DATA.get(), WeaponData.EMPTY.withId(UUID.randomUUID()));
         p.getInventory().selected = 0;
@@ -659,7 +659,7 @@ public final class FWGameTests {
     }
 
     /** A motionless husk (husks don't burn in daylight) with the given health. */
-    private static Husk dummy(GameTestHelper h, BlockPos relative, float health) {
+    static Husk dummy(GameTestHelper h, BlockPos relative, float health) {
         Husk husk = h.spawn(EntityType.HUSK, relative);
         husk.setNoAi(true);
         var max = husk.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH);

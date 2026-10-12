@@ -69,6 +69,7 @@ public final class MeleeHandler {
         float damage = base * (0.2f + strength * strength * 0.8f);
         if (heavy) damage *= def.heavyMultiplier();
         if (crit) damage *= def.critMultiplier();
+        damage *= com.fantasyweapons.armor.ArmorEffects.meleeMultiplier(player, crit, heavy);
         damage *= StatusService.outgoingMultiplier(player);
 
         int flags = (crit ? FWDamage.FLAG_CRIT : 0) | (heavy ? FWDamage.FLAG_HEAVY : 0);
@@ -107,6 +108,7 @@ public final class MeleeHandler {
         }
 
         if (def.lifesteal() > 0) FWDamage.lifesteal(player, totalDealt, def.lifesteal() * StatusService.lifestealMultiplier(player));
+        FWDamage.lifesteal(player, totalDealt, com.fantasyweapons.armor.ArmorEffects.lifeSteal(player));
 
         player.setLastHurtMob(primary);
         player.causeFoodExhaustion(0.1f);

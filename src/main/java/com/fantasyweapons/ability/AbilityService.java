@@ -175,7 +175,8 @@ public final class AbilityService {
         WeaponData nd = data.withForm(next);
         stack.set(ModComponents.WEAPON_DATA.get(), nd);
         com.fantasyweapons.weapon.WeaponHooks.fireFormSwitch(def.id(), player, stack, form);
-        rt.setCooldown(data.idOrNil(), FORM_COOLDOWN, now, 20);
+        rt.setCooldown(data.idOrNil(), FORM_COOLDOWN, now, com.fantasyweapons.armor.ArmorEffects.formCooldown(player, 20));
+        com.fantasyweapons.armor.ArmorEffects.onFormSwitch(player);
         player.syncData(ModAttachments.ABILITY_RUNTIME);
         WeaponAnimations.trigger(player, stack, "form:" + form.id());
         Fx.tracking(player, FxPayload.of(FxIds.FORM_SWITCH).caster(player.getId()).pos(player.position()).level(next).build());
@@ -233,7 +234,7 @@ public final class AbilityService {
             data = FantasyWeaponItem.data(stack);
         }
         float mastery = ProgressionMath.mastery(def, data);
-        int chargeTicks = ProgressionMath.chargeTicks(ability, mastery);
+        int chargeTicks = com.fantasyweapons.armor.ArmorEffects.chargeTicks(player, ProgressionMath.chargeTicks(ability, mastery));
         if (chargeTicks <= 0) {
             execute(player, stack, def, data, ability, 1f);
             return;
@@ -287,7 +288,9 @@ public final class AbilityService {
         }
         long now = now(player);
         if (ok) {
-            rt.setCooldown(data.idOrNil(), ability.id(), now, ProgressionMath.cooldownTicks(ability, level, mastery));
+            rt.setCooldown(data.idOrNil(), ability.id(), now,
+                    com.fantasyweapons.armor.ArmorEffects.cooldown(player, ProgressionMath.cooldownTicks(ability, level, mastery)));
+            com.fantasyweapons.armor.ArmorEffects.onAbilityCast(player, def, ability);
             WeaponAnimations.trigger(player, stack, FantasyWeaponItem.castTrigger(ability, def.form(data)));
         } else {
             rt.setCooldown(data.idOrNil(), ability.id(), now, ServerConfig.FIZZLE_COOLDOWN_TICKS.getOrDefault());

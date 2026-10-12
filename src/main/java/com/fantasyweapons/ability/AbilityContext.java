@@ -19,22 +19,24 @@ import net.minecraft.world.phys.Vec3;
 public record AbilityContext(ServerPlayer player, ServerLevel level, ItemStack stack, FantasyWeaponItem item, WeaponDefinition weapon,
                              WeaponData data, AbilityDefinition ability, int abilityLevel, float charge, float weaponDamage, float mastery) {
 
-    /** Full ability damage for this cast (weapon damage × ability multiplier × level × charge). */
+    /** Full ability damage for this cast (weapon damage × ability multiplier × level × charge × armor bonuses). */
     public float damage() {
-        return ability.damageAt(weaponDamage, abilityLevel, charge);
+        return ability.damageAt(weaponDamage, abilityLevel, charge) * com.fantasyweapons.armor.ArmorEffects.abilityDamage(player, weapon, ability);
     }
 
     public float chargeMultiplier() {
         return ability.chargeMultiplier(charge);
     }
 
+    /** A parameter of the ability, adjusted by the caster's armor (reach, durations, projectile speed...). */
     public double param(String name) {
-        return ability.param(name);
+        return com.fantasyweapons.armor.ArmorEffects.param(player, weapon, ability, name, ability.param(name));
     }
 
-    /** {@code base + perLevel * (abilityLevel - 1)} for two params. */
+    /** {@code base + perLevel * (abilityLevel - 1)} for two params, adjusted by the caster's armor like {@code base}. */
     public double scaled(String base, String perLevel) {
-        return param(base) + param(perLevel) * Math.max(0, abilityLevel - 1);
+        double raw = ability.param(base) + ability.param(perLevel) * Math.max(0, abilityLevel - 1);
+        return com.fantasyweapons.armor.ArmorEffects.param(player, weapon, ability, base, raw);
     }
 
     public Vec3 eye() {
