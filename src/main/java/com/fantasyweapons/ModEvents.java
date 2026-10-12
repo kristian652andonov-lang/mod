@@ -39,6 +39,9 @@ public final class ModEvents {
         bus.addListener(ModEvents::onCommands);
         bus.addListener(ModEvents::onIncomingDamage);
         bus.addListener(ModEvents::onFall);
+        bus.addListener(ModEvents::onDamaged);
+        bus.addListener(ModEvents::onPearl);
+        bus.addListener(ModEvents::onChorus);
         bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
     }
 
@@ -58,6 +61,7 @@ public final class ModEvents {
         if (event.isCanceled()) return;
         ExpService.onLivingDeath(event);
         com.fantasyweapons.weapons.bloomfall.BloomfallAbilities.onDeath(event);
+        com.fantasyweapons.armor.SetAbilities.onDeath(event);
     }
 
     private static void onPlayerTick(PlayerTickEvent.Post event) {
@@ -108,6 +112,22 @@ public final class ModEvents {
         float mult = com.fantasyweapons.armor.ArmorEffects.fallDamage(event.getEntity());
         if (mult <= 0) event.setCanceled(true);
         else if (mult != 1f) event.setDamageMultiplier(event.getDamageMultiplier() * mult);
+    }
+
+    /** Damage actually taken: Frostrend's Heart of Winter chills the attacker. */
+    private static void onDamaged(net.neoforged.neoforge.event.entity.living.LivingDamageEvent.Post event) {
+        if (!event.getEntity().level().isClientSide) {
+            com.fantasyweapons.armor.SetAbilities.onDamaged(event.getEntity(), event.getSource(), event.getNewDamage());
+        }
+    }
+
+    /** Ender pearls and chorus fruit teleport too: Voidfang's Master of the Void primes the next strike. */
+    private static void onPearl(net.neoforged.neoforge.event.entity.EntityTeleportEvent.EnderPearl event) {
+        if (!event.isCanceled() && event.getPlayer() != null) com.fantasyweapons.armor.SetAbilities.onTeleport(event.getPlayer());
+    }
+
+    private static void onChorus(net.neoforged.neoforge.event.entity.EntityTeleportEvent.ChorusFruit event) {
+        if (!event.isCanceled() && event.getEntityLiving() instanceof ServerPlayer player) com.fantasyweapons.armor.SetAbilities.onTeleport(player);
     }
 
     private static void onCommands(RegisterCommandsEvent event) {

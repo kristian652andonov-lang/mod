@@ -72,6 +72,25 @@ public final class FWCommand {
                     c.getSource().sendSuccess(() -> Component.literal("Ability cooldowns cleared"), false);
                     return 1;
                 }))
+                .then(Commands.literal("setfx").then(Commands.argument("set", com.mojang.brigadier.arguments.StringArgumentType.word())
+                        .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                java.util.Arrays.stream(com.fantasyweapons.armor.ArmorSet.values()).map(com.fantasyweapons.armor.ArmorSet::id), b))
+                        .executes(c -> {
+                            ServerPlayer p = c.getSource().getPlayerOrException();
+                            String id = com.mojang.brigadier.arguments.StringArgumentType.getString(c, "set");
+                            com.fantasyweapons.armor.ArmorSet set = java.util.Arrays.stream(com.fantasyweapons.armor.ArmorSet.values())
+                                    .filter(a -> a.id().equals(id)).findFirst().orElse(null);
+                            if (set == null) {
+                                c.getSource().sendFailure(Component.literal("No armor set " + id));
+                                return 0;
+                            }
+                            if (!com.fantasyweapons.armor.SetAbilities.demo(p, set)) {
+                                c.getSource().sendFailure(Component.literal("No enemy nearby to set off " + set.abilityName() + " against"));
+                                return 0;
+                            }
+                            c.getSource().sendSuccess(() -> Component.literal(set.abilityName() + " set off"), false);
+                            return 1;
+                        })))
                 .then(Commands.literal("orescan").then(Commands.argument("radius", IntegerArgumentType.integer(0, 32))
                         .executes(c -> oreScan(c.getSource(), net.minecraft.core.BlockPos.containing(c.getSource().getPosition()),
                                 IntegerArgumentType.getInteger(c, "radius"), null))

@@ -236,7 +236,8 @@ public final class AbilityService {
         float mastery = ProgressionMath.mastery(def, data);
         int chargeTicks = com.fantasyweapons.armor.ArmorEffects.chargeTicks(player, ProgressionMath.chargeTicks(ability, mastery));
         if (chargeTicks <= 0) {
-            execute(player, stack, def, data, ability, 1f);
+            boolean ok = execute(player, stack, def, data, ability, 1f);
+            com.fantasyweapons.armor.SetAbilities.afterCast(player, ok, false);
             return;
         }
         rt.startCharge(ability.id(), data.idOrNil(), player.getInventory().selected, now, chargeTicks);
@@ -265,10 +266,12 @@ public final class AbilityService {
             fizzle(player, rt, stack, data);
             return;
         }
-        execute(player, stack, def, data, ability, fraction);
+        boolean ok = execute(player, stack, def, data, ability, fraction);
+        com.fantasyweapons.armor.SetAbilities.afterCast(player, ok, fraction >= 0.999f);
     }
 
-    private static void execute(ServerPlayer player, ItemStack stack, WeaponDefinition def, WeaponData data, AbilityDefinition ability, float charge) {
+    /** @return whether the ability was cast */
+    private static boolean execute(ServerPlayer player, ItemStack stack, WeaponDefinition def, WeaponData data, AbilityDefinition ability, float charge) {
         AbilityRuntime rt = runtime(player);
         rt.clearCharge();
         int level = data.abilityLevel(ability);
@@ -277,6 +280,7 @@ public final class AbilityService {
                 ability, level, charge, ProgressionMath.weaponDamage(def, data), mastery);
         boolean ok;
         String failReason = "No valid target";
+        com.fantasyweapons.armor.SetAbilities.beforeCast(player);
         try {
             ok = ability.executor().execute(ctx);
         } catch (AbilityFailedException e) {
@@ -298,6 +302,7 @@ public final class AbilityService {
             deny(player, def, failReason);
         }
         player.syncData(ModAttachments.ABILITY_RUNTIME);
+        return ok;
     }
 
     private static void fizzle(ServerPlayer player, AbilityRuntime rt, ItemStack stack, WeaponData data) {

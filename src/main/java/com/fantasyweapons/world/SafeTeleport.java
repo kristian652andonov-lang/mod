@@ -93,5 +93,6 @@ public final class SafeTeleport {
         player.resetFallDistance();
         player.setDeltaMovement(player.getDeltaMovement().multiply(1, 0, 1));
         player.hurtMarked = true;
+        com.fantasyweapons.armor.SetAbilities.onTeleport(player);
     }
 }

@@ -98,7 +98,7 @@ public final class ArmorEffects {
         String key = key(weapon, ability);
         if (SLAMS.contains(key)) bonus += ArmorStat.SLAM_DAMAGE.get(caster);
         if (SUMMONS.contains(key)) bonus += ArmorStat.SUMMON_DAMAGE.get(caster);
-        return (float) (1 + bonus);
+        return (float) (1 + bonus) * SetAbilities.abilityDamage(caster);
     }
 
     /** An ability parameter adjusted by the caster's armor (reach, durations, projectile speed, distances, chain jumps). */
@@ -148,6 +148,7 @@ public final class ArmorEffects {
             int amplifier = Math.max(0, (int) Math.round(shield / 4) - 1);
             player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 100, amplifier, false, false, true));
         }
+        SetAbilities.onFormSwitch(player);
     }
 
     /** After an ability is cast: dashes leave a trail that burns enemies for a moment. */
@@ -190,9 +191,9 @@ public final class ArmorEffects {
         return (float) m;
     }
 
-    /** Melee life steal from armor. */
+    /** Melee life steal from armor (and the Doomcleaver set's blood frenzy). */
     public static float lifeSteal(LivingEntity attacker) {
-        return (float) ArmorStat.LIFE_STEAL.get(attacker);
+        return (float) ArmorStat.LIFE_STEAL.get(attacker) + SetAbilities.lifeSteal(attacker);
     }
 
     private static void heal(LivingEntity e, double amount) {
@@ -258,7 +259,8 @@ public final class ArmorEffects {
         // speed on ice and snow, and in the Eclipse Reaper's dark mode
         double speed = 0;
         if (onIceOrSnow(player)) speed += ArmorStat.ICE_SPEED.get(player);
-        if (darkMode(player)) speed += ArmorStat.DARK_SPEED.get(player);
+        // in the Eclipse set's totality both modes' bonuses apply
+        if (darkMode(player) || SetAbilities.totality(player)) speed += ArmorStat.DARK_SPEED.get(player);
         AttributeInstance move = player.getAttribute(Attributes.MOVEMENT_SPEED);
         if (move != null) {
             AttributeModifier current = move.getModifier(CONDITION_SPEED);
@@ -279,6 +281,8 @@ public final class ArmorEffects {
                 e.igniteForSeconds(4);
             }
         }
+
+        SetAbilities.tick(player);
     }
 
     static boolean burningDash(ServerPlayer player) {

@@ -56,6 +56,7 @@ final class DevScripts {
                 else if (name.equals("materials")) materials(b);
                 else if (name.equals("refinery")) refinery(b);
                 else if (name.equals("armor")) armor(b);
+                else if (name.startsWith("setfx")) setFx(b, name.length() > 6 ? java.util.List.of(name.substring(6).split(",")) : null);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -674,6 +675,44 @@ final class DevScripts {
         b.wait(20).run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(20).hud(true)
                 .screenshot("arm_icons").closeScreen().hud(false);
         b.wait(5).quit();
+    }
+
+    /**
+     * Every full-set ability set off (with {@code /fw setfx}) against a group of husks, seen from the side as it plays,
+     * with the set plaque on the HUD.
+     */
+    private static void setFx(ScreenshotDirector.Builder b, java.util.List<String> only) {
+        // when each effect is worth a picture: [first, second] ticks after it is set off
+        java.util.Map<String, int[]> at = java.util.Map.ofEntries(java.util.Map.entry("voidfang", new int[]{4, 10}),
+                java.util.Map.entry("solaris", new int[]{2, 4}), java.util.Map.entry("frostrend", new int[]{2, 6}),
+                java.util.Map.entry("doomcleaver", new int[]{3, 14}), java.util.Map.entry("stormbreaker", new int[]{1, 3}),
+                java.util.Map.entry("gravebite", new int[]{8, 24}), java.util.Map.entry("soulreaper", new int[]{2, 8}),
+                java.util.Map.entry("bloomfall", new int[]{3, 16}), java.util.Map.entry("eclipse_reaper", new int[]{3, 8}),
+                java.util.Map.entry("starforge", new int[]{3, 5}), java.util.Map.entry("aetherlance", new int[]{1, 2}),
+                java.util.Map.entry("monolith", new int[]{2, 5}), java.util.Map.entry("infernochain", new int[]{4, 16}));
+        String[] spots = {"~ ~ ~3.5", "~2.2 ~ ~4.6", "~-2 ~ ~5.4"};
+        b.cmd("/gamemode survival").cmd("/time set noon").cmd("/weather clear").cmd("/fill -8 -60 -6 8 -55 12 minecraft:air").look(0, 0);
+        for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
+            if (only != null && !only.contains(set.id())) continue;
+            String id = "fantasyweapons:" + set.id();
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/effect give @s minecraft:instant_health 1 10 true").playerView().hud(false)
+                    .cmd("/item replace entity @s armor.head with " + id + "_helmet").cmd("/item replace entity @s armor.chest with " + id + "_chestplate")
+                    .cmd("/item replace entity @s armor.legs with " + id + "_leggings").cmd("/item replace entity @s armor.feet with " + id + "_boots");
+            for (int i = 0; i < spots.length; i++) {
+                b.cmd("/summon husk " + spots[i] + " {NoAI:1b,PersistenceRequired:1b,Tags:[\"fw" + i + "\"],Health:500f,"
+                        + "attributes:[{id:\"minecraft:generic.max_health\",base:500d}]}");
+            }
+            b.wait(30).viewAt(6.5, 2.6, -1.5, 0, 1, 3.2).wait(3).cmd("/fw setfx " + set.id());
+            int[] t = at.get(set.id());
+            b.wait(t[0]).screenshot("setfx_" + set.id() + "_a").wait(t[1] - t[0]).screenshot("setfx_" + set.id() + "_b");
+            // the wearer's own view, with the set plaque
+            b.playerView().run(mc -> mc.gui.getChat().clearMessages(false)).hud(true).wait(2).screenshot("setfx_" + set.id() + "_hud").hud(false).wait(30);
+            if (set == com.fantasyweapons.armor.ArmorSet.SOULREAPER) {
+                // three kills: three souls on the plaque
+                for (int i = 0; i < spots.length; i++) b.cmd("/damage @e[tag=fw" + i + ",limit=1] 1000 minecraft:player_attack by @s").wait(2);
+                b.wait(30).run(mc -> mc.gui.getChat().clearMessages(false)).hud(true).wait(2).screenshot("setfx_soulreaper_souls").hud(false);
+            }
+        }
     }
 
     private static void rigid(ScreenshotDirector.Builder b) {

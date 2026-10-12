@@ -114,6 +114,7 @@ public final class ClientSetup {
     private static void registerLayers(RegisterGuiLayersEvent event) {
         event.registerBelow(VanillaGuiLayers.HOTBAR, FantasyWeapons.id("screen_fx"), ScreenFx::render);
         event.registerAbove(VanillaGuiLayers.HOTBAR, FantasyWeapons.id("weapon_hud"), WeaponHud::render);
+        event.registerAbove(VanillaGuiLayers.HOTBAR, FantasyWeapons.id("set_hud"), com.fantasyweapons.client.hud.SetHud::render);
         event.registerAboveAll(FantasyWeapons.id("notifications"), Notifications::render);
     }
 
@@ -153,6 +154,7 @@ public final class ClientSetup {
         Notifications.clear();
         AnimTracker.clear();
         com.fantasyweapons.client.fx.FxProjectiles.clear();
+        com.fantasyweapons.client.fx.ArmorFx.clear();
         com.fantasyweapons.client.render.ChainTracker.clear();
         com.fantasyweapons.client.fx.InfernochainFx.clear();
     }

@@ -35,6 +35,12 @@ public final class ModAttachments {
     public static final Supplier<AttachmentType<HitTracker>> HIT_TRACKER = REGISTER.register("hit_tracker",
             () -> AttachmentType.builder(HitTracker::new).build());
 
+    /** What the player's full-set armor ability is doing (souls, storm counter, primed rift...). Synced to its owner for the HUD; not saved. */
+    public static final Supplier<AttachmentType<com.fantasyweapons.armor.SetState>> SET_STATE = REGISTER.register("set_state",
+            () -> AttachmentType.builder(com.fantasyweapons.armor.SetState::new)
+                    .sync((holder, to) -> holder == to, com.fantasyweapons.armor.SetState.STREAM_CODEC)
+                    .build());
+
     private ModAttachments() {
     }
 }

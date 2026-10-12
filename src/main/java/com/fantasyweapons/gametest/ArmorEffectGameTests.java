@@ -46,7 +46,7 @@ public final class ArmorEffectGameTests {
     }
 
     private static void near(GameTestHelper h, String what, double got, double expected) {
-        if (Math.abs(got - expected) > 1e-3 * Math.max(1, Math.abs(expected))) h.fail(what + ": " + got + ", expected " + expected);
+        if (!(Math.abs(got - expected) <= 1e-3 * Math.max(1, Math.abs(expected)))) h.fail(what + ": " + got + ", expected " + expected);
     }
 
     private static Pig pig(GameTestHelper h, int x) {
@@ -152,12 +152,19 @@ public final class ArmorEffectGameTests {
     @GameTest(template = ARENA)
     public static void resistances(GameTestHelper h) {
         var sources = h.getLevel().damageSources();
-        // the same class of chestplate with and without the resistance, so armor itself cancels out
-        near(h, "fire resistance", taken(h, ArmorSet.INFERNOCHAIN, ArmorSet.DOOMCLEAVER, ArmorItem.Type.CHESTPLATE, sources.inFire()), 0.7);
+        // the same class of chestplate with and without the resistance; burning and freezing bypass armor, so the
+        // ratio of the damage taken is the resistance itself
+        near(h, "fire resistance", taken(h, ArmorSet.INFERNOCHAIN, ArmorSet.DOOMCLEAVER, ArmorItem.Type.CHESTPLATE, sources.onFire()), 0.7);
         near(h, "frost resistance", taken(h, ArmorSet.FROSTREND, ArmorSet.SOLARIS, ArmorItem.Type.CHESTPLATE, sources.freeze()), 0.75);
         var zombie = h.spawn(EntityType.ZOMBIE, new BlockPos(2, 2, 2));
         zombie.setNoAi(true);
-        near(h, "undead resistance", taken(h, ArmorSet.GRAVEBITE, ArmorSet.DOOMCLEAVER, ArmorItem.Type.BOOTS, sources.mobAttack(zombie)), 0.8);
+        // a zombie's blow goes through armor, which blocks a larger share of a smaller hit: check the multiplier itself,
+        // and that the wearer really takes less
+        ServerPlayer undead = wearing(h, ArmorSet.GRAVEBITE, ArmorItem.Type.BOOTS);
+        near(h, "undead resistance", ArmorEffects.incoming(undead, sources.mobAttack(zombie)), 0.8);
+        FWGameTests.cleanup(undead);
+        double undeadRatio = taken(h, ArmorSet.GRAVEBITE, ArmorSet.DOOMCLEAVER, ArmorItem.Type.BOOTS, sources.mobAttack(zombie));
+        if (!(undeadRatio > 0 && undeadRatio < 0.85)) h.fail("undead resistance taken: " + undeadRatio);
         ServerPlayer immune = wearing(h, ArmorSet.STARFORGE, ArmorItem.Type.BOOTS);
         float before = immune.getHealth();
         immune.causeFallDamage(20, 1, sources.fall());

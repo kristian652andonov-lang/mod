@@ -72,6 +72,12 @@ public class ProjectileEffect extends AreaEffect {
         return this;
     }
 
+    /** The projectile flies through {@code e} without hitting it (e.g. the target of the strike that fired it). */
+    public ProjectileEffect ignore(Entity e) {
+        hitOnce.add(e.getId());
+        return this;
+    }
+
     public ProjectileEffect onEnd(EndHandler handler) {
         this.onEnd = handler;
         return this;

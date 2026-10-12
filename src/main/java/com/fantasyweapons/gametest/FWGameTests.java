@@ -632,6 +632,16 @@ public final class FWGameTests {
         level.getServer().getPlayerList().placeNewPlayer(connection, player, cookie);
         Vec3 abs = h.absoluteVec(relative);
         player.teleportTo(level, abs.x, abs.y, abs.z, yaw, 0);
+        // the test world is in creative mode, and a newly joined player can't be hurt for 3 seconds (mock players are
+        // never ticked out of it): test players are vulnerable survival players from the start
+        player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        try {
+            var f = ServerPlayer.class.getDeclaredField("spawnInvulnerableTime");
+            f.setAccessible(true);
+            f.setInt(player, 0);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
         return player;
     }
 

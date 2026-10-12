@@ -87,6 +87,13 @@ public class FantasyArmorItem extends ArmorItem implements GeoItem {
         return worn(entity, set) == 4;
     }
 
+    /** The set {@code entity} wears all four pieces of, or null. */
+    @org.jetbrains.annotations.Nullable
+    public static ArmorSet fullSet(LivingEntity entity) {
+        if (!(entity.getItemBySlot(EquipmentSlot.HEAD).getItem() instanceof FantasyArmorItem helmet)) return null;
+        return fullSet(entity, helmet.set) ? helmet.set : null;
+    }
+
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int color = set.material().color();
@@ -106,6 +113,9 @@ public class FantasyArmorItem extends ArmorItem implements GeoItem {
                 .withStyle(s -> s.withColor(active ? 0xFFE7A8 : faded).withBold(active)));
         for (String line : wrap(set.abilityText(), 40)) {
             tooltip.add(Component.literal("  " + line).withStyle(s -> s.withColor(active ? ink : faded).withItalic(!active)));
+        }
+        for (String line : wrap(SetAbilities.details(set), 40)) {
+            tooltip.add(Component.literal("  " + line).withStyle(s -> s.withColor(active ? light : faded).withItalic(!active)));
         }
     }
 

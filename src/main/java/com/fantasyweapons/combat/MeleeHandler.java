@@ -65,7 +65,7 @@ public final class MeleeHandler {
         boolean falling = player.fallDistance > 0 && !player.onGround() && !player.onClimbable() && !player.isInWater();
         boolean crit = strength > 0.9f && (falling || !suppressRandomCrits && player.getRandom().nextFloat() < def.critChance());
 
-        float base = ProgressionMath.weaponDamage(def, data) * (form != null ? form.damageFactor() : 1f);
+        float base = ProgressionMath.weaponDamage(def, data) * com.fantasyweapons.armor.SetAbilities.formDamageFactor(player, def, form);
         float damage = base * (0.2f + strength * strength * 0.8f);
         if (heavy) damage *= def.heavyMultiplier();
         if (crit) damage *= def.critMultiplier();
@@ -88,11 +88,12 @@ public final class MeleeHandler {
             hitIds.add(primary.getId());
             applyKnockback(player, primary, cls.knockback() * (heavy ? 1.6f : 1f) * strength);
             runHook(def, new MeleeContext(player, stack, def, data, primary, dealt, heavy, crit, true));
+            com.fantasyweapons.armor.SetAbilities.onMelee(player, stack, def, primary, damage, strength, crit, heavy);
         }
 
         // Cleave: full-strength swings also hit enemies inside the weapon's arc.
         if (strength > 0.9f && cls.cleaveAngle() > 0) {
-            float reach = cls.cleaveRange() + (form != null ? form.reachBonus() : 0f);
+            float reach = cls.cleaveRange() + com.fantasyweapons.armor.SetAbilities.formReach(player, def, form);
             float cleaveFactor = heavy ? 0.85f : 0.6f;
             Vec3 origin = player.position().add(0, player.getBbHeight() * 0.5, 0);
             for (LivingEntity other : Targeting.inCone(level, player, origin, player.getLookAngle(), reach, cls.cleaveAngle(), FWDamage.Kind.MELEE)) {

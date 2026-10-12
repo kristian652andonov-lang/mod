@@ -93,6 +93,8 @@ public final class EclipseReaperAbilities {
 
     public static void onMeleeHit(MeleeContext ctx) {
         boolean dark = dark(ctx.weapon(), ctx.data());
+        // the Eclipse set's totality: both modes at once
+        boolean both = com.fantasyweapons.armor.SetAbilities.totality(ctx.player());
         float bonus = switchBonus(ctx.player(), ctx.weapon(), ctx.data());
         if (bonus > 1f) {
             FWDamage.deal(ctx.player(), ctx.stack(), ctx.target(), ctx.damageDealt() * (bonus - 1f), FWDamage.Kind.ABILITY, Element.CELESTIAL, 0);
@@ -100,6 +102,7 @@ public final class EclipseReaperAbilities {
         if (ctx.data().abilityLevel(ctx.weapon().ability(EclipseReaper.EQUILIBRIUM)) > 0) {
             float wd = ProgressionMath.weaponDamage(ctx.weapon(), ctx.data());
             brand(ctx.player(), ctx.target(), dark, 1, wd * 0.03f);
+            if (both) brand(ctx.player(), ctx.target(), !dark, 1, wd * 0.03f);
             resonate(ctx.player(), ctx.stack(), ctx.weapon(), ctx.data(), ctx.target());
         }
     }
@@ -111,7 +114,10 @@ public final class EclipseReaperAbilities {
     public static boolean eclipseDisc(AbilityContext ctx) {
         ServerPlayer p = ctx.player();
         boolean dark = dark(ctx.weapon(), ctx.data());
-        float damage = ctx.damage() * (dark ? 1f : 1f + (float) ctx.param("light_bonus")) * switchBonus(p, ctx.weapon(), ctx.data());
+        // in the Eclipse set's totality the disc has the light mode's bonus and the dark mode's shadow both
+        boolean both = com.fantasyweapons.armor.SetAbilities.totality(p);
+        boolean light = !dark || both, shadow = dark || both;
+        float damage = ctx.damage() * (light ? 1f + (float) ctx.param("light_bonus") : 1f) * switchBonus(p, ctx.weapon(), ctx.data());
         float dot = (float) (ctx.weaponDamage() * ctx.param("dark_dot"));
         int dotTicks = (int) Math.round(ctx.param("dark_duration") * 20);
         AbilityRuntime rt = p.getData(ModAttachments.ABILITY_RUNTIME);
@@ -123,9 +129,9 @@ public final class EclipseReaperAbilities {
         ThrownWeaponEntity e = ThrownWeaponEntity.create(p, ctx.stack(), ctx.data().idOrNil(), start)
                 .out(dir, ctx.param("speed"), ctx.scaled("range", "range_per_level"))
                 .hits(1.4, 1000, (o, w, t, th) -> {
-                    float dealt = FWDamage.deal(o, w, t, damage, FWDamage.Kind.ABILITY, Element.CELESTIAL, dark ? 0 : FWDamage.FLAG_CRIT);
-                    if (dark) StatusService.apply(t, StatusType.ECLIPSE_DARKNESS, dotTicks, 1, dot, o.getUUID());
-                    else brand(o, t, false, 1, 0);
+                    float dealt = FWDamage.deal(o, w, t, damage, FWDamage.Kind.ABILITY, Element.CELESTIAL, light ? FWDamage.FLAG_CRIT : 0);
+                    if (shadow) StatusService.apply(t, StatusType.ECLIPSE_DARKNESS, dotTicks, 1, dot, o.getUUID());
+                    if (light) brand(o, t, false, 1, 0);
                     resonate(o, w, ctx.weapon(), ctx.data(), t);
                     Kit.fx(o.serverLevel(), FxPayload.of(FxIds.ECLIPSE_DISC_HIT).caster(o.getId()).pos(t.getBoundingBox().getCenter())
                             .level(dark ? 1 : 0).seed(o.level().random.nextLong()).build());

@@ -20,6 +20,16 @@ public final class Delayed extends AreaEffect {
         this.action = action;
     }
 
+    private Delayed(ServerPlayer owner, java.util.UUID weaponId, int delay, Action action) {
+        super(owner.serverLevel(), owner, weaponId, owner.position(), Math.max(1, delay));
+        this.action = action;
+    }
+
+    /** For actions outside an ability cast (armor set abilities): {@code weaponId} is the weapon credited, or nil. */
+    public static void schedule(ServerPlayer owner, java.util.UUID weaponId, int delay, Action action) {
+        AreaEffectManager.add(new Delayed(owner, weaponId, delay, action));
+    }
+
     public static void schedule(AbilityContext ctx, int delay, Action action) {
         if (delay <= 0) {
             action.run(ctx.player(), ctx.stack());

@@ -135,4 +135,24 @@ public final class FxIds {
     public static final ResourceLocation INFERNO_MELTDOWN = FantasyWeapons.id("infernochain/meltdown");
     public static final ResourceLocation INFERNO_DRAKE = FantasyWeapons.id("infernochain/drake");
     public static final ResourceLocation INFERNO_DRAKE_END = FantasyWeapons.id("infernochain/drake_end");
+
+    // ---- full-set armor abilities ----
+    public static final ResourceLocation SET_RIFT_ECHO = FantasyWeapons.id("armor/rift_echo");
+    public static final ResourceLocation SET_RIFT_PRIMED = FantasyWeapons.id("armor/rift_primed");
+    public static final ResourceLocation SET_DAWN_BURST = FantasyWeapons.id("armor/dawn_burst");
+    public static final ResourceLocation SET_WINTER_CHILL = FantasyWeapons.id("armor/winter_chill");
+    public static final ResourceLocation SET_FRENZY = FantasyWeapons.id("armor/frenzy");
+    public static final ResourceLocation SET_FRENZY_PULSE = FantasyWeapons.id("armor/frenzy_pulse");
+    public static final ResourceLocation SET_STORM_BOLT = FantasyWeapons.id("armor/storm_bolt");
+    public static final ResourceLocation SET_GRAVE_ALLY = FantasyWeapons.id("armor/grave_ally");
+    public static final ResourceLocation SET_SOUL_HARVEST = FantasyWeapons.id("armor/soul_harvest");
+    public static final ResourceLocation SET_SOUL_RELEASE = FantasyWeapons.id("armor/soul_release");
+    public static final ResourceLocation SET_GROVE = FantasyWeapons.id("armor/grove");
+    public static final ResourceLocation SET_GROVE_PULSE = FantasyWeapons.id("armor/grove_pulse");
+    public static final ResourceLocation SET_ECLIPSE_WAVE = FantasyWeapons.id("armor/eclipse_wave");
+    public static final ResourceLocation SET_GRAVITY_WELL = FantasyWeapons.id("armor/gravity_well");
+    public static final ResourceLocation SET_PRECISION_BOLT = FantasyWeapons.id("armor/precision_bolt");
+    public static final ResourceLocation SET_PRECISION_BOLT_END = FantasyWeapons.id("armor/precision_bolt_end");
+    public static final ResourceLocation SET_SHOCKWAVE = FantasyWeapons.id("armor/shockwave");
+    public static final ResourceLocation SET_HELLFIRE_TRAIL = FantasyWeapons.id("armor/hellfire_trail");
 }
