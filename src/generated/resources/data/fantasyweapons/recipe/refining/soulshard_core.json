@@ -1,0 +1,10 @@
+{
+  "type": "fantasyweapons:refining",
+  "ingredient": {
+    "item": "fantasyweapons:soulshard"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:soulshard_core"
+  }
+}

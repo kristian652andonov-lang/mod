@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "facing=east,lit=false": {
+      "model": "fantasyweapons:block/arcane_refinery"
+    },
+    "facing=east,lit=true": {
+      "model": "fantasyweapons:block/arcane_refinery"
+    },
+    "facing=north,lit=false": {
+      "model": "fantasyweapons:block/arcane_refinery"
+    },
+    "facing=north,lit=true": {
+      "model": "fantasyweapons:block/arcane_refinery"
+    },
+    "facing=south,lit=false": {
+      "model": "fantasyweapons:block/arcane_refinery"
+    },
+    "facing=south,lit=true": {
+      "model": "fantasyweapons:block/arcane_refinery"
+    },
+    "facing=west,lit=false": {
+      "model": "fantasyweapons:block/arcane_refinery"
+    },
+    "facing=west,lit=true": {
+      "model": "fantasyweapons:block/arcane_refinery"
+    }
+  }
+}

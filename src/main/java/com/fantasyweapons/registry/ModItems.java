@@ -23,6 +23,11 @@ public final class ModItems {
     public static final Map<Material, DeferredItem<MaterialOreItem>> ORES = new EnumMap<>(Material.class);
     public static final Map<Material, DeferredItem<MaterialItem>> RAW = new EnumMap<>(Material.class);
     public static final Map<Material, DeferredItem<MaterialItem>> REFINED = new EnumMap<>(Material.class);
+    public static final Map<com.fantasyweapons.armor.ArmorSet, Map<net.minecraft.world.item.ArmorItem.Type, DeferredItem<com.fantasyweapons.armor.FantasyArmorItem>>> ARMOR =
+            new EnumMap<>(com.fantasyweapons.armor.ArmorSet.class);
+
+    public static final DeferredItem<com.fantasyweapons.refinery.ArcaneRefineryItem> ARCANE_REFINERY = REGISTER.register("arcane_refinery",
+            () -> new com.fantasyweapons.refinery.ArcaneRefineryItem(ModBlocks.ARCANE_REFINERY.get(), new Item.Properties().rarity(Rarity.RARE)));
 
     static {
         for (WeaponDefinition def : Weapons.all()) {
@@ -35,6 +40,16 @@ public final class ModItems {
                     new Item.Properties().rarity(Rarity.RARE).fireResistant())));
             RAW.put(m, REGISTER.register(m.rawId(), () -> new MaterialItem(m, false, new Item.Properties().rarity(Rarity.RARE).fireResistant())));
             REFINED.put(m, REGISTER.register(m.refinedId(), () -> new MaterialItem(m, true, new Item.Properties().rarity(Rarity.EPIC).fireResistant())));
+        }
+        for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
+            Map<net.minecraft.world.item.ArmorItem.Type, DeferredItem<com.fantasyweapons.armor.FantasyArmorItem>> pieces =
+                    new EnumMap<>(net.minecraft.world.item.ArmorItem.Type.class);
+            for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) {
+                pieces.put(type, REGISTER.register(set.itemId(type), () -> new com.fantasyweapons.armor.FantasyArmorItem(set,
+                        ModArmorMaterials.MATERIALS.get(set), type, new Item.Properties().rarity(Rarity.EPIC).fireResistant()
+                        .durability(type.getDurability(com.fantasyweapons.armor.ArmorClass.DURABILITY)))));
+            }
+            ARMOR.put(set, pieces);
         }
     }
 

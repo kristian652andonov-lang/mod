@@ -1,0 +1,163 @@
+package com.fantasyweapons.gametest;
+
+import com.fantasyweapons.FantasyWeapons;
+import com.fantasyweapons.material.Material;
+import com.fantasyweapons.refinery.ArcaneRefineryBlock;
+import com.fantasyweapons.refinery.ArcaneRefineryBlockEntity;
+import com.fantasyweapons.refinery.RefineryPart;
+import com.fantasyweapons.refinery.RefineryPartBlock;
+import com.fantasyweapons.registry.ModBlocks;
+import com.fantasyweapons.registry.ModItems;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.HopperBlock;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+
+/** The Arcane Refinery: building it, refining with any fuel, blaze rods, hoppers and taking it apart. */
+@GameTestHolder(FantasyWeapons.MOD_ID)
+@PrefixGameTestTemplate(false)
+public final class RefineryGameTests {
+    private static final String ARENA = "arena";
+    private static final BlockPos CORE = new BlockPos(10, 2, 10);
+
+    private RefineryGameTests() {
+    }
+
+    /** Builds the refinery (core and five parts) facing north with its core at {@code core}. */
+    private static ArcaneRefineryBlockEntity build(GameTestHelper h, BlockPos core) {
+        Direction facing = Direction.NORTH;
+        h.setBlock(core, ModBlocks.ARCANE_REFINERY.get().defaultBlockState().setValue(ArcaneRefineryBlock.FACING, facing));
+        for (RefineryPart part : RefineryPart.values()) {
+            h.getLevel().setBlock(h.absolutePos(part.from(core, facing)), ModBlocks.REFINERY_PART.get().defaultBlockState()
+                    .setValue(RefineryPartBlock.FACING, facing).setValue(RefineryPartBlock.PART, part), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        }
+        return (ArcaneRefineryBlockEntity) h.getLevel().getBlockEntity(h.absolutePos(core));
+    }
+
+    private static ItemStack raw(Material m, int n) {
+        return new ItemStack(ModItems.RAW.get(m).get(), n);
+    }
+
+    /** One raw material and coal: refined after 400 ticks (20 s), not before. */
+    @GameTest(template = ARENA, timeoutTicks = 520)
+    public static void refinesInTwentySeconds(GameTestHelper h) {
+        ArcaneRefineryBlockEntity be = build(h, CORE);
+        be.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.SOLARITE, 1));
+        be.items().setStackInSlot(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.COAL));
+        h.runAfterDelay(380, () -> {
+            if (!be.items().getStackInSlot(ArcaneRefineryBlockEntity.OUTPUT).isEmpty()) h.fail("refined too early");
+            if (!be.refining()) h.fail("not refining (lit) while working");
+        });
+        h.runAfterDelay(420, () -> {
+            ItemStack out = be.items().getStackInSlot(ArcaneRefineryBlockEntity.OUTPUT);
+            if (out.getItem() != ModItems.REFINED.get(Material.SOLARITE).get() || out.getCount() != 1) h.fail("output after 20 s: " + out);
+            else if (!be.items().getStackInSlot(ArcaneRefineryBlockEntity.INPUT).isEmpty()) h.fail("input not used up");
+            else h.succeed();
+        });
+    }
+
+    /** Blaze rods refine twice as fast. */
+    @GameTest(template = ARENA, timeoutTicks = 320)
+    public static void blazeRodsAreTwiceAsFast(GameTestHelper h) {
+        ArcaneRefineryBlockEntity be = build(h, CORE);
+        be.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.VOID_CRYSTAL, 2));
+        be.items().setStackInSlot(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.BLAZE_ROD));
+        h.runAfterDelay(215, () -> {
+            ItemStack out = be.items().getStackInSlot(ArcaneRefineryBlockEntity.OUTPUT);
+            if (out.getItem() != ModItems.REFINED.get(Material.VOID_CRYSTAL).get() || out.getCount() != 1) h.fail("after 10 s on a blaze rod: " + out);
+            else h.succeed();
+        });
+    }
+
+    /** Only raw materials go into the crucible, only fuel into the firebox. */
+    @GameTest(template = ARENA)
+    public static void onlyRawMaterialsAndFuel(GameTestHelper h) {
+        ArcaneRefineryBlockEntity be = build(h, CORE);
+        if (be.items().isItemValid(ArcaneRefineryBlockEntity.INPUT, new ItemStack(Items.IRON_ORE))) h.fail("iron ore accepted as input");
+        if (be.items().isItemValid(ArcaneRefineryBlockEntity.INPUT, new ItemStack(ModItems.REFINED.get(Material.BLOODSTONE).get()))) h.fail("refined accepted");
+        for (Material m : Material.values()) if (!be.items().isItemValid(ArcaneRefineryBlockEntity.INPUT, raw(m, 1))) h.fail(m + " raw refused");
+        if (!be.items().isItemValid(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.OAK_LOG))) h.fail("wood refused as fuel");
+        if (be.items().isItemValid(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.STONE))) h.fail("stone accepted as fuel");
+        h.succeed();
+    }
+
+    /** A hopper above feeds raw material, one at the side feeds fuel, one below takes the refined material away. */
+    @GameTest(template = ARENA, timeoutTicks = 560)
+    public static void hoppersFeedAndEmptyIt(GameTestHelper h) {
+        build(h, CORE);
+        BlockPos top = RefineryPart.TOP.from(CORE, Direction.NORTH);
+        BlockPos right = RefineryPart.RIGHT.from(CORE, Direction.NORTH);
+        // hoppers: above the top block (pointing down), beside the right block (pointing into it), under the core
+        h.setBlock(top.above(), Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, Direction.DOWN));
+        Direction into = Direction.NORTH.getCounterClockWise();
+        h.setBlock(right.relative(into.getOpposite()), Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, into));
+        h.setBlock(CORE.below(), Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, Direction.DOWN));
+        ((HopperBlockEntity) h.getBlockEntity(top.above())).setItem(0, raw(Material.INFERNITE, 1));
+        ((HopperBlockEntity) h.getBlockEntity(right.relative(into.getOpposite()))).setItem(0, new ItemStack(Items.COAL));
+        h.runAfterDelay(480, () -> {
+            HopperBlockEntity below = (HopperBlockEntity) h.getBlockEntity(CORE.below());
+            boolean found = false;
+            for (int i = 0; i < below.getContainerSize(); i++) found |= below.getItem(i).getItem() == ModItems.REFINED.get(Material.INFERNITE).get();
+            if (!found) h.fail("the hopper below did not receive the refined material");
+            else h.succeed();
+        });
+    }
+
+    /** Placing the item builds all six blocks facing the player; there must be room for them. */
+    @GameTest(template = ARENA)
+    public static void placingBuildsTheWholeMachine(GameTestHelper h) {
+        Player player = h.makeMockPlayer(GameType.SURVIVAL);
+        player.setYRot(180); // looking north: the refinery faces back south, towards the player
+        ItemStack stack = new ItemStack(ModItems.ARCANE_REFINERY.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        BlockPos at = h.absolutePos(CORE);
+        var result = ModItems.ARCANE_REFINERY.get().place(new BlockPlaceContext(h.getLevel(), player, InteractionHand.MAIN_HAND, stack,
+                new BlockHitResult(Vec3.atCenterOf(at), Direction.UP, at, false)));
+        if (!result.consumesAction()) {
+            h.fail("could not place: " + result);
+            return;
+        }
+        Direction facing = h.getLevel().getBlockState(at).getValue(ArcaneRefineryBlock.FACING);
+        if (facing != Direction.SOUTH) h.fail("faces " + facing + ", expected south (towards the player)");
+        for (RefineryPart part : RefineryPart.values()) {
+            if (!(h.getLevel().getBlockState(part.from(at, facing)).getBlock() instanceof RefineryPartBlock)) h.fail("missing part " + part);
+        }
+        // no room: a block where the top-left part would go
+        BlockPos other = CORE.offset(6, 0, 0);
+        h.setBlock(RefineryPart.TOP_LEFT.from(other, Direction.SOUTH), Blocks.STONE);
+        BlockPos at2 = h.absolutePos(other);
+        ItemStack stack2 = new ItemStack(ModItems.ARCANE_REFINERY.get());
+        var blocked = ModItems.ARCANE_REFINERY.get().place(new BlockPlaceContext(h.getLevel(), player, InteractionHand.MAIN_HAND, stack2,
+                new BlockHitResult(Vec3.atCenterOf(at2), Direction.UP, at2, false)));
+        if (blocked.consumesAction()) h.fail("placed without room");
+        h.succeed();
+    }
+
+    /** Breaking any one of its blocks takes the whole refinery down. */
+    @GameTest(template = ARENA)
+    public static void breakingAPartRemovesItAll(GameTestHelper h) {
+        build(h, CORE);
+        h.destroyBlock(RefineryPart.TOP_RIGHT.from(CORE, Direction.NORTH));
+        h.runAfterDelay(2, () -> {
+            if (!h.getLevel().getBlockState(h.absolutePos(CORE)).isAir()) h.fail("core still there");
+            for (RefineryPart part : RefineryPart.values()) {
+                if (!h.getLevel().getBlockState(h.absolutePos(part.from(CORE, Direction.NORTH))).isAir()) h.fail(part + " still there");
+            }
+            h.succeed();
+        });
+    }
+}

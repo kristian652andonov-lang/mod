@@ -34,10 +34,11 @@ public class FWBlockLoot extends BlockLootSubProvider {
                     .apply(ApplyBonusCount.addUniformBonusCount(fortune))
                     .apply(LimitCount.limitCount(IntRange.range(1, 3))))));
         }
+        dropSelf(ModBlocks.ARCANE_REFINERY.get());
     }
 
     @Override
     protected Iterable<Block> getKnownBlocks() {
-        return ModBlocks.REGISTER.getEntries().stream().map(h -> (Block) h.get()).toList();
+        return ModBlocks.REGISTER.getEntries().stream().map(h -> (Block) h.get()).filter(b -> b != ModBlocks.REFINERY_PART.get()).toList();
     }
 }

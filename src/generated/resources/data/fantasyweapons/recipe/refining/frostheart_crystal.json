@@ -1,0 +1,10 @@
+{
+  "type": "fantasyweapons:refining",
+  "ingredient": {
+    "item": "fantasyweapons:frostheart_shard"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:frostheart_crystal"
+  }
+}

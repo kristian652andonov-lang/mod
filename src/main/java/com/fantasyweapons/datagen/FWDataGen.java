@@ -28,6 +28,9 @@ public final class FWDataGen {
 
         gen.addProvider(event.includeServer(), new LootTableProvider(out, Set.of(),
                 List.of(new LootTableProvider.SubProviderEntry(FWBlockLoot::new, LootContextParamSets.BLOCK)), lookup));
+        gen.addProvider(event.includeServer(), new net.neoforged.neoforge.common.data.DatapackBuiltinEntriesProvider(out, lookup, FWWorldGen.builder(),
+                Set.of(com.fantasyweapons.FantasyWeapons.MOD_ID)));
+        gen.addProvider(event.includeServer(), new FWRecipes(out, lookup));
         FWTags.Blocks blockTags = gen.addProvider(event.includeServer(), new FWTags.Blocks(out, lookup, files));
         gen.addProvider(event.includeServer(), new FWTags.Items(out, lookup, blockTags.contentsGetter(), files));
     }

@@ -43,6 +43,8 @@ public final class FWTags {
                 tag(BlockTags.NEEDS_DIAMOND_TOOL).add(ore);
             }
             tag(Tags.Blocks.ORES).addTag(ORES);
+            tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.ARCANE_REFINERY.get(), ModBlocks.REFINERY_PART.get());
+            tag(BlockTags.NEEDS_STONE_TOOL).add(ModBlocks.ARCANE_REFINERY.get(), ModBlocks.REFINERY_PART.get());
         }
     }
 
@@ -60,6 +62,22 @@ public final class FWTags {
                 tag(ORE_ITEMS).add(ModItems.ORES.get(m).get());
             }
             tag(Tags.Items.ORES).addTag(ORE_ITEMS);
+            // armor: enchantable like any armor
+            for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
+                for (var e : ModItems.ARMOR.get(set).entrySet()) {
+                    Item item = e.getValue().get();
+                    var slotTags = switch (e.getKey()) {
+                        case HELMET -> java.util.List.of(net.minecraft.tags.ItemTags.HEAD_ARMOR, net.minecraft.tags.ItemTags.HEAD_ARMOR_ENCHANTABLE);
+                        case CHESTPLATE -> java.util.List.of(net.minecraft.tags.ItemTags.CHEST_ARMOR, net.minecraft.tags.ItemTags.CHEST_ARMOR_ENCHANTABLE);
+                        case LEGGINGS -> java.util.List.of(net.minecraft.tags.ItemTags.LEG_ARMOR, net.minecraft.tags.ItemTags.LEG_ARMOR_ENCHANTABLE);
+                        default -> java.util.List.of(net.minecraft.tags.ItemTags.FOOT_ARMOR, net.minecraft.tags.ItemTags.FOOT_ARMOR_ENCHANTABLE);
+                    };
+                    for (var t : slotTags) tag(t).add(item);
+                    tag(net.minecraft.tags.ItemTags.ARMOR_ENCHANTABLE).add(item);
+                    tag(net.minecraft.tags.ItemTags.EQUIPPABLE_ENCHANTABLE).add(item);
+                    tag(net.minecraft.tags.ItemTags.DURABILITY_ENCHANTABLE).add(item);
+                }
+            }
         }
     }
 }

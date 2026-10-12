@@ -1,0 +1,10 @@
+{
+  "type": "fantasyweapons:refining",
+  "ingredient": {
+    "item": "fantasyweapons:titanstone"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:titanstone_core"
+  }
+}

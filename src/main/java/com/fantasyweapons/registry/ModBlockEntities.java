@@ -16,6 +16,11 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(MaterialOreBlockEntity::new, ModBlocks.ORES.values().stream().map(h -> (Block) h.get()).toArray(Block[]::new))
                     .build(null));
 
+    @SuppressWarnings("DataFlowIssue")
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.fantasyweapons.refinery.ArcaneRefineryBlockEntity>> ARCANE_REFINERY =
+            REGISTER.register("arcane_refinery", () -> BlockEntityType.Builder.of(com.fantasyweapons.refinery.ArcaneRefineryBlockEntity::new,
+                    ModBlocks.ARCANE_REFINERY.get()).build(null));
+
     private ModBlockEntities() {
     }
 }

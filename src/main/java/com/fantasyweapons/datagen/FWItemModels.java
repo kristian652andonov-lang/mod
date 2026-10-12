@@ -26,8 +26,17 @@ public class FWItemModels extends ItemModelProvider {
         for (Material m : Material.values()) {
             // ores are held like blocks; the gems a little larger and higher, like vanilla held items
             geoItem(m.oreId(), GeoBounds.of("geo/block/" + m.oreAsset() + ".geo.json"), 15f, 30, 225, 8f, 0f);
-            geoItem(m.rawId(), GeoBounds.of("geo/item/" + m.rawAsset() + ".geo.json"), 14f, 20, 225, 10f, 3.5f);
-            geoItem(m.refinedId(), GeoBounds.of("geo/item/" + m.refinedAsset() + ".geo.json"), 14f, 20, 225, 10f, 3.5f);
+            geoItem(m.rawId(), GeoBounds.of("geo/item/" + m.rawAsset() + ".geo.json"), 16f, 20, 225, 10f, 3.5f);
+            geoItem(m.refinedId(), GeoBounds.of("geo/item/" + m.refinedAsset() + ".geo.json"), 16f, 20, 225, 10f, 3.5f);
+        }
+        geoItem("arcane_refinery", GeoBounds.of("geo/block/arcane_refinery.geo.json"), 16f, 30, 225, 9f, 0f);
+        // armor pieces: each fitted to its own part of the set's model, shown from the front
+        for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
+            for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) {
+                GeoBounds bounds = GeoBounds.of("geo/armor/" + set.asset() + ".geo.json",
+                        com.fantasyweapons.armor.ArmorSet.bones(type));
+                geoItem(set.itemId(type), bounds, 15f, 15, 200, 9f, 2f);
+            }
         }
     }
 

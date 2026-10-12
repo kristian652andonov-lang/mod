@@ -59,11 +59,15 @@ public final class ClientSetup {
         modBus.addListener(KeyBindings::register);
         modBus.addListener(FWShaders::register);
         modBus.addListener(ClientSetup::registerLayers);
+        modBus.addListener((net.neoforged.neoforge.client.event.RegisterMenuScreensEvent e) ->
+                e.register(com.fantasyweapons.registry.ModMenus.REFINERY.get(), com.fantasyweapons.client.gui.RefineryScreen::new));
         modBus.addListener(ClientSetup::registerExtensions);
         modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) -> {
             e.registerEntityRenderer(com.fantasyweapons.registry.ModEntities.THROWN_WEAPON.get(),
                     com.fantasyweapons.client.render.ThrownWeaponRenderer::new);
             e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.MATERIAL_ORE.get(), ctx -> new MaterialOreRenderer());
+            e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.ARCANE_REFINERY.get(),
+                    ctx -> new com.fantasyweapons.client.render.refinery.RefineryRenderers.Block());
         });
 
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.input.InputHandler::onInteractionKey);
@@ -187,10 +191,37 @@ public final class ClientSetup {
                     if (renderer == null) {
                         if (item instanceof com.fantasyweapons.material.MaterialItem m) renderer = MaterialItemRenderers.material(m);
                         else if (item instanceof com.fantasyweapons.material.MaterialOreItem o) renderer = MaterialItemRenderers.ore(o);
+                        else if (item instanceof com.fantasyweapons.refinery.ArcaneRefineryItem) renderer = com.fantasyweapons.client.render.refinery.RefineryRenderers.item();
                     }
                     return renderer;
                 }
             });
+        }
+
+        @Override
+        public void provideArmorRenderer(com.fantasyweapons.armor.FantasyArmorItem item, Consumer<Object> consumer) {
+            consumer.accept(new GeoRenderProvider() {
+                private com.fantasyweapons.client.render.armor.ArmorRenderers.Worn worn;
+                private com.fantasyweapons.client.render.armor.ArmorRenderers.Icon icon;
+
+                @Override
+                public BlockEntityWithoutLevelRenderer getGeoItemRenderer() {
+                    if (icon == null) icon = new com.fantasyweapons.client.render.armor.ArmorRenderers.Icon(item.set(), item.getType());
+                    return icon;
+                }
+
+                @Override
+                public <T extends LivingEntity> net.minecraft.client.model.HumanoidModel<?> getGeoArmorRenderer(T entity, net.minecraft.world.item.ItemStack stack,
+                        net.minecraft.world.entity.EquipmentSlot slot, net.minecraft.client.model.HumanoidModel<T> original) {
+                    if (worn == null) worn = new com.fantasyweapons.client.render.armor.ArmorRenderers.Worn(item.set());
+                    return worn;
+                }
+            });
+        }
+
+        @Override
+        public net.minecraft.world.entity.player.Player clientPlayer() {
+            return Minecraft.getInstance().player;
         }
 
         @Override

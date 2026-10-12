@@ -23,5 +23,11 @@ public class FWBlockStates extends BlockStateProvider {
             ModelFile model = models().getBuilder(m.oreId()).texture("particle", modLoc("block/" + m.oreAsset()));
             simpleBlock(ModBlocks.ORES.get(m).get(), model);
         }
+        // the refinery's six blocks are all drawn by the core's model
+        ModelFile refinery = models().getBuilder("arcane_refinery").texture("particle", modLoc("block/arcane_refinery"));
+        getVariantBuilder(ModBlocks.ARCANE_REFINERY.get()).forAllStates(s -> net.neoforged.neoforge.client.model.generators.ConfiguredModel.builder()
+                .modelFile(refinery).build());
+        getVariantBuilder(ModBlocks.REFINERY_PART.get()).forAllStates(s -> net.neoforged.neoforge.client.model.generators.ConfiguredModel.builder()
+                .modelFile(refinery).build());
     }
 }

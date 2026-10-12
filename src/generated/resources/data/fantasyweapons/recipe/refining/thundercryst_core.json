@@ -1,0 +1,10 @@
+{
+  "type": "fantasyweapons:refining",
+  "ingredient": {
+    "item": "fantasyweapons:thundercryst"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:thundercryst_core"
+  }
+}

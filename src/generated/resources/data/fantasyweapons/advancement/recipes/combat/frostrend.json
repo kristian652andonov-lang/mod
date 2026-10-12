@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_frostheart_crystal": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostheart_crystal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "fantasyweapons:frostrend"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_frostheart_crystal"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "fantasyweapons:frostrend"
+    ]
+  }
+}

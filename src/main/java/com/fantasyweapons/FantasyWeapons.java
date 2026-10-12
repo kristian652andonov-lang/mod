@@ -28,9 +28,16 @@ public final class FantasyWeapons {
         ModComponents.REGISTER.register(modBus);
         ModAttachments.REGISTER.register(modBus);
         ModSounds.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModAttributes.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModArmorMaterials.REGISTER.register(modBus);
+        modBus.addListener(com.fantasyweapons.registry.ModAttributes::addToPlayers);
         com.fantasyweapons.registry.ModBlocks.REGISTER.register(modBus);
         com.fantasyweapons.registry.ModBlockEntities.REGISTER.register(modBus);
         ModItems.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModMenus.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModRecipes.TYPES.register(modBus);
+        com.fantasyweapons.registry.ModRecipes.SERIALIZERS.register(modBus);
+        modBus.addListener(FantasyWeapons::registerCapabilities);
         com.fantasyweapons.registry.ModEntities.REGISTER.register(modBus);
         ModTabs.REGISTER.register(modBus);
 
@@ -44,6 +51,16 @@ public final class FantasyWeapons {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             com.fantasyweapons.client.ClientSetup.init(modBus);
         }
+    }
+
+    /** Hoppers reach the refinery's inventory through any of its six blocks (top: input, sides: fuel, bottom: output). */
+    private static void registerCapabilities(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
+        var itemHandler = net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK;
+        event.registerBlockEntity(itemHandler, com.fantasyweapons.registry.ModBlockEntities.ARCANE_REFINERY.get(), (be, side) -> be.handler(side));
+        event.registerBlock(itemHandler, (level, pos, state, be, side) -> {
+            var core = com.fantasyweapons.refinery.RefineryPartBlock.core(state, pos);
+            return level.getBlockEntity(core) instanceof com.fantasyweapons.refinery.ArcaneRefineryBlockEntity refinery ? refinery.handler(side) : null;
+        }, com.fantasyweapons.registry.ModBlocks.REFINERY_PART.get());
     }
 
     public static ResourceLocation id(String path) {

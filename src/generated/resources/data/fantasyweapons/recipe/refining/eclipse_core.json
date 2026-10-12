@@ -1,0 +1,10 @@
+{
+  "type": "fantasyweapons:refining",
+  "ingredient": {
+    "item": "fantasyweapons:eclipsite"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:eclipse_core"
+  }
+}

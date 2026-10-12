@@ -1,0 +1,10 @@
+{
+  "type": "fantasyweapons:refining",
+  "ingredient": {
+    "item": "fantasyweapons:bloodstone_fragment"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:bloodstone_core"
+  }
+}

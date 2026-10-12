@@ -1,0 +1,10 @@
+{
+  "type": "fantasyweapons:refining",
+  "ingredient": {
+    "item": "fantasyweapons:solarite_crystal"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:solarite_core"
+  }
+}

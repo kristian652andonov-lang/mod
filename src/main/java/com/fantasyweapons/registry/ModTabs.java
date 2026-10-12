@@ -23,10 +23,14 @@ public final class ModTabs {
             .icon(() -> new ItemStack(ModItems.REFINED.get(com.fantasyweapons.material.Material.VOID_CRYSTAL).get()))
             .withTabsBefore(WEAPONS.getId())
             .displayItems((params, output) -> {
+                output.accept(ModItems.ARCANE_REFINERY.get());
                 for (var m : com.fantasyweapons.material.Material.values()) {
                     output.accept(ModItems.ORES.get(m).get());
                     output.accept(ModItems.RAW.get(m).get());
                     output.accept(ModItems.REFINED.get(m).get());
+                }
+                for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
+                    for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) output.accept(ModItems.ARMOR.get(set).get(type).get());
                 }
             })
             .build());

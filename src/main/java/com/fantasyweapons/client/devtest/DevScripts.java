@@ -54,6 +54,8 @@ final class DevScripts {
                 else if (name.startsWith("groundaudit")) groundAudit(b, name.length() > 12 ? java.util.List.of(name.substring(12).split(",")) : null);
                 else if (name.startsWith("aircasts:")) airCasts(b, name.substring(9));
                 else if (name.equals("materials")) materials(b);
+                else if (name.equals("refinery")) refinery(b);
+                else if (name.equals("armor")) armor(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -620,6 +622,58 @@ final class DevScripts {
         b.cmd("/summon item 2 -60 3 {Item:{id:\"fantasyweapons:bloodstone_core\",count:1}}").cmd("/summon item 3 -60 3 {Item:{id:\"fantasyweapons:astralite\",count:1}}")
                 .viewAt(2.5, 1.0, 1.0, 2.5, -0.2, 3.0).wait(25).screenshot("mat_dropped");
         b.cmd("/gamemode survival").wait(5).quit();
+    }
+
+    /** The Arcane Refinery placed by the player, idle, fed by hoppers and refining, and its screen. */
+    private static void refinery(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").hud(false).cmd("/fill -6 -60 2 6 -56 10 minecraft:air").cmd("/clear @s")
+                .cmd("/give @s fantasyweapons:arcane_refinery").wait(10).slot(0).cmd("/tp @s 0 -60 0 0 30").wait(10);
+        // place it as a player would, on the ground two blocks ahead (the core at 0 -60 4, facing the player)
+        b.run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
+                new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -61, 4.5), net.minecraft.core.Direction.UP,
+                        new net.minecraft.core.BlockPos(0, -61, 4), false))).wait(20);
+        b.viewAt(3.2, 1.6, 1.0, 0.5, 0.9, 4.5).wait(30).screenshot("ref_idle_a");
+        b.viewAt(-3.2, 2.4, 1.6, 0.5, 0.9, 4.5).wait(5).screenshot("ref_idle_b");
+        b.viewAt(0.5, 1.4, 7.8, 0.5, 0.9, 4.5).wait(5).screenshot("ref_idle_back");
+        // feed it: raw material from a hopper on top, coal from one at the side
+        b.cmd("/setblock 0 -58 4 minecraft:hopper[facing=down]").cmd("/item replace block 0 -58 4 container.0 with fantasyweapons:solarite_crystal 3")
+                .cmd("/setblock -2 -60 4 minecraft:hopper[facing=east]").cmd("/item replace block -2 -60 4 container.0 with minecraft:coal 4").wait(60);
+        b.viewAt(3.2, 1.6, 1.0, 0.5, 0.9, 4.5).wait(10).screenshot("ref_refining_a").wait(40).screenshot("ref_refining_b");
+        b.playerView().cmd("/clear @s").look(0, 30).wait(5).run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
+                new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -60, 4.0), net.minecraft.core.Direction.NORTH,
+                        new net.minecraft.core.BlockPos(0, -60, 4), false))).wait(20).hud(true).screenshot("ref_screen").closeScreen().hud(false);
+        b.cmd("/gamemode survival").wait(5).quit();
+    }
+
+    /** All 13 armor sets on armor stands (front and back), worn by the player, the hit ward, dark mode and the icons. */
+    private static void armor(ScreenshotDirector.Builder b) {
+        var sets = com.fantasyweapons.armor.ArmorSet.values();
+        b.cmd("/gamemode creative").hud(false).cmd("/kill @e[type=!player]").cmd("/fill -16 -60 2 16 -56 10 minecraft:air").cmd("/clear @s");
+        for (int i = 0; i < sets.length; i++) {
+            String id = "fantasyweapons:" + sets[i].id();
+            b.cmd("/summon armor_stand " + (i * 2 - 12) + " -60 6 {Rotation:[180f,0f],ShowArms:1b,NoBasePlate:1b,ArmorItems:[{id:\"" + id + "_boots\",count:1},{id:\""
+                    + id + "_leggings\",count:1},{id:\"" + id + "_chestplate\",count:1},{id:\"" + id + "_helmet\",count:1}]}");
+        }
+        b.wait(30);
+        for (int g = 0; g < 4; g++) {
+            double cx = -12 + g * 7 + 2;
+            b.viewAt(cx + 0.5, 1.5, 2.2, cx + 0.5, 1.1, 6).wait(15).screenshot("arm_front_" + g);
+            b.viewAt(cx + 0.5, 1.5, 9.8, cx + 0.5, 1.1, 6).wait(10).screenshot("arm_back_" + g);
+        }
+        // worn by the player: struck (the ward flashes up), and Eclipse Reaper's dark mode
+        b.playerView().cmd("/item replace entity @s armor.head with fantasyweapons:solaris_helmet").cmd("/item replace entity @s armor.chest with fantasyweapons:solaris_chestplate")
+                .cmd("/item replace entity @s armor.legs with fantasyweapons:solaris_leggings").cmd("/item replace entity @s armor.feet with fantasyweapons:solaris_boots")
+                .cmd("/gamemode survival").wait(10).camera(CameraType.THIRD_PERSON_FRONT).wait(10).screenshot("arm_worn")
+                .cmd("/damage @s 1 minecraft:generic").wait(4).screenshot("arm_hit");
+        b.cmd("/item replace entity @s armor.head with fantasyweapons:eclipse_reaper_helmet").cmd("/item replace entity @s armor.chest with fantasyweapons:eclipse_reaper_chestplate")
+                .cmd("/item replace entity @s armor.legs with fantasyweapons:eclipse_reaper_leggings").cmd("/item replace entity @s armor.feet with fantasyweapons:eclipse_reaper_boots")
+                .cmd("/fw give eclipse_reaper 50").wait(20).slot(0).wait(10).screenshot("arm_eclipse_light").form("dark").wait(40).screenshot("arm_eclipse_dark")
+                .camera(CameraType.FIRST_PERSON);
+        b.cmd("/clear @s");
+        for (var set : sets) for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) b.cmd("/give @s fantasyweapons:" + set.itemId(type));
+        b.wait(20).run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(20).hud(true)
+                .screenshot("arm_icons").closeScreen().hud(false);
+        b.wait(5).quit();
     }
 
     private static void rigid(ScreenshotDirector.Builder b) {

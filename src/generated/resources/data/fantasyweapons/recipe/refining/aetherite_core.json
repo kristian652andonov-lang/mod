@@ -1,0 +1,10 @@
+{
+  "type": "fantasyweapons:refining",
+  "ingredient": {
+    "item": "fantasyweapons:aetherite"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:aetherite_core"
+  }
+}
