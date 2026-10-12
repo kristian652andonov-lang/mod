@@ -47,6 +47,16 @@ neoForge {
             type = 'gameTestServer'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
+        // Dev-only: a dedicated server on a fresh normal world (run-wgtest/) that runs a command script and stops:
+        // ./gradlew runWgtest -PfwServerScript=/path/to/commands.txt
+        wgtest {
+            server()
+            gameDirectory = project.file('run-wgtest')
+            programArgument '--nogui'
+            if (project.hasProperty('fwServerScript')) {
+                systemProperty 'fantasyweapons.serverscript', project.property('fwServerScript')
+            }
+        }
         // Data generation (loot tables, recipes, tags, models, world gen): ./gradlew runData
         data {
             data()

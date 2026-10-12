@@ -23,7 +23,7 @@ public enum Material {
             "Bloodstone Core", 0xFF3424, "heartbeat", "The Nether's crimson forests",
             "Black metallic rock threaded with blood-like veins; its blade crystals pulse with a slow, heavy heartbeat."),
     THUNDERCRYST("stormbreaker", "Thundercryst", "thundercryst_ore", "Thundercryst Ore", "thundercryst", "Thundercryst", "thundercryst_core",
-            "Thundercryst Core", 0x3FF0FF, "electric", "Windswept hills and peaks, above Y 100",
+            "Thundercryst Core", 0x3FF0FF, "electric", "Windswept hills and stony or jagged peaks, above Y 90",
             "Dark metallic blue stone with zigzag crystals like frozen lightning; energy runs quickly along their veins."),
     NECROSTONE("gravebite", "Necrostone", "necrostone_ore", "Necrostone Ore", "necrostone_shard", "Necrostone Shard", "necrostone_heart",
             "Necrostone Heart", 0x5DFF7A, "uneven", "The Deep Dark, around ancient cities",
@@ -38,16 +38,16 @@ public enum Material {
             0xE8D9A8, "alternate", "Any overworld cave between Y -20 and 20 (rare)",
             "Split stone, half black and half pale; dark and light crystals meet at a window where light and dark alternate."),
     ASTRALITE("starforge", "Astralite", "astralite_ore", "Astralite Ore", "astralite", "Astralite", "astralite_core", "Astralite Core",
-            0x8F7BFF, "cosmic", "Jagged and stony peaks, above Y 160",
+            0x8F7BFF, "cosmic", "The End's highland islands, near their tops",
             "Black and navy stone dotted with star points; crystals like pieces of night sky with fragments orbiting slowly."),
     AETHERITE("aetherlance", "Aetherite", "aetherite_ore", "Aetherite Ore", "aetherite", "Aetherite", "aetherite_core", "Aetherite Core",
-            0x5FE8FF, "smooth", "Meadows and cherry groves, above Y 120",
+            0x5FE8FF, "smooth", "Under meadows and cherry groves, high in the hills",
             "Pale, almost metallic stone with clean straight crystals banded in gold; energy flows from cyan to white and gold."),
     TITANSTONE("monolith", "Titanstone", "titanstone_ore", "Titanstone Ore", "titanstone", "Titanstone", "titanstone_core", "Titanstone Core",
             0xFFAE3A, "heavy", "The deepslate layer, between Y -64 and -30",
             "Brown-grey rune-cut stone broken by massive amber slabs; molten energy in the cracks pulses like a giant heartbeat."),
     INFERNITE("infernochain", "Infernite", "infernite_ore", "Infernite Ore", "infernite", "Infernite", "infernite_core", "Infernite Core",
-            0xFF6A1A, "heat", "The Nether's basalt deltas, near lava",
+            0xFF6A1A, "heat", "The Nether's basalt deltas, right beside lava",
             "Black volcanic rock with a molten core showing through glowing cracks; flame-shaped crystals pulse with heat.");
 
     private final String weapon;

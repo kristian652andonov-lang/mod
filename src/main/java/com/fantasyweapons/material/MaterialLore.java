@@ -23,6 +23,7 @@ public final class MaterialLore {
         switch (form) {
             case ORE -> {
                 tooltip.add(Component.literal("⚒ Found: " + m.found()).withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("⚒ Extremely rare").withStyle(s -> s.withColor(faded)));
                 tooltip.add(Component.literal("⚒ Mine with a diamond pickaxe or better").withStyle(s -> s.withColor(faded)));
             }
             case RAW -> {

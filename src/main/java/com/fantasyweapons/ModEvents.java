@@ -38,6 +38,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onServerStopped);
         bus.addListener(ModEvents::onCommands);
         bus.addListener(ModEvents::onIncomingDamage);
+        bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
     }
 
     /**

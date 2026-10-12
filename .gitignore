@@ -22,3 +22,4 @@ runs/
 *.log
 __pycache__/
 src/generated/resources/.cache/
+run-wgtest/
