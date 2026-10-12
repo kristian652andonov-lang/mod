@@ -20,9 +20,20 @@ public final class MaterialItemRenderers {
         return r;
     }
 
-    /** Ore blocks as items, drawn with the block's model ({@code geo/block/<weapon>_ore}). */
+    /**
+     * Ore blocks as items, drawn with the block's model ({@code geo/block/<weapon>_ore}). In the inventory they look like
+     * any other block, so the fragments that float above some of them in the world are left out there.
+     */
     public static GeoItemRenderer<MaterialOreItem> ore(MaterialOreItem item) {
-        GeoItemRenderer<MaterialOreItem> r = new GeoItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(item.material().oreAsset())));
+        GeoItemRenderer<MaterialOreItem> r = new GeoItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(item.material().oreAsset()))) {
+            @Override
+            public void preRender(com.mojang.blaze3d.vertex.PoseStack poseStack, MaterialOreItem animatable, software.bernie.geckolib.cache.object.BakedGeoModel model,
+                                  net.minecraft.client.renderer.MultiBufferSource bufferSource, com.mojang.blaze3d.vertex.VertexConsumer buffer, boolean isReRender,
+                                  float partialTick, int packedLight, int packedOverlay, int colour) {
+                OreFit.fragmentsHidden(model, this.renderPerspective == net.minecraft.world.item.ItemDisplayContext.GUI);
+                super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+            }
+        };
         r.addRenderLayer(new AutoGlowingGeoLayer<>(r));
         return r;
     }

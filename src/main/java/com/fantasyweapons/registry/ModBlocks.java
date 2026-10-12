@@ -21,9 +21,10 @@ public final class ModBlocks {
 
     static {
         for (Material m : Material.values()) {
-            // as hard as deepslate diamond ore; a faint glow of their own lights the caves around them
+            // as hard as deepslate diamond ore; a faint glow of their own lights the caves around them. Their stone sits just
+            // inside the block (the crystals reach its edges), so the faces of the blocks around them are still drawn
             ORES.put(m, REGISTER.register(m.oreId(), () -> new MaterialOreBlock(m, BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE)
-                    .strength(4.5f, 6f).requiresCorrectToolForDrops().sound(SoundType.AMETHYST).lightLevel(s -> 6))));
+                    .strength(4.5f, 6f).requiresCorrectToolForDrops().sound(SoundType.AMETHYST).lightLevel(s -> 6).noOcclusion())));
         }
     }
 

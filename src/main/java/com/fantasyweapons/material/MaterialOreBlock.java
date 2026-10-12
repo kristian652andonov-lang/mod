@@ -31,6 +31,17 @@ public class MaterialOreBlock extends DropExperienceBlock implements EntityBlock
         return RenderShape.ENTITYBLOCK_ANIMATED;
     }
 
+    /** It doesn't hide its neighbours' faces, but it is still solid rock to light. */
+    @Override
+    protected int getLightBlock(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+        return level.getMaxLightLevel();
+    }
+
+    @Override
+    protected boolean propagatesSkylightDown(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+        return false;
+    }
+
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

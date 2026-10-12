@@ -58,6 +58,7 @@ final class DevScripts {
                 else if (name.equals("armor")) armor(b);
                 else if (name.startsWith("setfx")) setFx(b, name.length() > 6 ? java.util.List.of(name.substring(6).split(",")) : null);
                 else if (name.equals("infuse")) infuse(b);
+                else if (name.equals("fit")) fit(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -714,6 +715,53 @@ final class DevScripts {
                 b.wait(30).run(mc -> mc.gui.getChat().clearMessages(false)).hud(true).wait(2).screenshot("setfx_soulreaper_souls").hud(false);
             }
         }
+    }
+
+    /**
+     * Ores side by side and stacked (do neighbours overlap? does the outline show? fragments only under open sky), and
+     * every material item in the inventory and the creative tab beside vanilla blocks for size.
+     */
+    private static void fit(ScreenshotDirector.Builder b) {
+        var ms = com.fantasyweapons.material.Material.values();
+        b.cmd("/gamerule sendCommandFeedback false").cmd("/gamemode creative").cmd("/time set noon").hud(false).cmd("/kill @e[type=!player]")
+                .cmd("/fill -10 -60 2 10 -55 9 minecraft:air").cmd("/tp @s 0 -60 0 0 0");
+        for (int i = 0; i < ms.length; i++) {
+            String id = "fantasyweapons:" + ms[i].oreId();
+            // a row of ores touching, every other one covered by stone; behind it ores stacked two high
+            b.cmd("/setblock " + (i - 6) + " -60 4 " + id).cmd("/setblock " + (i - 6) + " -60 6 " + id).cmd("/setblock " + (i - 6) + " -59 6 " + id);
+            if (i % 2 == 1) b.cmd("/setblock " + (i - 6) + " -59 4 minecraft:stone");
+        }
+        b.cmd("/setblock 7 -60 4 minecraft:diamond_ore").cmd("/setblock 8 -60 4 minecraft:stone");
+        b.wait(40).viewAt(0, 3.2, -1.5, 0.5, 0, 5).wait(10).screenshot("fit_row");
+        b.viewAt(-4.5, 1.6, 1.8, -3.5, 0.3, 4.6).wait(10).screenshot("fit_close_a");
+        b.viewAt(3.5, 1.6, 1.8, 4.5, 0.3, 4.6).wait(10).screenshot("fit_close_b");
+        b.viewAt(-7.5, 2.4, 9.5, -2, 0.6, 5).wait(10).screenshot("fit_back");
+        // the outline on an ore the player looks at
+        b.playerView().cmd("/tp @s -2.5 -60 1.6 0 20").hud(true).wait(15).run(mc -> mc.gui.getChat().clearMessages(false)).wait(2).screenshot("fit_outline");
+        b.cmd("/tp @s 0 -60 0 0 0").hud(false);
+        // the inventory, beside vanilla blocks and items
+        b.cmd("/clear @s").cmd("/gamemode survival");
+        b.cmd("/give @s minecraft:diamond_ore").cmd("/give @s minecraft:stone").cmd("/give @s minecraft:diamond").cmd("/give @s minecraft:iron_chestplate");
+        for (var m : ms) b.cmd("/give @s fantasyweapons:" + m.oreId());
+        for (var m : ms) b.cmd("/give @s fantasyweapons:" + m.rawId());
+        b.cmd("/give @s fantasyweapons:arcane_refinery");
+        b.wait(20).run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(20).screenshot("fit_inventory_a").closeScreen();
+        b.cmd("/clear @s");
+        for (var m : ms) b.cmd("/give @s fantasyweapons:" + m.refinedId());
+        for (var set : com.fantasyweapons.armor.ArmorSet.values()) b.cmd("/give @s fantasyweapons:" + set.itemId(net.minecraft.world.item.ArmorItem.Type.HELMET))
+                .cmd("/give @s fantasyweapons:" + set.itemId(net.minecraft.world.item.ArmorItem.Type.CHESTPLATE));
+        b.wait(20).run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(20).screenshot("fit_inventory_b").closeScreen();
+        // the creative tab
+        b.cmd("/gamemode creative").wait(10).run(mc -> {
+            try {
+                var f = net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen.class.getDeclaredField("selectedTab");
+                f.setAccessible(true);
+                f.set(null, com.fantasyweapons.registry.ModTabs.COLLECTION.get());
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException(e);
+            }
+            mc.setScreen(new net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen(mc.player, mc.player.connection.enabledFeatures(), true));
+        }).wait(20).screenshot("fit_creative").closeScreen();
     }
 
     /** A Voidfang infused with two Void Cores in the inventory's crafting grid: the tooltips, the grid and the level-up. */

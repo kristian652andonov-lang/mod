@@ -62,6 +62,8 @@ public final class ClientSetup {
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterMenuScreensEvent e) ->
                 e.register(com.fantasyweapons.registry.ModMenus.REFINERY.get(), com.fantasyweapons.client.gui.RefineryScreen::new));
         modBus.addListener(ClientSetup::registerExtensions);
+        modBus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent e) ->
+                e.registerReloadListener(new com.fantasyweapons.client.render.FrameStripTextures()));
         modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) -> {
             e.registerEntityRenderer(com.fantasyweapons.registry.ModEntities.THROWN_WEAPON.get(),
                     com.fantasyweapons.client.render.ThrownWeaponRenderer::new);
