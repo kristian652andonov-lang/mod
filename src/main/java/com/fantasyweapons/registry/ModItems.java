@@ -29,6 +29,9 @@ public final class ModItems {
     public static final DeferredItem<com.fantasyweapons.refinery.ArcaneRefineryItem> ARCANE_REFINERY = REGISTER.register("arcane_refinery",
             () -> new com.fantasyweapons.refinery.ArcaneRefineryItem(ModBlocks.ARCANE_REFINERY.get(), new Item.Properties().rarity(Rarity.RARE)));
 
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> LEGENDARY_FORGE = REGISTER.registerSimpleBlockItem(ModBlocks.LEGENDARY_FORGE,
+            new Item.Properties().rarity(Rarity.RARE));
+
     static {
         for (WeaponDefinition def : Weapons.all()) {
             WEAPONS.put(def.id(), REGISTER.register(def.id(),

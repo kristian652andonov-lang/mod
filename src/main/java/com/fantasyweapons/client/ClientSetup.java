@@ -59,8 +59,10 @@ public final class ClientSetup {
         modBus.addListener(KeyBindings::register);
         modBus.addListener(FWShaders::register);
         modBus.addListener(ClientSetup::registerLayers);
-        modBus.addListener((net.neoforged.neoforge.client.event.RegisterMenuScreensEvent e) ->
-                e.register(com.fantasyweapons.registry.ModMenus.REFINERY.get(), com.fantasyweapons.client.gui.RefineryScreen::new));
+        modBus.addListener((net.neoforged.neoforge.client.event.RegisterMenuScreensEvent e) -> {
+            e.register(com.fantasyweapons.registry.ModMenus.REFINERY.get(), com.fantasyweapons.client.gui.RefineryScreen::new);
+            e.register(com.fantasyweapons.registry.ModMenus.FORGE.get(), com.fantasyweapons.client.gui.LegendaryForgeScreen::new);
+        });
         modBus.addListener(ClientSetup::registerExtensions);
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent e) ->
                 e.registerReloadListener(new com.fantasyweapons.client.render.FrameStripTextures()));

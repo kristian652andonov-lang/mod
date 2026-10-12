@@ -18,8 +18,10 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 
 /** The refinery's screen: crucible, firebox and tray above the player's inventory. */
 public class RefineryMenu extends AbstractContainerMenu {
-    /** Where the three machine slots sit (screen coordinates inside the panel). */
-    public static final int INPUT_X = 56, INPUT_Y = 26, FUEL_X = 56, FUEL_Y = 62, OUTPUT_X = 116, OUTPUT_Y = 44, INV_Y = 98;
+    /** The panel's size, and where the three machine slots and the player's inventory sit inside it. */
+    public static final int WIDTH = 210, HEIGHT = 222;
+    public static final int INPUT_X = 44, INPUT_Y = 36, FUEL_X = 44, FUEL_Y = 86, OUTPUT_X = 154, OUTPUT_Y = 61;
+    public static final int INV_X = (WIDTH - 9 * 18) / 2 + 1, INV_Y = 140;
     private final ContainerData data;
     private final ContainerLevelAccess access;
 
@@ -44,8 +46,8 @@ public class RefineryMenu extends AbstractContainerMenu {
                 return false;
             }
         });
-        for (int r = 0; r < 3; r++) for (int c = 0; c < 9; c++) addSlot(new Slot(inventory, 9 + r * 9 + c, 8 + c * 18, INV_Y + r * 18));
-        for (int c = 0; c < 9; c++) addSlot(new Slot(inventory, c, 8 + c * 18, INV_Y + 58));
+        for (int r = 0; r < 3; r++) for (int c = 0; c < 9; c++) addSlot(new Slot(inventory, 9 + r * 9 + c, INV_X + c * 18, INV_Y + r * 18));
+        for (int c = 0; c < 9; c++) addSlot(new Slot(inventory, c, INV_X + c * 18, INV_Y + 58));
         addDataSlots(data);
     }
 
@@ -63,14 +65,15 @@ public class RefineryMenu extends AbstractContainerMenu {
         return data.get(0) > 0;
     }
 
-    public boolean blaze() {
+    /** Whether the fire is a blaze rod's or a lava bucket's: twice as fast. */
+    public boolean fastFire() {
         return data.get(4) != 0;
     }
 
     /** Seconds left on the item refining now. */
     public float secondsLeft() {
         int total = data.get(3), p = data.get(2);
-        return Math.max(0, (total - p) / (blaze() ? 2f : 1f) / 20f);
+        return Math.max(0, (total - p) / (fastFire() ? 2f : 1f) / 20f);
     }
 
     @Override

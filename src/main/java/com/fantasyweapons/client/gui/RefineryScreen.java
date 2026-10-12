@@ -2,26 +2,53 @@ package com.fantasyweapons.client.gui;
 
 import com.fantasyweapons.client.hud.UiDraw;
 import com.fantasyweapons.client.vfx.Colors;
+import com.fantasyweapons.material.Material;
 import com.fantasyweapons.refinery.RefineryMenu;
+import com.fantasyweapons.registry.ModItems;
+import com.fantasyweapons.registry.ModRecipes;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.SingleRecipeInput;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The Arcane Refinery's screen, in the mod's own style: a leather panel in a bronze frame with the crucible (raw
- * material) above the firebox (fuel), a molten channel filling towards the tray (refined material), the fire's heat
- * and the time left, and the player's inventory below.
+ * material) above the firebox (fuel), a molten channel filling towards the tray (refined material) under a large view of
+ * what is being made, what the machine needs next, and the player's inventory below. Beside it, a guide to refining: what
+ * goes in, which fuels are fast, how hoppers feed it and what the refined materials are for.
  */
 public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
     private static final int ARCANE = 0xB85CFF, FIRE = 0xFF6A1A, EMBER = 0xFFD27A, BLAZE = 0xFFE36A;
+    private static final int GUIDE_W = 152, GAP = 6;
+
+    /** Item icons drawn in the guide this frame, for their tooltips. */
+    private final List<Icon> icons = new ArrayList<>();
+    private boolean guide;
+
+    private record Icon(ItemStack stack, int x, int y) {
+    }
 
     public RefineryScreen(RefineryMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
-        imageWidth = 176;
-        imageHeight = 182;
+        imageWidth = RefineryMenu.WIDTH;
+        imageHeight = RefineryMenu.HEIGHT;
+        inventoryLabelX = RefineryMenu.INV_X;
         inventoryLabelY = RefineryMenu.INV_Y - 11;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        // the guide sits to the left when there is room; the two are centred together
+        guide = width >= imageWidth + GUIDE_W + GAP + 8;
+        if (guide) leftPos += (GUIDE_W + GAP) / 2;
     }
 
     @Override
@@ -29,55 +56,186 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         float time = (minecraft.level == null ? 0 : minecraft.level.getGameTime()) + partialTick;
         int x = leftPos, y = topPos;
         UiDraw.panel(g, x, y, imageWidth, imageHeight, ARCANE, 1f);
-        UiDraw.divider(g, x + imageWidth / 2f, y + RefineryMenu.INV_Y - 16, imageWidth - 30, 0.8f);
-        for (Slot s : menu.slots) slotFrame(g, x + s.x, y + s.y, s.index == 2 ? 0.9f : 0.6f, s.index < 3);
-
-        // the fire: a column of heat between the crucible and the firebox, gold on blaze rods
-        float burn = menu.burnFraction();
-        int fireX = x + RefineryMenu.FUEL_X + 4, fireTop = y + RefineryMenu.INPUT_Y + 19, fireBottom = y + RefineryMenu.FUEL_Y - 2;
-        UiDraw.rect(g, fireX, fireTop, fireX + 8, fireBottom, Colors.alpha(0.85f, 0x0E0804));
-        if (burn > 0) {
-            float h = (fireBottom - fireTop) * burn;
-            int top = menu.blaze() ? BLAZE : EMBER;
-            UiDraw.vGradient(g, fireX + 1, fireBottom - h, fireX + 7, fireBottom, Colors.alpha(1f, top), Colors.alpha(1f, FIRE));
-            UiDraw.glow(g, fireX + 4, fireBottom - h, 14 + 3 * (float) Math.sin(time * 0.4f), Colors.alpha(0.5f, top));
+        // the machine's bay
+        UiDraw.rect(g, x + 12, y + 24, x + imageWidth - 12, y + 126, Colors.alpha(0.35f, 0x000000));
+        UiDraw.border(g, x + 12, y + 24, x + imageWidth - 12, y + 126, 1, Colors.alpha(0.5f, 0x8A6A3A));
+        UiDraw.divider(g, x + imageWidth / 2f, y + RefineryMenu.INV_Y - 18, imageWidth - 30, 0.8f);
+        for (Slot s : menu.slots) {
+            if (s.index < 3) machineSlot(g, x + s.x, y + s.y, s.index == 2);
+            else slotFrame(g, x + s.x, y + s.y);
         }
 
-        // the molten channel from the crucible to the tray
+        // the fire: a column of heat between the crucible and the firebox, gold on a fast fire
+        float burn = menu.burnFraction();
+        int fireX = x + RefineryMenu.FUEL_X + 3, fireTop = y + RefineryMenu.INPUT_Y + 22, fireBottom = y + RefineryMenu.FUEL_Y - 5;
+        UiDraw.rect(g, fireX, fireTop, fireX + 10, fireBottom, Colors.alpha(0.85f, 0x0E0804));
+        UiDraw.border(g, fireX - 1, fireTop - 1, fireX + 11, fireBottom + 1, 1, Colors.alpha(0.7f, 0x8A6A3A));
+        if (burn > 0) {
+            float h = (fireBottom - fireTop) * burn;
+            int top = menu.fastFire() ? BLAZE : EMBER;
+            UiDraw.vGradient(g, fireX + 1, fireBottom - h, fireX + 9, fireBottom, Colors.alpha(1f, top), Colors.alpha(1f, FIRE));
+            UiDraw.glow(g, fireX + 5, fireBottom - h, 18 + 4 * (float) Math.sin(time * 0.4f), Colors.alpha(0.5f, top));
+        }
+
+        // the molten channel from the crucible to the tray, and what it is making, large, above it
         float p = menu.progress();
-        float bx = x + RefineryMenu.INPUT_X + 24, by = y + RefineryMenu.OUTPUT_Y + 5, bw = RefineryMenu.OUTPUT_X - RefineryMenu.INPUT_X - 30;
-        UiDraw.bar(g, bx, by, bw, 6, p, FIRE, ARCANE, 1f, p > 0 ? time / 20f : -1);
-        if (p > 0) UiDraw.glow(g, bx + bw * p, by + 3, 16, Colors.alpha(0.55f, ARCANE));
+        float bx = x + RefineryMenu.INPUT_X + 28, by = y + RefineryMenu.OUTPUT_Y + 5, bw = RefineryMenu.OUTPUT_X - RefineryMenu.INPUT_X - 40;
+        UiDraw.bar(g, bx, by, bw, 7, p, FIRE, ARCANE, 1f, p > 0 ? time / 20f : -1);
+        if (p > 0) UiDraw.glow(g, bx + bw * p, by + 3, 20, Colors.alpha(0.55f, ARCANE));
+        ItemStack making = result();
+        if (!making.isEmpty()) {
+            float cx = bx + bw / 2f, cy = y + 36;
+            boolean active = menu.burning() && p > 0;
+            UiDraw.glow(g, cx, cy, 44 + (active ? 6 * (float) Math.sin(time * 0.25f) : 0), Colors.alpha(active ? 0.55f : 0.25f, ARCANE));
+            g.pose().pushPose();
+            g.pose().translate(cx - 16, cy - 16, 0);
+            g.pose().scale(2, 2, 1);
+            g.renderFakeItem(making, 0, 0);
+            g.pose().popPose();
+        }
+
+        if (guide) renderGuide(g, x - GUIDE_W - GAP, y, time);
     }
 
-    /** A sunken slot: dark groove with a fine bronze edge; machine slots glow faintly. */
-    private static void slotFrame(GuiGraphics g, int x, int y, float glow, boolean machine) {
+    /** What the crucible's contents will become (empty if nothing). */
+    private ItemStack result() {
+        ItemStack input = menu.slots.get(0).getItem();
+        if (input.isEmpty() || minecraft.level == null) return ItemStack.EMPTY;
+        return minecraft.level.getRecipeManager().getRecipeFor(ModRecipes.REFINING.get(), new SingleRecipeInput(input), minecraft.level)
+                .map(r -> r.value().assemble(new SingleRecipeInput(input), minecraft.level.registryAccess())).orElse(ItemStack.EMPTY);
+    }
+
+    /** A machine slot: a larger sunken frame with an arcane glow; the tray is larger still. */
+    private static void machineSlot(GuiGraphics g, int x, int y, boolean tray) {
+        int m = tray ? 5 : 3;
+        UiDraw.rect(g, x - m, y - m, x + 16 + m, y + 16 + m, Colors.alpha(0.8f, 0x0B0705));
+        UiDraw.border(g, x - m - 1, y - m - 1, x + 17 + m, y + 17 + m, 1, Colors.alpha(0.9f, 0x8A6A3A));
+        UiDraw.glowBorder(g, x - m - 1, y - m - 1, x + 17 + m, y + 17 + m, ARCANE, tray ? 0.45f : 0.3f, 4);
+    }
+
+    /** A sunken slot: dark groove with a fine bronze edge. */
+    private static void slotFrame(GuiGraphics g, int x, int y) {
         UiDraw.rect(g, x - 1, y - 1, x + 17, y + 17, Colors.alpha(0.75f, 0x0B0705));
         UiDraw.border(g, x - 2, y - 2, x + 18, y + 18, 1, Colors.alpha(0.85f, 0x8A6A3A));
-        if (machine) UiDraw.glowBorder(g, x - 2, y - 2, x + 18, y + 18, ARCANE, 0.35f * glow, 3);
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // the guide
+    // ------------------------------------------------------------------------------------------------------------
+
+    private void renderGuide(GuiGraphics g, int x, int y, float time) {
+        icons.clear();
+        UiDraw.panel(g, x, y, GUIDE_W, imageHeight, ARCANE, 1f);
+        UiDraw.title(g, "Refining Guide", x + GUIDE_W / 2f, y + 8, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.9f);
+        int ink = Colors.alpha(1f, UiDraw.INK), muted = Colors.alpha(1f, UiDraw.INK_MUTED), gold = Colors.alpha(1f, BLAZE);
+        int tx = x + 10, w = GUIDE_W - 20;
+        // each legendary material in turn
+        Material m = Material.values()[(int) (time / 40) % Material.values().length];
+        ItemStack raw = new ItemStack(ModItems.RAW.get(m).get()), refined = new ItemStack(ModItems.REFINED.get(m).get());
+
+        int yy = y + 24;
+        heading(g, "1  Refine", tx, yy);
+        yy += 11;
+        icon(g, raw, tx + 6, yy);
+        UiDraw.text(g, "+", tx + 28, yy + 4, muted, 0.8f, false);
+        icon(g, new ItemStack(Items.COAL), tx + 38, yy);
+        arrow(g, tx + 60, yy + 8);
+        icon(g, refined, tx + 84, yy);
+        yy += 19;
+        UiDraw.wrap(g, m.rawName() + " melts down into " + m.refinedName() + " in 20 seconds.", tx, yy, w, ink, 0.6f, 7);
+        yy += 18;
+
+        heading(g, "2  Fuel", tx, yy);
+        yy += 11;
+        icon(g, new ItemStack(Items.COAL), tx + 2, yy);
+        icon(g, new ItemStack(Items.CHARCOAL), tx + 20, yy);
+        icon(g, new ItemStack(Items.OAK_LOG), tx + 38, yy);
+        UiDraw.wrap(g, "Any furnace fuel", tx + 60, yy + 1, w - 60, ink, 0.6f, 7);
+        UiDraw.text(g, "20 s", tx + 60, yy + 9, muted, 0.6f, false);
+        yy += 19;
+        icon(g, new ItemStack(Items.BLAZE_ROD), tx + 2, yy);
+        icon(g, new ItemStack(Items.LAVA_BUCKET), tx + 20, yy);
+        UiDraw.wrap(g, "Twice as fast", tx + 42, yy + 1, w - 42, gold, 0.6f, 7);
+        UiDraw.text(g, "10 s", tx + 42, yy + 9, gold, 0.6f, false);
+        yy += 22;
+
+        heading(g, "3  Hoppers", tx, yy);
+        yy += 11;
+        icon(g, new ItemStack(Items.HOPPER), tx + 2, yy + 2);
+        UiDraw.wrap(g, "Top: raw material. Sides: fuel. Bottom: takes the refined out.", tx + 24, yy, w - 24, ink, 0.6f, 7);
+        yy += 26;
+
+        heading(g, "4  Then", tx, yy);
+        yy += 11;
+        icon(g, refined, tx + 2, yy);
+        arrow(g, tx + 22, yy + 8);
+        icon(g, new ItemStack(ModItems.LEGENDARY_FORGE.get()), tx + 42, yy);
+        UiDraw.wrap(g, "Its armor and weapon, at the Legendary Forge", tx + 62, yy - 2, w - 62, ink, 0.6f, 7);
+        yy += 22;
+        ItemStack weapon = new ItemStack(ModItems.WEAPONS.get(m.weapon()).get());
+        icon(g, weapon, tx + 2, yy);
+        UiDraw.text(g, "+", tx + 22, yy + 4, muted, 0.8f, false);
+        icon(g, refined, tx + 30, yy);
+        UiDraw.wrap(g, "+1 weapon level per core", tx + 52, yy + 1, w - 52, gold, 0.6f, 7);
+    }
+
+    private static void heading(GuiGraphics g, String s, int x, int y) {
+        UiDraw.text(g, s, x, y, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.7f, true);
+    }
+
+    private static void arrow(GuiGraphics g, int x, int cy) {
+        UiDraw.line(g, x, cy, x + 14, cy, 1.5f, Colors.alpha(1f, ARCANE), Colors.alpha(1f, EMBER));
+        UiDraw.line(g, x + 10, cy - 3, x + 14, cy, 1.5f, Colors.alpha(1f, EMBER), Colors.alpha(1f, EMBER));
+        UiDraw.line(g, x + 10, cy + 3, x + 14, cy, 1.5f, Colors.alpha(1f, EMBER), Colors.alpha(1f, EMBER));
+    }
+
+    private void icon(GuiGraphics g, ItemStack stack, int x, int y) {
+        UiDraw.rect(g, x - 1, y - 1, x + 17, y + 17, Colors.alpha(0.5f, 0x0B0705));
+        g.renderFakeItem(stack, x, y);
+        icons.add(new Icon(stack, x, y));
     }
 
     @Override
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
         String title = this.title.getString();
-        UiDraw.text(g, title, (imageWidth - font.width(title)) / 2f, 8, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 1f, true);
-        UiDraw.text(g, "Raw", RefineryMenu.INPUT_X - 22, RefineryMenu.INPUT_Y + 5, Colors.alpha(1f, UiDraw.INK_MUTED), 0.75f, false);
-        UiDraw.text(g, "Fuel", RefineryMenu.FUEL_X - 24, RefineryMenu.FUEL_Y + 5, Colors.alpha(1f, UiDraw.INK_MUTED), 0.75f, false);
-        UiDraw.text(g, "Refined", RefineryMenu.OUTPUT_X + 22, RefineryMenu.OUTPUT_Y + 5, Colors.alpha(1f, UiDraw.INK_MUTED), 0.75f, false);
-        if (menu.progress() > 0) {
-            String left = String.format("%.0fs", Math.ceil(menu.secondsLeft()));
-            float bx = RefineryMenu.INPUT_X + 24, bw = RefineryMenu.OUTPUT_X - RefineryMenu.INPUT_X - 30;
-            UiDraw.text(g, left, bx + (bw - font.width(left) * 0.75f) / 2f, RefineryMenu.OUTPUT_Y + 14, Colors.alpha(1f, UiDraw.INK), 0.75f, false);
+        UiDraw.text(g, title, (imageWidth - font.width(title)) / 2f, 9, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 1f, true);
+        int muted = Colors.alpha(1f, UiDraw.INK_MUTED);
+        UiDraw.text(g, "Raw", RefineryMenu.INPUT_X - 26, RefineryMenu.INPUT_Y + 5, muted, 0.75f, false);
+        UiDraw.text(g, "Fuel", RefineryMenu.FUEL_X - 28, RefineryMenu.FUEL_Y + 5, muted, 0.75f, false);
+        UiDraw.textCentered(g, "Refined", RefineryMenu.OUTPUT_X + 8, RefineryMenu.OUTPUT_Y + 26, muted, 0.75f, false);
+        // what the machine is doing, or what it needs
+        float cx = (RefineryMenu.INPUT_X + 28 + RefineryMenu.OUTPUT_X - 12) / 2f;
+        int ly = RefineryMenu.OUTPUT_Y + 16;
+        ItemStack input = menu.slots.get(0).getItem(), fuel = menu.slots.get(1).getItem(), out = menu.slots.get(2).getItem();
+        if (menu.progress() > 0 && menu.burning()) {
+            UiDraw.textCentered(g, String.format("Refining  %.0fs", Math.ceil(menu.secondsLeft())), cx, ly, Colors.alpha(1f, UiDraw.INK), 0.75f, false);
+            if (menu.fastFire()) UiDraw.textCentered(g, "Fast fire  x2", cx, ly + 10, Colors.alpha(1f, BLAZE), 0.7f, true);
+        } else if (input.isEmpty()) {
+            UiDraw.textCentered(g, "Put a raw material in", cx, ly, muted, 0.7f, false);
+        } else if (!out.isEmpty() && out.getCount() >= out.getMaxStackSize()) {
+            UiDraw.textCentered(g, "Take the refined out", cx, ly, muted, 0.7f, false);
+        } else if (!menu.burning() && (fuel.isEmpty() || fuel.is(Items.BUCKET))) {
+            UiDraw.textCentered(g, "Add fuel to light the fire", cx, ly, muted, 0.7f, false);
         }
-        if (menu.blaze() && menu.burning()) {
-            UiDraw.text(g, "x2", RefineryMenu.FUEL_X + 20, RefineryMenu.FUEL_Y + 5, Colors.alpha(1f, BLAZE), 0.75f, true);
-        }
-        UiDraw.text(g, playerInventoryTitle, inventoryLabelX, inventoryLabelY, Colors.alpha(1f, UiDraw.INK_MUTED), 0.75f, false);
+        UiDraw.text(g, playerInventoryTitle, inventoryLabelX, inventoryLabelY, muted, 0.75f, false);
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
         renderTooltip(g, mouseX, mouseY);
+        for (Icon i : icons) {
+            if (mouseX >= i.x() && mouseX < i.x() + 16 && mouseY >= i.y() && mouseY < i.y() + 16) {
+                g.renderTooltip(font, i.stack(), mouseX, mouseY);
+                break;
+            }
+        }
+    }
+
+    @Override
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int left, int top, int button) {
+        // clicks on the guide are not "outside" (they would throw the carried stack away)
+        if (guide && mouseX >= left - GUIDE_W - GAP && mouseX < left && mouseY >= top && mouseY < top + imageHeight) return false;
+        return super.hasClickedOutside(mouseX, mouseY, left, top, button);
     }
 }

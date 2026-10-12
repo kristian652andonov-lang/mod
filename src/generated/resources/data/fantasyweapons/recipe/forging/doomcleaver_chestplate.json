@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:chain"
+    },
+    "R": {
+      "item": "fantasyweapons:bloodstone_core"
+    }
+  },
+  "pattern": [
+    "  AA AA  ",
+    " ARA ARA ",
+    " ARRARRA ",
+    "  ARARA  ",
+    "  AAAAA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:doomcleaver_chestplate"
+  }
+}

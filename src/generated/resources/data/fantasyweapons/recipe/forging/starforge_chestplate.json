@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:blue_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:astralite_core"
+    }
+  },
+  "pattern": [
+    "  AA AA  ",
+    " ARA ARA ",
+    " ARRARRA ",
+    "  ARARA  ",
+    "  AAAAA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:starforge_chestplate"
+  }
+}

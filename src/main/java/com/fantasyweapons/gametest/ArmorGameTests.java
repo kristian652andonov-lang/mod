@@ -80,16 +80,16 @@ public final class ArmorGameTests {
         h.succeed();
     }
 
-    /** Every armor piece and every weapon can be crafted, from the matching refined material. */
+    /** Every armor piece and every weapon is forged at the Legendary Forge from the matching refined material, and nowhere else. */
     @GameTest(template = ARENA)
     public static void armorAndWeaponsHaveRecipes(GameTestHelper h) {
         var recipes = h.getLevel().getRecipeManager();
         for (ArmorSet set : ArmorSet.values()) {
             for (ArmorItem.Type t : ArmorSet.PIECES) {
                 var item = ModItems.ARMOR.get(set).get(t).get();
-                var r = recipes.byKey(FantasyWeapons.id(set.itemId(t)));
-                if (r.isEmpty()) {
-                    h.fail("no recipe for " + set.itemId(t));
+                var r = recipes.byKey(FantasyWeapons.id("forging/" + set.itemId(t)));
+                if (r.isEmpty() || r.get().value().getType() != com.fantasyweapons.registry.ModRecipes.FORGING.get()) {
+                    h.fail("no forge recipe for " + set.itemId(t));
                     continue;
                 }
                 var refined = ModItems.REFINED.get(set.material()).get();
@@ -99,10 +99,17 @@ public final class ArmorGameTests {
             }
         }
         for (var def : com.fantasyweapons.weapon.Weapons.all()) {
-            var r = recipes.byKey(FantasyWeapons.id(def.id()));
-            if (r.isEmpty()) h.fail("no recipe for " + def.id());
+            var r = recipes.byKey(FantasyWeapons.id("forging/" + def.id()));
+            if (r.isEmpty()) h.fail("no forge recipe for " + def.id());
             else if (r.get().value().getResultItem(h.getLevel().registryAccess()).getItem() != ModItems.WEAPONS.get(def.id()).get()) {
                 h.fail(def.id() + " recipe makes the wrong item");
+            }
+        }
+        // the legendary gear is no longer made on a crafting table
+        for (var r : recipes.getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING)) {
+            var out = r.value().getResultItem(h.getLevel().registryAccess()).getItem();
+            if (out instanceof com.fantasyweapons.armor.FantasyArmorItem || out instanceof com.fantasyweapons.weapon.FantasyWeaponItem) {
+                if (!(r.value() instanceof com.fantasyweapons.material.InfusionRecipe)) h.fail("crafting table recipe for " + out);
             }
         }
         h.succeed();

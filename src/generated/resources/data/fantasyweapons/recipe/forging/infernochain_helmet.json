@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:nether_brick"
+    },
+    "R": {
+      "item": "fantasyweapons:infernite_core"
+    }
+  },
+  "pattern": [
+    "  AAAAA  ",
+    "  ARRRA  ",
+    "  AR RA  ",
+    "  A   A  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:infernochain_helmet"
+  }
+}

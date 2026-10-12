@@ -25,6 +25,8 @@ public final class FantasyWeapons {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public FantasyWeapons(IEventBus modBus, ModContainer container) {
+        // the Legendary Forge's recipes are shaped patterns up to 9x9
+        net.minecraft.world.item.crafting.ShapedRecipePattern.setCraftingSize(com.fantasyweapons.forge.ForgeRecipe.SIZE, com.fantasyweapons.forge.ForgeRecipe.SIZE);
         ModComponents.REGISTER.register(modBus);
         ModAttachments.REGISTER.register(modBus);
         ModSounds.REGISTER.register(modBus);

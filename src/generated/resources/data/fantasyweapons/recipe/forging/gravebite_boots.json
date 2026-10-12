@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:bone_block"
+    },
+    "R": {
+      "item": "fantasyweapons:necrostone_heart"
+    }
+  },
+  "pattern": [
+    "  A   A  ",
+    "  R   R  ",
+    " AR   RA ",
+    " AA   AA "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:gravebite_boots"
+  }
+}

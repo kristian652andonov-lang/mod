@@ -1,0 +1,32 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:bone_block"
+    },
+    "C": {
+      "item": "minecraft:echo_shard"
+    },
+    "H": {
+      "item": "minecraft:bone"
+    },
+    "R": {
+      "item": "fantasyweapons:necrostone_heart"
+    }
+  },
+  "pattern": [
+    "   AAA   ",
+    "  ARRAH  ",
+    "  ARRCH  ",
+    "   AAAH  ",
+    "      H  ",
+    "      H  ",
+    "      H  ",
+    "      A  ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:gravebite"
+  }
+}

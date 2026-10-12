@@ -29,5 +29,8 @@ public class FWBlockStates extends BlockStateProvider {
                 .modelFile(refinery).build());
         getVariantBuilder(ModBlocks.REFINERY_PART.get()).forAllStates(s -> net.neoforged.neoforge.client.model.generators.ConfiguredModel.builder()
                 .modelFile(refinery).build());
+        // the forge: a plain textured block for now (its own model is to come)
+        simpleBlockWithItem(ModBlocks.LEGENDARY_FORGE.get(), models().cubeBottomTop("legendary_forge", modLoc("block/legendary_forge_side"),
+                modLoc("block/legendary_forge_bottom"), modLoc("block/legendary_forge_top")));
     }
 }

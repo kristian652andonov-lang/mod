@@ -83,6 +83,29 @@ public final class RefineryGameTests {
         });
     }
 
+    /** A lava bucket's fire is as fast as a blaze rod's; it leaves its bucket, which a hopper below takes out. */
+    @GameTest(template = ARENA, timeoutTicks = 260)
+    public static void lavaIsAsFastAsBlazeRods(GameTestHelper h) {
+        ArcaneRefineryBlockEntity be = build(h, CORE);
+        h.setBlock(CORE.below(), Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, Direction.DOWN));
+        be.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.INFERNITE, 2));
+        be.items().setStackInSlot(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.LAVA_BUCKET));
+        h.runAfterDelay(215, () -> {
+            HopperBlockEntity below = (HopperBlockEntity) h.getBlockEntity(CORE.below());
+            int refined = 0;
+            boolean bucket = false;
+            for (int i = 0; i < below.getContainerSize(); i++) {
+                ItemStack s = below.getItem(i);
+                if (s.getItem() == ModItems.REFINED.get(Material.INFERNITE).get()) refined += s.getCount();
+                bucket |= s.is(Items.BUCKET);
+            }
+            refined += be.items().getStackInSlot(ArcaneRefineryBlockEntity.OUTPUT).getCount();
+            if (refined != 1) h.fail("after 10 s on lava: " + refined + " refined");
+            else if (!bucket) h.fail("the empty bucket was not taken out below: fuel slot holds " + be.items().getStackInSlot(ArcaneRefineryBlockEntity.FUEL));
+            else h.succeed();
+        });
+    }
+
     /** Only raw materials go into the crucible, only fuel into the firebox. */
     @GameTest(template = ARENA)
     public static void onlyRawMaterialsAndFuel(GameTestHelper h) {

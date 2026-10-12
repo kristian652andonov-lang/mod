@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:iron_ingot"
+    },
+    "R": {
+      "item": "fantasyweapons:frostheart_crystal"
+    }
+  },
+  "pattern": [
+    "  AAAAA  ",
+    "  ARRRA  ",
+    "  AR RA  ",
+    "  A   A  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:frostrend_helmet"
+  }
+}

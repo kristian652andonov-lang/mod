@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:quartz"
+    },
+    "R": {
+      "item": "fantasyweapons:aetherite_core"
+    }
+  },
+  "pattern": [
+    "  AAAAA  ",
+    "  ARRRA  ",
+    "  AR RA  ",
+    "  A   A  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:aetherlance_helmet"
+  }
+}

@@ -34,6 +34,11 @@ public final class ModBlocks {
     public static final DeferredBlock<RefineryPartBlock> REFINERY_PART = REGISTER.register("arcane_refinery_part",
             () -> new RefineryPartBlock(refineryProperties().noLootTable().lightLevel(s -> 3)));
 
+    /** The 9x9 crafting table the legendary weapons and armor are forged on: as tough as an anvil's stone. */
+    public static final DeferredBlock<com.fantasyweapons.forge.LegendaryForgeBlock> LEGENDARY_FORGE = REGISTER.register("legendary_forge",
+            () -> new com.fantasyweapons.forge.LegendaryForgeBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(3.5f, 6f)
+                    .requiresCorrectToolForDrops().sound(SoundType.ANVIL).lightLevel(s -> 4)));
+
     private static BlockBehaviour.Properties refineryProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(5f, 6f).requiresCorrectToolForDrops().sound(SoundType.METAL)
                 .noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK);

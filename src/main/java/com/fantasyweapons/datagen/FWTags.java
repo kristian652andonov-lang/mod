@@ -45,6 +45,8 @@ public final class FWTags {
             tag(Tags.Blocks.ORES).addTag(ORES);
             tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.ARCANE_REFINERY.get(), ModBlocks.REFINERY_PART.get());
             tag(BlockTags.NEEDS_STONE_TOOL).add(ModBlocks.ARCANE_REFINERY.get(), ModBlocks.REFINERY_PART.get());
+            tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.LEGENDARY_FORGE.get());
+            tag(BlockTags.NEEDS_STONE_TOOL).add(ModBlocks.LEGENDARY_FORGE.get());
         }
     }
 

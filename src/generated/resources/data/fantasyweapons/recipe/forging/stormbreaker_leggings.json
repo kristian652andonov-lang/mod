@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:copper_ingot"
+    },
+    "R": {
+      "item": "fantasyweapons:thundercryst_core"
+    }
+  },
+  "pattern": [
+    "  AAAAA  ",
+    "  ARRRA  ",
+    "  AR RA  ",
+    "  AR RA  ",
+    "  AA AA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:stormbreaker_leggings"
+  }
+}

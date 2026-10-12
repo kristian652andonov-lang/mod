@@ -31,7 +31,8 @@ public final class MaterialLore {
                 tooltip.add(Component.literal("   to make " + m.refinedName()).withStyle(s -> s.withColor(faded)));
             }
             case REFINED -> {
-                tooltip.add(Component.literal("✦ Crafts " + weapon + " armor").withStyle(s -> s.withColor(light)));
+                tooltip.add(Component.literal("✦ Forges " + weapon + " and its armor").withStyle(s -> s.withColor(light)));
+                tooltip.add(Component.literal("   at the Legendary Forge").withStyle(s -> s.withColor(faded)));
                 tooltip.add(Component.literal("✦ Upgrades " + weapon).withStyle(s -> s.withColor(light)));
                 tooltip.add(Component.literal("   craft it with the weapon: +1 level each").withStyle(s -> s.withColor(faded)));
             }

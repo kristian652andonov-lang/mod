@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:leather"
+    },
+    "R": {
+      "item": "fantasyweapons:verdant_heart"
+    }
+  },
+  "pattern": [
+    "  AAAAA  ",
+    "  ARRRA  ",
+    "  AR RA  ",
+    "  AR RA  ",
+    "  AA AA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:bloomfall_leggings"
+  }
+}

@@ -24,6 +24,7 @@ public final class ModTabs {
             .withTabsBefore(WEAPONS.getId())
             .displayItems((params, output) -> {
                 output.accept(ModItems.ARCANE_REFINERY.get());
+                output.accept(ModItems.LEGENDARY_FORGE.get());
                 for (var m : com.fantasyweapons.material.Material.values()) {
                     output.accept(ModItems.ORES.get(m).get());
                     output.accept(ModItems.RAW.get(m).get());

@@ -39,8 +39,8 @@ import java.util.Optional;
 /**
  * The refinery's furnace. A raw legendary material in the crucible and fuel in the firebox: while something refines,
  * fuel burns and the material melts down into its refined form in {@link RefiningRecipe#time()} ticks (20 seconds;
- * half that on blaze rods), which slides out onto the tray. Hoppers feed the crucible from above, the firebox from the
- * sides and empty the tray from below.
+ * half that on a blaze rod's or a lava bucket's fire), which slides out onto the tray. Hoppers feed the crucible from
+ * above, the firebox from the sides and empty the tray (and the firebox of empty buckets) from below.
  */
 public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEntity, MenuProvider {
     public static final int INPUT = 0, FUEL = 1, OUTPUT = 2;
@@ -66,7 +66,7 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     /** Fire left in the firebox, the burn time of the fuel that lit it, refining progress and how long it takes. */
     private int burn, burnTotal, progress, total = RefiningRecipe.DEFAULT_TIME;
-    /** Whether the fire burning now is a blaze rod's (refines twice as fast). */
+    /** Whether the fire burning now is a blaze rod's or a lava bucket's (refines twice as fast). */
     private boolean blaze;
 
     private final ContainerData data = new ContainerData() {
@@ -114,6 +114,11 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
         return stack.isEmpty() ? 0 : stack.getBurnTime(RecipeType.SMELTING);
     }
 
+    /** Fuels whose fire refines twice as fast: blaze rods and lava. */
+    public static boolean fastFuel(ItemStack stack) {
+        return stack.is(Items.BLAZE_ROD) || stack.is(Items.LAVA_BUCKET);
+    }
+
     Optional<RecipeHolder<RefiningRecipe>> recipeFor(ItemStack stack) {
         if (stack.isEmpty() || level == null) return Optional.empty();
         return recipes.getRecipeFor(new SingleRecipeInput(stack), level);
@@ -137,7 +142,7 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
             int t = burnTime(fuel);
             if (t > 0) {
                 burn = burnTotal = t;
-                blaze = fuel.is(Items.BLAZE_ROD);
+                blaze = fastFuel(fuel);
                 ItemStack remainder = fuel.getCraftingRemainingItem();
                 fuel.shrink(1);
                 if (fuel.isEmpty()) items.setStackInSlot(FUEL, remainder);
@@ -186,9 +191,47 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
         if (side == null) return items;
         return switch (side) {
             case UP -> new SlotAccess(items, INPUT, true, false);
-            case DOWN -> new SlotAccess(items, OUTPUT, false, true);
+            case DOWN -> new Bottom(items);
             default -> new SlotAccess(items, FUEL, true, false);
         };
+    }
+
+    /** The bottom: the refined material from the tray, and the empty buckets lava leaves in the firebox. */
+    private record Bottom(ItemStackHandler items) implements IItemHandler {
+        @Override
+        public int getSlots() {
+            return 2;
+        }
+
+        private int slot(int s) {
+            return s == 0 ? OUTPUT : FUEL;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int s) {
+            return items.getStackInSlot(slot(s));
+        }
+
+        @Override
+        public ItemStack insertItem(int s, ItemStack stack, boolean simulate) {
+            return stack;
+        }
+
+        @Override
+        public ItemStack extractItem(int s, int amount, boolean simulate) {
+            if (s == 1 && !items.getStackInSlot(FUEL).is(Items.BUCKET)) return ItemStack.EMPTY;
+            return items.extractItem(slot(s), amount, simulate);
+        }
+
+        @Override
+        public int getSlotLimit(int s) {
+            return items.getSlotLimit(slot(s));
+        }
+
+        @Override
+        public boolean isItemValid(int s, ItemStack stack) {
+            return false;
+        }
     }
 
     /** One slot of the inventory, insert-only or extract-only. */

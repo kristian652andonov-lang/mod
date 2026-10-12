@@ -31,38 +31,15 @@ public class FWRecipes extends RecipeProvider {
                 .define('B', Items.BLAST_FURNACE).define('L', Items.LAPIS_BLOCK)
                 .unlockedBy("has_blast_furnace", has(Items.BLAST_FURNACE))
                 .save(out);
-        // armor: the usual shapes, all of the set's refined material (helmet 5, chestplate 8, leggings 7, boots 4)
-        for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
-            var refined = ModItems.REFINED.get(set.material()).get();
-            for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) {
-                var b = ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, ModItems.ARMOR.get(set).get(type).get());
-                switch (type) {
-                    case HELMET -> b.pattern("RRR").pattern("R R");
-                    case CHESTPLATE -> b.pattern("R R").pattern("RRR").pattern("RRR");
-                    case LEGGINGS -> b.pattern("RRR").pattern("R R").pattern("R R");
-                    default -> b.pattern("R R").pattern("R R");
-                }
-                b.define('R', refined).unlockedBy("has_" + set.material().refinedId(), has(refined)).save(out);
-            }
-        }
-        // weapons: the weapon's refined material shaped like the weapon, a netherite ingot at its heart and blaze-rod hafts
-        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
-            var m = Material.ofWeapon(def.id());
-            var refined = ModItems.REFINED.get(m).get();
-            var b = ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, ModItems.WEAPONS.get(def.id()).get());
-            switch (def.weaponClass()) {
-                case LONGSWORD -> b.pattern(" R ").pattern("RNR").pattern(" B ");
-                case GREATSWORD -> b.pattern("RRR").pattern("RNR").pattern(" B ");
-                case BATTLEAXE -> b.pattern("RR ").pattern("RN ").pattern(" B ");
-                case SCYTHE -> b.pattern("RRR").pattern(" RN").pattern(" B ");
-                case WARHAMMER -> b.pattern("RNR").pattern("RRR").pattern(" B ");
-                case LANCE -> b.pattern(" RR").pattern(" NR").pattern("B  ");
-                case COLOSSAL -> b.pattern("RRR").pattern("RNR").pattern("RBR");
-                case CHAINBLADE -> b.pattern("RCR").pattern("CNC").pattern("RBR").define('C', Items.CHAIN);
-            }
-            b.define('R', refined).define('N', Items.NETHERITE_INGOT).define('B', Items.BLAZE_ROD)
-                    .unlockedBy("has_" + m.refinedId(), has(refined)).save(out);
-        }
+        // the forge: a crafting table on an obsidian base, with an iron frame, gold fittings and a diamond
+        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.LEGENDARY_FORGE.get())
+                .pattern("GDG").pattern("ICI").pattern("OOO")
+                .define('G', Items.GOLD_INGOT).define('D', Items.DIAMOND).define('I', Items.IRON_BLOCK)
+                .define('C', Items.CRAFTING_TABLE).define('O', Items.OBSIDIAN)
+                .unlockedBy("has_diamond", has(Items.DIAMOND))
+                .save(out);
+        // the legendary weapons and armor are forged on its 9x9 grid
+        ForgeRecipes.build(out);
         // infusion: a weapon and refined cores of its material, one level per core
         net.minecraft.data.recipes.SpecialRecipeBuilder.special(com.fantasyweapons.material.InfusionRecipe::new)
                 .save(out, FantasyWeapons.id("weapon_infusion"));

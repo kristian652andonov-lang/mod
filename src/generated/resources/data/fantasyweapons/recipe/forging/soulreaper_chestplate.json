@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:gray_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:soulshard_core"
+    }
+  },
+  "pattern": [
+    "  AA AA  ",
+    " ARA ARA ",
+    " ARRARRA ",
+    "  ARARA  ",
+    "  AAAAA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:soulreaper_chestplate"
+  }
+}

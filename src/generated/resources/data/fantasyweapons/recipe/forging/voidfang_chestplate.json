@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:black_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:void_core"
+    }
+  },
+  "pattern": [
+    "  AA AA  ",
+    " ARA ARA ",
+    " ARRARRA ",
+    "  ARARA  ",
+    "  AAAAA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:voidfang_chestplate"
+  }
+}

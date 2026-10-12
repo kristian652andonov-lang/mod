@@ -1,0 +1,32 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:crying_obsidian"
+    },
+    "C": {
+      "item": "minecraft:ender_eye"
+    },
+    "H": {
+      "item": "minecraft:end_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:void_core"
+    }
+  },
+  "pattern": [
+    "    A    ",
+    "   ARA   ",
+    "   ARA   ",
+    "   ARA   ",
+    "  AACAA  ",
+    "    H    ",
+    "    H    ",
+    "    A    ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:voidfang"
+  }
+}

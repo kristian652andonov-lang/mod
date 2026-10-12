@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:black_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:void_core"
+    }
+  },
+  "pattern": [
+    "  A   A  ",
+    "  R   R  ",
+    " AR   RA ",
+    " AA   AA "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:voidfang_boots"
+  }
+}

@@ -35,6 +35,7 @@ public class FWBlockLoot extends BlockLootSubProvider {
                     .apply(LimitCount.limitCount(IntRange.range(1, 3))))));
         }
         dropSelf(ModBlocks.ARCANE_REFINERY.get());
+        dropSelf(ModBlocks.LEGENDARY_FORGE.get());
     }
 
     @Override

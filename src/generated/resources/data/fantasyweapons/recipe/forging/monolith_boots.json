@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "R": {
+      "item": "fantasyweapons:titanstone_core"
+    }
+  },
+  "pattern": [
+    "  A   A  ",
+    "  R   R  ",
+    " AR   RA ",
+    " AA   AA "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:monolith_boots"
+  }
+}

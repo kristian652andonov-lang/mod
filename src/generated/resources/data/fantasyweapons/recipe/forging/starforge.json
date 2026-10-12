@@ -1,0 +1,32 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "C": {
+      "item": "minecraft:end_crystal"
+    },
+    "H": {
+      "item": "minecraft:end_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:astralite_core"
+    }
+  },
+  "pattern": [
+    " AAAAAAA ",
+    " ARRCRRA ",
+    " ARAAARA ",
+    " AAAHAAA ",
+    "    H    ",
+    "    H    ",
+    "    H    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:starforge"
+  }
+}

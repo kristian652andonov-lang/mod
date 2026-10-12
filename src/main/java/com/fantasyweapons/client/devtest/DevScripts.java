@@ -59,6 +59,7 @@ final class DevScripts {
                 else if (name.startsWith("setfx")) setFx(b, name.length() > 6 ? java.util.List.of(name.substring(6).split(",")) : null);
                 else if (name.equals("infuse")) infuse(b);
                 else if (name.equals("fit")) fit(b);
+                else if (name.equals("forge")) forge(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -639,8 +640,8 @@ final class DevScripts {
         b.viewAt(-3.2, 2.4, 1.6, 0.5, 0.9, 4.5).wait(5).screenshot("ref_idle_b");
         b.viewAt(0.5, 1.4, 7.8, 0.5, 0.9, 4.5).wait(5).screenshot("ref_idle_back");
         // feed it: raw material from a hopper on top, coal from one at the side
-        b.cmd("/setblock 0 -58 4 minecraft:hopper[facing=down]").cmd("/item replace block 0 -58 4 container.0 with fantasyweapons:solarite_crystal 3")
-                .cmd("/setblock -2 -60 4 minecraft:hopper[facing=east]").cmd("/item replace block -2 -60 4 container.0 with minecraft:coal 4").wait(60);
+        b.cmd("/setblock 0 -58 4 minecraft:hopper[facing=down]").cmd("/item replace block 0 -58 4 container.0 with fantasyweapons:solarite_crystal 8")
+                .cmd("/setblock -2 -60 4 minecraft:hopper[facing=east]").cmd("/item replace block -2 -60 4 container.0 with minecraft:lava_bucket 1").wait(60);
         b.viewAt(3.2, 1.6, 1.0, 0.5, 0.9, 4.5).wait(10).screenshot("ref_refining_a").wait(40).screenshot("ref_refining_b");
         b.playerView().cmd("/clear @s").look(0, 30).wait(5).run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -60, 4.0), net.minecraft.core.Direction.NORTH,
@@ -762,6 +763,63 @@ final class DevScripts {
             }
             mc.setScreen(new net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen(mc.player, mc.player.connection.enabledFeatures(), true));
         }).wait(20).screenshot("fit_creative").closeScreen();
+    }
+
+    /** The Legendary Forge in the world, its screen with a recipe laid out as ghosts, partly filled, and forging. */
+    private static void forge(ScreenshotDirector.Builder b) {
+        b.cmd("/gamerule sendCommandFeedback false").cmd("/gamemode creative").cmd("/time set noon").hud(false).cmd("/kill @e[type=!player]")
+                .cmd("/fill -4 -60 2 4 -56 8 minecraft:air").cmd("/tp @s 0 -60 0 0 25").cmd("/clear @s")
+                .cmd("/setblock 0 -60 3 fantasyweapons:legendary_forge").cmd("/setblock 1 -60 3 minecraft:crafting_table").wait(20);
+        b.viewAt(2.2, 1.6, 0.6, 0.5, 0.4, 3.5).wait(10).screenshot("forge_block");
+        b.playerView().cmd("/give @s fantasyweapons:void_core 3").cmd("/give @s minecraft:crying_obsidian 12").cmd("/give @s minecraft:ender_eye")
+                .cmd("/give @s minecraft:end_rod 2").cmd("/gamemode survival").wait(10).hud(true);
+        b.run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
+                new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -59, 3.5), net.minecraft.core.Direction.UP,
+                        new net.minecraft.core.BlockPos(0, -60, 3), false))).wait(15).screenshot("forge_screen_empty");
+        // choose the Voidfang's recipe (the first icon)
+        b.run(mc -> {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.LegendaryForgeScreen s) {
+                int left = (s.width - com.fantasyweapons.forge.LegendaryForgeMenu.WIDTH) / 2, top = (s.height - com.fantasyweapons.forge.LegendaryForgeMenu.HEIGHT) / 2;
+                s.mouseClicked(left + com.fantasyweapons.forge.LegendaryForgeMenu.INV_X + 8, top + 48, 0);
+            }
+        }).wait(10).screenshot("forge_screen_ghost");
+        // lay the real items on the grid as a player would, slot by slot, from the pattern
+        b.run(mc -> {
+            if (!(mc.screen instanceof com.fantasyweapons.client.gui.LegendaryForgeScreen s)) return;
+            var menu = s.getMenu();
+            var recipe = mc.level.getRecipeManager().byKey(com.fantasyweapons.FantasyWeapons.id("forging/voidfang")).orElseThrow();
+            var pattern = ((com.fantasyweapons.forge.ForgeRecipe) recipe.value()).pattern();
+            int w = pattern.width(), h = pattern.height(), dx = (9 - w) / 2, dy = (9 - h) / 2;
+            for (int r = 0; r < h; r++) for (int c = 0; c < w; c++) {
+                var ing = pattern.ingredients().get(c + r * w);
+                if (ing.isEmpty()) continue;
+                int from = -1;
+                for (int i = com.fantasyweapons.forge.LegendaryForgeMenu.INV_START; i < menu.slots.size(); i++) {
+                    if (ing.test(menu.slots.get(i).getItem())) {
+                        from = i;
+                        break;
+                    }
+                }
+                if (from < 0) continue;
+                int to = com.fantasyweapons.forge.LegendaryForgeMenu.GRID_START + (c + dx) + (r + dy) * 9;
+                mc.gameMode.handleInventoryMouseClick(menu.containerId, from, 0, net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
+                mc.gameMode.handleInventoryMouseClick(menu.containerId, to, 1, net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
+                mc.gameMode.handleInventoryMouseClick(menu.containerId, from, 0, net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
+            }
+        }).wait(15).screenshot("forge_screen_filled");
+        b.run(mc -> {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.LegendaryForgeScreen s) {
+                mc.gameMode.handleInventoryMouseClick(s.getMenu().containerId, 0, 0, net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+            }
+        }).wait(10).screenshot("forge_screen_forged").closeScreen().hud(false);
+        b.run(mc -> {
+            var inv = mc.player.getInventory();
+            for (int i = 0; i < inv.getContainerSize(); i++) {
+                if (inv.getItem(i).getItem() instanceof com.fantasyweapons.weapon.FantasyWeaponItem w) {
+                    com.fantasyweapons.FantasyWeapons.LOGGER.warn("[forge] forged {}", w.definition().id());
+                }
+            }
+        });
     }
 
     /** A Voidfang infused with two Void Cores in the inventory's crafting grid: the tooltips, the grid and the level-up. */
