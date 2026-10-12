@@ -28,6 +28,8 @@ public final class FantasyWeapons {
         ModComponents.REGISTER.register(modBus);
         ModAttachments.REGISTER.register(modBus);
         ModSounds.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModBlocks.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModBlockEntities.REGISTER.register(modBus);
         ModItems.REGISTER.register(modBus);
         com.fantasyweapons.registry.ModEntities.REGISTER.register(modBus);
         ModTabs.REGISTER.register(modBus);
@@ -36,6 +38,7 @@ public final class FantasyWeapons {
         container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
         modBus.addListener(FWNetwork::register);
+        modBus.addListener(com.fantasyweapons.datagen.FWDataGen::gather);
         ModEvents.register(NeoForge.EVENT_BUS);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {

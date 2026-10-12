@@ -1,5 +1,7 @@
 package com.fantasyweapons.client;
 
+import com.fantasyweapons.client.render.material.MaterialItemRenderers;
+import com.fantasyweapons.client.render.material.MaterialOreRenderer;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.SidedHooks;
 import com.fantasyweapons.client.anim.AnimTracker;
@@ -58,9 +60,11 @@ public final class ClientSetup {
         modBus.addListener(FWShaders::register);
         modBus.addListener(ClientSetup::registerLayers);
         modBus.addListener(ClientSetup::registerExtensions);
-        modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) ->
-                e.registerEntityRenderer(com.fantasyweapons.registry.ModEntities.THROWN_WEAPON.get(),
-                        com.fantasyweapons.client.render.ThrownWeaponRenderer::new));
+        modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) -> {
+            e.registerEntityRenderer(com.fantasyweapons.registry.ModEntities.THROWN_WEAPON.get(),
+                    com.fantasyweapons.client.render.ThrownWeaponRenderer::new);
+            e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.MATERIAL_ORE.get(), ctx -> new MaterialOreRenderer());
+        });
 
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.input.InputHandler::onInteractionKey);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
@@ -71,6 +75,7 @@ public final class ClientSetup {
         // fantasy weapons' tooltips: a dark page edged in the weapon's own colour instead of the vanilla purple
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderTooltipEvent.Color e) -> {
             int[] c = com.fantasyweapons.weapon.FantasyWeaponItem.tooltipColors(e.getItemStack());
+            if (c == null) c = materialTooltipColors(e.getItemStack());
             if (c != null) {
                 e.setBorderStart(c[0]);
                 e.setBorderEnd(c[1]);
@@ -93,6 +98,13 @@ public final class ClientSetup {
             WeaponPoses.setRendering(null);
         });
         com.fantasyweapons.client.devtest.ScreenshotDirector.initIfRequested();
+    }
+
+    /** Legendary materials' tooltips are edged in the material's own glow colour. */
+    private static int[] materialTooltipColors(net.minecraft.world.item.ItemStack stack) {
+        if (stack.getItem() instanceof com.fantasyweapons.material.MaterialItem m) return com.fantasyweapons.material.MaterialLore.tooltipColors(m.material());
+        if (stack.getItem() instanceof com.fantasyweapons.material.MaterialOreItem o) return com.fantasyweapons.material.MaterialLore.tooltipColors(o.material());
+        return null;
     }
 
     private static void registerLayers(RegisterGuiLayersEvent event) {
@@ -160,6 +172,22 @@ public final class ClientSetup {
                 @Override
                 public BlockEntityWithoutLevelRenderer getGeoItemRenderer() {
                     if (renderer == null) renderer = new WeaponRenderer();
+                    return renderer;
+                }
+            });
+        }
+
+        @Override
+        public void provideItemRenderer(Item item, Consumer<Object> consumer) {
+            consumer.accept(new GeoRenderProvider() {
+                private BlockEntityWithoutLevelRenderer renderer;
+
+                @Override
+                public BlockEntityWithoutLevelRenderer getGeoItemRenderer() {
+                    if (renderer == null) {
+                        if (item instanceof com.fantasyweapons.material.MaterialItem m) renderer = MaterialItemRenderers.material(m);
+                        else if (item instanceof com.fantasyweapons.material.MaterialOreItem o) renderer = MaterialItemRenderers.ore(o);
+                    }
                     return renderer;
                 }
             });

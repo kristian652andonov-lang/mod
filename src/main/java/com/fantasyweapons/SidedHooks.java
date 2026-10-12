@@ -34,6 +34,10 @@ public interface SidedHooks {
     default void provideRenderer(FantasyWeaponItem item, Consumer<Object> consumer) {
     }
 
+    /** Supplies the GeckoLib render provider for a material, armor or block item (physical client only). */
+    default void provideItemRenderer(net.minecraft.world.item.Item item, Consumer<Object> consumer) {
+    }
+
     /** A custom effect arrived from the server. */
     default void handleFx(FxPayload payload) {
     }

@@ -53,6 +53,7 @@ final class DevScripts {
                 else if (name.startsWith("kills:")) kills(b, name.substring(6));
                 else if (name.startsWith("groundaudit")) groundAudit(b, name.length() > 12 ? java.util.List.of(name.substring(12).split(",")) : null);
                 else if (name.startsWith("aircasts:")) airCasts(b, name.substring(9));
+                else if (name.equals("materials")) materials(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -587,6 +588,37 @@ final class DevScripts {
             b.wait(a.id().equals("supernova") ? 16 : 8).screenshot("air_" + k[1]).wait(a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE ? 100 : 40);
             b.playerView();
         }
+        b.cmd("/gamemode survival").wait(5).quit();
+    }
+
+    /** The 13 ores placed in a row (on the ground and set into a wall), then the materials in the inventory and in hand. */
+    private static void materials(ScreenshotDirector.Builder b) {
+        var ms = com.fantasyweapons.material.Material.values();
+        b.cmd("/gamemode creative").hud(false).cmd("/fill -14 -60 3 14 -55 8 minecraft:air").cmd("/fill -14 -61 3 14 -61 8 minecraft:stone")
+                .cmd("/fill -14 -60 8 14 -57 8 minecraft:stone");
+        for (int i = 0; i < ms.length; i++) {
+            String id = "fantasyweapons:" + ms[i].oreId();
+            b.cmd("/setblock " + (i * 2 - 12) + " -60 5 " + id).cmd("/setblock " + (i * 2 - 12) + " -59 8 " + id);
+        }
+        b.wait(40).viewAt(0, 3.5, -3, 0, 0, 6).wait(10).screenshot("mat_ores_row");
+        b.viewAt(-11, 1.2, 1.5, -10, 0.2, 5.2).wait(10).screenshot("mat_ores_close_a");
+        b.viewAt(3, 1.2, 1.5, 4, 0.2, 5.2).wait(10).screenshot("mat_ores_close_b");
+        b.viewAt(9, 1.2, 1.5, 10, 0.2, 5.2).wait(10).screenshot("mat_ores_close_c");
+        // night: the ores light the dark
+        b.cmd("/time set 18000").viewAt(0, 2.5, 0, 0, 0, 6).wait(30).screenshot("mat_ores_night").cmd("/time set 6000");
+        b.playerView().cmd("/clear @s");
+        for (var m : ms) {
+            b.cmd("/give @s fantasyweapons:" + m.oreId()).cmd("/give @s fantasyweapons:" + m.rawId()).cmd("/give @s fantasyweapons:" + m.refinedId());
+        }
+        b.cmd("/gamemode survival").wait(20).run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(20)
+                .screenshot("mat_inventory").closeScreen().cmd("/gamemode creative");
+        b.hud(true).slot(0).cmd("/item replace entity @s weapon.mainhand with fantasyweapons:void_crystal").look(0, 10).wait(20).screenshot("mat_hand_raw");
+        b.cmd("/item replace entity @s weapon.mainhand with fantasyweapons:solarite_core").wait(20).screenshot("mat_hand_refined");
+        b.cmd("/item replace entity @s weapon.mainhand with fantasyweapons:titanstone_ore").wait(20).screenshot("mat_hand_ore");
+        b.camera(CameraType.THIRD_PERSON_FRONT).cmd("/item replace entity @s weapon.mainhand with fantasyweapons:frostheart_crystal").wait(20)
+                .screenshot("mat_hand_third").camera(CameraType.FIRST_PERSON);
+        b.cmd("/summon item 2 -60 3 {Item:{id:\"fantasyweapons:bloodstone_core\",count:1}}").cmd("/summon item 3 -60 3 {Item:{id:\"fantasyweapons:astralite\",count:1}}")
+                .viewAt(2.5, 1.0, 1.0, 2.5, -0.2, 3.0).wait(25).screenshot("mat_dropped");
         b.cmd("/gamemode survival").wait(5).quit();
     }
 

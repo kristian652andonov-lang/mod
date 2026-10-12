@@ -17,6 +17,20 @@ public final class ModTabs {
             .displayItems((params, output) -> ModItems.WEAPONS.values().forEach(item -> output.accept(item.get())))
             .build());
 
+    /** The legendary materials (ore, raw, refined) and everything made of them. */
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> COLLECTION = REGISTER.register("collection", () -> CreativeModeTab.builder()
+            .title(Component.translatableWithFallback("itemGroup.fantasyweapons.collection", "Fantasy Weapons: Collection"))
+            .icon(() -> new ItemStack(ModItems.REFINED.get(com.fantasyweapons.material.Material.VOID_CRYSTAL).get()))
+            .withTabsBefore(WEAPONS.getId())
+            .displayItems((params, output) -> {
+                for (var m : com.fantasyweapons.material.Material.values()) {
+                    output.accept(ModItems.ORES.get(m).get());
+                    output.accept(ModItems.RAW.get(m).get());
+                    output.accept(ModItems.REFINED.get(m).get());
+                }
+            })
+            .build());
+
     private ModTabs() {
     }
 }

@@ -21,3 +21,4 @@ runs/
 # misc
 *.log
 __pycache__/
+src/generated/resources/.cache/
