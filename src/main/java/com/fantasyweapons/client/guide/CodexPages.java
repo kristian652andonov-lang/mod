@@ -126,7 +126,7 @@ public final class CodexPages {
         for (int i = 0; i < 2; i++) {
             float x = mouse[i][0], y = mouse[i][1];
             // (the right page's thumb tabs stand out past its edge)
-            if (x < 0 || y < 0 || x > PageCanvas.W + 16 || y > PageCanvas.H) continue;
+            if (x < 0 || y < 0 || x > PageCanvas.W + 26 || y > PageCanvas.H) continue;
             for (PageCanvas.Region r : i == 0 ? leftRegions : rightRegions) if (r.contains(x, y)) return r;
         }
         return null;

@@ -59,6 +59,9 @@ public final class PageCanvas {
         this.mouseY = mouseY;
     }
 
+    /** How far out from the page everything is drawn, besides its own offset (sheet units): raised for the thumb tabs. */
+    public float lift;
+
     public float inner() {
         return W - 2 * MARGIN;
     }
@@ -70,7 +73,7 @@ public final class PageCanvas {
     // ---- drawing ----
 
     public void text(FormattedCharSequence text, float x, float y, int color, float scale) {
-        Matrix4f m = new Matrix4f(content).translate(x, y, 0.05f).scale(scale, scale, 1);
+        Matrix4f m = new Matrix4f(content).translate(x, y, 0.05f + lift).scale(scale, scale, 1);
         font.drawInBatch(text, 0, 0, color, false, m, buffers, Font.DisplayMode.POLYGON_OFFSET, 0, LightTexture.FULL_BRIGHT);
     }
 
@@ -88,11 +91,17 @@ public final class PageCanvas {
 
     /** A filled rectangle (colour with alpha). */
     public void fill(float x0, float y0, float x1, float y1, int argb) {
+        fill(x0, y0, x1, y1, argb, 0.02f);
+    }
+
+    /** A filled rectangle {@code z} out from the page (sheet units). */
+    public void fill(float x0, float y0, float x1, float y1, int argb, float z) {
+        z += lift;
         VertexConsumer v = buffers.getBuffer(RenderType.gui());
-        v.addVertex(content, x0, y0, 0.02f).setColor(argb);
-        v.addVertex(content, x0, y1, 0.02f).setColor(argb);
-        v.addVertex(content, x1, y1, 0.02f).setColor(argb);
-        v.addVertex(content, x1, y0, 0.02f).setColor(argb);
+        v.addVertex(content, x0, y0, z).setColor(argb);
+        v.addVertex(content, x0, y1, z).setColor(argb);
+        v.addVertex(content, x1, y1, z).setColor(argb);
+        v.addVertex(content, x1, y0, z).setColor(argb);
     }
 
     /** A rectangle's outline, {@code t} thick. */
@@ -108,7 +117,7 @@ public final class PageCanvas {
         if (stack.isEmpty()) return;
         var model = Minecraft.getInstance().getItemRenderer().getModel(stack, Minecraft.getInstance().level, null, 0);
         PoseStack pose = new PoseStack();
-        Matrix4f m = new Matrix4f(content).translate(x + size / 2, y + size / 2, model.isGui3d() ? size * 0.5f : 0.3f).scale(size, -size, size);
+        Matrix4f m = new Matrix4f(content).translate(x + size / 2, y + size / 2, (model.isGui3d() ? size * 0.5f : 0.3f) + lift).scale(size, -size, size);
         pose.last().pose().set(m);
         pose.last().normal().set(new Matrix3f(m).invert().transpose());
         Minecraft.getInstance().getItemRenderer().render(stack, ItemDisplayContext.GUI, false, pose, buffers, LightTexture.FULL_BRIGHT,

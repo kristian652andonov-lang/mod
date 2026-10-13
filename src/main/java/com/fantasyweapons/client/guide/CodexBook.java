@@ -89,27 +89,36 @@ public final class CodexBook {
         }
     }
 
-    /** The chapters' thumb tabs, standing out of the right page's edge: the open chapter's furthest; click one to turn there. */
+    /**
+     * The chapters' thumb tabs, standing out past the right page's gilded rail and the cover's edge (the open chapter's
+     * furthest), down the upper part of the page where the reader's hand does not cover them; click one to turn there.
+     */
     private void tabs(PageCanvas c, int page) {
         String here = page < chapter.size() ? chapter.get(page) : "";
-        float h = 15.5f, y = 9;
+        float h = 10, y = 8, z = 0.02f;
+        // out in front of the gilded rail and the cover's edge
+        c.lift = 0.6f;
         for (Tab tab : TABS) {
             Integer at = anchors.get(tab.anchor());
             if (at == null) continue;
             boolean open = at < chapter.size() && chapter.get(at).equals(here) && !here.isEmpty();
-            float x0 = PageCanvas.W + 1.5f, x1 = PageCanvas.W + (open ? 15 : 11.5f);
+            float x0 = PageCanvas.W + 4, x1 = PageCanvas.W + (open ? 25 : 21);
             c.region(x0, y, x1, y + h, List.of(Component.literal(tab.name())), go(tab.anchor()));
             boolean hover = c.hovered(x0, y, x1, y + h);
-            int body = hover || open ? 0xFF000000 | tab.color() : 0xFF000000 | deepen(tab.color(), 0.8f);
-            c.fill(x0, y, x1, y + h, 0xFF2A1A0C);
-            c.fill(x0, y + 0.6f, x1 - 0.6f, y + h - 0.6f, body);
-            c.fill(x0, y + 0.6f, x1 - 0.6f, y + 1.6f, 0x55FFFFFF);
-            c.item(tab.icon().get(), x1 - 10.4f, y + 3.5f, 8.5f);
-            y += h + 1.2f;
+            int body = hover || open ? 0xFF000000 | tab.color() : 0xFF000000 | deepen(tab.color(), 0.78f);
+            c.fill(x0, y, x1, y + h, 0xFF2A1A0C, z);
+            c.fill(x0, y + 0.6f, x1 - 0.6f, y + h - 0.6f, body, z + 0.01f);
+            c.fill(x0, y + 0.6f, x1 - 0.6f, y + 1.4f, 0x55FFFFFF, z + 0.02f);
+            if (tab.icon() != null) c.item(tab.icon().get(), x1 - 8.6f, y + 1.6f, 6.8f);
+            else c.text(com.fantasyweapons.advancement.Deeds.mark(net.minecraft.advancements.AdvancementType.CHALLENGE).getVisualOrderText(),
+                    x1 - 8.4f, y + 1.8f, 0xFFFFFFFF, 0.85f);
+            y += h + 1;
         }
+        c.lift = 0;
     }
 
-    private record Tab(String anchor, String name, int color, java.util.function.Supplier<ItemStack> icon) {
+    /** A chapter's thumb tab; without an icon it bears the legend's emblem (the Deeds). */
+    private record Tab(String anchor, String name, int color, @Nullable java.util.function.Supplier<ItemStack> icon) {
     }
 
     private static final Tab[] TABS = {
@@ -120,7 +129,7 @@ public final class CodexBook {
             new Tab("weapons", "The Thirteen Weapons", 0x5E3A8C, () -> new ItemStack(ModItems.WEAPONS.get("voidfang").get())),
             new Tab("armor", "Armor of Legend", 0x5A6470, () -> new ItemStack(ModItems.ARMOR.get(ArmorSet.SOLARIS).get(ArmorItem.Type.CHESTPLATE).get())),
             new Tab("mastery", "Mastery", 0x3C7A3A, () -> new ItemStack(Items.EXPERIENCE_BOTTLE)),
-            new Tab("deeds", "Deeds", 0x7A3FA8, () -> new ItemStack(Items.NETHER_STAR))};
+            new Tab("deeds", "Deeds", 0x7A3FA8, null)};
 
     private static int deepen(int rgb, float k) {
         int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;

@@ -944,7 +944,7 @@ final class DevScripts {
                     .wait(16).screenshot("deed_codex_" + (n + 1));
         }
         // a click on the Ores tab turns there
-        b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = new float[]{1, 118, 33}).wait(4).screenshot("deed_codex_tab_hover").run(mc -> {
+        b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = new float[]{1, 124, 24}).wait(4).screenshot("deed_codex_tab_hover").run(mc -> {
             mc.screen.mouseClicked(0, 0, 0);
             com.fantasyweapons.client.guide.CodexPages.pinned = null;
         }).wait(16).screenshot("deed_codex_tab_clicked").closeScreen().wait(30);
