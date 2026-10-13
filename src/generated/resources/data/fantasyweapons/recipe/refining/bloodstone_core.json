@@ -1,5 +1,10 @@
 {
   "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:nether_wart"
+  },
+  "additive_count": 8,
+  "count": 8,
   "ingredient": {
     "item": "fantasyweapons:bloodstone_fragment"
   },

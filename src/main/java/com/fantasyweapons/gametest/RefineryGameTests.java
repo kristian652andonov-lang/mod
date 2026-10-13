@@ -52,11 +52,21 @@ public final class RefineryGameTests {
         return new ItemStack(ModItems.RAW.get(m).get(), n);
     }
 
-    /** One raw material and coal: refined after 400 ticks (20 s), not before. */
+    private static ItemStack additive(Material m, int n) {
+        return new ItemStack(m.additive(), n);
+    }
+
+    /** Puts {@code batches} batches of {@code m} (eight raw and eight of its additive each) into the refinery. */
+    private static void load(ArcaneRefineryBlockEntity be, Material m, int batches) {
+        be.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(m, Material.REFINE_COUNT * batches));
+        be.items().setStackInSlot(ArcaneRefineryBlockEntity.ADDITIVE, additive(m, Material.REFINE_COUNT * batches));
+    }
+
+    /** Eight raw Solarite, eight glowstone dust and coal: one core after 400 ticks (20 s), not before. */
     @GameTest(template = ARENA, timeoutTicks = 520)
     public static void refinesInTwentySeconds(GameTestHelper h) {
         ArcaneRefineryBlockEntity be = build(h, CORE);
-        be.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.SOLARITE, 1));
+        load(be, Material.SOLARITE, 1);
         be.items().setStackInSlot(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.COAL));
         h.runAfterDelay(380, () -> {
             if (!be.items().getStackInSlot(ArcaneRefineryBlockEntity.OUTPUT).isEmpty()) h.fail("refined too early");
@@ -65,8 +75,32 @@ public final class RefineryGameTests {
         h.runAfterDelay(420, () -> {
             ItemStack out = be.items().getStackInSlot(ArcaneRefineryBlockEntity.OUTPUT);
             if (out.getItem() != ModItems.REFINED.get(Material.SOLARITE).get() || out.getCount() != 1) h.fail("output after 20 s: " + out);
-            else if (!be.items().getStackInSlot(ArcaneRefineryBlockEntity.INPUT).isEmpty()) h.fail("input not used up");
+            else if (!be.items().getStackInSlot(ArcaneRefineryBlockEntity.INPUT).isEmpty()) h.fail("raw not used up");
+            else if (!be.items().getStackInSlot(ArcaneRefineryBlockEntity.ADDITIVE).isEmpty()) h.fail("additive not used up");
             else h.succeed();
+        });
+    }
+
+    /** Seven of either is not enough: nothing refines, and the fire is not lit for it. */
+    @GameTest(template = ARENA, timeoutTicks = 460)
+    public static void needsEightOfEach(GameTestHelper h) {
+        ArcaneRefineryBlockEntity few = build(h, CORE), wrong = build(h, CORE.offset(5, 0, 0)), none = build(h, CORE.offset(-5, 0, 0));
+        few.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.INFERNITE, 7));
+        few.items().setStackInSlot(ArcaneRefineryBlockEntity.ADDITIVE, additive(Material.INFERNITE, 8));
+        // eight of each, but another material's additive
+        wrong.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.INFERNITE, 8));
+        wrong.items().setStackInSlot(ArcaneRefineryBlockEntity.ADDITIVE, additive(Material.FROSTHEART, 8));
+        none.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.INFERNITE, 8));
+        none.items().setStackInSlot(ArcaneRefineryBlockEntity.ADDITIVE, additive(Material.INFERNITE, 7));
+        for (ArcaneRefineryBlockEntity be : new ArcaneRefineryBlockEntity[]{few, wrong, none}) {
+            be.items().setStackInSlot(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.COAL));
+        }
+        h.runAfterDelay(420, () -> {
+            for (ArcaneRefineryBlockEntity be : new ArcaneRefineryBlockEntity[]{few, wrong, none}) {
+                if (!be.items().getStackInSlot(ArcaneRefineryBlockEntity.OUTPUT).isEmpty()) h.fail("refined without eight of each");
+                if (be.items().getStackInSlot(ArcaneRefineryBlockEntity.FUEL).getCount() != 1) h.fail("burned fuel with nothing to refine");
+            }
+            h.succeed();
         });
     }
 
@@ -74,7 +108,7 @@ public final class RefineryGameTests {
     @GameTest(template = ARENA, timeoutTicks = 320)
     public static void blazeRodsAreTwiceAsFast(GameTestHelper h) {
         ArcaneRefineryBlockEntity be = build(h, CORE);
-        be.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.VOID_CRYSTAL, 2));
+        load(be, Material.VOID_CRYSTAL, 2);
         be.items().setStackInSlot(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.BLAZE_ROD));
         h.runAfterDelay(215, () -> {
             ItemStack out = be.items().getStackInSlot(ArcaneRefineryBlockEntity.OUTPUT);
@@ -88,7 +122,7 @@ public final class RefineryGameTests {
     public static void lavaIsAsFastAsBlazeRods(GameTestHelper h) {
         ArcaneRefineryBlockEntity be = build(h, CORE);
         h.setBlock(CORE.below(), Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, Direction.DOWN));
-        be.items().setStackInSlot(ArcaneRefineryBlockEntity.INPUT, raw(Material.INFERNITE, 2));
+        load(be, Material.INFERNITE, 2);
         be.items().setStackInSlot(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.LAVA_BUCKET));
         h.runAfterDelay(215, () -> {
             HopperBlockEntity below = (HopperBlockEntity) h.getBlockEntity(CORE.below());
@@ -106,7 +140,7 @@ public final class RefineryGameTests {
         });
     }
 
-    /** Only raw materials go into the crucible, only fuel into the firebox. */
+    /** Only raw materials go into the crucible, only fuel into the firebox, only additives beside the crucible. */
     @GameTest(template = ARENA)
     public static void onlyRawMaterialsAndFuel(GameTestHelper h) {
         ArcaneRefineryBlockEntity be = build(h, CORE);
@@ -115,11 +149,18 @@ public final class RefineryGameTests {
         for (Material m : Material.values()) if (!be.items().isItemValid(ArcaneRefineryBlockEntity.INPUT, raw(m, 1))) h.fail(m + " raw refused");
         if (!be.items().isItemValid(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.OAK_LOG))) h.fail("wood refused as fuel");
         if (be.items().isItemValid(ArcaneRefineryBlockEntity.FUEL, new ItemStack(Items.STONE))) h.fail("stone accepted as fuel");
+        for (Material m : Material.values()) {
+            if (!be.items().isItemValid(ArcaneRefineryBlockEntity.ADDITIVE, additive(m, 1))) h.fail(m + "'s additive refused");
+            if (be.items().isItemValid(ArcaneRefineryBlockEntity.INPUT, additive(m, 1))) h.fail(m + "'s additive accepted as raw");
+            if (be.items().isItemValid(ArcaneRefineryBlockEntity.FUEL, additive(m, 1))) h.fail(m + "'s additive accepted as fuel");
+        }
+        if (be.items().isItemValid(ArcaneRefineryBlockEntity.ADDITIVE, new ItemStack(Items.STONE))) h.fail("stone accepted as an additive");
+        if (be.items().isItemValid(ArcaneRefineryBlockEntity.ADDITIVE, raw(Material.SOLARITE, 1))) h.fail("raw accepted as an additive");
         h.succeed();
     }
 
-    /** A hopper above feeds raw material, one at the side feeds fuel, one below takes the refined material away. */
-    @GameTest(template = ARENA, timeoutTicks = 560)
+    /** A hopper above feeds raw material, one at the side feeds fuel and the additive, one below takes the refined material away. */
+    @GameTest(template = ARENA, timeoutTicks = 700)
     public static void hoppersFeedAndEmptyIt(GameTestHelper h) {
         build(h, CORE);
         BlockPos top = MachinePart.TOP.from(CORE, Direction.NORTH);
@@ -129,9 +170,11 @@ public final class RefineryGameTests {
         Direction into = Direction.NORTH.getCounterClockWise();
         h.setBlock(right.relative(into.getOpposite()), Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, into));
         h.setBlock(CORE.below(), Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, Direction.DOWN));
-        ((HopperBlockEntity) h.getBlockEntity(top.above())).setItem(0, raw(Material.INFERNITE, 1));
-        ((HopperBlockEntity) h.getBlockEntity(right.relative(into.getOpposite()))).setItem(0, new ItemStack(Items.COAL));
-        h.runAfterDelay(480, () -> {
+        ((HopperBlockEntity) h.getBlockEntity(top.above())).setItem(0, raw(Material.INFERNITE, Material.REFINE_COUNT));
+        HopperBlockEntity side = (HopperBlockEntity) h.getBlockEntity(right.relative(into.getOpposite()));
+        side.setItem(0, new ItemStack(Items.COAL));
+        side.setItem(1, additive(Material.INFERNITE, Material.REFINE_COUNT));
+        h.runAfterDelay(600, () -> {
             HopperBlockEntity below = (HopperBlockEntity) h.getBlockEntity(CORE.below());
             boolean found = false;
             for (int i = 0; i < below.getContainerSize(); i++) found |= below.getItem(i).getItem() == ModItems.REFINED.get(Material.INFERNITE).get();

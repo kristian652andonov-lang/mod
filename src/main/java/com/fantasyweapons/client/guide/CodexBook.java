@@ -176,7 +176,7 @@ public final class CodexBook {
         String[][] steps = {
                 {"Seek the ores", "Each weapon's ore glows somewhere in the Overworld, the Nether or the End."},
                 {"Mine them", "Only a diamond pickaxe or better breaks one."},
-                {"Refine", "An Arcane Refinery burns the raw material into its core."},
+                {"Refine", "An Arcane Refinery melts 8 raw and 8 of an additive into a core."},
                 {"Build the Table", "The Legendary Crafting Table holds the 9x9 patterns."},
                 {"Forge", "Lay the weapon's pattern on the grid and take it."},
                 {"Master it", "It grows as it fights: abilities, then an ultimate."},
@@ -288,16 +288,19 @@ public final class CodexBook {
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("Refining");
-            c.para("Put a raw material in the top slot and fuel in the side slot. In 20 seconds it is refined into its core.", PageCanvas.INK, 0.56f);
-            float x = PageCanvas.MARGIN + 6, y = c.y;
-            c.item(new ItemStack(ModItems.RAW.get(Material.INFERNITE).get()), x, y, 14);
-            c.text("+", x + 17, y + 4, PageCanvas.FADED, 0.8f);
-            c.item(new ItemStack(Items.COAL), x + 24, y, 14);
-            c.text("→", x + 42, y + 4, PageCanvas.FADED, 0.8f);
-            c.item(new ItemStack(ModItems.REFINED.get(Material.INFERNITE).get()), x + 52, y, 14);
-            c.y += 19;
-            c.para("Blaze rods and lava buckets burn twice as fast as other fuel. Hoppers work too: input from the top, "
-                    + "fuel from the sides, the core out of the bottom.", PageCanvas.INK, 0.56f);
+            c.para("Eight of a raw material and eight of its additive melt over the fire into one core, in 20 seconds. "
+                    + "Infernite takes magma blocks:", PageCanvas.INK, 0.56f);
+            float x = PageCanvas.MARGIN + 2, y = c.y;
+            counted(c, new ItemStack(ModItems.RAW.get(Material.INFERNITE).get()), x, y, 12, Material.REFINE_COUNT);
+            c.text("+", x + 20, y + 3, PageCanvas.FADED, 0.75f);
+            counted(c, new ItemStack(Material.INFERNITE.additive()), x + 26, y, 12, Material.REFINE_COUNT);
+            c.text("+", x + 46, y + 3, PageCanvas.FADED, 0.75f);
+            c.item(new ItemStack(Items.COAL), x + 52, y, 12);
+            c.text("→", x + 67, y + 3, PageCanvas.FADED, 0.75f);
+            c.item(new ItemStack(ModItems.REFINED.get(Material.INFERNITE).get()), x + 76, y, 12);
+            c.y += 16;
+            c.para("Blaze rods and lava buckets burn twice as fast as other fuel. Hoppers work too: raw from the top, "
+                    + "fuel and additive from the sides, the core out of the bottom.", PageCanvas.INK, 0.56f);
             x = PageCanvas.MARGIN + 6;
             c.item(new ItemStack(Items.BLAZE_ROD), x, c.y, 12);
             c.item(new ItemStack(Items.LAVA_BUCKET), x + 14, c.y, 12);
@@ -306,18 +309,32 @@ public final class CodexBook {
             c.link("Every core, at a glance »", PageCanvas.MARGIN, c.y, 0.55f, go("cores"));
         });
         anchors.put("cores", pages.size());
-        page(c -> {
-            c.y = PageCanvas.TOP;
-            c.heading("Raw into Cores");
-            for (Material m : Material.values()) {
-                float y = c.y;
-                c.item(new ItemStack(ModItems.RAW.get(m).get()), PageCanvas.MARGIN, y, 8);
-                c.text("→", PageCanvas.MARGIN + 9, y + 1.5f, PageCanvas.FADED, 0.5f);
-                c.item(new ItemStack(ModItems.REFINED.get(m).get()), PageCanvas.MARGIN + 14, y, 8);
-                c.text(m.refinedName(), PageCanvas.MARGIN + 25, y + 1.5f, deep(m.color()), 0.52f);
-                c.y += 9.4f;
-            }
-        });
+        Material[] all = Material.values();
+        for (int half = 0; half < 2; half++) {
+            int from = half == 0 ? 0 : 7, to = half == 0 ? 7 : all.length;
+            page(c -> {
+                c.y = PageCanvas.TOP;
+                c.heading("Raw into Cores");
+                for (int i = from; i < to; i++) {
+                    Material m = all[i];
+                    float x = PageCanvas.MARGIN, y = c.y;
+                    // eight raw and eight of its additive make the core
+                    counted(c, new ItemStack(ModItems.RAW.get(m).get()), x, y, 10, Material.REFINE_COUNT);
+                    counted(c, new ItemStack(m.additive()), x + 17, y, 10, Material.REFINE_COUNT);
+                    c.text("→", x + 34, y + 2.5f, PageCanvas.FADED, 0.55f);
+                    c.item(new ItemStack(ModItems.REFINED.get(m).get()), x + 40, y, 10);
+                    c.text(m.refinedName(), x + 53, y + 0.5f, deep(m.color()), 0.5f);
+                    c.text("+ " + new ItemStack(m.additive()).getHoverName().getString(), x + 53, y + 6, PageCanvas.FADED, 0.42f);
+                    c.y += 14.5f;
+                }
+            });
+        }
+    }
+
+    /** An item with how many it takes beside it. */
+    private static void counted(PageCanvas c, ItemStack stack, float x, float y, float size, int count) {
+        c.item(stack, x, y, size);
+        c.text(String.valueOf(count), x + size + 0.5f, y + size - 4.5f, PageCanvas.INK, 0.45f);
     }
 
     // ---- the table ----

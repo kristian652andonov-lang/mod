@@ -13,7 +13,8 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
+import com.fantasyweapons.refinery.ArcaneRefineryBlockEntity;
+import com.fantasyweapons.refinery.RefiningRecipe;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +63,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         UiDraw.border(g, x + 12, y + 24, x + imageWidth - 12, y + 126, 1, Colors.alpha(0.5f, LINE));
         UiDraw.divider(g, x + imageWidth / 2f, y + RefineryMenu.INV_Y - 18, imageWidth - 30, 0.8f);
         for (Slot s : menu.slots) {
-            if (s.index < 3) machineSlot(g, x + s.x, y + s.y, s.index == 2);
+            if (s.index < RefineryMenu.MACHINE) machineSlot(g, x + s.x, y + s.y, s.index == 2);
             else slotFrame(g, x + s.x, y + s.y);
         }
 
@@ -85,7 +86,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         if (p > 0) UiDraw.glow(g, bx + bw * p, by + 3, 20, Colors.alpha(0.55f, ARCANE));
         ItemStack making = result();
         if (!making.isEmpty()) {
-            float cx = bx + bw / 2f, cy = y + 36;
+            float cx = bx + bw * 0.76f, cy = y + 36;
             boolean active = menu.burning() && p > 0;
             UiDraw.glow(g, cx, cy, 44 + (active ? 6 * (float) Math.sin(time * 0.25f) : 0), Colors.alpha(active ? 0.55f : 0.25f, ARCANE));
             g.pose().pushPose();
@@ -98,12 +99,18 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         if (guide) renderGuide(g, x - GUIDE_W - GAP, y, time);
     }
 
-    /** What the crucible's contents will become (empty if nothing). */
+    /** What the crucible's contents will become (empty if nothing), however much of it is there yet. */
     private ItemStack result() {
+        RefiningRecipe recipe = recipe();
+        return recipe == null ? ItemStack.EMPTY : recipe.result();
+    }
+
+    /** The recipe for the raw material in the crucible, if it is one. */
+    private RefiningRecipe recipe() {
         ItemStack input = menu.slots.get(0).getItem();
-        if (input.isEmpty() || minecraft.level == null) return ItemStack.EMPTY;
-        return minecraft.level.getRecipeManager().getRecipeFor(ModRecipes.REFINING.get(), new SingleRecipeInput(input), minecraft.level)
-                .map(r -> r.value().assemble(new SingleRecipeInput(input), minecraft.level.registryAccess())).orElse(ItemStack.EMPTY);
+        if (input.isEmpty() || minecraft.level == null) return null;
+        for (var r : minecraft.level.getRecipeManager().getAllRecipesFor(ModRecipes.REFINING.get())) if (r.value().ingredient().test(input)) return r.value();
+        return null;
     }
 
     /** A machine slot: a larger sunken frame with an arcane glow; the tray is larger still. */
@@ -137,13 +144,17 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         int yy = y + 24;
         heading(g, "1  Refine", tx, yy);
         yy += 11;
-        icon(g, raw, tx + 6, yy);
-        UiDraw.text(g, "+", tx + 28, yy + 4, muted, 0.8f, false);
-        icon(g, new ItemStack(Items.COAL), tx + 38, yy);
-        arrow(g, tx + 60, yy + 8);
-        icon(g, refined, tx + 84, yy);
+        ItemStack additive = new ItemStack(m.additive());
+        icon(g, raw.copyWithCount(Material.REFINE_COUNT), tx + 2, yy);
+        UiDraw.text(g, "+", tx + 21, yy + 4, muted, 0.8f, false);
+        icon(g, additive.copyWithCount(Material.REFINE_COUNT), tx + 28, yy);
+        UiDraw.text(g, "+", tx + 47, yy + 4, muted, 0.8f, false);
+        icon(g, new ItemStack(Items.COAL), tx + 54, yy);
+        arrow(g, tx + 74, yy + 8);
+        icon(g, refined, tx + 96, yy);
         yy += 19;
-        UiDraw.wrap(g, m.rawName() + " melts down into " + m.refinedName() + " in 20 seconds.", tx, yy, w, ink, 0.6f, 7);
+        UiDraw.wrap(g, Material.REFINE_COUNT + " " + m.rawName() + " and " + Material.REFINE_COUNT + " " + additive.getHoverName().getString()
+                + " melt into one " + m.refinedName() + " in 20 seconds.", tx, yy, w, ink, 0.6f, 7);
         yy += 18;
 
         heading(g, "2  Fuel", tx, yy);
@@ -163,7 +174,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         heading(g, "3  Hoppers", tx, yy);
         yy += 11;
         icon(g, new ItemStack(Items.HOPPER), tx + 2, yy + 2);
-        UiDraw.wrap(g, "Top: raw material. Sides: fuel. Bottom: takes the refined out.", tx + 24, yy, w - 24, ink, 0.6f, 7);
+        UiDraw.wrap(g, "Top: raw material. Sides: fuel and additive. Bottom: takes the refined out.", tx + 24, yy, w - 24, ink, 0.6f, 7);
         yy += 26;
 
         heading(g, "4  Then", tx, yy);
@@ -180,6 +191,11 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         UiDraw.wrap(g, "+1 weapon level per core", tx + 52, yy + 1, w - 52, gold, 0.6f, 7);
     }
 
+    private boolean enough(RefiningRecipe r) {
+        ItemStack input = menu.slots.get(0).getItem(), add = menu.slots.get(ArcaneRefineryBlockEntity.ADDITIVE).getItem();
+        return input.getCount() >= r.count() && (r.additive().isEmpty() || r.additive().test(add) && add.getCount() >= r.additiveCount());
+    }
+
     private static void heading(GuiGraphics g, String s, int x, int y) {
         UiDraw.text(g, s, x, y, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.7f, true);
     }
@@ -191,6 +207,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
     private void icon(GuiGraphics g, ItemStack stack, int x, int y) {
         UiDraw.rect(g, x - 1, y - 1, x + 17, y + 17, Colors.alpha(0.5f, 0x0B0705));
         g.renderFakeItem(stack, x, y);
+        g.renderItemDecorations(font, stack, x, y);
         icons.add(new Icon(stack, x, y));
     }
 
@@ -200,6 +217,8 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         UiDraw.text(g, title, (imageWidth - font.width(title)) / 2f, 9, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 1f, true);
         int muted = Colors.alpha(1f, UiDraw.INK_MUTED);
         UiDraw.text(g, "Raw", RefineryMenu.INPUT_X - 26, RefineryMenu.INPUT_Y + 5, muted, 0.75f, false);
+        UiDraw.textCentered(g, "+", (RefineryMenu.INPUT_X + RefineryMenu.ADDITIVE_X + 16) / 2f, RefineryMenu.INPUT_Y + 4, muted, 0.9f, false);
+        UiDraw.textCentered(g, "Additive", RefineryMenu.ADDITIVE_X + 8, RefineryMenu.ADDITIVE_Y - 11, muted, 0.6f, false);
         UiDraw.text(g, "Fuel", RefineryMenu.FUEL_X - 28, RefineryMenu.FUEL_Y + 5, muted, 0.75f, false);
         UiDraw.textCentered(g, "Refined", RefineryMenu.OUTPUT_X + 8, RefineryMenu.OUTPUT_Y + 26, muted, 0.75f, false);
         // what the machine is doing, or what it needs
@@ -211,6 +230,15 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
             if (menu.fastFire()) UiDraw.textCentered(g, "Fast fire  x2", cx, ly + 10, Colors.alpha(1f, BLAZE), 0.7f, true);
         } else if (input.isEmpty()) {
             UiDraw.textCentered(g, "Put a raw material in", cx, ly, muted, 0.7f, false);
+        } else if (recipe() != null && !enough(recipe())) {
+            // what it still needs: 8 of the raw material and 8 of its additive, each green once there is enough
+            RefiningRecipe r = recipe();
+            ItemStack add = menu.slots.get(ArcaneRefineryBlockEntity.ADDITIVE).getItem();
+            int haveRaw = input.getCount(), haveAdd = r.additive().test(add) ? add.getCount() : 0;
+            String addName = r.additive().getItems().length > 0 ? r.additive().getItems()[0].getHoverName().getString() : "Additive";
+            UiDraw.textCentered(g, "Raw  " + Math.min(haveRaw, r.count()) + "/" + r.count(), cx, ly, Colors.alpha(1f, haveRaw >= r.count() ? UiDraw.GOOD : BLAZE), 0.62f, true);
+            UiDraw.textCentered(g, addName + "  " + Math.min(haveAdd, r.additiveCount()) + "/" + r.additiveCount(), cx, ly + 9,
+                    Colors.alpha(1f, haveAdd >= r.additiveCount() ? UiDraw.GOOD : BLAZE), 0.62f, true);
         } else if (!out.isEmpty() && out.getCount() >= out.getMaxStackSize()) {
             UiDraw.textCentered(g, "Take the refined out", cx, ly, muted, 0.7f, false);
         } else if (!menu.burning() && (fuel.isEmpty() || fuel.is(Items.BUCKET))) {

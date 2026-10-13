@@ -147,6 +147,31 @@ public enum Material {
         return weapon + "_refined";
     }
 
+    /** How many of a raw material, and of its additive, one refining takes. */
+    public static final int REFINE_COUNT = 8;
+
+    /**
+     * What the refinery melts in with this material to refine it, chosen by its element and the land it comes from:
+     * magma for Infernite, ender pearls for Void Crystal, glowstone for Solarite, packed ice for Frostheart...
+     */
+    public net.minecraft.world.item.Item additive() {
+        return switch (this) {
+            case VOID_CRYSTAL -> net.minecraft.world.item.Items.ENDER_PEARL;
+            case SOLARITE -> net.minecraft.world.item.Items.GLOWSTONE_DUST;
+            case FROSTHEART -> net.minecraft.world.item.Items.PACKED_ICE;
+            case BLOODSTONE -> net.minecraft.world.item.Items.NETHER_WART;
+            case THUNDERCRYST -> net.minecraft.world.item.Items.COPPER_INGOT;
+            case NECROSTONE -> net.minecraft.world.item.Items.BONE;
+            case SOULSHARD -> net.minecraft.world.item.Items.SOUL_SAND;
+            case VERDANT -> net.minecraft.world.item.Items.MOSS_BLOCK;
+            case ECLIPSITE -> net.minecraft.world.item.Items.PHANTOM_MEMBRANE;
+            case ASTRALITE -> net.minecraft.world.item.Items.POPPED_CHORUS_FRUIT;
+            case AETHERITE -> net.minecraft.world.item.Items.FEATHER;
+            case TITANSTONE -> net.minecraft.world.item.Items.COBBLED_DEEPSLATE;
+            case INFERNITE -> net.minecraft.world.item.Items.MAGMA_BLOCK;
+        };
+    }
+
     public static Material ofWeapon(String weaponId) {
         for (Material m : values()) if (m.weapon.equals(weaponId)) return m;
         return null;

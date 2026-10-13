@@ -27,8 +27,10 @@ public final class MaterialLore {
                 tooltip.add(Component.literal("⚒ Mine with a diamond pickaxe or better").withStyle(s -> s.withColor(faded)));
             }
             case RAW -> {
-                tooltip.add(Component.literal("♨ Refine it in the Arcane Refinery").withStyle(s -> s.withColor(light)));
-                tooltip.add(Component.literal("   to make " + m.refinedName()).withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("♨ Refine " + Material.REFINE_COUNT + " in the Arcane Refinery").withStyle(s -> s.withColor(light)));
+                tooltip.add(Component.literal("   with " + Material.REFINE_COUNT + " " + new net.minecraft.world.item.ItemStack(m.additive()).getHoverName().getString())
+                        .withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("   to make one " + m.refinedName()).withStyle(s -> s.withColor(faded)));
             }
             case REFINED -> {
                 tooltip.add(Component.literal("✦ Forges " + weapon + " and its armor").withStyle(s -> s.withColor(light)));

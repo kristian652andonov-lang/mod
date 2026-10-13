@@ -20,7 +20,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -37,17 +36,18 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import java.util.Optional;
 
 /**
- * The refinery's furnace. A raw legendary material in the crucible and fuel in the firebox: while something refines,
- * fuel burns and the material melts down into its refined form in {@link RefiningRecipe#time()} ticks (20 seconds;
- * half that on a blaze rod's or a lava bucket's fire), which slides out onto the tray. Hoppers feed the crucible from
- * above, the firebox from the sides and empty the tray (and the firebox of empty buckets) from below.
+ * The refinery's furnace. Eight of a raw legendary material in the crucible with eight of its additive (magma for
+ * Infernite, ender pearls for Void Crystal...) and fuel in the firebox: while something refines, fuel burns and the melt
+ * becomes one refined core in {@link RefiningRecipe#time()} ticks (20 seconds; half that on a blaze rod's or a lava
+ * bucket's fire), which slides out onto the tray. Hoppers feed the crucible from above, the firebox and the additive from
+ * the sides (each item where it belongs) and empty the tray (and the firebox of empty buckets) from below.
  */
 public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEntity, MenuProvider {
-    public static final int INPUT = 0, FUEL = 1, OUTPUT = 2;
+    public static final int INPUT = 0, FUEL = 1, OUTPUT = 2, ADDITIVE = 3, SLOTS = 4;
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("animation.arcane_refinery.idle");
     private static final RawAnimation REFINING = RawAnimation.begin().thenLoop("animation.arcane_refinery.refining");
 
-    private final ItemStackHandler items = new ItemStackHandler(3) {
+    private final ItemStackHandler items = new ItemStackHandler(SLOTS) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -56,13 +56,14 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             return switch (slot) {
-                case INPUT -> level == null || recipeFor(stack).isPresent();
+                case INPUT -> level == null || isRaw(level, stack);
                 case FUEL -> burnTime(stack) > 0;
+                case ADDITIVE -> level == null || isAdditive(level, stack);
                 default -> false;
             };
         }
     };
-    private final RecipeManager.CachedCheck<SingleRecipeInput, RefiningRecipe> recipes = RecipeManager.createCheck(ModRecipes.REFINING.get());
+    private final RecipeManager.CachedCheck<RefiningInput, RefiningRecipe> recipes = RecipeManager.createCheck(ModRecipes.REFINING.get());
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     /** Fire left in the firebox, the burn time of the fuel that lit it, refining progress and how long it takes. */
     private int burn, burnTotal, progress, total = RefiningRecipe.DEFAULT_TIME;
@@ -119,9 +120,23 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
         return stack.is(Items.BLAZE_ROD) || stack.is(Items.LAVA_BUCKET);
     }
 
-    Optional<RecipeHolder<RefiningRecipe>> recipeFor(ItemStack stack) {
-        if (stack.isEmpty() || level == null) return Optional.empty();
-        return recipes.getRecipeFor(new SingleRecipeInput(stack), level);
+    Optional<RecipeHolder<RefiningRecipe>> recipeFor(ItemStack raw, ItemStack additive) {
+        if (raw.isEmpty() || level == null) return Optional.empty();
+        return recipes.getRecipeFor(new RefiningInput(raw, additive), level);
+    }
+
+    /** Whether some refining recipe takes {@code stack} as its raw material. */
+    public static boolean isRaw(Level level, ItemStack stack) {
+        for (var r : level.getRecipeManager().getAllRecipesFor(ModRecipes.REFINING.get())) if (r.value().ingredient().test(stack)) return true;
+        return false;
+    }
+
+    /** Whether some refining recipe melts {@code stack} in as its additive. */
+    public static boolean isAdditive(Level level, ItemStack stack) {
+        for (var r : level.getRecipeManager().getAllRecipesFor(ModRecipes.REFINING.get())) {
+            if (!r.value().additive().isEmpty() && r.value().additive().test(stack)) return true;
+        }
+        return false;
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, ArcaneRefineryBlockEntity be) {
@@ -132,9 +147,9 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
         boolean wasBurning = burn > 0;
         boolean changed = false;
         if (burn > 0) burn--;
-        ItemStack input = items.getStackInSlot(INPUT);
-        RefiningRecipe recipe = recipeFor(input).map(RecipeHolder::value).orElse(null);
-        ItemStack result = recipe == null ? ItemStack.EMPTY : recipe.assemble(new SingleRecipeInput(input), level.registryAccess());
+        ItemStack input = items.getStackInSlot(INPUT), additive = items.getStackInSlot(ADDITIVE);
+        RefiningRecipe recipe = recipeFor(input, additive).map(RecipeHolder::value).orElse(null);
+        ItemStack result = recipe == null ? ItemStack.EMPTY : recipe.assemble(new RefiningInput(input, additive), level.registryAccess());
         boolean canRefine = recipe != null && fits(result);
         // light the fire when there is something to refine and nothing burning
         if (burn <= 0 && canRefine) {
@@ -154,7 +169,8 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
             progress += blaze ? 2 : 1;
             if (progress >= total) {
                 progress = 0;
-                input.shrink(1);
+                input.shrink(recipe.count());
+                if (!recipe.additive().isEmpty()) additive.shrink(recipe.additiveCount());
                 ItemStack out = items.getStackInSlot(OUTPUT);
                 if (out.isEmpty()) items.setStackInSlot(OUTPUT, result.copy());
                 else out.grow(result.getCount());
@@ -192,7 +208,7 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
         return switch (side) {
             case UP -> new SlotAccess(items, INPUT, true, false);
             case DOWN -> new Bottom(items);
-            default -> new SlotAccess(items, FUEL, true, false);
+            default -> new Sides(items);
         };
     }
 
@@ -231,6 +247,43 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
         @Override
         public boolean isItemValid(int s, ItemStack stack) {
             return false;
+        }
+    }
+
+    /** The sides: fuel into the firebox, an additive into its slot, whichever the item is. */
+    private record Sides(ItemStackHandler items) implements IItemHandler {
+        private static int slot(int s) {
+            return s == 0 ? FUEL : ADDITIVE;
+        }
+
+        @Override
+        public int getSlots() {
+            return 2;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int s) {
+            return items.getStackInSlot(slot(s));
+        }
+
+        @Override
+        public ItemStack insertItem(int s, ItemStack stack, boolean simulate) {
+            return items.insertItem(slot(s), stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int s, int amount, boolean simulate) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public int getSlotLimit(int s) {
+            return items.getSlotLimit(slot(s));
+        }
+
+        @Override
+        public boolean isItemValid(int s, ItemStack stack) {
+            return items.isItemValid(slot(s), stack);
         }
     }
 
@@ -285,7 +338,10 @@ public class ArcaneRefineryBlockEntity extends BlockEntity implements GeoBlockEn
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        items.deserializeNBT(registries, tag.getCompound("items"));
+        // refineries from before the additive slot saved three slots: keep them, with room for the fourth
+        CompoundTag saved = tag.getCompound("items").copy();
+        if (saved.getInt("Size") < SLOTS) saved.putInt("Size", SLOTS);
+        items.deserializeNBT(registries, saved);
         burn = tag.getInt("burn");
         burnTotal = tag.getInt("burn_total");
         progress = tag.getInt("progress");

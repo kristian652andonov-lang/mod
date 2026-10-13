@@ -51,10 +51,11 @@ public class FWRecipes extends RecipeProvider {
         // infusion: a weapon and refined cores of its material, one level per core
         net.minecraft.data.recipes.SpecialRecipeBuilder.special(com.fantasyweapons.material.InfusionRecipe::new)
                 .save(out, FantasyWeapons.id("weapon_infusion"));
-        // raw -> refined, one per material
+        // 8 raw and 8 of its additive -> one refined core, one recipe per material
         for (Material m : Material.values()) {
             out.accept(FantasyWeapons.id("refining/" + m.refinedId()),
-                    new RefiningRecipe(Ingredient.of(ModItems.RAW.get(m).get()), new ItemStack(ModItems.REFINED.get(m).get()), RefiningRecipe.DEFAULT_TIME),
+                    new RefiningRecipe(Ingredient.of(ModItems.RAW.get(m).get()), Material.REFINE_COUNT, Ingredient.of(m.additive()), Material.REFINE_COUNT,
+                            new ItemStack(ModItems.REFINED.get(m).get()), RefiningRecipe.DEFAULT_TIME),
                     null);
         }
     }

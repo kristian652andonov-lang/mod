@@ -20,14 +20,16 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 public class RefineryMenu extends AbstractContainerMenu {
     /** The panel's size, and where the three machine slots and the player's inventory sit inside it. */
     public static final int WIDTH = 210, HEIGHT = 222;
-    public static final int INPUT_X = 44, INPUT_Y = 36, FUEL_X = 44, FUEL_Y = 86, OUTPUT_X = 154, OUTPUT_Y = 61;
+    public static final int INPUT_X = 44, INPUT_Y = 36, ADDITIVE_X = 78, ADDITIVE_Y = 36, FUEL_X = 44, FUEL_Y = 86, OUTPUT_X = 154, OUTPUT_Y = 61;
+    /** The menu's slots: the machine's four (in the block entity's order), then the player's. */
+    public static final int MACHINE = ArcaneRefineryBlockEntity.SLOTS;
     public static final int INV_X = (WIDTH - 9 * 18) / 2 + 1, INV_Y = 140;
     private final ContainerData data;
     private final ContainerLevelAccess access;
 
     /** Client side, from the open-menu packet. */
     public RefineryMenu(int id, Inventory inventory, RegistryFriendlyByteBuf buf) {
-        this(id, inventory, new ItemStackHandler(3), new SimpleContainerData(5), buf.readBlockPos(), inventory.player);
+        this(id, inventory, new ItemStackHandler(ArcaneRefineryBlockEntity.SLOTS), new SimpleContainerData(5), buf.readBlockPos(), inventory.player);
     }
 
     public RefineryMenu(int id, Inventory inventory, ArcaneRefineryBlockEntity be) {
@@ -46,6 +48,7 @@ public class RefineryMenu extends AbstractContainerMenu {
                 return false;
             }
         });
+        addSlot(new SlotItemHandler(items, ArcaneRefineryBlockEntity.ADDITIVE, ADDITIVE_X, ADDITIVE_Y));
         for (int r = 0; r < 3; r++) for (int c = 0; c < 9; c++) addSlot(new Slot(inventory, 9 + r * 9 + c, INV_X + c * 18, INV_Y + r * 18));
         for (int c = 0; c < 9; c++) addSlot(new Slot(inventory, c, INV_X + c * 18, INV_Y + 58));
         addDataSlots(data);
@@ -81,12 +84,14 @@ public class RefineryMenu extends AbstractContainerMenu {
         Slot slot = slots.get(index);
         if (!slot.hasItem()) return ItemStack.EMPTY;
         ItemStack stack = slot.getItem(), copy = stack.copy();
-        int machine = 3, end = slots.size();
+        int machine = MACHINE, end = slots.size();
         if (index < machine) {
             if (!moveItemStackTo(stack, machine, end, true)) return ItemStack.EMPTY;
             slot.onQuickCraft(stack, copy);
         } else if (slots.get(ArcaneRefineryBlockEntity.INPUT).mayPlace(stack)) {
             if (!moveItemStackTo(stack, 0, 1, false)) return ItemStack.EMPTY;
+        } else if (slots.get(ArcaneRefineryBlockEntity.ADDITIVE).mayPlace(stack)) {
+            if (!moveItemStackTo(stack, ArcaneRefineryBlockEntity.ADDITIVE, ArcaneRefineryBlockEntity.ADDITIVE + 1, false)) return ItemStack.EMPTY;
         } else if (slots.get(ArcaneRefineryBlockEntity.FUEL).mayPlace(stack)) {
             if (!moveItemStackTo(stack, 1, 2, false)) return ItemStack.EMPTY;
         } else if (index < machine + 27) {

@@ -644,10 +644,13 @@ final class DevScripts {
         b.viewAt(3.2, 1.6, 1.0, 0.5, 0.9, 4.5).wait(30).screenshot("ref_idle_a");
         b.viewAt(-3.2, 2.4, 1.6, 0.5, 0.9, 4.5).wait(5).screenshot("ref_idle_b");
         b.viewAt(0.5, 1.4, 7.8, 0.5, 0.9, 4.5).wait(5).screenshot("ref_idle_back");
-        // feed it: raw material from a hopper on top, coal from one at the side
+        // feed it: eight raw Solarite from a hopper on top; lava and eight glowstone dust (its additive) from one at the side
         b.cmd("/setblock 0 -58 4 minecraft:hopper[facing=down]").cmd("/item replace block 0 -58 4 container.0 with fantasyweapons:solarite_crystal 8")
-                .cmd("/setblock -2 -60 4 minecraft:hopper[facing=east]").cmd("/item replace block -2 -60 4 container.0 with minecraft:lava_bucket 1").wait(60);
+                .cmd("/setblock -2 -60 4 minecraft:hopper[facing=east]").cmd("/item replace block -2 -60 4 container.0 with minecraft:lava_bucket 1")
+                .cmd("/item replace block -2 -60 4 container.1 with minecraft:glowstone_dust 8").wait(90);
         b.viewAt(3.2, 1.6, 1.0, 0.5, 0.9, 4.5).wait(10).screenshot("ref_refining_a").wait(40).screenshot("ref_refining_b");
+        // then five more raw and no glowstone: the screen says what it still needs (the first core waits on the tray)
+        b.cmd("/item replace block 0 -58 4 container.0 with fantasyweapons:solarite_crystal 5").wait(160);
         b.playerView().cmd("/clear @s").look(0, 30).wait(5).run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -60, 4.0), net.minecraft.core.Direction.NORTH,
                         new net.minecraft.core.BlockPos(0, -60, 4), false))).wait(20).hud(true).screenshot("ref_screen").closeScreen().hud(false);
