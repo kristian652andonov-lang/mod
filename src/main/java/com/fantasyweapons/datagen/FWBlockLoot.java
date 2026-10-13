@@ -35,11 +35,12 @@ public class FWBlockLoot extends BlockLootSubProvider {
                     .apply(LimitCount.limitCount(IntRange.range(1, 3))))));
         }
         dropSelf(ModBlocks.ARCANE_REFINERY.get());
-        dropSelf(ModBlocks.LEGENDARY_FORGE.get());
+        dropSelf(ModBlocks.LEGENDARY_CRAFTING_TABLE.get());
     }
 
     @Override
     protected Iterable<Block> getKnownBlocks() {
-        return ModBlocks.REGISTER.getEntries().stream().map(h -> (Block) h.get()).filter(b -> b != ModBlocks.REFINERY_PART.get()).toList();
+        return ModBlocks.REGISTER.getEntries().stream().map(h -> (Block) h.get())
+                .filter(b -> !(b instanceof com.fantasyweapons.machine.MachinePartBlock)).toList();
     }
 }

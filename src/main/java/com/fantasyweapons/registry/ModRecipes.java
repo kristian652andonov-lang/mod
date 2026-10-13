@@ -17,7 +17,7 @@ public final class ModRecipes {
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<RefiningRecipe>> REFINING_SERIALIZER = SERIALIZERS.register("refining",
             RefiningRecipe.Serializer::new);
 
-    /** The Legendary Forge's shaped 9x9 recipes. */
+    /** The Legendary Crafting Table's shaped 9x9 recipes. */
     public static final DeferredHolder<RecipeType<?>, RecipeType<com.fantasyweapons.forge.ForgeRecipe>> FORGING = TYPES.register("forging",
             () -> RecipeType.simple(FantasyWeapons.id("forging")));
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<com.fantasyweapons.forge.ForgeRecipe>> FORGING_SERIALIZER =

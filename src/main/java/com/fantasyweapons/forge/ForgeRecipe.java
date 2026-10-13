@@ -18,11 +18,11 @@ import net.minecraft.world.item.crafting.ShapedRecipePattern;
 import net.minecraft.world.level.Level;
 
 /**
- * A Legendary Forge recipe ({@code fantasyweapons:forging}): a shaped pattern up to 9x9, laid out anywhere on the forge's
+ * A Legendary Crafting Table recipe ({@code fantasyweapons:forging}): a shaped pattern up to 9x9, laid out anywhere on the table's
  * grid (mirrored too), making {@code result}. The legendary weapons and armor are forged this way.
  */
 public record ForgeRecipe(ShapedRecipePattern pattern, ItemStack result) implements Recipe<CraftingInput> {
-    /** The forge's grid. */
+    /** The table's grid. */
     public static final int SIZE = 9;
 
     @Override
@@ -52,7 +52,7 @@ public record ForgeRecipe(ShapedRecipePattern pattern, ItemStack result) impleme
 
     @Override
     public ItemStack getToastSymbol() {
-        return new ItemStack(ModItems.LEGENDARY_FORGE.get());
+        return new ItemStack(ModItems.LEGENDARY_CRAFTING_TABLE.get());
     }
 
     @Override

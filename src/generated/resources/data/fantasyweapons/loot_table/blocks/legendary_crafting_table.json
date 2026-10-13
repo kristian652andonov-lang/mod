@@ -11,11 +11,11 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "fantasyweapons:legendary_forge"
+          "name": "fantasyweapons:legendary_crafting_table"
         }
       ],
       "rolls": 1.0
     }
   ],
-  "random_sequence": "fantasyweapons:blocks/legendary_forge"
+  "random_sequence": "fantasyweapons:blocks/legendary_crafting_table"
 }

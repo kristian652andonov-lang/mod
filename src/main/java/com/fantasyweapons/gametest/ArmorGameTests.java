@@ -80,7 +80,7 @@ public final class ArmorGameTests {
         h.succeed();
     }
 
-    /** Every armor piece and every weapon is forged at the Legendary Forge from the matching refined material, and nowhere else. */
+    /** Every armor piece and every weapon is forged at the Legendary Crafting Table from the matching refined material, and nowhere else. */
     @GameTest(template = ARENA)
     public static void armorAndWeaponsHaveRecipes(GameTestHelper h) {
         var recipes = h.getLevel().getRecipeManager();

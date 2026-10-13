@@ -1,35 +1,40 @@
-package com.fantasyweapons.client.render.refinery;
+package com.fantasyweapons.client.render.machine;
 
 import com.fantasyweapons.FantasyWeapons;
-import com.fantasyweapons.refinery.ArcaneRefineryBlockEntity;
-import com.fantasyweapons.refinery.ArcaneRefineryItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
+import software.bernie.geckolib.animatable.GeoAnimatable;
 import software.bernie.geckolib.model.DefaultedBlockGeoModel;
 import software.bernie.geckolib.renderer.GeoBlockRenderer;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
 import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
 
-/** The Arcane Refinery's GeckoLib renderers: the machine in the world (all six blocks of it) and as an item. */
-public final class RefineryRenderers {
-    private RefineryRenderers() {
+/**
+ * The GeckoLib renderers of the three-wide, two-high machines (the Arcane Refinery, the Legendary Crafting Table): the
+ * machine in the world, all six blocks of it drawn by its core, and as an item.
+ */
+public final class MachineRenderers {
+    private MachineRenderers() {
     }
 
-    public static final class Block extends GeoBlockRenderer<ArcaneRefineryBlockEntity> {
-        public Block() {
-            super(new DefaultedBlockGeoModel<>(FantasyWeapons.id("arcane_refinery")));
+    public static final class Block<T extends BlockEntity & GeoAnimatable> extends GeoBlockRenderer<T> {
+        /** {@code model} names the block's geo model, animations and texture (with its glow mask). */
+        public Block(String model) {
+            super(new DefaultedBlockGeoModel<>(FantasyWeapons.id(model)));
             addRenderLayer(new AutoGlowingGeoLayer<>(this));
         }
 
         /** Lit by the brightest of the air around its lower blocks (its own blocks are solid to light). */
         @Override
-        public void render(ArcaneRefineryBlockEntity be, float partialTick, PoseStack poseStack, MultiBufferSource buffers, int light, int overlay) {
+        public void render(T be, float partialTick, PoseStack poseStack, MultiBufferSource buffers, int light, int overlay) {
             Level level = be.getLevel();
             if (level != null) {
                 BlockPos pos = be.getBlockPos();
@@ -46,20 +51,21 @@ public final class RefineryRenderers {
             super.render(be, partialTick, poseStack, buffers, light, overlay);
         }
 
+        /** The machine reaches a block to each side of its core and up past its second row (whichever way it faces). */
         @Override
-        public AABB getRenderBoundingBox(ArcaneRefineryBlockEntity be) {
+        public AABB getRenderBoundingBox(T be) {
             BlockPos p = be.getBlockPos();
-            return new AABB(p.getX() - 1.3, p.getY(), p.getZ() - 1.3, p.getX() + 2.3, p.getY() + 2.1, p.getZ() + 2.3);
+            return new AABB(p.getX() - 1.3, p.getY(), p.getZ() - 1.3, p.getX() + 2.3, p.getY() + 2.6, p.getZ() + 2.3);
         }
 
         @Override
-        public boolean shouldRenderOffScreen(ArcaneRefineryBlockEntity be) {
+        public boolean shouldRenderOffScreen(T be) {
             return true;
         }
     }
 
-    public static GeoItemRenderer<ArcaneRefineryItem> item() {
-        GeoItemRenderer<ArcaneRefineryItem> r = new GeoItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id("arcane_refinery")));
+    public static <T extends Item & GeoAnimatable> GeoItemRenderer<T> item(String model) {
+        GeoItemRenderer<T> r = new GeoItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(model)));
         r.addRenderLayer(new AutoGlowingGeoLayer<>(r));
         return r;
     }

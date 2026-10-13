@@ -25,7 +25,7 @@ public final class FantasyWeapons {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public FantasyWeapons(IEventBus modBus, ModContainer container) {
-        // the Legendary Forge's recipes are shaped patterns up to 9x9
+        // the Legendary Crafting Table's recipes are shaped patterns up to 9x9
         net.minecraft.world.item.crafting.ShapedRecipePattern.setCraftingSize(com.fantasyweapons.forge.ForgeRecipe.SIZE, com.fantasyweapons.forge.ForgeRecipe.SIZE);
         ModComponents.REGISTER.register(modBus);
         ModAttachments.REGISTER.register(modBus);
@@ -60,7 +60,7 @@ public final class FantasyWeapons {
         var itemHandler = net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK;
         event.registerBlockEntity(itemHandler, com.fantasyweapons.registry.ModBlockEntities.ARCANE_REFINERY.get(), (be, side) -> be.handler(side));
         event.registerBlock(itemHandler, (level, pos, state, be, side) -> {
-            var core = com.fantasyweapons.refinery.RefineryPartBlock.core(state, pos);
+            var core = com.fantasyweapons.machine.MachinePartBlock.core(state, pos);
             return level.getBlockEntity(core) instanceof com.fantasyweapons.refinery.ArcaneRefineryBlockEntity refinery ? refinery.handler(side) : null;
         }, com.fantasyweapons.registry.ModBlocks.REFINERY_PART.get());
     }

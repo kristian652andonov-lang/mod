@@ -3,8 +3,9 @@ package com.fantasyweapons.registry;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.material.Material;
 import com.fantasyweapons.material.MaterialOreBlock;
+import com.fantasyweapons.forge.LegendaryCraftingTableBlock;
+import com.fantasyweapons.machine.MachinePartBlock;
 import com.fantasyweapons.refinery.ArcaneRefineryBlock;
-import com.fantasyweapons.refinery.RefineryPartBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -31,16 +32,30 @@ public final class ModBlocks {
     /** An iron furnace: as tough as a blast furnace, mined with a pickaxe; glows brightly while it refines. */
     public static final DeferredBlock<ArcaneRefineryBlock> ARCANE_REFINERY = REGISTER.register("arcane_refinery",
             () -> new ArcaneRefineryBlock(refineryProperties().lightLevel(s -> s.getValue(ArcaneRefineryBlock.LIT) ? 13 : 5)));
-    public static final DeferredBlock<RefineryPartBlock> REFINERY_PART = REGISTER.register("arcane_refinery_part",
-            () -> new RefineryPartBlock(refineryProperties().noLootTable().lightLevel(s -> 3)));
+    public static final DeferredBlock<MachinePartBlock> REFINERY_PART = REGISTER.register("arcane_refinery_part",
+            () -> new MachinePartBlock(refineryProperties().noLootTable().lightLevel(s -> 3), ModBlocks.ARCANE_REFINERY));
 
-    /** The 9x9 crafting table the legendary weapons and armor are forged on: as tough as an anvil's stone. */
-    public static final DeferredBlock<com.fantasyweapons.forge.LegendaryForgeBlock> LEGENDARY_FORGE = REGISTER.register("legendary_forge",
-            () -> new com.fantasyweapons.forge.LegendaryForgeBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(3.5f, 6f)
-                    .requiresCorrectToolForDrops().sound(SoundType.ANVIL).lightLevel(s -> 4)));
+    /**
+     * The 9x9 crafting table the legendary weapons and armor are forged on, three blocks wide and two high: as tough as an
+     * anvil's stone, and lit by its own starlight (brighter while it crafts).
+     */
+    public static final DeferredBlock<LegendaryCraftingTableBlock> LEGENDARY_CRAFTING_TABLE = REGISTER.register("legendary_crafting_table",
+            () -> new LegendaryCraftingTableBlock(tableProperties().lightLevel(s -> s.getValue(LegendaryCraftingTableBlock.CRAFTING) ? 12 : 7)));
+    public static final DeferredBlock<MachinePartBlock> LEGENDARY_CRAFTING_TABLE_PART = REGISTER.register("legendary_crafting_table_part",
+            () -> new MachinePartBlock(tableProperties().noLootTable().lightLevel(s -> 3), ModBlocks.LEGENDARY_CRAFTING_TABLE));
+
+    static {
+        // it was a plain block called the Legendary Forge before it had its model
+        REGISTER.addAlias(FantasyWeapons.id("legendary_forge"), FantasyWeapons.id("legendary_crafting_table"));
+    }
 
     private static BlockBehaviour.Properties refineryProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(5f, 6f).requiresCorrectToolForDrops().sound(SoundType.METAL)
+                .noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK);
+    }
+
+    private static BlockBehaviour.Properties tableProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(3.5f, 6f).requiresCorrectToolForDrops().sound(SoundType.ANVIL)
                 .noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK);
     }
 

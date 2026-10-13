@@ -765,27 +765,46 @@ final class DevScripts {
         }).wait(20).screenshot("fit_creative").closeScreen();
     }
 
-    /** The Legendary Forge in the world, its screen with a recipe laid out as ghosts, partly filled, and forging. */
+    /** The Legendary Crafting Table in the world, its screen with a recipe laid out as ghosts, partly filled, and forging. */
     private static void forge(ScreenshotDirector.Builder b) {
         b.cmd("/gamerule sendCommandFeedback false").cmd("/gamemode creative").cmd("/time set noon").hud(false).cmd("/kill @e[type=!player]")
-                .cmd("/fill -4 -60 2 4 -56 8 minecraft:air").cmd("/tp @s 0 -60 0 0 25").cmd("/clear @s")
-                .cmd("/setblock 0 -60 3 fantasyweapons:legendary_forge").cmd("/setblock 1 -60 3 minecraft:crafting_table").wait(20);
-        b.viewAt(2.2, 1.6, 0.6, 0.5, 0.4, 3.5).wait(10).screenshot("forge_block");
+                .cmd("/fill -6 -60 2 6 -56 10 minecraft:air").cmd("/tp @s 0 -60 0 0 30").cmd("/clear @s")
+                .cmd("/give @s fantasyweapons:legendary_crafting_table").wait(10).slot(0).hud(true).wait(5).screenshot("forge_hotbar").hud(false);
+        // placed as a player would, on the ground two blocks ahead (the core at 0 -60 4, facing the player)
+        b.run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
+                new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -61, 4.5), net.minecraft.core.Direction.UP,
+                        new net.minecraft.core.BlockPos(0, -61, 4), false))).wait(20).cmd("/setblock 3 -60 4 minecraft:crafting_table");
+        // its outline, the whole table's, looking at the middle and at a side block
+        b.playerView().look(0, 20).hud(true).wait(10).screenshot("forge_outline").look(13, 16).wait(5).screenshot("forge_outline_side").hud(false);
+        b.viewAt(0.5, 1.8, 0.4, 0.5, 1.0, 4.5).wait(30).screenshot("forge_block_front");
+        b.viewAt(3.6, 2.0, 1.2, 0.5, 1.0, 4.5).wait(5).screenshot("forge_block_side");
+        b.viewAt(-2.8, 2.6, 7.6, 0.5, 1.0, 4.5).wait(5).screenshot("forge_block_back");
+        // crafting (as while someone's grid makes something), seen over a few seconds of its animation
+        java.util.UUID crafter = java.util.UUID.randomUUID();
+        java.util.function.BiConsumer<net.minecraft.client.Minecraft, Boolean> craft = (mc, on) -> mc.getSingleplayerServer().execute(() -> {
+            var level = mc.getSingleplayerServer().overworld();
+            if (level.getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 4)) instanceof com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity t) {
+                t.setCrafting(crafter, on);
+            }
+        });
+        b.run(mc -> craft.accept(mc, true)).viewAt(0.5, 1.8, 0.4, 0.5, 1.0, 4.5).wait(30).screenshot("forge_crafting_a").wait(40).screenshot("forge_crafting_b")
+                .viewAt(3.6, 2.0, 1.2, 0.5, 1.0, 4.5).wait(40).screenshot("forge_crafting_c").run(mc -> craft.accept(mc, false)).wait(30)
+                .screenshot("forge_idle_again");
         b.playerView().cmd("/give @s fantasyweapons:void_core 3").cmd("/give @s minecraft:crying_obsidian 12").cmd("/give @s minecraft:ender_eye")
                 .cmd("/give @s minecraft:end_rod 2").cmd("/gamemode survival").wait(10).hud(true);
         b.run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
-                new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -59, 3.5), net.minecraft.core.Direction.UP,
-                        new net.minecraft.core.BlockPos(0, -60, 3), false))).wait(15).screenshot("forge_screen_empty");
+                new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -60, 4.0), net.minecraft.core.Direction.NORTH,
+                        new net.minecraft.core.BlockPos(0, -60, 4), false))).wait(15).screenshot("forge_screen_empty");
         // choose the Voidfang's recipe (the first icon)
         b.run(mc -> {
-            if (mc.screen instanceof com.fantasyweapons.client.gui.LegendaryForgeScreen s) {
-                int left = (s.width - com.fantasyweapons.forge.LegendaryForgeMenu.WIDTH) / 2, top = (s.height - com.fantasyweapons.forge.LegendaryForgeMenu.HEIGHT) / 2;
-                s.mouseClicked(left + com.fantasyweapons.forge.LegendaryForgeMenu.INV_X + 8, top + 48, 0);
+            if (mc.screen instanceof com.fantasyweapons.client.gui.LegendaryCraftingScreen s) {
+                int left = (s.width - com.fantasyweapons.forge.LegendaryCraftingMenu.WIDTH) / 2, top = (s.height - com.fantasyweapons.forge.LegendaryCraftingMenu.HEIGHT) / 2;
+                s.mouseClicked(left + com.fantasyweapons.forge.LegendaryCraftingMenu.INV_X + 8, top + 48, 0);
             }
         }).wait(10).screenshot("forge_screen_ghost");
         // lay the real items on the grid as a player would, slot by slot, from the pattern
         b.run(mc -> {
-            if (!(mc.screen instanceof com.fantasyweapons.client.gui.LegendaryForgeScreen s)) return;
+            if (!(mc.screen instanceof com.fantasyweapons.client.gui.LegendaryCraftingScreen s)) return;
             var menu = s.getMenu();
             var recipe = mc.level.getRecipeManager().byKey(com.fantasyweapons.FantasyWeapons.id("forging/voidfang")).orElseThrow();
             var pattern = ((com.fantasyweapons.forge.ForgeRecipe) recipe.value()).pattern();
@@ -794,24 +813,26 @@ final class DevScripts {
                 var ing = pattern.ingredients().get(c + r * w);
                 if (ing.isEmpty()) continue;
                 int from = -1;
-                for (int i = com.fantasyweapons.forge.LegendaryForgeMenu.INV_START; i < menu.slots.size(); i++) {
+                for (int i = com.fantasyweapons.forge.LegendaryCraftingMenu.INV_START; i < menu.slots.size(); i++) {
                     if (ing.test(menu.slots.get(i).getItem())) {
                         from = i;
                         break;
                     }
                 }
                 if (from < 0) continue;
-                int to = com.fantasyweapons.forge.LegendaryForgeMenu.GRID_START + (c + dx) + (r + dy) * 9;
+                int to = com.fantasyweapons.forge.LegendaryCraftingMenu.GRID_START + (c + dx) + (r + dy) * 9;
                 mc.gameMode.handleInventoryMouseClick(menu.containerId, from, 0, net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
                 mc.gameMode.handleInventoryMouseClick(menu.containerId, to, 1, net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
                 mc.gameMode.handleInventoryMouseClick(menu.containerId, from, 0, net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
             }
         }).wait(15).screenshot("forge_screen_filled");
         b.run(mc -> {
-            if (mc.screen instanceof com.fantasyweapons.client.gui.LegendaryForgeScreen s) {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.LegendaryCraftingScreen s) {
                 mc.gameMode.handleInventoryMouseClick(s.getMenu().containerId, 0, 0, net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
             }
         }).wait(10).screenshot("forge_screen_forged").closeScreen().hud(false);
+        // the moment after forging: the table still crafting
+        b.viewAt(0.5, 1.8, 0.4, 0.5, 1.0, 4.5).wait(15).screenshot("forge_block_forged");
         b.run(mc -> {
             var inv = mc.player.getInventory();
             for (int i = 0; i < inv.getContainerSize(); i++) {

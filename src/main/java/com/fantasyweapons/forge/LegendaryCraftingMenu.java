@@ -25,10 +25,10 @@ import net.minecraft.world.level.Level;
 import java.util.Optional;
 
 /**
- * The Legendary Forge: a 9x9 crafting grid. It forges the legendary weapons and armor ({@link ForgeRecipe}) and, like a
+ * The Legendary Crafting Table: a 9x9 crafting grid. It forges the legendary weapons and armor ({@link ForgeRecipe}) and, like a
  * crafting table, makes anything that can be crafted (a smaller recipe can sit anywhere on the grid).
  */
-public class LegendaryForgeMenu extends AbstractContainerMenu {
+public class LegendaryCraftingMenu extends AbstractContainerMenu {
     /** The panel's size; where the grid, the result and the player's inventory sit inside it. */
     public static final int WIDTH = 416, HEIGHT = 210;
     public static final int GRID_X = 14, GRID_Y = 28, RESULT_X = 210, RESULT_Y = GRID_Y + 4 * 18;
@@ -40,12 +40,12 @@ public class LegendaryForgeMenu extends AbstractContainerMenu {
     private final ContainerLevelAccess access;
     private final Player player;
 
-    public LegendaryForgeMenu(int id, Inventory inventory) {
+    public LegendaryCraftingMenu(int id, Inventory inventory) {
         this(id, inventory, ContainerLevelAccess.NULL);
     }
 
-    public LegendaryForgeMenu(int id, Inventory inventory, ContainerLevelAccess access) {
-        super(ModMenus.FORGE.get(), id);
+    public LegendaryCraftingMenu(int id, Inventory inventory, ContainerLevelAccess access) {
+        super(ModMenus.LEGENDARY_CRAFTING.get(), id);
         this.access = access;
         this.player = inventory.player;
         addSlot(new ResultSlot(RESULT_X, RESULT_Y));
@@ -75,6 +75,7 @@ public class LegendaryForgeMenu extends AbstractContainerMenu {
                 if (made.isItemEnabled(level.enabledFeatures())) out = made;
             }
             result.setItem(0, out);
+            if (level.getBlockEntity(pos) instanceof LegendaryCraftingTableBlockEntity table) table.setCrafting(player.getUUID(), !out.isEmpty());
             setRemoteSlot(RESULT, out);
             sp.connection.send(new ClientboundContainerSetSlotPacket(containerId, incrementStateId(), RESULT, out));
         });
@@ -83,12 +84,15 @@ public class LegendaryForgeMenu extends AbstractContainerMenu {
     @Override
     public void removed(Player player) {
         super.removed(player);
-        access.execute((level, pos) -> clearContainer(player, grid));
+        access.execute((level, pos) -> {
+            clearContainer(player, grid);
+            if (level.getBlockEntity(pos) instanceof LegendaryCraftingTableBlockEntity table) table.setCrafting(player.getUUID(), false);
+        });
     }
 
     @Override
     public boolean stillValid(Player player) {
-        return stillValid(access, player, ModBlocks.LEGENDARY_FORGE.get());
+        return stillValid(access, player, ModBlocks.LEGENDARY_CRAFTING_TABLE.get());
     }
 
     @Override
@@ -158,6 +162,9 @@ public class LegendaryForgeMenu extends AbstractContainerMenu {
         @Override
         public void onTake(Player taker, ItemStack stack) {
             checkTakeAchievements(stack);
+            access.execute((level, pos) -> {
+                if (!level.isClientSide && level.getBlockEntity(pos) instanceof LegendaryCraftingTableBlockEntity table) table.forged();
+            });
             CraftingInput.Positioned positioned = grid.asPositionedCraftInput();
             CraftingInput input = positioned.input();
             net.neoforged.neoforge.common.CommonHooks.setCraftingPlayer(taker);

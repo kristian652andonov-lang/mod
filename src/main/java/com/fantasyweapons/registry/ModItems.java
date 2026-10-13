@@ -29,10 +29,12 @@ public final class ModItems {
     public static final DeferredItem<com.fantasyweapons.refinery.ArcaneRefineryItem> ARCANE_REFINERY = REGISTER.register("arcane_refinery",
             () -> new com.fantasyweapons.refinery.ArcaneRefineryItem(ModBlocks.ARCANE_REFINERY.get(), new Item.Properties().rarity(Rarity.RARE)));
 
-    public static final DeferredItem<net.minecraft.world.item.BlockItem> LEGENDARY_FORGE = REGISTER.registerSimpleBlockItem(ModBlocks.LEGENDARY_FORGE,
-            new Item.Properties().rarity(Rarity.RARE));
+    public static final DeferredItem<com.fantasyweapons.forge.LegendaryCraftingTableItem> LEGENDARY_CRAFTING_TABLE = REGISTER.register("legendary_crafting_table",
+            () -> new com.fantasyweapons.forge.LegendaryCraftingTableItem(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), new Item.Properties().rarity(Rarity.EPIC)));
 
     static {
+        // the Legendary Forge became the Legendary Crafting Table when it got its model
+        REGISTER.addAlias(FantasyWeapons.id("legendary_forge"), FantasyWeapons.id("legendary_crafting_table"));
         for (WeaponDefinition def : Weapons.all()) {
             WEAPONS.put(def.id(), REGISTER.register(def.id(),
                     () -> new FantasyWeaponItem(def, new Item.Properties().stacksTo(1).fireResistant())));

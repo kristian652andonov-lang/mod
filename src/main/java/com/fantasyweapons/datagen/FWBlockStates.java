@@ -23,14 +23,15 @@ public class FWBlockStates extends BlockStateProvider {
             ModelFile model = models().getBuilder(m.oreId()).texture("particle", modLoc("block/" + m.oreAsset()));
             simpleBlock(ModBlocks.ORES.get(m).get(), model);
         }
-        // the refinery's six blocks are all drawn by the core's model
-        ModelFile refinery = models().getBuilder("arcane_refinery").texture("particle", modLoc("block/arcane_refinery"));
-        getVariantBuilder(ModBlocks.ARCANE_REFINERY.get()).forAllStates(s -> net.neoforged.neoforge.client.model.generators.ConfiguredModel.builder()
-                .modelFile(refinery).build());
-        getVariantBuilder(ModBlocks.REFINERY_PART.get()).forAllStates(s -> net.neoforged.neoforge.client.model.generators.ConfiguredModel.builder()
-                .modelFile(refinery).build());
-        // the forge: a plain textured block for now (its own model is to come)
-        simpleBlockWithItem(ModBlocks.LEGENDARY_FORGE.get(), models().cubeBottomTop("legendary_forge", modLoc("block/legendary_forge_side"),
-                modLoc("block/legendary_forge_bottom"), modLoc("block/legendary_forge_top")));
+        // the machines' six blocks are all drawn by the core's model
+        machine(ModBlocks.ARCANE_REFINERY.get(), ModBlocks.REFINERY_PART.get(), "arcane_refinery");
+        machine(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get(), "legendary_crafting_table");
+    }
+
+    private void machine(net.minecraft.world.level.block.Block core, net.minecraft.world.level.block.Block part, String name) {
+        ModelFile model = models().getBuilder(name).texture("particle", modLoc("block/" + name));
+        for (var block : new net.minecraft.world.level.block.Block[]{core, part}) {
+            getVariantBuilder(block).forAllStates(s -> net.neoforged.neoforge.client.model.generators.ConfiguredModel.builder().modelFile(model).build());
+        }
     }
 }

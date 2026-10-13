@@ -21,6 +21,11 @@ public final class ModBlockEntities {
             REGISTER.register("arcane_refinery", () -> BlockEntityType.Builder.of(com.fantasyweapons.refinery.ArcaneRefineryBlockEntity::new,
                     ModBlocks.ARCANE_REFINERY.get()).build(null));
 
+    @SuppressWarnings("DataFlowIssue")
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity>> LEGENDARY_CRAFTING_TABLE =
+            REGISTER.register("legendary_crafting_table", () -> BlockEntityType.Builder.of(com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity::new,
+                    ModBlocks.LEGENDARY_CRAFTING_TABLE.get()).build(null));
+
     private ModBlockEntities() {
     }
 }

@@ -4,7 +4,7 @@ import com.fantasyweapons.armor.ArmorSet;
 import com.fantasyweapons.client.hud.UiDraw;
 import com.fantasyweapons.client.vfx.Colors;
 import com.fantasyweapons.forge.ForgeRecipe;
-import com.fantasyweapons.forge.LegendaryForgeMenu;
+import com.fantasyweapons.forge.LegendaryCraftingMenu;
 import com.fantasyweapons.registry.ModItems;
 import com.fantasyweapons.registry.ModRecipes;
 import com.fantasyweapons.weapon.Weapons;
@@ -27,24 +27,24 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The Legendary Forge's screen: the 9x9 grid, the forged result, and beside them the forge's recipes. Choosing one lays
+ * The Legendary Crafting Table's screen: the 9x9 grid, the forged result, and beside them the table's recipes. Choosing one lays
  * its pattern out on the grid as ghost items (red where something else lies in the way) and lists what it takes.
  */
-public class LegendaryForgeScreen extends AbstractContainerScreen<LegendaryForgeMenu> {
+public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCraftingMenu> {
     private static final int ARCANE = 0xB85CFF, GOLD = 0xFFD978;
     /** The recipe browser: its icon grid (columns x rows) and where it sits. */
-    private static final int COLS = 9, ROWS = 3, LIST_X = LegendaryForgeMenu.INV_X, LIST_Y = 37;
+    private static final int COLS = 9, ROWS = 3, LIST_X = LegendaryCraftingMenu.INV_X, LIST_Y = 37;
 
     private final List<RecipeHolder<ForgeRecipe>> recipes = new ArrayList<>();
     private int page;
     private RecipeHolder<ForgeRecipe> selected;
 
-    public LegendaryForgeScreen(LegendaryForgeMenu menu, Inventory inventory, Component title) {
+    public LegendaryCraftingScreen(LegendaryCraftingMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
-        imageWidth = LegendaryForgeMenu.WIDTH;
-        imageHeight = LegendaryForgeMenu.HEIGHT;
-        inventoryLabelX = LegendaryForgeMenu.INV_X;
-        inventoryLabelY = LegendaryForgeMenu.INV_Y - 11;
+        imageWidth = LegendaryCraftingMenu.WIDTH;
+        imageHeight = LegendaryCraftingMenu.HEIGHT;
+        inventoryLabelX = LegendaryCraftingMenu.INV_X;
+        inventoryLabelY = LegendaryCraftingMenu.INV_Y - 11;
     }
 
     @Override
@@ -70,18 +70,18 @@ public class LegendaryForgeScreen extends AbstractContainerScreen<LegendaryForge
         int x = leftPos, y = topPos;
         UiDraw.panel(g, x, y, imageWidth, imageHeight, ARCANE, 1f);
         // the grid's anvil plate
-        int gx = x + LegendaryForgeMenu.GRID_X, gy = y + LegendaryForgeMenu.GRID_Y;
+        int gx = x + LegendaryCraftingMenu.GRID_X, gy = y + LegendaryCraftingMenu.GRID_Y;
         UiDraw.rect(g, gx - 5, gy - 5, gx + 9 * 18 + 3, gy + 9 * 18 + 3, Colors.alpha(0.45f, 0x000000));
         UiDraw.border(g, gx - 6, gy - 6, gx + 9 * 18 + 4, gy + 9 * 18 + 4, 1, Colors.alpha(0.8f, 0x8A6A3A));
         for (Slot s : menu.slots) {
-            if (s.index == LegendaryForgeMenu.RESULT) resultFrame(g, x + s.x, y + s.y, time);
+            if (s.index == LegendaryCraftingMenu.RESULT) resultFrame(g, x + s.x, y + s.y, time);
             else slotFrame(g, x + s.x, y + s.y);
         }
         // the hammer stroke from the grid to the result
-        int ay = y + LegendaryForgeMenu.RESULT_Y + 8, ax = gx + 9 * 18 + 6;
-        UiDraw.line(g, ax, ay, x + LegendaryForgeMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, ARCANE), Colors.alpha(1f, GOLD));
-        UiDraw.line(g, x + LegendaryForgeMenu.RESULT_X - 13, ay - 4, x + LegendaryForgeMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, GOLD), Colors.alpha(1f, GOLD));
-        UiDraw.line(g, x + LegendaryForgeMenu.RESULT_X - 13, ay + 4, x + LegendaryForgeMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, GOLD), Colors.alpha(1f, GOLD));
+        int ay = y + LegendaryCraftingMenu.RESULT_Y + 8, ax = gx + 9 * 18 + 6;
+        UiDraw.line(g, ax, ay, x + LegendaryCraftingMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, ARCANE), Colors.alpha(1f, GOLD));
+        UiDraw.line(g, x + LegendaryCraftingMenu.RESULT_X - 13, ay - 4, x + LegendaryCraftingMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, GOLD), Colors.alpha(1f, GOLD));
+        UiDraw.line(g, x + LegendaryCraftingMenu.RESULT_X - 13, ay + 4, x + LegendaryCraftingMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, GOLD), Colors.alpha(1f, GOLD));
         renderBrowser(g, x, y, mouseX, mouseY, time);
     }
 
@@ -103,7 +103,7 @@ public class LegendaryForgeScreen extends AbstractContainerScreen<LegendaryForge
 
     private void renderBrowser(GuiGraphics g, int x, int y, int mouseX, int mouseY, float time) {
         int lx = x + LIST_X, ly = y + LIST_Y;
-        UiDraw.text(g, "Forge Recipes", lx, y + 25, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.8f, true);
+        UiDraw.text(g, "Legendary Recipes", lx, y + 25, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.8f, true);
         String pageText = (page + 1) + " / " + pages();
         UiDraw.textCentered(g, pageText, lx + 162 - 22, y + 26, Colors.alpha(1f, UiDraw.INK_MUTED), 0.7f, false);
         arrowButton(g, lx + 162 - 44, y + 23, false, mouseX, mouseY);
@@ -188,7 +188,7 @@ public class LegendaryForgeScreen extends AbstractContainerScreen<LegendaryForge
     @Override
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
         String t = title.getString();
-        UiDraw.text(g, t, LegendaryForgeMenu.GRID_X + (9 * 18 - font.width(t)) / 2f, 9, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 1f, true);
+        UiDraw.text(g, t, LegendaryCraftingMenu.GRID_X + (9 * 18 - font.width(t)) / 2f, 9, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 1f, true);
         UiDraw.text(g, playerInventoryTitle, inventoryLabelX, inventoryLabelY, Colors.alpha(1f, UiDraw.INK_MUTED), 0.75f, false);
     }
 
@@ -217,7 +217,7 @@ public class LegendaryForgeScreen extends AbstractContainerScreen<LegendaryForge
         for (int r = 0; r < h; r++) {
             for (int c = 0; c < w; c++) {
                 Ingredient ing = pattern.ingredients().get(c + r * w);
-                Slot slot = menu.slots.get(LegendaryForgeMenu.GRID_START + (c + left) + (r + top) * ForgeRecipe.SIZE);
+                Slot slot = menu.slots.get(LegendaryCraftingMenu.GRID_START + (c + left) + (r + top) * ForgeRecipe.SIZE);
                 int sx = leftPos + slot.x, sy = topPos + slot.y;
                 ItemStack have = slot.getItem();
                 if (ing.isEmpty()) {

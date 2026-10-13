@@ -14,20 +14,17 @@
     "S": {
       "item": "minecraft:nether_star"
     },
-    "T": {
-      "item": "minecraft:smithing_table"
-    },
     "Z": {
       "item": "minecraft:totem_of_undying"
     }
   },
   "pattern": [
-    "BSB",
-    "NTN",
-    "ZHZ"
+    "ZSZ",
+    "BHB",
+    "N N"
   ],
   "result": {
     "count": 1,
-    "id": "fantasyweapons:legendary_forge"
+    "id": "fantasyweapons:legendary_crafting_table"
   }
 }

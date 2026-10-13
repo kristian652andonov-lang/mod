@@ -32,6 +32,7 @@ public class FWItemModels extends ItemModelProvider {
             geoItem(m.refinedId(), GeoBounds.of("geo/item/" + m.refinedAsset() + ".geo.json"), 20, 225, 10f, 3.5f);
         }
         geoItem("arcane_refinery", GeoBounds.of("geo/block/arcane_refinery.geo.json"), 30, 225, 9f, 0f);
+        geoItem("legendary_crafting_table", GeoBounds.of("geo/block/legendary_crafting_table.geo.json"), 30, 225, 9f, 0f);
         // armor pieces: each fitted to its own part of the set's model, shown from the front
         for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
             for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) {

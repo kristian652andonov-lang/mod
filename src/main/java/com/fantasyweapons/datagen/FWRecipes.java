@@ -31,14 +31,14 @@ public class FWRecipes extends RecipeProvider {
                 .define('B', Items.BLAST_FURNACE).define('L', Items.LAPIS_BLOCK)
                 .unlockedBy("has_blast_furnace", has(Items.BLAST_FURNACE))
                 .save(out);
-        // the forge makes weapons of legend, and it takes a legend to build it: a trophy of each dimension's hardest
-        // trial - the Wither's star, the Ender Dragon's breath, the totems of raids and mansions, a trial chamber's heavy
-        // core and netherite from ancient debris - set around a smithing table
-        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.LEGENDARY_FORGE.get())
-                .pattern("BSB").pattern("NTN").pattern("ZHZ")
-                .define('B', Items.DRAGON_BREATH).define('S', Items.NETHER_STAR)
-                .define('N', Items.NETHERITE_INGOT).define('T', Items.SMITHING_TABLE)
-                .define('Z', Items.TOTEM_OF_UNDYING).define('H', Items.HEAVY_CORE)
+        // the Legendary Crafting Table makes weapons of legend, and it takes a legend to build it: a trophy of each
+        // dimension's hardest trial - the totems of raids and mansions, the Wither's star, the Ender Dragon's breath, a
+        // trial chamber's heavy core and netherite from ancient debris - laid out as the table itself is built
+        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.LEGENDARY_CRAFTING_TABLE.get())
+                .pattern("ZSZ").pattern("BHB").pattern("N N")
+                .define('Z', Items.TOTEM_OF_UNDYING).define('S', Items.NETHER_STAR)
+                .define('B', Items.DRAGON_BREATH).define('H', Items.HEAVY_CORE)
+                .define('N', Items.NETHERITE_INGOT)
                 .unlockedBy("has_nether_star", has(Items.NETHER_STAR))
                 .save(out);
         // the legendary weapons and armor are forged on its 9x9 grid

@@ -2,6 +2,7 @@
   "values": [
     "fantasyweapons:arcane_refinery",
     "fantasyweapons:arcane_refinery_part",
-    "fantasyweapons:legendary_forge"
+    "fantasyweapons:legendary_crafting_table",
+    "fantasyweapons:legendary_crafting_table_part"
   ]
 }

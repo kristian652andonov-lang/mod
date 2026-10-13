@@ -14,8 +14,8 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<RefineryMenu>> REFINERY = REGISTER.register("arcane_refinery",
             () -> IMenuTypeExtension.create(RefineryMenu::new));
 
-    public static final DeferredHolder<MenuType<?>, MenuType<com.fantasyweapons.forge.LegendaryForgeMenu>> FORGE = REGISTER.register("legendary_forge",
-            () -> new MenuType<>(com.fantasyweapons.forge.LegendaryForgeMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+    public static final DeferredHolder<MenuType<?>, MenuType<com.fantasyweapons.forge.LegendaryCraftingMenu>> LEGENDARY_CRAFTING = REGISTER.register("legendary_crafting_table",
+            () -> new MenuType<>(com.fantasyweapons.forge.LegendaryCraftingMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
 
     private ModMenus() {
     }

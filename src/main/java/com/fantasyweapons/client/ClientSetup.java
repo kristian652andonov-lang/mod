@@ -61,7 +61,7 @@ public final class ClientSetup {
         modBus.addListener(ClientSetup::registerLayers);
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterMenuScreensEvent e) -> {
             e.register(com.fantasyweapons.registry.ModMenus.REFINERY.get(), com.fantasyweapons.client.gui.RefineryScreen::new);
-            e.register(com.fantasyweapons.registry.ModMenus.FORGE.get(), com.fantasyweapons.client.gui.LegendaryForgeScreen::new);
+            e.register(com.fantasyweapons.registry.ModMenus.LEGENDARY_CRAFTING.get(), com.fantasyweapons.client.gui.LegendaryCraftingScreen::new);
         });
         modBus.addListener(ClientSetup::registerExtensions);
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent e) ->
@@ -71,7 +71,9 @@ public final class ClientSetup {
                     com.fantasyweapons.client.render.ThrownWeaponRenderer::new);
             e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.MATERIAL_ORE.get(), ctx -> new MaterialOreRenderer());
             e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.ARCANE_REFINERY.get(),
-                    ctx -> new com.fantasyweapons.client.render.refinery.RefineryRenderers.Block());
+                    ctx -> new com.fantasyweapons.client.render.machine.MachineRenderers.Block<>("arcane_refinery"));
+            e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.LEGENDARY_CRAFTING_TABLE.get(),
+                    ctx -> new com.fantasyweapons.client.render.machine.MachineRenderers.Block<>("legendary_crafting_table"));
         });
 
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.input.InputHandler::onInteractionKey);
@@ -197,7 +199,11 @@ public final class ClientSetup {
                     if (renderer == null) {
                         if (item instanceof com.fantasyweapons.material.MaterialItem m) renderer = MaterialItemRenderers.material(m);
                         else if (item instanceof com.fantasyweapons.material.MaterialOreItem o) renderer = MaterialItemRenderers.ore(o);
-                        else if (item instanceof com.fantasyweapons.refinery.ArcaneRefineryItem) renderer = com.fantasyweapons.client.render.refinery.RefineryRenderers.item();
+                        else if (item instanceof com.fantasyweapons.refinery.ArcaneRefineryItem) {
+                            renderer = com.fantasyweapons.client.render.machine.MachineRenderers.item("arcane_refinery");
+                        } else if (item instanceof com.fantasyweapons.forge.LegendaryCraftingTableItem) {
+                            renderer = com.fantasyweapons.client.render.machine.MachineRenderers.item("legendary_crafting_table");
+                        }
                     }
                     return renderer;
                 }

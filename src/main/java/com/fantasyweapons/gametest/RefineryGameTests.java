@@ -4,8 +4,8 @@ import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.material.Material;
 import com.fantasyweapons.refinery.ArcaneRefineryBlock;
 import com.fantasyweapons.refinery.ArcaneRefineryBlockEntity;
-import com.fantasyweapons.refinery.RefineryPart;
-import com.fantasyweapons.refinery.RefineryPartBlock;
+import com.fantasyweapons.machine.MachinePart;
+import com.fantasyweapons.machine.MachinePartBlock;
 import com.fantasyweapons.registry.ModBlocks;
 import com.fantasyweapons.registry.ModItems;
 import net.minecraft.core.BlockPos;
@@ -41,9 +41,9 @@ public final class RefineryGameTests {
     private static ArcaneRefineryBlockEntity build(GameTestHelper h, BlockPos core) {
         Direction facing = Direction.NORTH;
         h.setBlock(core, ModBlocks.ARCANE_REFINERY.get().defaultBlockState().setValue(ArcaneRefineryBlock.FACING, facing));
-        for (RefineryPart part : RefineryPart.values()) {
+        for (MachinePart part : MachinePart.values()) {
             h.getLevel().setBlock(h.absolutePos(part.from(core, facing)), ModBlocks.REFINERY_PART.get().defaultBlockState()
-                    .setValue(RefineryPartBlock.FACING, facing).setValue(RefineryPartBlock.PART, part), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+                    .setValue(MachinePartBlock.FACING, facing).setValue(MachinePartBlock.PART, part), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
         }
         return (ArcaneRefineryBlockEntity) h.getLevel().getBlockEntity(h.absolutePos(core));
     }
@@ -122,8 +122,8 @@ public final class RefineryGameTests {
     @GameTest(template = ARENA, timeoutTicks = 560)
     public static void hoppersFeedAndEmptyIt(GameTestHelper h) {
         build(h, CORE);
-        BlockPos top = RefineryPart.TOP.from(CORE, Direction.NORTH);
-        BlockPos right = RefineryPart.RIGHT.from(CORE, Direction.NORTH);
+        BlockPos top = MachinePart.TOP.from(CORE, Direction.NORTH);
+        BlockPos right = MachinePart.RIGHT.from(CORE, Direction.NORTH);
         // hoppers: above the top block (pointing down), beside the right block (pointing into it), under the core
         h.setBlock(top.above(), Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, Direction.DOWN));
         Direction into = Direction.NORTH.getCounterClockWise();
@@ -156,12 +156,12 @@ public final class RefineryGameTests {
         }
         Direction facing = h.getLevel().getBlockState(at).getValue(ArcaneRefineryBlock.FACING);
         if (facing != Direction.SOUTH) h.fail("faces " + facing + ", expected south (towards the player)");
-        for (RefineryPart part : RefineryPart.values()) {
-            if (!(h.getLevel().getBlockState(part.from(at, facing)).getBlock() instanceof RefineryPartBlock)) h.fail("missing part " + part);
+        for (MachinePart part : MachinePart.values()) {
+            if (!(h.getLevel().getBlockState(part.from(at, facing)).getBlock() instanceof MachinePartBlock)) h.fail("missing part " + part);
         }
         // no room: a block where the top-left part would go
         BlockPos other = CORE.offset(6, 0, 0);
-        h.setBlock(RefineryPart.TOP_LEFT.from(other, Direction.SOUTH), Blocks.STONE);
+        h.setBlock(MachinePart.TOP_LEFT.from(other, Direction.SOUTH), Blocks.STONE);
         BlockPos at2 = h.absolutePos(other);
         ItemStack stack2 = new ItemStack(ModItems.ARCANE_REFINERY.get());
         var blocked = ModItems.ARCANE_REFINERY.get().place(new BlockPlaceContext(h.getLevel(), player, InteractionHand.MAIN_HAND, stack2,
@@ -174,10 +174,10 @@ public final class RefineryGameTests {
     @GameTest(template = ARENA)
     public static void breakingAPartRemovesItAll(GameTestHelper h) {
         build(h, CORE);
-        h.destroyBlock(RefineryPart.TOP_RIGHT.from(CORE, Direction.NORTH));
+        h.destroyBlock(MachinePart.TOP_RIGHT.from(CORE, Direction.NORTH));
         h.runAfterDelay(2, () -> {
             if (!h.getLevel().getBlockState(h.absolutePos(CORE)).isAir()) h.fail("core still there");
-            for (RefineryPart part : RefineryPart.values()) {
+            for (MachinePart part : MachinePart.values()) {
                 if (!h.getLevel().getBlockState(h.absolutePos(part.from(CORE, Direction.NORTH))).isAir()) h.fail(part + " still there");
             }
             h.succeed();

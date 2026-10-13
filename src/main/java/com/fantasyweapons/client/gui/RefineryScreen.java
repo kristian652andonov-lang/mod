@@ -169,8 +169,8 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         yy += 11;
         icon(g, refined, tx + 2, yy);
         arrow(g, tx + 22, yy + 8);
-        icon(g, new ItemStack(ModItems.LEGENDARY_FORGE.get()), tx + 42, yy);
-        UiDraw.wrap(g, "Its armor and weapon, at the Legendary Forge", tx + 62, yy - 2, w - 62, ink, 0.6f, 7);
+        icon(g, new ItemStack(ModItems.LEGENDARY_CRAFTING_TABLE.get()), tx + 42, yy);
+        UiDraw.wrap(g, "Its armor and weapon, at the Legendary Crafting Table", tx + 62, yy - 2, w - 62, ink, 0.6f, 7);
         yy += 22;
         ItemStack weapon = new ItemStack(ModItems.WEAPONS.get(m.weapon()).get());
         icon(g, weapon, tx + 2, yy);

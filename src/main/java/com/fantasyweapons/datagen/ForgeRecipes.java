@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The Legendary Forge's recipes. Every weapon is laid out on the 9x9 grid in its own shape: its refined material (R) down
+ * The Legendary Crafting Table's recipes. Every weapon is laid out on the 9x9 grid in its own shape: its refined material (R) down
  * the blade, a catalyst (C) at its heart, an accent (A) around it and a handle (H), each chosen for the weapon's element
  * and the dimension its ore comes from - eyes of ender for the Voidfang, an end crystal for the Starforge, netherite for
  * the Nether's weapons, a heavy core for the Monolith... Armor is the usual shapes in the set's refined material (5, 8,
