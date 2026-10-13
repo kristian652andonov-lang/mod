@@ -64,6 +64,11 @@ public final class ModSounds {
     private ModSounds() {
     }
 
+    // the Wayfarer's Codex: unbuckled and opened, a page turned, shut again
+    public static final DeferredHolder<SoundEvent, SoundEvent> CODEX_OPEN = reg("codex.open");
+    public static final DeferredHolder<SoundEvent, SoundEvent> CODEX_PAGE = reg("codex.page");
+    public static final DeferredHolder<SoundEvent, SoundEvent> CODEX_CLOSE = reg("codex.close");
+
     private static DeferredHolder<SoundEvent, SoundEvent> reg(String name) {
         return REGISTER.register(name, () -> SoundEvent.createVariableRangeEvent(FantasyWeapons.id(name)));
     }

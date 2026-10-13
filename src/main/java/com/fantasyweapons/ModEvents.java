@@ -43,6 +43,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onPearl);
         bus.addListener(ModEvents::onChorus);
         bus.addListener(ModEvents::onCrafted);
+        bus.addListener(com.fantasyweapons.guide.CodexGift::onLogin);
         bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
     }
 

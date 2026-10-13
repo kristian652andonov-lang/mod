@@ -60,6 +60,8 @@ final class DevScripts {
                 else if (name.equals("infuse")) infuse(b);
                 else if (name.equals("fit")) fit(b);
                 else if (name.equals("forge")) forge(b);
+                else if (name.equals("codex")) codex(b);
+                else if (name.equals("codexall")) codexAll(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -630,12 +632,15 @@ final class DevScripts {
 
     /** The Arcane Refinery placed by the player, idle, fed by hoppers and refining, and its screen. */
     private static void refinery(ScreenshotDirector.Builder b) {
-        b.cmd("/gamemode creative").hud(false).cmd("/fill -6 -60 2 6 -56 10 minecraft:air").cmd("/clear @s")
+        b.cmd("/gamemode creative").hud(false).cmd("/fill -6 -60 2 6 -56 10 minecraft:air").cmd("/kill @e[type=item]").cmd("/clear @s")
                 .cmd("/give @s fantasyweapons:arcane_refinery").wait(10).slot(0).cmd("/tp @s 0 -60 0 0 30").wait(10);
         // place it as a player would, on the ground two blocks ahead (the core at 0 -60 4, facing the player)
         b.run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -61, 4.5), net.minecraft.core.Direction.UP,
                         new net.minecraft.core.BlockPos(0, -61, 4), false))).wait(20);
+        // the outline of the block looked at (each block shaped by the model), and a pig's shadow beside it
+        b.playerView().look(0, 20).hud(true).wait(10).screenshot("ref_outline").look(-14, 16).wait(5).screenshot("ref_outline_side").hud(false);
+        b.cmd("/summon pig 1.8 -60 3.3 {NoAI:1b,Rotation:[90f,0f]}").viewAt(3.4, 1.2, 1.4, 1.0, 0.4, 3.8).wait(15).screenshot("ref_shadow").cmd("/kill @e[type=pig]");
         b.viewAt(3.2, 1.6, 1.0, 0.5, 0.9, 4.5).wait(30).screenshot("ref_idle_a");
         b.viewAt(-3.2, 2.4, 1.6, 0.5, 0.9, 4.5).wait(5).screenshot("ref_idle_b");
         b.viewAt(0.5, 1.4, 7.8, 0.5, 0.9, 4.5).wait(5).screenshot("ref_idle_back");
@@ -768,14 +773,21 @@ final class DevScripts {
     /** The Legendary Crafting Table in the world, its screen with a recipe laid out as ghosts, partly filled, and forging. */
     private static void forge(ScreenshotDirector.Builder b) {
         b.cmd("/gamerule sendCommandFeedback false").cmd("/gamemode creative").cmd("/time set noon").hud(false).cmd("/kill @e[type=!player]")
-                .cmd("/fill -6 -60 2 6 -56 10 minecraft:air").cmd("/tp @s 0 -60 0 0 30").cmd("/clear @s")
+                .cmd("/fill -6 -60 2 6 -56 10 minecraft:air").cmd("/kill @e[type=item]").cmd("/tp @s 0 -60 0 0 30").cmd("/clear @s")
                 .cmd("/give @s fantasyweapons:legendary_crafting_table").wait(10).slot(0).hud(true).wait(5).screenshot("forge_hotbar").hud(false);
         // placed as a player would, on the ground two blocks ahead (the core at 0 -60 4, facing the player)
         b.run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -61, 4.5), net.minecraft.core.Direction.UP,
                         new net.minecraft.core.BlockPos(0, -61, 4), false))).wait(20).cmd("/setblock 3 -60 4 minecraft:crafting_table");
         // its outline, the whole table's, looking at the middle and at a side block
-        b.playerView().look(0, 20).hud(true).wait(10).screenshot("forge_outline").look(13, 16).wait(5).screenshot("forge_outline_side").hud(false);
+        b.playerView().look(0, 20).hud(true).wait(10).run(mc -> {
+            var hit = mc.hitResult;
+            String what = hit instanceof net.minecraft.world.phys.BlockHitResult bh ? mc.level.getBlockState(bh.getBlockPos()) + " at " + bh.getBlockPos() + " "
+                    + bh.getLocation() + " shape " + mc.level.getBlockState(bh.getBlockPos()).getShape(mc.level, bh.getBlockPos()).bounds() : String.valueOf(hit == null ? null : hit.getType());
+            com.fantasyweapons.FantasyWeapons.LOGGER.warn("[outline] looking at {}", what);
+        }).screenshot("forge_outline").look(13, 16).wait(5).screenshot("forge_outline_side")
+                .look(-9, 6).wait(5).screenshot("forge_outline_totem").hud(false);
+        b.cmd("/summon pig 1.8 -60 3.3 {NoAI:1b,Rotation:[90f,0f]}").viewAt(3.4, 1.2, 1.4, 1.0, 0.4, 3.8).wait(15).screenshot("forge_shadow").cmd("/kill @e[type=pig]");
         b.viewAt(0.5, 1.8, 0.4, 0.5, 1.0, 4.5).wait(30).screenshot("forge_block_front");
         b.viewAt(3.6, 2.0, 1.2, 0.5, 1.0, 4.5).wait(5).screenshot("forge_block_side");
         b.viewAt(-2.8, 2.6, 7.6, 0.5, 1.0, 4.5).wait(5).screenshot("forge_block_back");
@@ -841,6 +853,50 @@ final class DevScripts {
                 }
             }
         });
+    }
+
+    /** The Wayfarer's Codex: its icon, held shut, opened in first person, then read spread by spread with a page turning and a tooltip. */
+    private static void codex(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/fill -6 -60 -6 6 -55 10 minecraft:air").cmd("/kill @e[type=item]").cmd("/clear @s")
+                .cmd("/give @s fantasyweapons:wayfarers_codex").wait(10).slot(0).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10).screenshot("codex_hotbar");
+        b.viewAt(-1.6, 1.4, 1.6, 0, 1.0, 0).wait(10).screenshot("codex_third").playerView().wait(5).screenshot("codex_shut");
+        b.run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(20).screenshot("codex_open_1s").wait(30)
+                .screenshot("codex_open_2s").wait(25).screenshot("codex_open_4s").wait(25).screenshot("codex_read");
+        // clicking "Legendary Ores" in the contents turns to that chapter
+        b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = new float[]{1, 20, 49}).wait(3).run(mc -> {
+            mc.screen.mouseClicked(0, 0, 0);
+            com.fantasyweapons.client.guide.CodexPages.pinned = null;
+        }).wait(16).screenshot("codex_clicked").run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("[codex] after the click: spread {}, ores at {}",
+                com.fantasyweapons.client.guide.Codex.spread(), com.fantasyweapons.client.guide.Codex.book().spreadOf("ores")));
+        for (String anchor : new String[]{"path", "ores", "realm_NETHER", "refinery", "table", "weapons", "weapon_voidfang", "armor", "mastery", "deeds"}) {
+            b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf(anchor), false)).wait(3)
+                    .screenshot("codex_" + anchor + "_turning").wait(2).screenshot("codex_" + anchor + "_turning2").wait(12).screenshot("codex_" + anchor);
+        }
+        // the Voidfang's second spread (its forging pattern and armor), with the mouse over a cell of the pattern
+        b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("weapon_voidfang") + 1, false))
+                .wait(16).screenshot("codex_voidfang_forging");
+        b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = new float[]{0, 56, 60}).wait(4).screenshot("codex_tooltip");
+        b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = null).closeScreen().wait(4).screenshot("codex_closing").wait(20)
+                .screenshot("codex_closed");
+    }
+
+    /** Every spread of the Codex in turn, for checking that each page's writing fits. */
+    private static void codexAll(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/give @s fantasyweapons:wayfarers_codex").wait(10).slot(0).hud(true)
+                .cmd("/tp @s 0 -60 0 0 0").wait(10).run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(110);
+        for (int i = 0; i < 60; i++) {
+            int spread = i;
+            b.run(mc -> {
+                if (com.fantasyweapons.client.guide.Codex.book() != null && spread < com.fantasyweapons.client.guide.Codex.book().spreads()) {
+                    com.fantasyweapons.client.guide.Codex.turnTo(spread, false);
+                }
+            }).wait(12).run(mc -> {
+                if (com.fantasyweapons.client.guide.Codex.book() != null && spread < com.fantasyweapons.client.guide.Codex.book().spreads()) {
+                    net.minecraft.client.Screenshot.grab(mc.gameDirectory, String.format(java.util.Locale.ROOT, "fw_codexall_%02d.png", spread),
+                            mc.getMainRenderTarget(), msg -> { });
+                }
+            });
+        }
     }
 
     /** A Voidfang infused with two Void Cores in the inventory's crafting grid: the tooltips, the grid and the level-up. */

@@ -41,6 +41,11 @@ public class FWRecipes extends RecipeProvider {
                 .define('N', Items.NETHERITE_INGOT)
                 .unlockedBy("has_nether_star", has(Items.NETHER_STAR))
                 .save(out);
+        // a lost Codex can be written again: a book, gilded, with an amethyst for its gem
+        net.minecraft.data.recipes.ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, ModItems.CODEX.get())
+                .requires(Items.BOOK).requires(Items.GOLD_INGOT).requires(Items.AMETHYST_SHARD)
+                .unlockedBy("has_book", has(Items.BOOK))
+                .save(out);
         // the legendary weapons and armor are forged on its 9x9 grid
         ForgeRecipes.build(out);
         // infusion: a weapon and refined cores of its material, one level per core

@@ -367,5 +367,40 @@
         "stream": false
       }
     ]
+  },
+  "codex.open": {
+    "subtitle": "subtitles.fantasyweapons.codex.open",
+    "sounds": [
+      {
+        "name": "fantasyweapons:codex/open",
+        "stream": false
+      }
+    ]
+  },
+  "codex.page": {
+    "subtitle": "subtitles.fantasyweapons.codex.page",
+    "sounds": [
+      {
+        "name": "fantasyweapons:codex/page_1",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:codex/page_2",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:codex/page_3",
+        "stream": false
+      }
+    ]
+  },
+  "codex.close": {
+    "subtitle": "subtitles.fantasyweapons.codex.close",
+    "sounds": [
+      {
+        "name": "fantasyweapons:codex/close",
+        "stream": false
+      }
+    ]
   }
 }

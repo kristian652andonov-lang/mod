@@ -32,6 +32,10 @@ public final class ModItems {
     public static final DeferredItem<com.fantasyweapons.forge.LegendaryCraftingTableItem> LEGENDARY_CRAFTING_TABLE = REGISTER.register("legendary_crafting_table",
             () -> new com.fantasyweapons.forge.LegendaryCraftingTableItem(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), new Item.Properties().rarity(Rarity.EPIC)));
 
+    /** The guide every player is given on first joining. */
+    public static final DeferredItem<com.fantasyweapons.guide.WayfarersCodexItem> CODEX = REGISTER.register("wayfarers_codex",
+            () -> new com.fantasyweapons.guide.WayfarersCodexItem(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON)));
+
     static {
         // the Legendary Forge became the Legendary Crafting Table when it got its model
         REGISTER.addAlias(FantasyWeapons.id("legendary_forge"), FantasyWeapons.id("legendary_crafting_table"));

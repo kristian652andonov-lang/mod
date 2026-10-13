@@ -42,6 +42,15 @@ public interface SidedHooks {
     default void provideArmorRenderer(com.fantasyweapons.armor.FantasyArmorItem item, Consumer<Object> consumer) {
     }
 
+    /** The local player used a Wayfarer's Codex: it is lifted into view and opened (client only). */
+    default void openCodex(InteractionHand hand) {
+    }
+
+    /** Where the local player's Codex is in its reading (see {@link com.fantasyweapons.guide.WayfarersCodexItem}'s phases). */
+    default int codexPhase() {
+        return 0;
+    }
+
     /** The local player on a client (null on a dedicated server). */
     default net.minecraft.world.entity.player.Player clientPlayer() {
         return null;

@@ -24,6 +24,7 @@ public class FWItemModels extends ItemModelProvider {
 
     @Override
     protected void registerModels() {
+        codex();
         for (Material m : Material.values()) {
             // ores are held like blocks (and look like blocks in the inventory, without their floating fragments); the
             // gems a little larger and higher, like vanilla held items
@@ -41,6 +42,26 @@ public class FWItemModels extends ItemModelProvider {
                 geoItem(set.itemId(type), bounds, 15, 200, 9f, 2f);
             }
         }
+    }
+
+    /**
+     * The Wayfarer's Codex: shut everywhere (its shut pose holds the book 7 pixels off the spine, so the bounds are moved
+     * by that), held at the side in first person with its cover turned to the player; it is brought up before the eyes
+     * to be read by its renderer.
+     */
+    void codex() {
+        java.util.Set<String> shut = java.util.Set.of("book", "wayfarers_codex_codex", "wayfarers_codex_cover", "wayfarers_codex_spine",
+                "wayfarers_codex_clasp", "wayfarers_codex_ribbon");
+        GeoBounds b = GeoBounds.of("geo/item/wayfarers_codex.geo.json", shut::contains).shifted(7, 0, 0);
+        ItemModelBuilder model = getBuilder("wayfarers_codex").parent(new ModelFile.UncheckedModelFile("builtin/entity")).guiLight(BlockModel.GuiLight.SIDE);
+        var t = model.transforms();
+        float size = b.maxSize();
+        gui(t, b, 20, 200);
+        place(t, ItemDisplayContext.FIXED, b, 11f / size, 0, 180, 0, 0);
+        place(t, ItemDisplayContext.GROUND, b, 7f / size, 0, 0, 0, 1.5f);
+        place(t, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, b, 7f / size, 0, 90, -25, 2.5f);
+        place(t, ItemDisplayContext.FIRST_PERSON_RIGHT_HAND, b, 7.5f / size, 5, 160, 0, 2.5f);
+        place(t, ItemDisplayContext.HEAD, b, 10f / size, 0, 180, 0, 12f);
     }
 
     /**

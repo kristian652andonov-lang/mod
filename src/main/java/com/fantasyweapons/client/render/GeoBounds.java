@@ -89,6 +89,13 @@ public record GeoBounds(float minX, float minY, float minZ, float maxX, float ma
         return true;
     }
 
+    /** These bounds moved by (dx, dy, dz) pixels (where an animation holds the model off its origin). */
+    public GeoBounds shifted(float dx, float dy, float dz) {
+        List<float[]> moved = new ArrayList<>(corners.size());
+        for (float[] c : corners) moved.add(new float[]{c[0] + dx, c[1] + dy, c[2] + dz});
+        return new GeoBounds(minX + dx, minY + dy, minZ + dz, maxX + dx, maxY + dy, maxZ + dz, List.copyOf(moved));
+    }
+
     public float sizeX() {
         return maxX - minX;
     }

@@ -77,6 +77,10 @@ public final class ClientSetup {
         });
 
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.input.InputHandler::onInteractionKey);
+        // nothing of the HUD over the Codex while it is read
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiEvent.Pre e) -> {
+            if (com.fantasyweapons.client.guide.Codex.reading()) e.setCanceled(true);
+        });
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);
         NeoForge.EVENT_BUS.addListener(VfxManager::render);
@@ -139,6 +143,7 @@ public final class ClientSetup {
     private static void onClientTickPost(ClientTickEvent.Post event) {
         InputHandler.postTick();
         Minecraft mc = Minecraft.getInstance();
+        com.fantasyweapons.client.guide.Codex.tick(mc);
         if (mc.level == null || mc.isPaused()) return;
         VfxManager.tick();
         FxScheduler.tick();
@@ -167,6 +172,16 @@ public final class ClientSetup {
 
     /** Client implementation of the common → client bridge. */
     static final class Hooks implements SidedHooks {
+        @Override
+        public void openCodex(InteractionHand hand) {
+            com.fantasyweapons.client.guide.Codex.use(hand);
+        }
+
+        @Override
+        public int codexPhase() {
+            return com.fantasyweapons.client.guide.Codex.phase();
+        }
+
         @Override
         public void onWeaponSwing(LivingEntity entity, ItemStack stack, InteractionHand hand) {
             if (hand != InteractionHand.MAIN_HAND || !(stack.getItem() instanceof FantasyWeaponItem item)) return;
@@ -203,6 +218,8 @@ public final class ClientSetup {
                             renderer = com.fantasyweapons.client.render.machine.MachineRenderers.item("arcane_refinery");
                         } else if (item instanceof com.fantasyweapons.forge.LegendaryCraftingTableItem) {
                             renderer = com.fantasyweapons.client.render.machine.MachineRenderers.item("legendary_crafting_table");
+                        } else if (item instanceof com.fantasyweapons.guide.WayfarersCodexItem) {
+                            renderer = new com.fantasyweapons.client.guide.CodexRenderer();
                         }
                     }
                     return renderer;

@@ -23,6 +23,7 @@ public final class ModTabs {
             .icon(() -> new ItemStack(ModItems.REFINED.get(com.fantasyweapons.material.Material.VOID_CRYSTAL).get()))
             .withTabsBefore(WEAPONS.getId())
             .displayItems((params, output) -> {
+                output.accept(ModItems.CODEX.get());
                 output.accept(ModItems.ARCANE_REFINERY.get());
                 output.accept(ModItems.LEGENDARY_CRAFTING_TABLE.get());
                 for (var m : com.fantasyweapons.material.Material.values()) {
