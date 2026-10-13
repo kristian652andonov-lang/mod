@@ -33,7 +33,8 @@ import java.util.Map;
  * its pattern out on the grid as ghost items (red where something else lies in the way) and lists what it takes.
  */
 public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCraftingMenu> {
-    private static final int ARCANE = 0xB85CFF, GOLD = 0xFFD978;
+    /** The table's colours: gold on netherite. */
+    private static final int ARCANE = 0xF0B848, GOLD = 0xFFD978, LINE = 0xB08A3E;
     /** The recipe browser: its icon grid (columns x rows) and where it sits. */
     private static final int COLS = 9, ROWS = 3, LIST_X = LegendaryCraftingMenu.INV_X, LIST_Y = 37;
     /** The Forge button (under the result) and the Fill button's width. */
@@ -77,7 +78,7 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
         // the grid's anvil plate
         int gx = x + LegendaryCraftingMenu.GRID_X, gy = y + LegendaryCraftingMenu.GRID_Y;
         UiDraw.rect(g, gx - 5, gy - 5, gx + 9 * 18 + 3, gy + 9 * 18 + 3, Colors.alpha(0.45f, 0x000000));
-        UiDraw.border(g, gx - 6, gy - 6, gx + 9 * 18 + 4, gy + 9 * 18 + 4, 1, Colors.alpha(0.8f, 0x8A6A3A));
+        UiDraw.border(g, gx - 6, gy - 6, gx + 9 * 18 + 4, gy + 9 * 18 + 4, 1, Colors.alpha(0.8f, LINE));
         for (Slot s : menu.slots) {
             if (s.index == LegendaryCraftingMenu.RESULT || s.index == LegendaryCraftingMenu.OUTPUT) resultFrame(g, x + s.x, y + s.y, time);
             else slotFrame(g, x + s.x, y + s.y);
@@ -85,11 +86,9 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
         UiDraw.textCentered(g, "Forged", x + LegendaryCraftingMenu.OUTPUT_X + 8, y + LegendaryCraftingMenu.OUTPUT_Y - 15, Colors.alpha(1f, UiDraw.INK_MUTED), 0.65f, false);
         forgeButton(g, x, y, mouseX, mouseY);
         forgingStrip(g, x, y, time);
-        // the hammer stroke from the grid to the result
+        // an inked arrow from the grid to the result
         int ay = y + LegendaryCraftingMenu.RESULT_Y + 8, ax = gx + 9 * 18 + 6;
-        UiDraw.line(g, ax, ay, x + LegendaryCraftingMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, ARCANE), Colors.alpha(1f, GOLD));
-        UiDraw.line(g, x + LegendaryCraftingMenu.RESULT_X - 13, ay - 4, x + LegendaryCraftingMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, GOLD), Colors.alpha(1f, GOLD));
-        UiDraw.line(g, x + LegendaryCraftingMenu.RESULT_X - 13, ay + 4, x + LegendaryCraftingMenu.RESULT_X - 8, ay, 2f, Colors.alpha(1f, GOLD), Colors.alpha(1f, GOLD));
+        UiDraw.arrow(g, ax, ay - 5, x + LegendaryCraftingMenu.RESULT_X - 7 - ax, 10, Colors.alpha(1f, GOLD));
         renderBrowser(g, x, y, mouseX, mouseY, time);
     }
 
@@ -130,7 +129,7 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
         UiDraw.rect(g, sx, by, sx + w, by + 5, Colors.alpha(0.7f, 0x0B0705));
         UiDraw.rect(g, sx, by, sx + (int) (w * f), by + 5, Colors.alpha(0.95f, 0xC8902E));
         UiDraw.rect(g, sx, by, sx + (int) (w * f), by + 2, Colors.alpha(0.6f, 0xFFE7A0));
-        UiDraw.border(g, sx - 1, by - 1, sx + w + 1, by + 6, 1, Colors.alpha(0.9f, 0x8A6A3A));
+        UiDraw.border(g, sx - 1, by - 1, sx + w + 1, by + 6, 1, Colors.alpha(0.9f, LINE));
         if (!done) UiDraw.glow(g, sx + w * f, by + 2.5f, 10 + 2 * (float) Math.sin(time * 0.6f), Colors.alpha(0.7f, GOLD));
         String left = done ? "" : ForgeStages.remaining(progress, total);
         UiDraw.text(g, left, sx + w - font.width(left) * 0.6f, sy - 1, Colors.alpha(1f, UiDraw.INK_MUTED), 0.6f, false);
@@ -149,13 +148,13 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
 
     private static void slotFrame(GuiGraphics g, int x, int y) {
         UiDraw.rect(g, x - 1, y - 1, x + 17, y + 17, Colors.alpha(0.75f, 0x0B0705));
-        UiDraw.border(g, x - 2, y - 2, x + 18, y + 18, 1, Colors.alpha(0.85f, 0x8A6A3A));
+        UiDraw.border(g, x - 2, y - 2, x + 18, y + 18, 1, Colors.alpha(0.85f, LINE));
     }
 
     private static void resultFrame(GuiGraphics g, int x, int y, float time) {
         UiDraw.glow(g, x + 8, y + 8, 46 + 4 * (float) Math.sin(time * 0.15f), Colors.alpha(0.35f, ARCANE));
         UiDraw.rect(g, x - 5, y - 5, x + 21, y + 21, Colors.alpha(0.8f, 0x0B0705));
-        UiDraw.border(g, x - 6, y - 6, x + 22, y + 22, 1, Colors.alpha(0.9f, 0x8A6A3A));
+        UiDraw.border(g, x - 6, y - 6, x + 22, y + 22, 1, Colors.alpha(0.9f, LINE));
         UiDraw.glowBorder(g, x - 6, y - 6, x + 22, y + 22, ARCANE, 0.45f, 4);
     }
 
@@ -291,6 +290,16 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        // gold and netherite, like the table itself
+        UiDraw.style(UiDraw.NETHERITE, -1, 0xF2C46B, 0xFFE7A8, 0xB9AC92);
+        try {
+            renderThemed(g, mouseX, mouseY, partialTick);
+        } finally {
+            UiDraw.resetTheme();
+        }
+    }
+
+    private void renderThemed(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
         renderGhost(g, partialTick);
         renderTooltip(g, mouseX, mouseY);

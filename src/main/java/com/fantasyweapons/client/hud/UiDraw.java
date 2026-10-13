@@ -47,6 +47,12 @@ public final class UiDraw {
     private static final int BASE_INK_MUTED = 0xB49F7A, BASE_GOLD = 0xE8C26A, BASE_GOLD_LIGHT = 0xFFE7A8;
     /** While a weapon's theme is active: the tint of the metal (frames, sockets, dividers, buttons) and of the banner. */
     private static int metal = -1, ribbon = -1, leather = 0xFFFFFF;
+    /** The panels' body: tooled leather, unless a screen dresses itself otherwise (see {@link #style}). */
+    private static ResourceLocation body = LEATHER;
+    public static final ResourceLocation NETHERITE = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/netherite.png");
+    public static final ResourceLocation SLATE = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/slate.png");
+    /** A hand-inked arrow, white, to be tinted (smoothly scaled). */
+    public static final ResourceLocation ARROW = com.fantasyweapons.FantasyWeapons.id("textures/gui/fantasy/arrow.png");
     public static final int GOOD = 0x9CD67A;
     public static final int BAD = 0xE0705A;
     public static final int ARCANE = 0xC9A8F0;
@@ -69,8 +75,22 @@ public final class UiDraw {
         INK_MUTED = Colors.lerpRgb(BASE_INK_MUTED, light, 0.3f);
     }
 
+    /**
+     * Dresses the UI for one screen until {@link #resetTheme}: its panels' {@code bodyTexture}, the metal of its frames,
+     * sockets and buttons ({@code metalRgb}, or -1 for the gold ones), and its heading, light and label colours.
+     */
+    public static void style(ResourceLocation bodyTexture, int metalRgb, int gold, int goldLight, int inkMuted) {
+        body = bodyTexture;
+        leather = 0xFFFFFF;
+        metal = metalRgb;
+        GOLD = gold;
+        GOLD_LIGHT = goldLight;
+        INK_MUTED = inkMuted;
+    }
+
     /** Back to the plain gold-and-crimson tome. */
     public static void resetTheme() {
+        body = LEATHER;
         metal = -1;
         ribbon = -1;
         leather = 0xFFFFFF;
@@ -146,7 +166,7 @@ public final class UiDraw {
      */
     public static void panel(GuiGraphics g, float x, float y, float w, float h, int theme, float alpha) {
         if (alpha <= 0.01f) return;
-        tile(g, LEATHER, x + 1, y + 1, w - 2, h - 2, 48, Colors.alpha(0.97f * alpha, leather));
+        tile(g, body, x + 1, y + 1, w - 2, h - 2, body == LEATHER ? 48 : 64, Colors.alpha(0.97f * alpha, leather));
         hGradient(g, x + 1, y + 1, x + w * 0.6f, y + h - 1, Colors.alpha((metal < 0 ? 0.07f : 0.14f) * alpha, theme), Colors.alpha(0f, theme));
         float e = Math.min(14, Math.min(w, h) * 0.3f);
         vGradient(g, x + 1, y + 1, x + w - 1, y + e, Colors.alpha(0.45f * alpha, 0x000000), 0);
@@ -215,6 +235,11 @@ public final class UiDraw {
     /** A carved bronze button: state 0 normal, 1 hover, 2 disabled. */
     public static void button(GuiGraphics g, float x, float y, float w, float h, int state, float alpha) {
         nineSlice(g, metalTex(BUTTON, BUTTON_MONO), x, y, w, h, Math.min(5, h / 2f), 64, 72, 8, state * 24, 24, metalTint(Colors.alpha(alpha, 0xFFFFFF)));
+    }
+
+    /** The hand-inked arrow, pointing right, in a box {@code w} by {@code h}, in {@code argb}. */
+    public static void arrow(GuiGraphics g, float x, float y, float w, float h, int argb) {
+        texture(g, ARROW, x, y, w, h, argb);
     }
 
     /** A gold flourish divider centred on {@code cx}. */

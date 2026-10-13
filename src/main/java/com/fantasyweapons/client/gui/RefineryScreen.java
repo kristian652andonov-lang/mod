@@ -25,7 +25,8 @@ import java.util.List;
  * goes in, which fuels are fast, how hoppers feed it and what the refined materials are for.
  */
 public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
-    private static final int ARCANE = 0xB85CFF, FIRE = 0xFF6A1A, EMBER = 0xFFD27A, BLAZE = 0xFFE36A;
+    /** The refinery's colours: diamond and crystal on slate (its fire stays fire). */
+    private static final int ARCANE = 0x5FD8E8, FIRE = 0xFF6A1A, EMBER = 0xFFD27A, BLAZE = 0xFFE36A, LINE = 0x6F8E96, CRYSTAL = 0xD8FAFF;
     private static final int GUIDE_W = 152, GAP = 6;
 
     /** Item icons drawn in the guide this frame, for their tooltips. */
@@ -58,7 +59,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         UiDraw.panel(g, x, y, imageWidth, imageHeight, ARCANE, 1f);
         // the machine's bay
         UiDraw.rect(g, x + 12, y + 24, x + imageWidth - 12, y + 126, Colors.alpha(0.35f, 0x000000));
-        UiDraw.border(g, x + 12, y + 24, x + imageWidth - 12, y + 126, 1, Colors.alpha(0.5f, 0x8A6A3A));
+        UiDraw.border(g, x + 12, y + 24, x + imageWidth - 12, y + 126, 1, Colors.alpha(0.5f, LINE));
         UiDraw.divider(g, x + imageWidth / 2f, y + RefineryMenu.INV_Y - 18, imageWidth - 30, 0.8f);
         for (Slot s : menu.slots) {
             if (s.index < 3) machineSlot(g, x + s.x, y + s.y, s.index == 2);
@@ -69,7 +70,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         float burn = menu.burnFraction();
         int fireX = x + RefineryMenu.FUEL_X + 3, fireTop = y + RefineryMenu.INPUT_Y + 22, fireBottom = y + RefineryMenu.FUEL_Y - 5;
         UiDraw.rect(g, fireX, fireTop, fireX + 10, fireBottom, Colors.alpha(0.85f, 0x0E0804));
-        UiDraw.border(g, fireX - 1, fireTop - 1, fireX + 11, fireBottom + 1, 1, Colors.alpha(0.7f, 0x8A6A3A));
+        UiDraw.border(g, fireX - 1, fireTop - 1, fireX + 11, fireBottom + 1, 1, Colors.alpha(0.7f, LINE));
         if (burn > 0) {
             float h = (fireBottom - fireTop) * burn;
             int top = menu.fastFire() ? BLAZE : EMBER;
@@ -80,7 +81,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         // the molten channel from the crucible to the tray, and what it is making, large, above it
         float p = menu.progress();
         float bx = x + RefineryMenu.INPUT_X + 28, by = y + RefineryMenu.OUTPUT_Y + 5, bw = RefineryMenu.OUTPUT_X - RefineryMenu.INPUT_X - 40;
-        UiDraw.bar(g, bx, by, bw, 7, p, FIRE, ARCANE, 1f, p > 0 ? time / 20f : -1);
+        UiDraw.bar(g, bx, by, bw, 7, p, 0x3FA8C0, CRYSTAL, 1f, p > 0 ? time / 20f : -1);
         if (p > 0) UiDraw.glow(g, bx + bw * p, by + 3, 20, Colors.alpha(0.55f, ARCANE));
         ItemStack making = result();
         if (!making.isEmpty()) {
@@ -109,14 +110,14 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
     private static void machineSlot(GuiGraphics g, int x, int y, boolean tray) {
         int m = tray ? 5 : 3;
         UiDraw.rect(g, x - m, y - m, x + 16 + m, y + 16 + m, Colors.alpha(0.8f, 0x0B0705));
-        UiDraw.border(g, x - m - 1, y - m - 1, x + 17 + m, y + 17 + m, 1, Colors.alpha(0.9f, 0x8A6A3A));
+        UiDraw.border(g, x - m - 1, y - m - 1, x + 17 + m, y + 17 + m, 1, Colors.alpha(0.9f, LINE));
         UiDraw.glowBorder(g, x - m - 1, y - m - 1, x + 17 + m, y + 17 + m, ARCANE, tray ? 0.45f : 0.3f, 4);
     }
 
     /** A sunken slot: dark groove with a fine bronze edge. */
     private static void slotFrame(GuiGraphics g, int x, int y) {
         UiDraw.rect(g, x - 1, y - 1, x + 17, y + 17, Colors.alpha(0.75f, 0x0B0705));
-        UiDraw.border(g, x - 2, y - 2, x + 18, y + 18, 1, Colors.alpha(0.85f, 0x8A6A3A));
+        UiDraw.border(g, x - 2, y - 2, x + 18, y + 18, 1, Colors.alpha(0.85f, LINE));
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -184,9 +185,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
     }
 
     private static void arrow(GuiGraphics g, int x, int cy) {
-        UiDraw.line(g, x, cy, x + 14, cy, 1.5f, Colors.alpha(1f, ARCANE), Colors.alpha(1f, EMBER));
-        UiDraw.line(g, x + 10, cy - 3, x + 14, cy, 1.5f, Colors.alpha(1f, EMBER), Colors.alpha(1f, EMBER));
-        UiDraw.line(g, x + 10, cy + 3, x + 14, cy, 1.5f, Colors.alpha(1f, EMBER), Colors.alpha(1f, EMBER));
+        UiDraw.arrow(g, x - 1, cy - 4, 17, 7, Colors.alpha(1f, CRYSTAL));
     }
 
     private void icon(GuiGraphics g, ItemStack stack, int x, int y) {
@@ -222,6 +221,16 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        // stone and diamond, like the refinery itself
+        UiDraw.style(UiDraw.SLATE, 0xBDEFF5, 0x8FE6F0, 0xE2FBFF, 0xA3B3B8);
+        try {
+            renderThemed(g, mouseX, mouseY, partialTick);
+        } finally {
+            UiDraw.resetTheme();
+        }
+    }
+
+    private void renderThemed(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
         renderTooltip(g, mouseX, mouseY);
         for (Icon i : icons) {
