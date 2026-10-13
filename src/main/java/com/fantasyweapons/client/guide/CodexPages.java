@@ -20,7 +20,7 @@ import java.util.List;
 public final class CodexPages {
     /** A page's writing area in its part's model space (blocks): inside the glowing frame, and its surface (each page faces out of the book). */
     private static final float X0 = -12.46f / 16, X1 = -1.75f / 16, Y0 = -7.26f / 16, Y1 = 7.24f / 16;
-    // just over the stains the artist put on the paper (their tops 0.12 px out), under the gilded frame
+    // just over the paper (and the stains the artist put on it, laid aside while the book is read: CodexModel), under the gilded frame
     private static final float RIGHT_Z = -0.125f / 16, LEFT_Z = 0.125f / 16;
     /** A turning leaf's two faces: the page it lifts away (in front), and the page it lays down (behind). */
     private static final float LEAF_FRONT_Z = -0.21f / 16, LEAF_BACK_Z = -0.03f / 16;
@@ -125,7 +125,8 @@ public final class CodexPages {
         if (!placed) return null;
         for (int i = 0; i < 2; i++) {
             float x = mouse[i][0], y = mouse[i][1];
-            if (x < 0 || y < 0 || x > PageCanvas.W || y > PageCanvas.H) continue;
+            // (the right page's thumb tabs stand out past its edge)
+            if (x < 0 || y < 0 || x > PageCanvas.W + 16 || y > PageCanvas.H) continue;
             for (PageCanvas.Region r : i == 0 ? leftRegions : rightRegions) if (r.contains(x, y)) return r;
         }
         return null;

@@ -1,0 +1,195 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "aetherlance": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:aetherlance"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "bloomfall": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloomfall"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "doomcleaver": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:doomcleaver"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "eclipse_reaper": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipse_reaper"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "frostrend": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostrend"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "gravebite": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:gravebite"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "infernochain": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernochain"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "monolith": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:monolith"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "solaris": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:solaris"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "soulreaper": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:soulreaper"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "starforge": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:starforge"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "stormbreaker": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:stormbreaker"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "voidfang": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:voidfang"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge every legendary weapon",
+      "translate": "advancements.fantasyweapons.the_thirteen.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:monolith"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "The Thirteen",
+      "translate": "advancements.fantasyweapons.the_thirteen.title"
+    }
+  },
+  "requirements": [
+    [
+      "voidfang"
+    ],
+    [
+      "solaris"
+    ],
+    [
+      "frostrend"
+    ],
+    [
+      "doomcleaver"
+    ],
+    [
+      "stormbreaker"
+    ],
+    [
+      "gravebite"
+    ],
+    [
+      "soulreaper"
+    ],
+    [
+      "bloomfall"
+    ],
+    [
+      "eclipse_reaper"
+    ],
+    [
+      "starforge"
+    ],
+    [
+      "aetherlance"
+    ],
+    [
+      "monolith"
+    ],
+    [
+      "infernochain"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

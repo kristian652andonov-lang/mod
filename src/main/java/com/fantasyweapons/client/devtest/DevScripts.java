@@ -62,6 +62,8 @@ final class DevScripts {
                 else if (name.equals("forge")) forge(b);
                 else if (name.equals("codex")) codex(b);
                 else if (name.equals("codexall")) codexAll(b);
+                else if (name.equals("deeds")) deeds(b);
+                else if (name.equals("codexone")) codexOne(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -902,6 +904,50 @@ final class DevScripts {
         b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = new float[]{0, 56, 60}).wait(4).screenshot("codex_tooltip");
         b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = null).closeScreen().wait(4).screenshot("codex_closing").wait(20)
                 .screenshot("codex_closed");
+    }
+
+    /** One spread of the Codex (the path's first), for checking the pages quickly. */
+    private static void codexOne(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/give @s fantasyweapons:wayfarers_codex").wait(10).slot(0).hud(true)
+                .cmd("/tp @s 0 -60 0 0 0").wait(10).run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(110)
+                .run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("deeds"), false)).wait(16)
+                .screenshot("codexone").closeScreen().wait(20);
+    }
+
+    /** The deeds: a deed's, a feat's and a legend's toasts, their chat lines, the advancements tab and the Codex's Deeds pages. */
+    private static void deeds(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/advancement revoke @s from fantasyweapons:root").cmd("/clear @s")
+                .cmd("/give @s fantasyweapons:wayfarers_codex").wait(40).slot(0).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10);
+        b.cmd("/advancement grant @s only fantasyweapons:first_blood").wait(12).screenshot("deed_task").wait(30).screenshot("deed_task_settled");
+        b.wait(110).cmd("/advancement grant @s only fantasyweapons:weapon_voidfang").wait(12).screenshot("deed_goal").wait(30).screenshot("deed_goal_settled");
+        b.wait(130).cmd("/advancement grant @s only fantasyweapons:the_thirteen").wait(10).screenshot("deed_challenge").wait(30)
+                .screenshot("deed_challenge_settled").wait(40).screenshot("deed_challenge_late");
+        b.run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.ChatScreen(""))).wait(5).screenshot("deed_chat").closeScreen();
+        // more deeds done, for the tab and the Codex
+        for (String id : new String[]{"open_the_codex", "glimmer", "ore_solarite_crystal", "ore_void_crystal", "ore_infernite", "arcane_refinery",
+                "first_core", "legendary_table", "first_forging", "level_10", "first_ability"}) {
+            b.cmd("/advancement grant @s only fantasyweapons:" + id);
+        }
+        b.wait(20).run(mc -> {
+            var advancements = mc.getConnection().getAdvancements();
+            mc.setScreen(new net.minecraft.client.gui.screens.advancements.AdvancementsScreen(advancements));
+            var root = advancements.getTree().get(com.fantasyweapons.FantasyWeapons.id("root"));
+            if (root != null) advancements.setSelectedTab(root.holder(), true);
+        }).wait(10).screenshot("deed_tab").closeScreen().wait(260);
+        // the Codex: its tabs, and the Deeds chapter
+        b.run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(110).screenshot("deed_codex_contents");
+        b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("deeds"), false)).wait(16)
+                .screenshot("deed_codex_1");
+        for (int i = 1; i <= 3; i++) {
+            int n = i;
+            b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("deeds") + n, false))
+                    .wait(16).screenshot("deed_codex_" + (n + 1));
+        }
+        // a click on the Ores tab turns there
+        b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = new float[]{1, 118, 33}).wait(4).screenshot("deed_codex_tab_hover").run(mc -> {
+            mc.screen.mouseClicked(0, 0, 0);
+            com.fantasyweapons.client.guide.CodexPages.pinned = null;
+        }).wait(16).screenshot("deed_codex_tab_clicked").closeScreen().wait(30);
     }
 
     /** Every spread of the Codex in turn, for checking that each page's writing fits. */

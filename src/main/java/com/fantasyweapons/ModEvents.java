@@ -43,6 +43,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onPearl);
         bus.addListener(ModEvents::onChorus);
         bus.addListener(ModEvents::onCrafted);
+        bus.addListener(com.fantasyweapons.advancement.Deeds::onEarned);
         bus.addListener(com.fantasyweapons.guide.CodexGift::onLogin);
         bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
     }
@@ -70,6 +71,10 @@ public final class ModEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             AbilityService.tick(player);
             com.fantasyweapons.armor.ArmorEffects.tick(player);
+            if (player.tickCount % 20 == 0) {
+                com.fantasyweapons.armor.ArmorSet set = com.fantasyweapons.armor.FantasyArmorItem.fullSet(player);
+                if (set != null) com.fantasyweapons.advancement.ModTriggers.FULL_SET.get().trigger(player, set.id());
+            }
         }
     }
 
@@ -139,6 +144,7 @@ public final class ModEvents {
         for (int i = 0; i < grid.getContainerSize(); i++) {
             var input = grid.getItem(i);
             if (input.getItem() == item) {
+                com.fantasyweapons.advancement.ModTriggers.INFUSED.get().trigger(player, item.definition().id());
                 ExpService.announceLevelUp(player, item.definition(), FantasyWeaponItem.data(input), FantasyWeaponItem.data(event.getCrafting()));
                 return;
             }

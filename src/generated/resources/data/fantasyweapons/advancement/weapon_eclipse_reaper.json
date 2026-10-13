@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipse_reaper"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Eclipse Reaper",
+      "translate": "advancements.fantasyweapons.weapon_eclipse_reaper.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:eclipse_reaper"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#E8D9A8",
+      "fallback": "Light and Shadow",
+      "translate": "advancements.fantasyweapons.weapon_eclipse_reaper.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

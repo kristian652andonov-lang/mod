@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:monolith"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Monolith",
+      "translate": "advancements.fantasyweapons.weapon_monolith.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:monolith"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FFAE3A",
+      "fallback": "The Unmoving Stone",
+      "translate": "advancements.fantasyweapons.weapon_monolith.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -463,5 +463,32 @@
         "stream": false
       }
     ]
+  },
+  "deed.task": {
+    "subtitle": "subtitles.fantasyweapons.deed.task",
+    "sounds": [
+      {
+        "name": "fantasyweapons:deed/task",
+        "stream": false
+      }
+    ]
+  },
+  "deed.goal": {
+    "subtitle": "subtitles.fantasyweapons.deed.goal",
+    "sounds": [
+      {
+        "name": "fantasyweapons:deed/goal",
+        "stream": false
+      }
+    ]
+  },
+  "deed.challenge": {
+    "subtitle": "subtitles.fantasyweapons.deed.challenge",
+    "sounds": [
+      {
+        "name": "fantasyweapons:deed/challenge",
+        "stream": false
+      }
+    ]
   }
 }

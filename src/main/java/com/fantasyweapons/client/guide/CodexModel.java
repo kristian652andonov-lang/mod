@@ -25,6 +25,9 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
     static final String ROOT = "book", RIGHT_PAGE = "wayfarers_codex_codex", LEFT_PAGE = "wayfarers_codex_cover", LEAF = "wayfarers_codex_leaf_0";
 
     private BakedGeoModel flattened;
+    /** The small stains the artist dabbed on the paper's writing area (they would show through the words), by page. */
+    private final java.util.Map<GeoBone, List<software.bernie.geckolib.cache.object.GeoCube>> stains = new java.util.HashMap<>();
+    private boolean stainsAway;
 
     public CodexModel() {
         super(FantasyWeapons.id("wayfarers_codex"));
@@ -35,6 +38,7 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
         BakedGeoModel model = super.getBakedModel(location);
         if (model != flattened) {
             flatten(model);
+            findStains(model);
             flattened = model;
         }
         return model;
@@ -52,6 +56,43 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
         }
     }
 
+    /** The pages' stains: their small, thin cubes lying over the writing area (see {@link CodexPages}). */
+    private void findStains(BakedGeoModel model) {
+        stains.clear();
+        stainsAway = false;
+        for (String page : new String[]{RIGHT_PAGE, LEFT_PAGE}) {
+            GeoBone bone = model.getBone(page).orElse(null);
+            if (bone == null) continue;
+            List<software.bernie.geckolib.cache.object.GeoCube> found = new ArrayList<>();
+            for (var cube : bone.getCubes()) {
+                if (cube.size().x * cube.size().y > 2 || cube.size().z > 0.3) continue;
+                float x0 = Float.MAX_VALUE, x1 = -Float.MAX_VALUE, y0 = Float.MAX_VALUE, y1 = -Float.MAX_VALUE, z = 0;
+                for (var quad : cube.quads()) {
+                    if (quad == null) continue;
+                    for (var v : quad.vertices()) {
+                        x0 = Math.min(x0, v.position().x);
+                        x1 = Math.max(x1, v.position().x);
+                        y0 = Math.min(y0, v.position().y);
+                        y1 = Math.max(y1, v.position().y);
+                        z = Math.max(z, Math.abs(v.position().z));
+                    }
+                }
+                if (z < 0.13f / 16 && x1 > -12.46f / 16 && x0 < -1.75f / 16 && y1 > -7.26f / 16 && y0 < 7.24f / 16) found.add(cube);
+            }
+            if (!found.isEmpty()) stains.put(bone, found);
+        }
+    }
+
+    /** Lays the stains aside while the book is read, and back when it is shut (the model's files are not touched). */
+    private void stainsAway(boolean away) {
+        if (away == stainsAway) return;
+        stainsAway = away;
+        stains.forEach((bone, cubes) -> {
+            if (away) bone.getCubes().removeAll(cubes);
+            else for (var cube : cubes) if (!bone.getCubes().contains(cube)) bone.getCubes().add(cube);
+        });
+    }
+
     private static void collect(GeoBone bone, List<GeoBone> into) {
         into.add(bone);
         for (GeoBone child : bone.getChildBones()) collect(child, into);
@@ -65,6 +106,8 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
             GeoBone mote = getAnimationProcessor().getBone("wayfarers_codex_mote_" + i);
             if (mote != null) mote.setHidden(Codex.reading());
         }
+        // and the stains would show through the words
+        stainsAway(Codex.reading());
         float t = Codex.flipProgress();
         GeoBone right = getAnimationProcessor().getBone(RIGHT_PAGE), left = getAnimationProcessor().getBone(LEFT_PAGE),
                 leaf = getAnimationProcessor().getBone(LEAF);

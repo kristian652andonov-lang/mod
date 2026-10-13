@@ -1,0 +1,195 @@
+{
+  "parent": "fantasyweapons:first_core",
+  "criteria": {
+    "aetherite_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:aetherite_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "astralite_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:astralite_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "bloodstone_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloodstone_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "eclipse_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipse_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "frostheart_crystal": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostheart_crystal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "infernite_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernite_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "necrostone_heart": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:necrostone_heart"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "solarite_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:solarite_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "soulshard_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:soulshard_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "thundercryst_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:thundercryst_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "titanstone_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:titanstone_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "verdant_heart": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:verdant_heart"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "void_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:void_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Refine every one of the thirteen cores",
+      "translate": "advancements.fantasyweapons.every_core.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:astralite_core"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Master Alchemist",
+      "translate": "advancements.fantasyweapons.every_core.title"
+    }
+  },
+  "requirements": [
+    [
+      "void_core"
+    ],
+    [
+      "solarite_core"
+    ],
+    [
+      "frostheart_crystal"
+    ],
+    [
+      "bloodstone_core"
+    ],
+    [
+      "thundercryst_core"
+    ],
+    [
+      "necrostone_heart"
+    ],
+    [
+      "soulshard_core"
+    ],
+    [
+      "verdant_heart"
+    ],
+    [
+      "eclipse_core"
+    ],
+    [
+      "astralite_core"
+    ],
+    [
+      "aetherite_core"
+    ],
+    [
+      "titanstone_core"
+    ],
+    [
+      "infernite_core"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

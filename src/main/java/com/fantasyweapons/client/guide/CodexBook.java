@@ -85,7 +85,46 @@ public final class CodexBook {
         } else {
             if (spread < spreads() - 1) c.link("\u00BB", far - 5, y - 0.4f, 0.9f, Codex::next);
             if (Codex.canGoBack()) c.link("Back", outer, y + 0.6f, s, Codex::goBack);
+            tabs(c, i);
         }
+    }
+
+    /** The chapters' thumb tabs, standing out of the right page's edge: the open chapter's furthest; click one to turn there. */
+    private void tabs(PageCanvas c, int page) {
+        String here = page < chapter.size() ? chapter.get(page) : "";
+        float h = 15.5f, y = 9;
+        for (Tab tab : TABS) {
+            Integer at = anchors.get(tab.anchor());
+            if (at == null) continue;
+            boolean open = at < chapter.size() && chapter.get(at).equals(here) && !here.isEmpty();
+            float x0 = PageCanvas.W + 1.5f, x1 = PageCanvas.W + (open ? 15 : 11.5f);
+            c.region(x0, y, x1, y + h, List.of(Component.literal(tab.name())), go(tab.anchor()));
+            boolean hover = c.hovered(x0, y, x1, y + h);
+            int body = hover || open ? 0xFF000000 | tab.color() : 0xFF000000 | deepen(tab.color(), 0.8f);
+            c.fill(x0, y, x1, y + h, 0xFF2A1A0C);
+            c.fill(x0, y + 0.6f, x1 - 0.6f, y + h - 0.6f, body);
+            c.fill(x0, y + 0.6f, x1 - 0.6f, y + 1.6f, 0x55FFFFFF);
+            c.item(tab.icon().get(), x1 - 10.4f, y + 3.5f, 8.5f);
+            y += h + 1.2f;
+        }
+    }
+
+    private record Tab(String anchor, String name, int color, java.util.function.Supplier<ItemStack> icon) {
+    }
+
+    private static final Tab[] TABS = {
+            new Tab("path", "The Path of Legends", 0x9A2A1E, () -> new ItemStack(ModItems.CODEX.get())),
+            new Tab("ores", "Legendary Ores", 0x8A6A3A, () -> new ItemStack(ModItems.RAW.get(Material.SOLARITE).get())),
+            new Tab("refinery", "The Arcane Refinery", 0x2F7F8C, () -> new ItemStack(ModItems.ARCANE_REFINERY.get())),
+            new Tab("table", "The Legendary Crafting Table", 0xB08A2E, () -> new ItemStack(ModItems.LEGENDARY_CRAFTING_TABLE.get())),
+            new Tab("weapons", "The Thirteen Weapons", 0x5E3A8C, () -> new ItemStack(ModItems.WEAPONS.get("voidfang").get())),
+            new Tab("armor", "Armor of Legend", 0x5A6470, () -> new ItemStack(ModItems.ARMOR.get(ArmorSet.SOLARIS).get(ArmorItem.Type.CHESTPLATE).get())),
+            new Tab("mastery", "Mastery", 0x3C7A3A, () -> new ItemStack(Items.EXPERIENCE_BOTTLE)),
+            new Tab("deeds", "Deeds", 0x7A3FA8, () -> new ItemStack(Items.NETHER_STAR))};
+
+    private static int deepen(int rgb, float k) {
+        int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
+        return ((int) (r * k) << 16) | ((int) (g * k) << 8) | (int) (b * k);
     }
 
     // ---- building ----
@@ -545,49 +584,152 @@ public final class CodexBook {
         c.y += 9;
     }
 
+    /** The Deeds tab's sections, in the order of the road, and the order of the deeds within them. */
+    private static final String[] SECTIONS = {"The Road", "Ores", "Refining", "The Table", "Weapons", "Mastery", "Armor", "Other"};
+    private static final List<String> ORDER = new ArrayList<>();
+
+    static {
+        ORDER.addAll(List.of("root", "open_the_codex", "glimmer"));
+        for (Material m : Material.values()) ORDER.add("ore_" + m.rawId());
+        ORDER.addAll(List.of("every_ore", "arcane_refinery", "first_core", "every_core", "legendary_table", "first_forging", "legend_reborn"));
+        for (WeaponDefinition def : Weapons.all()) ORDER.add("weapon_" + def.id());
+        ORDER.addAll(List.of("the_thirteen", "first_blood", "centurion", "thousand_souls", "giant_slayer", "level_10", "level_30", "level_50",
+                "level_100", "first_ability", "ultimate", "infused", "legendary_armor", "full_set", "every_set"));
+    }
+
+    private static int section(String id) {
+        if (id.equals("root") || id.equals("open_the_codex")) return 0;
+        if (id.equals("glimmer") || id.startsWith("ore_") || id.equals("every_ore")) return 1;
+        if (id.equals("arcane_refinery") || id.endsWith("_core")) return 2;
+        if (id.equals("legendary_table") || id.equals("first_forging")) return 3;
+        if (id.equals("legend_reborn") || id.startsWith("weapon_") || id.equals("the_thirteen")) return 4;
+        if (id.equals("legendary_armor") || id.endsWith("_set")) return 6;
+        return ORDER.contains(id) ? 5 : 7;
+    }
+
     private void deeds() {
         chapter("Deeds", "deeds");
-        List<AdvancementNode> deeds = new ArrayList<>();
+        List<AdvancementHolder> deeds = new ArrayList<>();
         if (mc.getConnection() != null) {
             for (AdvancementNode node : mc.getConnection().getAdvancements().getTree().nodes()) {
-                if (node.holder().id().getNamespace().equals(FantasyWeapons.MOD_ID) && node.holder().value().display().isPresent()) deeds.add(node);
+                if (com.fantasyweapons.advancement.Deeds.ours(node.holder()) && node.holder().value().display().isPresent()) deeds.add(node.holder());
             }
         }
-        int perPage = 8;
-        if (deeds.isEmpty()) {
-            page(c -> {
-                c.y = PageCanvas.TOP;
-                c.heading("Deeds");
+        deeds.sort(java.util.Comparator.comparingInt((AdvancementHolder a) -> section(a.id().getPath()))
+                .thenComparingInt(a -> ORDER.indexOf(a.id().getPath()) < 0 ? Integer.MAX_VALUE : ORDER.indexOf(a.id().getPath()))
+                .thenComparing(a -> a.id().getPath()));
+        // the opening page: how far along the road the reader is, by rank
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("Deeds");
+            if (deeds.isEmpty()) {
                 c.para("Your deeds will be written here as you do them: the ores you find, the arms you forge, the foes you fell.", PageCanvas.INK, 0.56f);
-            });
-            return;
+                return;
+            }
+            int done = 0;
+            for (AdvancementHolder d : deeds) if (done(d)) done++;
+            // (only the deeds in sight are known: each comes into view as the one before it is done)
+            c.centered(done + " of " + deeds.size() + " done", c.y, PageCanvas.INK, 0.62f);
+            c.y += 6.5f;
+            c.centered("more come to light as you go", c.y, PageCanvas.FADED, 0.42f);
+            c.y += 6;
+            float x0 = PageCanvas.MARGIN + 8, x1 = PageCanvas.W - PageCanvas.MARGIN - 8;
+            c.fill(x0, c.y, x1, c.y + 3.5f, 0x33000000);
+            c.fill(x0, c.y, x0 + (x1 - x0) * done / deeds.size(), c.y + 3.5f, PageCanvas.GOLD);
+            c.frame(x0 - 0.5f, c.y - 0.5f, x1 + 0.5f, c.y + 4, 0.5f, 0x883A2614);
+            c.y += 10;
+            for (net.minecraft.advancements.AdvancementType type : new net.minecraft.advancements.AdvancementType[]{
+                    net.minecraft.advancements.AdvancementType.TASK, net.minecraft.advancements.AdvancementType.GOAL,
+                    net.minecraft.advancements.AdvancementType.CHALLENGE}) {
+                int all = 0, got = 0;
+                for (AdvancementHolder d : deeds) {
+                    if (d.value().display().orElseThrow().getType() != type) continue;
+                    all++;
+                    if (done(d)) got++;
+                }
+                int color = deep(com.fantasyweapons.advancement.Deeds.color(type));
+                String rank = com.fantasyweapons.advancement.Deeds.rank(type) + "s";
+                c.text(com.fantasyweapons.advancement.Deeds.mark(type).getVisualOrderText(), PageCanvas.MARGIN + 8, c.y - 0.6f, 0xFFFFFFFF, 0.75f);
+                c.text(rank, PageCanvas.MARGIN + 17, c.y, color, 0.6f);
+                String n = got + " / " + all;
+                c.text(n, PageCanvas.W - PageCanvas.MARGIN - 10 - c.width(n, 0.6f), c.y, PageCanvas.INK, 0.6f);
+                c.y += 8.5f;
+            }
+            c.y += 3;
+            c.para("Deeds mark the road, feats its trials and legends its hardest tests. Do one and the whole world hears of it.",
+                    PageCanvas.FADED, 0.5f);
+        });
+        // then every deed, section by section
+        List<Object> rows = new ArrayList<>();
+        int last = -1;
+        for (AdvancementHolder d : deeds) {
+            int sec = section(d.id().getPath());
+            if (sec != last) rows.add(SECTIONS[sec]);
+            last = sec;
+            rows.add(d);
         }
-        for (int i = 0; i < deeds.size(); i += perPage) {
-            List<AdvancementNode> on = deeds.subList(i, Math.min(deeds.size(), i + perPage));
-            boolean first = i == 0;
-            page(c -> {
-                c.y = PageCanvas.TOP;
-                c.heading(first ? "Deeds" : "Deeds (cont.)");
-                for (AdvancementNode node : on) deed(c, node.holder());
-            });
+        float room = PageCanvas.BOTTOM - PageCanvas.TOP - 4;
+        List<Object> on = new ArrayList<>();
+        float used = 0;
+        for (Object row : rows) {
+            float h = row instanceof String ? 10 : deedHeight((AdvancementHolder) row);
+            // a section's name never ends a page
+            boolean header = row instanceof String;
+            if (!on.isEmpty() && used + h + (header ? 16 : 0) > room) {
+                deedPage(new ArrayList<>(on));
+                on.clear();
+                used = 0;
+            }
+            on.add(row);
+            used += h;
         }
+        if (!on.isEmpty()) deedPage(on);
+    }
+
+    private void deedPage(List<Object> rows) {
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            for (Object row : rows) {
+                if (row instanceof String name) {
+                    c.text(name.toUpperCase(Locale.ROOT), PageCanvas.MARGIN, c.y + 1, PageCanvas.RED, 0.5f);
+                    c.fill(PageCanvas.MARGIN + c.width(name.toUpperCase(Locale.ROOT), 0.5f) + 3, c.y + 3.2f, PageCanvas.W - PageCanvas.MARGIN, c.y + 3.7f, PageCanvas.RULE);
+                    c.y += 10;
+                } else {
+                    deed(c, (AdvancementHolder) row);
+                }
+            }
+        });
+    }
+
+    private static final float DEED_DESC = 0.42f;
+
+    private float deedHeight(AdvancementHolder holder) {
+        var display = holder.value().display().orElseThrow();
+        int lines = mc.font.split(display.getDescription(), (int) ((PageCanvas.W - 2 * PageCanvas.MARGIN - 15) / DEED_DESC)).size();
+        return Math.max(6.5f + lines * 9 * DEED_DESC, 12) + 3;
     }
 
     private void deed(PageCanvas c, AdvancementHolder holder) {
         var display = holder.value().display().orElseThrow();
         boolean done = done(holder);
         float top = c.y;
+        int titleColor = display.getTitle().getStyle().getColor() == null ? PageCanvas.INK : deep(display.getTitle().getStyle().getColor().getValue());
+        int rankColor = deep(com.fantasyweapons.advancement.Deeds.color(display.getType()));
+        // a gold seal behind what is done
+        if (done) c.fill(PageCanvas.MARGIN - 1, top - 1, PageCanvas.MARGIN + 13, top + 13, 0x449A6A12);
         c.item(display.getIcon(), PageCanvas.MARGIN, top, 12);
-        c.text(display.getTitle().getString(), PageCanvas.MARGIN + 15, top, done ? PageCanvas.GOLD : PageCanvas.FADED, 0.56f);
-        if (done) c.text("✔", PageCanvas.W - PageCanvas.MARGIN - 5, top, 0xFF2E7D32, 0.7f);
+        String rank = com.fantasyweapons.advancement.Deeds.rank(display.getType()).toUpperCase(Locale.ROOT);
+        float rx = PageCanvas.W - PageCanvas.MARGIN - c.width(rank, 0.36f);
+        c.text(display.getTitle().getString(), PageCanvas.MARGIN + 15, top, done ? titleColor : (titleColor & 0x00FFFFFF) | 0x99000000, 0.54f);
+        c.text(rank, rx, top + 0.8f, (rankColor & 0x00FFFFFF) | (done ? 0xFF000000 : 0x99000000), 0.36f);
+        if (done) c.text("\u2714", rx - 6, top - 0.3f, 0xFF2E7D32, 0.55f);
+        else c.text(com.fantasyweapons.advancement.Deeds.mark(display.getType()).getVisualOrderText(), rx - 5.5f, top - 0.2f, 0xFFFFFFFF, 0.5f);
         c.y = top + 6.5f;
-        String desc = display.getDescription().getString();
-        float s = 0.45f;
-        for (var line : Minecraft.getInstance().font.split(Component.literal(desc), (int) ((c.inner() - 15) / s))) {
-            c.text(line, PageCanvas.MARGIN + 15, c.y, PageCanvas.INK, s);
-            c.y += 9 * s;
+        for (var line : mc.font.split(display.getDescription(), (int) ((c.inner() - 15) / DEED_DESC))) {
+            c.text(line, PageCanvas.MARGIN + 15, c.y, done ? PageCanvas.INK : PageCanvas.FADED, DEED_DESC);
+            c.y += 9 * DEED_DESC;
         }
-        c.y = Math.max(c.y, top + 13) + 3;
+        c.y = Math.max(c.y, top + 12) + 3;
     }
 
     /** Whether the reader has made an advancement (the client's progress map is private; NeoForge runs on Mojang's names). */

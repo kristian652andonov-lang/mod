@@ -210,5 +210,8 @@
   "attribute.name.fantasyweapons.slam_damage": "Ground-Slam Damage",
   "attribute.name.fantasyweapons.fire_resistance": "Fire Resistance",
   "attribute.name.fantasyweapons.chain_reach": "Chain Reach",
-  "attribute.name.fantasyweapons.burn_on_dash": "Burn on Dash"
+  "attribute.name.fantasyweapons.burn_on_dash": "Burn on Dash",
+  "subtitles.fantasyweapons.deed.task": "Deed earned",
+  "subtitles.fantasyweapons.deed.goal": "Feat accomplished",
+  "subtitles.fantasyweapons.deed.challenge": "Legend forged"
 }

@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:level_10",
+  "criteria": {
+    "level": {
+      "conditions": {
+        "level": 30
+      },
+      "trigger": "fantasyweapons:weapon_milestone"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Raise a legendary weapon to level 30",
+      "translate": "advancements.fantasyweapons.level_30.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:enchanted_book"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#6FD8F0",
+      "fallback": "Seasoned",
+      "translate": "advancements.fantasyweapons.level_30.title"
+    }
+  },
+  "requirements": [
+    [
+      "level"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

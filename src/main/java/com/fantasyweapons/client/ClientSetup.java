@@ -267,5 +267,10 @@ public final class ClientSetup {
         public void handleProgression(ProgressionEventPayload payload) {
             Notifications.handle(payload);
         }
+
+        @Override
+        public void handleDeed(com.fantasyweapons.network.DeedPayload payload) {
+            Minecraft.getInstance().getToasts().addToast(new com.fantasyweapons.client.hud.DeedToast(payload));
+        }
     }
 }

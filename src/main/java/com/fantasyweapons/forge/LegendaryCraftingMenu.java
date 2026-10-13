@@ -206,14 +206,14 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
     public boolean clickMenuButton(Player player, int id) {
         if (table == null || table.getLevel() == null) return false;
         Level level = table.getLevel();
-        if (id == FORGE_BUTTON) return forge(level);
+        if (id == FORGE_BUTTON) return forge(level, player);
         var all = ForgeRecipe.ordered(level);
         if (id >= FILL && id < FILL + all.size()) return fill(player, all.get(id - FILL).value());
         return false;
     }
 
     /** Starts forging what the grid holds, if it is a legendary recipe and the table is free. */
-    private boolean forge(Level level) {
+    private boolean forge(Level level, Player player) {
         if (table == null || table.busy()) return false;
         CraftingInput.Positioned positioned = positioned();
         var recipe = recipeFor(level, positioned.input());
@@ -221,6 +221,10 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
         ItemStack made = forgeRecipe.assemble(positioned.input(), level.registryAccess());
         List<ItemStack> took = takeFromGrid(level, positioned);
         table.start(recipe.get().id(), made, forgeRecipe.time(), took);
+        if (player instanceof net.minecraft.server.level.ServerPlayer server) {
+            com.fantasyweapons.advancement.ModTriggers.FORGE_STARTED.get().trigger(server,
+                    net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(made.getItem()).getPath());
+        }
         slotsChanged(grid);
         return true;
     }

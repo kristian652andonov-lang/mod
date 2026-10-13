@@ -36,6 +36,7 @@ public final class FantasyWeapons {
         com.fantasyweapons.registry.ModBlocks.REGISTER.register(modBus);
         com.fantasyweapons.registry.ModBlockEntities.REGISTER.register(modBus);
         ModItems.REGISTER.register(modBus);
+        com.fantasyweapons.advancement.ModTriggers.REGISTER.register(modBus);
         com.fantasyweapons.registry.ModMenus.REGISTER.register(modBus);
         com.fantasyweapons.registry.ModRecipes.TYPES.register(modBus);
         com.fantasyweapons.registry.ModRecipes.SERIALIZERS.register(modBus);

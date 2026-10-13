@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:soulshard"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Soulshard in the soul sand valleys",
+      "translate": "advancements.fantasyweapons.ore_soulshard.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:soulshard"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#5DE0FF",
+      "fallback": "Splinter of a Soul",
+      "translate": "advancements.fantasyweapons.ore_soulshard.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

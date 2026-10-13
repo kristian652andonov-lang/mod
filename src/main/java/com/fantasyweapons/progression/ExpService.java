@@ -130,6 +130,7 @@ public final class ExpService {
 
         WeaponData nd = d.withProgress(level, exp, total, points).withKills(kills, bossKills, points);
         stack.set(ModComponents.WEAPON_DATA.get(), nd);
+        com.fantasyweapons.advancement.ModTriggers.WEAPON_MILESTONE.get().trigger(player, def.id(), level, kills, bossKills);
 
         if (amount > 0) {
             PacketDistributor.sendToPlayer(player, new ProgressionEventPayload(ProgressionEventPayload.Kind.EXP, def.id(),
@@ -142,6 +143,7 @@ public final class ExpService {
     public static void announceLevelUp(ServerPlayer player, WeaponDefinition def, WeaponData before, WeaponData after) {
         int oldLevel = before.level(), level = after.level();
         if (level <= oldLevel) return;
+        com.fantasyweapons.advancement.ModTriggers.WEAPON_MILESTONE.get().trigger(player, def.id(), level, after.kills(), after.bossKills());
         float oldDamage = ProgressionMath.weaponDamage(def, before);
         float newDamage = ProgressionMath.weaponDamage(def, after);
         List<String> unlocked = new ArrayList<>();

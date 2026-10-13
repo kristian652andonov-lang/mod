@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:first_blood",
+  "criteria": {
+    "boss": {
+      "conditions": {
+        "boss_kills": 1
+      },
+      "trigger": "fantasyweapons:weapon_milestone"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Fell a boss with a legendary weapon",
+      "translate": "advancements.fantasyweapons.giant_slayer.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:dragon_head"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "Giant Slayer",
+      "translate": "advancements.fantasyweapons.giant_slayer.title"
+    }
+  },
+  "requirements": [
+    [
+      "boss"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

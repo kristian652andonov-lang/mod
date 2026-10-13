@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:first_core",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:legendary_crafting_table"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Build the Legendary Crafting Table from the spoils of raids, the Wither, the Dragon and the trial chambers",
+      "translate": "advancements.fantasyweapons.legendary_table.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:legendary_crafting_table"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "A Table of Trophies",
+      "translate": "advancements.fantasyweapons.legendary_table.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

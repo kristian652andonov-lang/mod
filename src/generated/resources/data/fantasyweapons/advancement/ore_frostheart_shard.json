@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostheart_shard"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Frostheart in the frozen peaks",
+      "translate": "advancements.fantasyweapons.ore_frostheart_shard.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:frostheart_shard"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#7FE8FF",
+      "fallback": "Ice in the Veins",
+      "translate": "advancements.fantasyweapons.ore_frostheart_shard.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

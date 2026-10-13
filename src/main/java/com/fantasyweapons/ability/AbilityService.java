@@ -295,6 +295,8 @@ public final class AbilityService {
             rt.setCooldown(data.idOrNil(), ability.id(), now,
                     com.fantasyweapons.armor.ArmorEffects.cooldown(player, ProgressionMath.cooldownTicks(ability, level, mastery)));
             com.fantasyweapons.armor.ArmorEffects.onAbilityCast(player, def, ability);
+            com.fantasyweapons.advancement.ModTriggers.ABILITY_CAST.get().trigger(player,
+                    ability.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE ? "ultimate" : "active");
             WeaponAnimations.trigger(player, stack, FantasyWeaponItem.castTrigger(ability, def.form(data)));
         } else {
             rt.setCooldown(data.idOrNil(), ability.id(), now, ServerConfig.FIZZLE_COOLDOWN_TICKS.getOrDefault());

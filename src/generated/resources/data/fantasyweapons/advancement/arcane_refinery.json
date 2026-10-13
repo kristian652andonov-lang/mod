@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:arcane_refinery"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Build an Arcane Refinery",
+      "translate": "advancements.fantasyweapons.arcane_refinery.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:arcane_refinery"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#6FD8F0",
+      "fallback": "Arcane Engineering",
+      "translate": "advancements.fantasyweapons.arcane_refinery.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

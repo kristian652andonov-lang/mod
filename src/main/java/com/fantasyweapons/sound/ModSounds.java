@@ -71,6 +71,11 @@ public final class ModSounds {
     private ModSounds() {
     }
 
+    /** Earning one of the mod's deeds (advancements): a deed's bells, a feat's arpeggio, a legend's fanfare. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> DEED_TASK = reg("deed.task");
+    public static final DeferredHolder<SoundEvent, SoundEvent> DEED_GOAL = reg("deed.goal");
+    public static final DeferredHolder<SoundEvent, SoundEvent> DEED_CHALLENGE = reg("deed.challenge");
+
     // the Wayfarer's Codex: unbuckled and opened, a page turned, shut again
     public static final DeferredHolder<SoundEvent, SoundEvent> CODEX_OPEN = reg("codex.open");
     public static final DeferredHolder<SoundEvent, SoundEvent> CODEX_PAGE = reg("codex.page");

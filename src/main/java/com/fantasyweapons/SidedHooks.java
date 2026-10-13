@@ -67,4 +67,8 @@ public interface SidedHooks {
     /** A progression notification arrived from the server. */
     default void handleProgression(ProgressionEventPayload payload) {
     }
+
+    /** The player earned one of the mod's deeds (advancements): its toast and fanfare. */
+    default void handleDeed(com.fantasyweapons.network.DeedPayload payload) {
+    }
 }

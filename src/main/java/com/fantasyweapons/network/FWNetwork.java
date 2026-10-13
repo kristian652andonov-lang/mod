@@ -30,5 +30,7 @@ public final class FWNetwork {
                 ctx.enqueueWork(() -> SidedHooks.get().handleFx(p)));
         r.playToClient(ProgressionEventPayload.TYPE, ProgressionEventPayload.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> SidedHooks.get().handleProgression(p)));
+        r.playToClient(DeedPayload.TYPE, DeedPayload.CODEC, (p, ctx) ->
+                ctx.enqueueWork(() -> SidedHooks.get().handleDeed(p)));
     }
 }
