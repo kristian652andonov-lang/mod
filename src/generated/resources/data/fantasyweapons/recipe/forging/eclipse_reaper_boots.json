@@ -13,10 +13,9 @@
     }
   },
   "pattern": [
-    "  A   B  ",
     "  R   R  ",
-    " AR   RB ",
-    " AA   BB "
+    " RR   RR ",
+    " AR   RB "
   ],
   "result": {
     "count": 1,

@@ -80,85 +80,88 @@ final class ForgeRecipes {
         ARMOR.put(ArmorSet.INFERNOCHAIN, new ItemLike[]{Items.NETHER_BRICK});  // demonic plate, crimson panels
     }
 
-    /** The weapon shapes, by class (9x9; R refined, C catalyst, A accent, H handle, B second accent). */
+    /**
+     * The weapon shapes, by class (9x9; R refined, C catalyst, A accent, H handle, B second accent): the blade or head is all
+     * refined cores (11 for a lance up to 18 for a colossal blade), with only a guard, a pommel and the haft of other things.
+     */
     static String[] shape(WeaponClass c) {
         return switch (c) {
             case LONGSWORD -> new String[]{
-                    "    A    ",
-                    "   ARA   ",
-                    "   ARA   ",
-                    "   ARA   ",
-                    "  AACAA  ",
+                    "    R    ",
+                    "   RRR   ",
+                    "   RRR   ",
+                    "   RRR   ",
+                    "    R    ",
+                    "  ARCRA  ",
                     "    H    ",
                     "    H    ",
-                    "    A    ",
-                    "         "};
+                    "    A    "};
             case GREATSWORD -> new String[]{
-                    "    A    ",
-                    "   ARA   ",
-                    "  ARARA  ",
-                    "  ARARA  ",
-                    "  ARARA  ",
-                    " AAACAAA ",
+                    "    R    ",
+                    "   RRR   ",
+                    "  RRRRR  ",
+                    "   RRR   ",
+                    "   RRR   ",
+                    " AARCRAA ",
                     "    H    ",
                     "    H    ",
                     "    A    "};
             case BATTLEAXE -> new String[]{
-                    "   AAA   ",
-                    "  ARRAH  ",
-                    "  ARRCH  ",
-                    "   AAAH  ",
-                    "      H  ",
+                    "   RRR   ",
+                    "  RRRRH  ",
+                    "  RRRCH  ",
+                    "  RRRRH  ",
                     "      H  ",
                     "      H  ",
                     "      A  ",
+                    "         ",
                     "         "};
             case SCYTHE -> new String[]{
-                    "  AAAAAA ",
-                    " ARRRRAH ",
-                    "A     CH ",
-                    "       H ",
+                    "  ARRRRA ",
+                    " RRRRRRH ",
+                    "RR    CH ",
                     "       H ",
                     "      H  ",
                     "      H  ",
                     "     H   ",
-                    "     A   "};
+                    "     A   ",
+                    "         "};
             case WARHAMMER -> new String[]{
-                    " AAAAAAA ",
-                    " ARRCRRA ",
-                    " ARAAARA ",
-                    " AAAHAAA ",
+                    " ARRRRRA ",
+                    " RRRCRRR ",
+                    " ARRRRRA ",
                     "    H    ",
                     "    H    ",
                     "    H    ",
                     "    H    ",
-                    "    A    "};
-            case LANCE -> new String[]{
                     "    A    ",
-                    "   ARA   ",
-                    "   ARA   ",
+                    "         "};
+            case LANCE -> new String[]{
                     "    R    ",
-                    "  AACAA  ",
-                    "    H    ",
+                    "    R    ",
+                    "   RRR   ",
+                    "   RRR   ",
+                    "    R    ",
+                    "  ARCRA  ",
                     "    H    ",
                     "    H    ",
                     "    A    "};
             case COLOSSAL -> new String[]{
-                    "  AAAAA  ",
-                    "  ARRRA  ",
-                    "  ARCRA  ",
-                    "  AARAA  ",
-                    "  AARAA  ",
-                    "  AAAAA  ",
+                    "  RRRRR  ",
+                    "  RRRRR  ",
+                    "  RRCRR  ",
+                    "   RRR   ",
+                    "   ARA   ",
                     "    H    ",
                     "    H    ",
-                    "   AAA   "};
+                    "   AAA   ",
+                    "         "};
             case CHAINBLADE -> new String[]{
-                    "    A    ",
-                    "   ARA   ",
-                    "   ARA   ",
-                    "   ARA   ",
-                    "  AACAA  ",
+                    "    R    ",
+                    "   RRR   ",
+                    "   RRR   ",
+                    "   RRR   ",
+                    "  ARCRA  ",
                     "    H    ",
                     "   B B   ",
                     "    B    ",
@@ -166,31 +169,27 @@ final class ForgeRecipes {
         };
     }
 
-    /** The armor shapes (R refined material, A binding). */
+    /** The armor shapes (R refined material, A binding): 9, 15, 13 and 8 cores, the binding only at the edges. */
     static String[] shape(ArmorItem.Type type) {
         return switch (type) {
             case HELMET -> new String[]{
-                    "  AAAAA  ",
                     "  ARRRA  ",
-                    "  AR RA  ",
-                    "  A   A  "};
+                    "  RRARR  ",
+                    "  R   R  "};
             case CHESTPLATE -> new String[]{
-                    "  AA AA  ",
-                    " ARA ARA ",
-                    " ARRARRA ",
-                    "  ARARA  ",
-                    "  AAAAA  "};
-            case LEGGINGS -> new String[]{
-                    "  AAAAA  ",
-                    "  ARRRA  ",
-                    "  AR RA  ",
-                    "  AR RA  ",
-                    "  AA AA  "};
-            default -> new String[]{
-                    "  A   A  ",
-                    "  R   R  ",
                     " AR   RA ",
-                    " AA   AA "};
+                    " RRR RRR ",
+                    "  RRARR  ",
+                    "  ARRRA  "};
+            case LEGGINGS -> new String[]{
+                    "  ARRRA  ",
+                    "  RRARR  ",
+                    "  RR RR  ",
+                    "  RA AR  "};
+            default -> new String[]{
+                    "  R   R  ",
+                    " RR   RR ",
+                    " AR   RA "};
         };
     }
 

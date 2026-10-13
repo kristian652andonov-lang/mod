@@ -9,11 +9,10 @@
     }
   },
   "pattern": [
-    "  AAAAA  ",
     "  ARRRA  ",
-    "  AR RA  ",
-    "  AR RA  ",
-    "  AA AA  "
+    "  RRARR  ",
+    "  RR RR  ",
+    "  RA AR  "
   ],
   "result": {
     "count": 1,

@@ -6,7 +6,6 @@ import com.fantasyweapons.weapon.FantasyWeaponItem;
 import com.fantasyweapons.weapon.WeaponClass;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
@@ -76,18 +75,38 @@ public final class ForgeStages {
         };
     }
 
-    /** A recipe's refined core (its most used legendary material) and its catalyst (an item it takes only once). */
+    /**
+     * A recipe's refined core (its most used legendary material) and its catalyst: of the items it takes only once, the
+     * one set deepest in the pattern and among the cores (a pommel, a guard's tip or a lone handle sits nearer the edge).
+     */
     private static Item[] parts(ForgeRecipe recipe) {
+        int w = recipe.pattern().width(), h = recipe.pattern().height();
+        Item[] cells = new Item[w * h];
         Map<Item, Integer> counts = new LinkedHashMap<>();
-        for (Ingredient ing : recipe.pattern().ingredients()) {
-            ItemStack[] items = ing.getItems();
-            if (items.length > 0) counts.merge(items[0].getItem(), 1, Integer::sum);
+        for (int i = 0; i < cells.length; i++) {
+            ItemStack[] items = recipe.pattern().ingredients().get(i).getItems();
+            if (items.length == 0) continue;
+            cells[i] = items[0].getItem();
+            counts.merge(cells[i], 1, Integer::sum);
         }
         Item core = null, catalyst = null;
         for (var e : counts.entrySet()) {
             if (isRefined(e.getKey()) && (core == null || e.getValue() > counts.get(core))) core = e.getKey();
         }
-        for (var e : counts.entrySet()) if (e.getValue() == 1 && e.getKey() != core) catalyst = e.getKey();
+        int best = -1;
+        for (int i = 0; i < cells.length; i++) {
+            if (cells[i] == null || cells[i] == core || counts.get(cells[i]) != 1) continue;
+            int x = i % w, y = i / w, around = 0;
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                int nx = x + d[0], ny = y + d[1];
+                if (nx >= 0 && ny >= 0 && nx < w && ny < h && cells[ny * w + nx] == core) around++;
+            }
+            int depth = Math.min(Math.min(x, w - 1 - x), Math.min(y, h - 1 - y));
+            if (depth * 10 + around > best) {
+                best = depth * 10 + around;
+                catalyst = cells[i];
+            }
+        }
         return new Item[]{core, catalyst};
     }
 

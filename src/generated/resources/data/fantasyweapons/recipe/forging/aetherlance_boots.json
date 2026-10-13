@@ -10,10 +10,9 @@
     }
   },
   "pattern": [
-    "  A   A  ",
     "  R   R  ",
-    " AR   RA ",
-    " AA   AA "
+    " RR   RR ",
+    " AR   RA "
   ],
   "result": {
     "count": 1,

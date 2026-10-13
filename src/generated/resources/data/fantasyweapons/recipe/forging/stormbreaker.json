@@ -16,14 +16,14 @@
     }
   },
   "pattern": [
-    "   AAA   ",
-    "  ARRAH  ",
-    "  ARRCH  ",
-    "   AAAH  ",
-    "      H  ",
+    "   RRR   ",
+    "  RRRRH  ",
+    "  RRRCH  ",
+    "  RRRRH  ",
     "      H  ",
     "      H  ",
     "      A  ",
+    "         ",
     "         "
   ],
   "result": {

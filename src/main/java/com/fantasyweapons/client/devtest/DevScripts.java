@@ -808,7 +808,7 @@ final class DevScripts {
                             instanceof com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity t) t.output().clearContent();
                 }));
         // the screen: a recipe chosen, laid out with Fill, forged with Forge
-        b.playerView().cmd("/clear @s").cmd("/give @s fantasyweapons:void_core 3").cmd("/give @s minecraft:crying_obsidian 12").cmd("/give @s minecraft:ender_eye")
+        b.playerView().cmd("/clear @s").cmd("/give @s fantasyweapons:void_core 13").cmd("/give @s minecraft:crying_obsidian 3").cmd("/give @s minecraft:ender_eye")
                 .cmd("/give @s minecraft:end_rod 2").cmd("/give @s minecraft:oak_log 3").cmd("/gamemode survival").wait(10).hud(true);
         b.run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -60, 4.0), net.minecraft.core.Direction.NORTH,

@@ -16,12 +16,12 @@
     }
   },
   "pattern": [
-    "    A    ",
-    "   ARA   ",
-    "   ARA   ",
     "    R    ",
-    "  AACAA  ",
-    "    H    ",
+    "    R    ",
+    "   RRR   ",
+    "   RRR   ",
+    "    R    ",
+    "  ARCRA  ",
     "    H    ",
     "    H    ",
     "    A    "

@@ -16,15 +16,15 @@
     }
   },
   "pattern": [
-    "    A    ",
-    "   ARA   ",
-    "   ARA   ",
-    "   ARA   ",
-    "  AACAA  ",
+    "    R    ",
+    "   RRR   ",
+    "   RRR   ",
+    "   RRR   ",
+    "    R    ",
+    "  ARCRA  ",
     "    H    ",
     "    H    ",
-    "    A    ",
-    "         "
+    "    A    "
   ],
   "result": {
     "count": 1,

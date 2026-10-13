@@ -13,11 +13,10 @@
     }
   },
   "pattern": [
-    "  AA BB  ",
-    " ARA BRB ",
-    " ARRARRB ",
-    "  ARARB  ",
-    "  AAABB  "
+    " AR   RB ",
+    " RRR RRR ",
+    "  RRARR  ",
+    "  ARRRB  "
   ],
   "result": {
     "count": 1,

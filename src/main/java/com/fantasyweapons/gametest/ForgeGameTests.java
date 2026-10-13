@@ -454,6 +454,38 @@ public final class ForgeGameTests {
         });
     }
 
+    /**
+     * Refined cores are most of every legendary pattern (at least 11 for a weapon, 8 for an armor piece), and the table's
+     * stage text names each weapon's catalyst.
+     */
+    @GameTest(template = ARENA)
+    public static void theRecipesAreMostlyCores(GameTestHelper h) {
+        for (RecipeHolder<ForgeRecipe> holder : ForgeRecipe.ordered(h.getLevel())) {
+            ForgeRecipe recipe = holder.value();
+            ItemStack made = recipe.result();
+            if (!(made.getItem() instanceof com.fantasyweapons.weapon.FantasyWeaponItem) && !(made.getItem() instanceof com.fantasyweapons.armor.FantasyArmorItem)) continue;
+            int cores = 0, filled = 0;
+            for (Ingredient ing : recipe.pattern().ingredients()) {
+                if (ing.isEmpty()) continue;
+                filled++;
+                for (var m : com.fantasyweapons.material.Material.values()) if (ing.test(new ItemStack(ModItems.REFINED.get(m).get()))) cores++;
+            }
+            boolean weapon = made.getItem() instanceof com.fantasyweapons.weapon.FantasyWeaponItem;
+            if (cores < (weapon ? 11 : 8)) h.fail(made.getHoverName().getString() + " takes only " + cores + " cores");
+            if (cores * 2 <= filled) h.fail(made.getHoverName().getString() + ": " + cores + " cores of " + filled + " cells");
+        }
+        String[][] catalysts = {{"voidfang", "Eye of Ender"}, {"infernochain", "Netherite Ingot"}, {"monolith", "Heavy Core"},
+                {"bloomfall", "Spore Blossom"}, {"stormbreaker", "Lightning Rod"}, {"eclipse_reaper", "Clock"}};
+        for (String[] c : catalysts) {
+            ItemStack weapon = new ItemStack(ModItems.WEAPONS.get(c[0]).get());
+            ForgeRecipe recipe = ForgeRecipe.ordered(h.getLevel()).stream().map(RecipeHolder::value)
+                    .filter(r -> r.result().is(weapon.getItem())).findFirst().orElseThrow();
+            String line = com.fantasyweapons.forge.ForgeStages.line(weapon, recipe, 5);
+            if (!line.contains(c[1])) h.fail(c[0] + "'s catalyst stage reads \"" + line + "\"");
+        }
+        h.succeed();
+    }
+
     /** Every block and item of the mod has an English name (a missing one shows its raw translation key). */
     @GameTest(template = ARENA)
     public static void everythingHasAName(GameTestHelper h) {

@@ -111,14 +111,14 @@ public enum ArmorSet {
                     List.of(speed(), stat(ArmorStat.BURN_ON_DASH, 1))),
             "Hellforged", "Chain attacks leave a burning trail that ignites enemies.");
 
-    /** Refined material cost of each piece. */
+    /** Refined material cost of each piece (its forging pattern's cores). */
     public static int cost(ArmorItem.Type type) {
         return switch (type) {
-            case HELMET -> 5;
-            case CHESTPLATE -> 8;
-            case LEGGINGS -> 7;
-            case BOOTS -> 4;
-            case BODY -> 8;
+            case HELMET -> 9;
+            case CHESTPLATE -> 15;
+            case LEGGINGS -> 13;
+            case BOOTS -> 8;
+            case BODY -> 15;
         };
     }
 

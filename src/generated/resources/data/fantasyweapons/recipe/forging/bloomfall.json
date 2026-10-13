@@ -16,15 +16,15 @@
     }
   },
   "pattern": [
-    "  AAAAAA ",
-    " ARRRRAH ",
-    "A     CH ",
-    "       H ",
+    "  ARRRRA ",
+    " RRRRRRH ",
+    "RR    CH ",
     "       H ",
     "      H  ",
     "      H  ",
     "     H   ",
-    "     A   "
+    "     A   ",
+    "         "
   ],
   "result": {
     "count": 1,
