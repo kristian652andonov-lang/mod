@@ -93,6 +93,19 @@ public final class ForgeGameTests {
         h.succeed();
     }
 
+    /** Building the forge itself takes a trophy of every dimension's hardest trial. */
+    @GameTest(template = ARENA)
+    public static void theForgeIsHardToBuild(GameTestHelper h) {
+        var recipe = h.getLevel().getRecipeManager().byKey(FantasyWeapons.id("legendary_forge")).orElseThrow().value();
+        if (recipe.getResultItem(h.getLevel().registryAccess()).getItem() != ModItems.LEGENDARY_FORGE.get()) h.fail("the recipe makes something else");
+        java.util.Map<net.minecraft.world.item.Item, Integer> needs = new java.util.HashMap<>();
+        for (Ingredient ing : recipe.getIngredients()) if (!ing.isEmpty()) needs.merge(ing.getItems()[0].getItem(), 1, Integer::sum);
+        java.util.Map<net.minecraft.world.item.Item, Integer> expected = java.util.Map.of(Items.NETHER_STAR, 1, Items.DRAGON_BREATH, 2,
+                Items.NETHERITE_INGOT, 2, Items.TOTEM_OF_UNDYING, 2, Items.HEAVY_CORE, 1, Items.SMITHING_TABLE, 1);
+        if (!needs.equals(expected)) h.fail("the forge takes " + needs + ", expected " + expected);
+        h.succeed();
+    }
+
     /** Ordinary crafting works on the forge's grid too, anywhere on it. */
     @GameTest(template = ARENA)
     public static void craftsLikeACraftingTable(GameTestHelper h) {

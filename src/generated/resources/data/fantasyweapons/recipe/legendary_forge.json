@@ -2,26 +2,29 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "C": {
-      "item": "minecraft:crafting_table"
+    "B": {
+      "item": "minecraft:dragon_breath"
     },
-    "D": {
-      "item": "minecraft:diamond"
+    "H": {
+      "item": "minecraft:heavy_core"
     },
-    "G": {
-      "item": "minecraft:gold_ingot"
+    "N": {
+      "item": "minecraft:netherite_ingot"
     },
-    "I": {
-      "item": "minecraft:iron_block"
+    "S": {
+      "item": "minecraft:nether_star"
     },
-    "O": {
-      "item": "minecraft:obsidian"
+    "T": {
+      "item": "minecraft:smithing_table"
+    },
+    "Z": {
+      "item": "minecraft:totem_of_undying"
     }
   },
   "pattern": [
-    "GDG",
-    "ICI",
-    "OOO"
+    "BSB",
+    "NTN",
+    "ZHZ"
   ],
   "result": {
     "count": 1,

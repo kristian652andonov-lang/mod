@@ -31,12 +31,15 @@ public class FWRecipes extends RecipeProvider {
                 .define('B', Items.BLAST_FURNACE).define('L', Items.LAPIS_BLOCK)
                 .unlockedBy("has_blast_furnace", has(Items.BLAST_FURNACE))
                 .save(out);
-        // the forge: a crafting table on an obsidian base, with an iron frame, gold fittings and a diamond
+        // the forge makes weapons of legend, and it takes a legend to build it: a trophy of each dimension's hardest
+        // trial - the Wither's star, the Ender Dragon's breath, the totems of raids and mansions, a trial chamber's heavy
+        // core and netherite from ancient debris - set around a smithing table
         ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.LEGENDARY_FORGE.get())
-                .pattern("GDG").pattern("ICI").pattern("OOO")
-                .define('G', Items.GOLD_INGOT).define('D', Items.DIAMOND).define('I', Items.IRON_BLOCK)
-                .define('C', Items.CRAFTING_TABLE).define('O', Items.OBSIDIAN)
-                .unlockedBy("has_diamond", has(Items.DIAMOND))
+                .pattern("BSB").pattern("NTN").pattern("ZHZ")
+                .define('B', Items.DRAGON_BREATH).define('S', Items.NETHER_STAR)
+                .define('N', Items.NETHERITE_INGOT).define('T', Items.SMITHING_TABLE)
+                .define('Z', Items.TOTEM_OF_UNDYING).define('H', Items.HEAVY_CORE)
+                .unlockedBy("has_nether_star", has(Items.NETHER_STAR))
                 .save(out);
         // the legendary weapons and armor are forged on its 9x9 grid
         ForgeRecipes.build(out);

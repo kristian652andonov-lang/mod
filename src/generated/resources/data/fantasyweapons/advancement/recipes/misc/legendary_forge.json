@@ -1,11 +1,11 @@
 {
   "parent": "minecraft:recipes/root",
   "criteria": {
-    "has_diamond": {
+    "has_nether_star": {
       "conditions": {
         "items": [
           {
-            "items": "minecraft:diamond"
+            "items": "minecraft:nether_star"
           }
         ]
       },
@@ -21,7 +21,7 @@
   "requirements": [
     [
       "has_the_recipe",
-      "has_diamond"
+      "has_nether_star"
     ]
   ],
   "rewards": {
