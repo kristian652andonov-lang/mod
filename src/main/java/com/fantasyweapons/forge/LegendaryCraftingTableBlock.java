@@ -1,6 +1,7 @@
 package com.fantasyweapons.forge;
 
 import com.fantasyweapons.machine.MachineCoreBlock;
+import com.fantasyweapons.machine.ModelShape;
 import com.fantasyweapons.registry.ModBlockEntities;
 import com.fantasyweapons.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
@@ -22,9 +23,11 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
+import java.util.Set;
 
 /**
  * The Legendary Crafting Table's core: the bottom middle of a table three blocks wide and two high (see
@@ -53,16 +56,10 @@ public class LegendaryCraftingTableBlock extends MachineCoreBlock {
         builder.add(CRAFTING);
     }
 
-    /**
-     * The table's shape, from the artist's model (facing north, in the core's pixels): the table itself, the dragon's
-     * breath bottles at its sides, the two totems at its back and the star hanging over the grid.
-     */
+    /** Shaped by the artist's model: the table and its bottles, and the two totems on it (the star floats free). */
     @Override
-    protected VoxelShape northShape() {
-        return Shapes.or(Block.box(-4.5, 0, -2, 20.5, 18, 18),
-                Block.box(-9.3, 0, 4.9, -4.5, 17, 11.1), Block.box(20.5, 0, 4.9, 25.3, 17, 11.1),
-                Block.box(-4.1, 18, 12.9, 2.3, 28.5, 15.7), Block.box(13.7, 18, 12.9, 20.1, 28.5, 15.7),
-                Block.box(2, 26, 3, 14, 34, 13));
+    protected List<AABB> northBoxes() {
+        return ModelShape.boxes("legendary_crafting_table", Set.of("table", "legendary_crafting_table_totem_left", "legendary_crafting_table_totem_right"));
     }
 
     @Override

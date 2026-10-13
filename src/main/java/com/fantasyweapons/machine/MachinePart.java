@@ -29,6 +29,11 @@ public enum MachinePart implements StringRepresentable {
         return pos.relative(facing.getClockWise(), -side).below(up);
     }
 
+    /** -1 for the parts left of the core (as the machine faces), 1 for those right of it, 0 above it. */
+    public int side() {
+        return side;
+    }
+
     public boolean top() {
         return up > 0;
     }

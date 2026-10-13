@@ -50,6 +50,17 @@ public class ArcaneRefineryBlock extends MachineCoreBlock {
         builder.add(LIT);
     }
 
+    /**
+     * Shaped by the artist's model: its body and the machinery on it that only moves in place (the bellows, gears, valve,
+     * pistons and lever); the flames, smoke, sparks and floating rune rings are left out.
+     */
+    @Override
+    protected java.util.List<net.minecraft.world.phys.AABB> northBoxes() {
+        return com.fantasyweapons.machine.ModelShape.boxes("arcane_refinery", java.util.Set.of("refinery", "arcane_refinery_bellows_pleat",
+                "arcane_refinery_bellows_board", "arcane_refinery_gear_large", "arcane_refinery_gear_small", "arcane_refinery_valve",
+                "arcane_refinery_piston_0", "arcane_refinery_piston_1", "arcane_refinery_lever"));
+    }
+
     @Override
     public InteractionResult open(Level level, BlockPos core, Player player) {
         if (!level.isClientSide && player instanceof ServerPlayer sp && level.getBlockEntity(core) instanceof ArcaneRefineryBlockEntity be) {

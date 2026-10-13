@@ -23,12 +23,12 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -40,8 +40,10 @@ import java.util.function.Supplier;
 public abstract class MachineCoreBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     private final Supplier<? extends MachinePartBlock> parts;
-    /** Per facing: the outline and the collision shape of each block of the machine (the core's last). */
+    /** Per facing (2D data value), for each block of the machine (the parts' first, the core's last): its outline and its collision. */
     private final Supplier<VoxelShape[][][]> shapes = Suppliers.memoize(this::bakeShapes);
+    /** How far past the machine's own blocks an outline may follow the model (its lips and overhangs). */
+    private static final double OVERHANG = 0.25;
 
     protected MachineCoreBlock(Properties properties, Supplier<? extends MachinePartBlock> parts) {
         super(properties);
@@ -49,41 +51,58 @@ public abstract class MachineCoreBlock extends BaseEntityBlock {
     }
 
     /**
-     * The whole machine's shape when it faces north, in the core's block coordinates (so it reaches into the other five
-     * blocks, and may stand a little past them where the model does): by default the full three by two blocks.
+     * The whole machine's boxes when it faces north, in the core's block coordinates (so they reach into the other five
+     * blocks): by default all six blocks, full. Each block is shaped by what of them lies inside it.
      */
-    protected VoxelShape northShape() {
-        return Block.box(-16, 0, 0, 32, 32, 16);
+    protected List<AABB> northBoxes() {
+        return List.of(new AABB(-1, 0, 0, 2, 2, 1));
     }
 
-    /** The outline of the machine (the whole of it) as seen from the block at {@code part} ({@code null}: the core). */
+    /**
+     * The outline of the machine's block at {@code part} ({@code null}: the core): the model inside the block, and where
+     * the model hangs past the machine (in front, behind, past its ends) what hangs out beside this block; never into the
+     * machine's other blocks nor above or below, so shadows cast on it stay true.
+     */
     public VoxelShape outline(Direction facing, @Nullable MachinePart part) {
         return shapes.get()[facing.get2DDataValue()][part == null ? MachinePart.values().length : part.ordinal()][0];
     }
 
-    /** What of the machine is solid inside the block at {@code part} ({@code null}: the core). */
+    /** What of the machine is solid inside its block at {@code part} ({@code null}: the core). */
     public VoxelShape collision(Direction facing, @Nullable MachinePart part) {
         return shapes.get()[facing.get2DDataValue()][part == null ? MachinePart.values().length : part.ordinal()][1];
     }
 
     private VoxelShape[][][] bakeShapes() {
-        VoxelShape north = northShape();
+        List<AABB> north = northBoxes();
         VoxelShape[][][] baked = new VoxelShape[4][MachinePart.values().length + 1][];
         for (int f = 0; f < 4; f++) {
             Direction facing = Direction.from2DDataValue(f);
-            VoxelShape whole = Shapes.empty();
-            for (AABB box : north.toAabbs()) whole = Shapes.or(whole, Shapes.create(turn(box, facing)));
+            Direction right = facing.getClockWise();
             for (int i = 0; i <= MachinePart.values().length; i++) {
-                BlockPos at = i == MachinePart.values().length ? BlockPos.ZERO : MachinePart.values()[i].from(BlockPos.ZERO, facing);
-                VoxelShape outline = whole.move(-at.getX(), -at.getY(), -at.getZ()).optimize();
-                baked[f][i] = new VoxelShape[]{outline, Shapes.join(outline, Shapes.block(), BooleanOp.AND)};
+                MachinePart part = i == MachinePart.values().length ? null : MachinePart.values()[i];
+                BlockPos at = part == null ? BlockPos.ZERO : part.from(BlockPos.ZERO, facing);
+                List<AABB> local = new ArrayList<>(north.size());
+                for (AABB box : north) local.add(turn(box, facing).move(-at.getX(), -at.getY(), -at.getZ()));
+                // the outline may reach out of the block on the machine's open sides: its front and back, and the far
+                // side of an end block
+                int side = part == null ? 0 : part.side();
+                double x0 = 0, z0 = 0, x1 = 1, z1 = 1;
+                for (Direction d : Direction.Plane.HORIZONTAL) {
+                    boolean open = d.getAxis() != right.getAxis() || (d == right ? side == 1 : side == -1);
+                    if (!open) continue;
+                    if (d == Direction.WEST) x0 = -OVERHANG;
+                    else if (d == Direction.EAST) x1 = 1 + OVERHANG;
+                    else if (d == Direction.NORTH) z0 = -OVERHANG;
+                    else z1 = 1 + OVERHANG;
+                }
+                baked[f][i] = new VoxelShape[]{ModelShape.cell(local, x0, z0, x1, z1), ModelShape.cell(local)};
             }
         }
         return baked;
     }
 
     /** A box of the north-facing shape turned to face {@code facing} about the core's centre (as the model is turned). */
-    private static AABB turn(AABB box, Direction facing) {
+    static AABB turn(AABB box, Direction facing) {
         Direction right = facing.getClockWise(), back = facing.getOpposite();
         double[] xs = {box.minX - 0.5, box.maxX - 0.5}, zs = {box.minZ - 0.5, box.maxZ - 0.5};
         double minX = Double.MAX_VALUE, minZ = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;

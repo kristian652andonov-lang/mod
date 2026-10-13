@@ -164,46 +164,85 @@ public final class ForgeGameTests {
     }
 
     /**
-     * The table's outline is its model's (about 2.2 blocks across its front, 1.25 deep), turned with it, the same whole
-     * outline from each of its six blocks; what is solid stays inside each block, and the far ends of the side blocks are open.
+     * Each block of the table (and of the refinery) is shaped by the part of the artist's model inside it, turned with the
+     * machine. What is solid stays inside the block; the outline may follow the model's lips a little past the machine (in
+     * front, behind, past its ends) but never above or below its block nor into the machine's other blocks, so the shadows
+     * of things beside it stay true. The table is about 2.15 blocks across, and the outer ends of its side blocks are open.
      */
     @GameTest(template = ARENA)
-    public static void theOutlineFitsTheModel(GameTestHelper h) {
-        LegendaryCraftingTableBlock table = ModBlocks.LEGENDARY_CRAFTING_TABLE.get();
-        for (Direction facing : Direction.Plane.HORIZONTAL) {
-            AABB whole = table.outline(facing, null).bounds();
-            Direction right = facing.getClockWise();
-            double across = right.getAxis() == Direction.Axis.X ? whole.getXsize() : whole.getZsize();
-            double deep = facing.getAxis() == Direction.Axis.X ? whole.getXsize() : whole.getZsize();
-            if (Math.abs(across - 34.6 / 16) > 0.01 || Math.abs(deep - 20 / 16.0) > 0.01 || Math.abs(whole.maxY - 34 / 16.0) > 0.01) {
-                h.fail(facing + ": outline " + whole);
-            }
-            for (MachinePart part : MachinePart.values()) {
-                BlockPos at = part.from(BlockPos.ZERO, facing);
-                AABB fromPart = table.outline(facing, part).bounds().move(at.getX(), at.getY(), at.getZ());
-                if (!same(fromPart, whole)) {
-                    h.fail(facing + " " + part + ": outline " + fromPart + " is not the table's " + whole);
+    public static void theShapesFitTheModels(GameTestHelper h) {
+        for (var machine : java.util.List.of(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), (com.fantasyweapons.machine.MachineCoreBlock) ModBlocks.ARCANE_REFINERY.get())) {
+            AABB north = null;
+            for (Direction facing : Direction.Plane.HORIZONTAL) {
+                AABB whole = null, outlined = null;
+                Direction right = facing.getClockWise();
+                for (MachinePart part : java.util.Arrays.copyOf(MachinePart.values(), MachinePart.values().length + 1)) {
+                    BlockPos at = part == null ? BlockPos.ZERO : part.from(BlockPos.ZERO, facing);
+                    var solid = machine.collision(facing, part);
+                    if (!solid.isEmpty()) {
+                        AABB b = solid.bounds();
+                        if (b.minX < 0 || b.minY < 0 || b.minZ < 0 || b.maxX > 1 || b.maxY > 1 || b.maxZ > 1) h.fail(machine + " " + facing + " " + part + ": solid outside " + b);
+                        b = b.move(at.getX(), at.getY(), at.getZ());
+                        whole = whole == null ? b : whole.minmax(b);
+                    }
+                    var outline = machine.outline(facing, part);
+                    if (outline.isEmpty()) continue;
+                    AABB o = outline.bounds();
+                    if (o.minY < 0 || o.maxY > 1) h.fail(machine + " " + facing + " " + part + ": outline above or below its block " + o);
+                    int side = part == null ? 0 : part.side();
+                    // across the machine the outline stays in its block, except on the outer side of an end block
+                    double lo = right.getAxis() == Direction.Axis.X ? o.minX : o.minZ, hi = right.getAxis() == Direction.Axis.X ? o.maxX : o.maxZ;
+                    boolean rightIsPositive = right.getAxisDirection() == Direction.AxisDirection.POSITIVE;
+                    boolean loOpen = side == (rightIsPositive ? -1 : 1), hiOpen = side == (rightIsPositive ? 1 : -1);
+                    if ((!loOpen && lo < -1e-6) || (!hiOpen && hi > 1 + 1e-6)) h.fail(machine + " " + facing + " " + part + ": outline reaches a neighbour " + o);
+                    if (Math.max(-Math.min(o.minX, o.minZ), Math.max(o.maxX, o.maxZ) - 1) > 0.25 + 1e-6) h.fail(machine + " " + facing + " " + part + ": outline far out " + o);
+                    o = o.move(at.getX(), at.getY(), at.getZ());
+                    outlined = outlined == null ? o : outlined.minmax(o);
                 }
-                var solid = table.collision(facing, part);
-                if (!solid.isEmpty()) {
+                if (whole == null || outlined == null) {
+                    h.fail(machine + " " + facing + ": no shape at all");
+                    return;
+                }
+                double across = right.getAxis() == Direction.Axis.X ? whole.getXsize() : whole.getZsize();
+                double deep = facing.getAxis() == Direction.Axis.X ? outlined.getXsize() : outlined.getZsize();
+                if (across < 2.0 || across > 2.5) h.fail(machine + " " + facing + ": " + across + " across");
+                // the outline takes in the lips the model has past the front and back
+                if (deep < 1.2 || deep > 1.5) h.fail(machine + " " + facing + ": outline " + deep + " deep");
+                if (north == null) north = whole;
+                else if (Math.abs(whole.getYsize() - north.getYsize()) > 1e-6 || Math.abs(across - north.getXsize()) > 1e-6) {
+                    h.fail(machine + " " + facing + ": not the north shape turned, " + whole + " vs " + north);
+                }
+                for (MachinePart side : new MachinePart[]{MachinePart.LEFT, MachinePart.RIGHT}) {
+                    var solid = machine.collision(facing, side);
+                    if (solid.isEmpty()) continue;
                     AABB b = solid.bounds();
-                    if (b.minX < 0 || b.minY < 0 || b.minZ < 0 || b.maxX > 1 || b.maxY > 1 || b.maxZ > 1) h.fail(facing + " " + part + ": solid outside " + b);
+                    boolean outward = (side == MachinePart.RIGHT) == (right.getAxisDirection() == Direction.AxisDirection.POSITIVE);
+                    double lo = right.getAxis() == Direction.Axis.X ? b.minX : b.minZ, hi = right.getAxis() == Direction.Axis.X ? b.maxX : b.maxZ;
+                    double reach = outward ? hi : 1 - lo;
+                    if (reach > 0.75) h.fail(machine + " " + facing + " " + side + ": reaches " + reach + " into the side block");
                 }
+                if (machine.collision(facing, null).isEmpty()) h.fail(machine + " " + facing + ": hollow core");
             }
-            // the left block: solid only on its inner side (the table and bottle end 0.58 blocks out from the core's edge)
-            AABB left = table.collision(facing, MachinePart.LEFT).bounds();
-            double reach = right.getAxisDirection() == Direction.AxisDirection.POSITIVE
-                    ? 1 - (right.getAxis() == Direction.Axis.X ? left.minX : left.minZ)
-                    : (right.getAxis() == Direction.Axis.X ? left.maxX : left.maxZ);
-            if (Math.abs(reach - 9.3 / 16) > 0.01) h.fail(facing + ": left block solid " + reach + " in, expected " + 9.3 / 16);
         }
-        if (!same(table.collision(Direction.NORTH, null).bounds(), new AABB(0, 0, 0, 1, 1, 1))) h.fail("the core is not solid");
+        LegendaryCraftingTableBlock table = ModBlocks.LEGENDARY_CRAFTING_TABLE.get();
+        if (table.collision(Direction.NORTH, MachinePart.TOP_LEFT).isEmpty() || table.collision(Direction.NORTH, MachinePart.TOP_RIGHT).isEmpty()) h.fail("the totems are not solid");
         h.succeed();
     }
 
-    private static boolean same(AABB a, AABB b) {
-        return Math.abs(a.minX - b.minX) < 1e-6 && Math.abs(a.minY - b.minY) < 1e-6 && Math.abs(a.minZ - b.minZ) < 1e-6
-                && Math.abs(a.maxX - b.maxX) < 1e-6 && Math.abs(a.maxY - b.maxY) < 1e-6 && Math.abs(a.maxZ - b.maxZ) < 1e-6;
+    /** Looking at the machines from in front and at a side bottle, as a player would, finds their blocks. */
+    @GameTest(template = ARENA)
+    public static void lookingAtTheMachinesHitsThem(GameTestHelper h) {
+        BlockPos at = build(h, CORE);
+        // the player two blocks in front (north) of the core, eyes 1.62 up, looking 20 degrees down at the middle
+        Vec3 eye = Vec3.atBottomCenterOf(at).add(0, 1.62, -3.5);
+        for (float[] look : new float[][]{{0, 20}, {0, 10}, {13, 16}}) {
+            Vec3 dir = Vec3.directionFromRotation(look[1], look[0]);
+            var hit = h.getLevel().clip(new net.minecraft.world.level.ClipContext(eye, eye.add(dir.scale(6)), net.minecraft.world.level.ClipContext.Block.OUTLINE,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            BlockState s = h.getLevel().getBlockState(hit.getBlockPos());
+            if (!s.is(ModBlocks.LEGENDARY_CRAFTING_TABLE.get()) && !s.is(ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get())) h.fail("looking " + java.util.Arrays.toString(look) + " hit " + s);
+        }
+        h.succeed();
     }
 
     /** Mining any one of its blocks with a pickaxe takes the whole table down and drops it, once. */
