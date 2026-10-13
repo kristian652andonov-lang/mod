@@ -1,5 +1,6 @@
 {
   "type": "fantasyweapons:forging",
+  "forging_time": 4200,
   "key": {
     "A": {
       "item": "minecraft:moss_block"

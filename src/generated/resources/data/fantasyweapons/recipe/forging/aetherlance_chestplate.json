@@ -1,5 +1,6 @@
 {
   "type": "fantasyweapons:forging",
+  "forging_time": 3000,
   "key": {
     "A": {
       "item": "minecraft:quartz"

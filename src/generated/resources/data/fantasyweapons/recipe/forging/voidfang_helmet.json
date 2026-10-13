@@ -1,5 +1,6 @@
 {
   "type": "fantasyweapons:forging",
+  "forging_time": 1800,
   "key": {
     "A": {
       "item": "minecraft:black_wool"

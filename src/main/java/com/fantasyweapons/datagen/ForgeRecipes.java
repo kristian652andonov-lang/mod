@@ -205,7 +205,7 @@ final class ForgeRecipes {
             key.put('A', t.accent());
             key.put('H', t.handle());
             if (t.second() != null) key.put('B', t.second());
-            accept(out, def.id(), rows, key, ModItems.WEAPONS.get(def.id()).get());
+            accept(out, def.id(), rows, key, ModItems.WEAPONS.get(def.id()).get(), weaponTime(def.weaponClass()));
         }
         for (ArmorSet set : ArmorSet.values()) {
             ItemLike[] binding = ARMOR.get(set);
@@ -215,7 +215,7 @@ final class ForgeRecipes {
                 key.put('R', ModItems.REFINED.get(set.material()).get());
                 key.put('A', binding[0]);
                 if (binding.length > 1) key.put('B', binding[1]);
-                accept(out, set.itemId(type), rows, key, ModItems.ARMOR.get(set).get(type).get());
+                accept(out, set.itemId(type), rows, key, ModItems.ARMOR.get(set).get(type).get(), armorTime(type));
             }
         }
     }
@@ -231,13 +231,35 @@ final class ForgeRecipes {
         return outRows;
     }
 
-    private static void accept(RecipeOutput out, String name, String[] rows, Map<Character, ItemLike> key, ItemLike result) {
+    /** How long a weapon takes at the table, in ticks: the heavier its class, the longer (1.5 to 5 minutes). */
+    static int weaponTime(WeaponClass c) {
+        int seconds = switch (c) {
+            case LONGSWORD, LANCE -> 180;
+            case SCYTHE, CHAINBLADE -> 210;
+            case BATTLEAXE -> 240;
+            case GREATSWORD -> 270;
+            case WARHAMMER, COLOSSAL -> 300;
+        };
+        return seconds * 20;
+    }
+
+    /** How long an armor piece takes, in ticks: from a minute for boots to two and a half for a chestplate. */
+    static int armorTime(ArmorItem.Type type) {
+        return switch (type) {
+            case HELMET -> 90;
+            case CHESTPLATE -> 150;
+            case LEGGINGS -> 120;
+            default -> 60;
+        } * 20;
+    }
+
+    private static void accept(RecipeOutput out, String name, String[] rows, Map<Character, ItemLike> key, ItemLike result, int time) {
         Map<Character, Ingredient> used = new LinkedHashMap<>();
         String all = String.join("", rows);
         key.forEach((ch, item) -> {
             if (all.indexOf(ch) >= 0) used.put(ch, Ingredient.of(item));
         });
         List<String> pattern = new ArrayList<>(List.of(rows));
-        out.accept(FantasyWeapons.id("forging/" + name), new ForgeRecipe(ShapedRecipePattern.of(used, pattern), new ItemStack(result)), null);
+        out.accept(FantasyWeapons.id("forging/" + name), new ForgeRecipe(ShapedRecipePattern.of(used, pattern), new ItemStack(result), time), null);
     }
 }

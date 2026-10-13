@@ -64,11 +64,20 @@ public class LegendaryCraftingTableBlock extends MachineCoreBlock {
 
     @Override
     public InteractionResult open(Level level, BlockPos core, Player player) {
-        if (!level.isClientSide) {
-            player.openMenu(new SimpleMenuProvider((id, inventory, p) -> new LegendaryCraftingMenu(id, inventory, ContainerLevelAccess.create(level, core)),
-                    TITLE));
+        if (!level.isClientSide && level.getBlockEntity(core) instanceof LegendaryCraftingTableBlockEntity table) {
+            player.openMenu(new SimpleMenuProvider((id, inventory, p) -> new LegendaryCraftingMenu(id, inventory, ContainerLevelAccess.create(level, core),
+                    table), TITLE));
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
+    }
+
+    /** Broken, the table gives back what lay on its grid, its Forged slot, and what a forging under way had taken. */
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
+        if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof LegendaryCraftingTableBlockEntity table) {
+            for (var stack : table.drops()) net.minecraft.world.Containers.dropItemStack(level, pos.getX() + 0.5, pos.getY() + 0.6, pos.getZ() + 0.5, stack);
+        }
+        super.onRemove(state, level, pos, newState, moved);
     }
 
     @Nullable
@@ -83,7 +92,7 @@ public class LegendaryCraftingTableBlock extends MachineCoreBlock {
         return level.isClientSide ? null : createTickerHelper(type, ModBlockEntities.LEGENDARY_CRAFTING_TABLE.get(), LegendaryCraftingTableBlockEntity::serverTick);
     }
 
-    /** Starlight drifting up from the grid while it crafts, and the enchanting table's hum. */
+    /** Starlight drifting up from the grid while it forges, and now and then the beacon's hum. */
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         if (!state.getValue(CRAFTING)) return;

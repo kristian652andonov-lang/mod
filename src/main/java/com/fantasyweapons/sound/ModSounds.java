@@ -61,6 +61,13 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> BLOOD_RAGE = reg("element.blood_rage");
     public static final DeferredHolder<SoundEvent, SoundEvent> FIRE_WHOOSH = reg("element.fire_whoosh");
 
+    // the Legendary Crafting Table: forging begins, the hammer at work, each stage done, the item forged; its recipe pages
+    public static final DeferredHolder<SoundEvent, SoundEvent> TABLE_FORGE_START = reg("table.forge_start");
+    public static final DeferredHolder<SoundEvent, SoundEvent> TABLE_FORGE_STRIKE = reg("table.forge_strike");
+    public static final DeferredHolder<SoundEvent, SoundEvent> TABLE_FORGE_STAGE = reg("table.forge_stage");
+    public static final DeferredHolder<SoundEvent, SoundEvent> TABLE_FORGE_DONE = reg("table.forge_done");
+    public static final DeferredHolder<SoundEvent, SoundEvent> TABLE_PAGE = reg("table.page");
+
     private ModSounds() {
     }
 

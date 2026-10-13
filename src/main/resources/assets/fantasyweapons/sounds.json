@@ -402,5 +402,66 @@
         "stream": false
       }
     ]
+  },
+  "table.forge_start": {
+    "subtitle": "subtitles.fantasyweapons.table.forge_start",
+    "sounds": [
+      {
+        "name": "fantasyweapons:table/forge_start",
+        "stream": false
+      }
+    ]
+  },
+  "table.forge_strike": {
+    "subtitle": "subtitles.fantasyweapons.table.forge_strike",
+    "sounds": [
+      {
+        "name": "fantasyweapons:table/strike_1",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:table/strike_2",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:table/strike_3",
+        "stream": false
+      }
+    ]
+  },
+  "table.forge_stage": {
+    "subtitle": "subtitles.fantasyweapons.table.forge_stage",
+    "sounds": [
+      {
+        "name": "fantasyweapons:table/stage",
+        "stream": false
+      }
+    ]
+  },
+  "table.forge_done": {
+    "subtitle": "subtitles.fantasyweapons.table.forge_done",
+    "sounds": [
+      {
+        "name": "fantasyweapons:table/forge_done",
+        "stream": false
+      }
+    ]
+  },
+  "table.page": {
+    "subtitle": "subtitles.fantasyweapons.table.page",
+    "sounds": [
+      {
+        "name": "fantasyweapons:codex/page_1",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:codex/page_2",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:codex/page_3",
+        "stream": false
+      }
+    ]
   }
 }

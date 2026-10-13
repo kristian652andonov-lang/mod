@@ -56,7 +56,22 @@ public final class ForgeGameTests {
 
     private static LegendaryCraftingMenu open(GameTestHelper h, ServerPlayer p) {
         BlockPos at = h.getLevel().getBlockState(h.absolutePos(CORE)).is(ModBlocks.LEGENDARY_CRAFTING_TABLE.get()) ? h.absolutePos(CORE) : build(h, CORE);
-        return new LegendaryCraftingMenu(1, p.getInventory(), ContainerLevelAccess.create(h.getLevel(), at));
+        return new LegendaryCraftingMenu(1, p.getInventory(), ContainerLevelAccess.create(h.getLevel(), at), table(h));
+    }
+
+    private static LegendaryCraftingTableBlockEntity table(GameTestHelper h) {
+        return (LegendaryCraftingTableBlockEntity) h.getLevel().getBlockEntity(h.absolutePos(CORE));
+    }
+
+    /** Runs the table's ticks until its forging is done (at most {@code limit} ticks); returns how many it took. */
+    private static int forgeOut(GameTestHelper h, LegendaryCraftingTableBlockEntity table, int limit) {
+        BlockPos at = table.getBlockPos();
+        int ticks = 0;
+        while (table.busy() && ticks < limit) {
+            LegendaryCraftingTableBlockEntity.serverTick(h.getLevel(), at, h.getLevel().getBlockState(at), table);
+            ticks++;
+        }
+        return ticks;
     }
 
     /** Lays a recipe's pattern out on the grid, {@code dx} and {@code dy} slots from the top left. */
@@ -71,33 +86,134 @@ public final class ForgeGameTests {
         }
     }
 
-    /** Every weapon's and armor piece's pattern, laid anywhere on the grid, forges it; taking it uses the grid up. */
-    @GameTest(template = ARENA)
+    /**
+     * Every weapon's and armor piece's pattern, laid anywhere on the grid, shows what it makes (which is forged, not
+     * taken): Forge takes the grid's items, and after the recipe's time - a minute to five - it waits in the Forged slot.
+     */
+    @GameTest(template = ARENA, timeoutTicks = 400)
     public static void forgesEveryWeaponAndPiece(GameTestHelper h) {
         ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
         var recipes = h.getLevel().getRecipeManager().getAllRecipesFor(ModRecipes.FORGING.get());
         if (recipes.size() != 13 + 13 * 4) h.fail("expected 65 forge recipes, found " + recipes.size());
+        LegendaryCraftingMenu menu = open(h, p);
+        LegendaryCraftingTableBlockEntity table = table(h);
         for (RecipeHolder<ForgeRecipe> holder : recipes) {
             ForgeRecipe recipe = holder.value();
-            LegendaryCraftingMenu menu = open(h, p);
+            if (recipe.time() < 60 * 20 || recipe.time() > 5 * 60 * 20) h.fail(holder.id() + " takes " + recipe.time() / 20 + " s");
             // off-centre: in the bottom right corner
             lay(menu, recipe, ForgeRecipe.SIZE - recipe.pattern().width(), ForgeRecipe.SIZE - recipe.pattern().height());
-            ItemStack out = menu.slots.get(LegendaryCraftingMenu.RESULT).getItem();
-            if (out.getItem() != recipe.result().getItem()) {
-                h.fail(holder.id() + " made " + out + " instead of " + recipe.result());
+            var result = menu.slots.get(LegendaryCraftingMenu.RESULT);
+            if (result.getItem().getItem() != recipe.result().getItem()) {
+                h.fail(holder.id() + " shows " + result.getItem() + " instead of " + recipe.result());
                 return;
             }
-            var result = menu.slots.get(LegendaryCraftingMenu.RESULT);
-            ItemStack taken = result.remove(1);
-            result.onTake(p, taken);
+            if (result.mayPickup(p)) h.fail(holder.id() + ": a legendary item could be taken without forging");
+            if (!menu.clickMenuButton(p, LegendaryCraftingMenu.FORGE_BUTTON)) h.fail(holder.id() + ": Forge did nothing");
             for (int i = LegendaryCraftingMenu.GRID_START; i < LegendaryCraftingMenu.GRID_END; i++) {
                 if (menu.slots.get(i).hasItem()) {
                     h.fail(holder.id() + ": the grid was not used up");
                     return;
                 }
             }
-            if (!menu.slots.get(LegendaryCraftingMenu.RESULT).getItem().isEmpty()) h.fail(holder.id() + ": a result is left with an empty grid");
+            int took = forgeOut(h, table, 10000);
+            if (took < recipe.time()) h.fail(holder.id() + " was forged in " + took + " ticks, not " + recipe.time());
+            ItemStack forged = table.output().removeItemNoUpdate(0);
+            if (forged.getItem() != recipe.result().getItem()) h.fail(holder.id() + " forged " + forged);
         }
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
+    /** What lies on the grid stays there when the table is closed, for the next to open it, and drops when it is broken. */
+    @GameTest(template = ARENA)
+    public static void theGridKeepsItsItems(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        LegendaryCraftingMenu menu = open(h, p);
+        menu.slots.get(LegendaryCraftingMenu.GRID_START + 10).set(new ItemStack(Items.DIAMOND, 3));
+        menu.removed(p);
+        LegendaryCraftingMenu again = open(h, p);
+        if (!again.slots.get(LegendaryCraftingMenu.GRID_START + 10).getItem().is(Items.DIAMOND)) h.fail("the grid forgot its diamonds");
+        if (p.getInventory().countItem(Items.DIAMOND) != 0) h.fail("closing gave the grid's items back");
+        h.destroyBlock(CORE);
+        h.runAfterDelay(2, () -> {
+            int dropped = h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new AABB(h.absolutePos(CORE)).inflate(3)).stream()
+                    .filter(e -> e.getItem().is(Items.DIAMOND)).mapToInt(e -> e.getItem().getCount()).sum();
+            if (dropped != 3) h.fail("breaking the table dropped " + dropped + " diamonds");
+            FWGameTests.cleanup(p);
+            h.succeed();
+        });
+    }
+
+    /** Fill lays the chosen recipe out on the grid from the inventory - only when everything it takes is there. */
+    @GameTest(template = ARENA)
+    public static void fillLaysTheRecipeOut(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        LegendaryCraftingMenu menu = open(h, p);
+        var all = ForgeRecipe.ordered(h.getLevel());
+        int index = -1;
+        for (int i = 0; i < all.size(); i++) if (all.get(i).id().equals(FantasyWeapons.id("forging/voidfang"))) index = i;
+        ForgeRecipe recipe = all.get(index).value();
+        java.util.Map<net.minecraft.world.item.Item, Integer> needs = new java.util.HashMap<>();
+        for (Ingredient ing : recipe.getIngredients()) if (!ing.isEmpty()) needs.merge(ing.getItems()[0].getItem(), 1, Integer::sum);
+        // one short: nothing happens
+        boolean first = true;
+        for (var e : needs.entrySet()) {
+            p.getInventory().add(new ItemStack(e.getKey(), first ? e.getValue() - 1 : e.getValue()));
+            first = false;
+        }
+        // something in the way, out of place
+        menu.slots.get(LegendaryCraftingMenu.GRID_START).set(new ItemStack(Items.DIRT));
+        if (menu.clickMenuButton(p, LegendaryCraftingMenu.FILL + index)) h.fail("filled while one short");
+        var missing = needs.keySet().iterator().next();
+        p.getInventory().add(new ItemStack(missing));
+        if (!menu.clickMenuButton(p, LegendaryCraftingMenu.FILL + index)) h.fail("did not fill with everything to hand");
+        if (!menu.slots.get(LegendaryCraftingMenu.RESULT).getItem().is(ModItems.WEAPONS.get("voidfang").get())) {
+            h.fail("filled grid makes " + menu.slots.get(LegendaryCraftingMenu.RESULT).getItem());
+        }
+        if (p.getInventory().countItem(Items.DIRT) != 1) h.fail("the dirt in the way was not given back");
+        for (var e : needs.keySet()) if (p.getInventory().countItem(e) != 0) h.fail(e + " left in the inventory");
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
+    /** Broken mid-forging, the table gives back what the forging took. */
+    @GameTest(template = ARENA)
+    public static void breakingMidForgingGivesItBack(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        LegendaryCraftingMenu menu = open(h, p);
+        var voidfang = (ForgeRecipe) h.getLevel().getRecipeManager().byKey(FantasyWeapons.id("forging/voidfang")).orElseThrow().value();
+        lay(menu, voidfang, 0, 0);
+        int cores = 0;
+        for (Ingredient ing : voidfang.getIngredients()) if (!ing.isEmpty() && ing.getItems()[0].is(ModItems.REFINED.get(com.fantasyweapons.material.Material.VOID_CRYSTAL).get())) cores++;
+        menu.clickMenuButton(p, LegendaryCraftingMenu.FORGE_BUTTON);
+        if (!table(h).busy()) h.fail("not forging");
+        int expected = cores;
+        h.destroyBlock(CORE);
+        h.runAfterDelay(2, () -> {
+            int back = h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, new AABB(h.absolutePos(CORE)).inflate(3)).stream()
+                    .filter(e -> e.getItem().is(ModItems.REFINED.get(com.fantasyweapons.material.Material.VOID_CRYSTAL).get())).mapToInt(e -> e.getItem().getCount()).sum();
+            if (back != expected) h.fail(back + " of " + expected + " cores given back");
+            FWGameTests.cleanup(p);
+            h.succeed();
+        });
+    }
+
+    /** A forging survives the table being saved and loaded (where it was, what it makes, what it took). */
+    @GameTest(template = ARENA)
+    public static void aForgingIsSaved(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        LegendaryCraftingMenu menu = open(h, p);
+        var voidfang = (ForgeRecipe) h.getLevel().getRecipeManager().byKey(FantasyWeapons.id("forging/voidfang")).orElseThrow().value();
+        lay(menu, voidfang, 0, 0);
+        menu.clickMenuButton(p, LegendaryCraftingMenu.FORGE_BUTTON);
+        LegendaryCraftingTableBlockEntity table = table(h);
+        for (int i = 0; i < 100; i++) LegendaryCraftingTableBlockEntity.serverTick(h.getLevel(), table.getBlockPos(), table.getBlockState(), table);
+        var saved = table.saveWithoutMetadata(h.getLevel().registryAccess());
+        var copy = new LegendaryCraftingTableBlockEntity(table.getBlockPos(), table.getBlockState());
+        copy.loadWithComponents(saved, h.getLevel().registryAccess());
+        if (!copy.busy() || copy.progress() != 100 || copy.total() != voidfang.time()) h.fail("loaded " + copy.progress() + "/" + copy.total());
+        if (!copy.forging().getItem(0).is(ModItems.WEAPONS.get("voidfang").get())) h.fail("forging " + copy.forging().getItem(0));
+        if (copy.drops().size() < 5) h.fail("forgot what the forging took: " + copy.drops());
         FWGameTests.cleanup(p);
         h.succeed();
     }
@@ -266,30 +382,28 @@ public final class ForgeGameTests {
         });
     }
 
-    /** The table crafts (its crafting animation plays) while a recipe lies on the grid, and for a moment after forging. */
+    /** The table crafts (its crafting animation plays) while it forges, and for a moment after; not while a recipe only lies there. */
     @GameTest(template = ARENA, timeoutTicks = 200)
-    public static void theTableCraftsWhileARecipeLies(GameTestHelper h) {
+    public static void theTableCraftsWhileItForges(GameTestHelper h) {
         ServerPlayer p = FWGameTests.player(h, new Vec3(4.5, 2, 2.5), 0);
         LegendaryCraftingMenu menu = open(h, p);
         BlockPos at = h.absolutePos(CORE);
         java.util.function.BooleanSupplier crafting = () -> h.getLevel().getBlockState(at).getValue(LegendaryCraftingTableBlock.CRAFTING);
-        menu.slots.get(LegendaryCraftingMenu.GRID_START).set(new ItemStack(Items.DIRT));
+        var voidfang = (ForgeRecipe) h.getLevel().getRecipeManager().byKey(FantasyWeapons.id("forging/voidfang")).orElseThrow().value();
+        lay(menu, voidfang, 0, 0);
         h.runAfterDelay(3, () -> {
-            if (crafting.getAsBoolean()) h.fail("crafting with nothing to make");
-            var voidfang = (ForgeRecipe) h.getLevel().getRecipeManager().byKey(FantasyWeapons.id("forging/voidfang")).orElseThrow().value();
-            menu.slots.get(LegendaryCraftingMenu.GRID_START).set(ItemStack.EMPTY);
-            lay(menu, voidfang, 0, 0);
+            if (crafting.getAsBoolean()) h.fail("crafting with the pattern only laid out");
+            menu.clickMenuButton(p, LegendaryCraftingMenu.FORGE_BUTTON);
         });
         h.runAfterDelay(6, () -> {
-            if (!crafting.getAsBoolean()) h.fail("not crafting with a recipe on the grid");
-            menu.slots.get(LegendaryCraftingMenu.RESULT).onTake(p, menu.slots.get(LegendaryCraftingMenu.RESULT).remove(1));
-            menu.removed(p);
+            if (!crafting.getAsBoolean()) h.fail("not crafting while forging");
+            forgeOut(h, table(h), 10000);
         });
         h.runAfterDelay(9, () -> {
             if (!crafting.getAsBoolean()) h.fail("stopped crafting the moment the item was forged");
         });
         h.runAfterDelay(12 + LegendaryCraftingTableBlockEntity.AFTERGLOW, () -> {
-            if (crafting.getAsBoolean()) h.fail("still crafting long after the grid was left");
+            if (crafting.getAsBoolean()) h.fail("still crafting long after forging");
             FWGameTests.cleanup(p);
             h.succeed();
         });

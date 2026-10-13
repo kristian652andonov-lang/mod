@@ -1,5 +1,6 @@
 {
   "type": "fantasyweapons:forging",
+  "forging_time": 3600,
   "key": {
     "A": {
       "item": "minecraft:packed_ice"

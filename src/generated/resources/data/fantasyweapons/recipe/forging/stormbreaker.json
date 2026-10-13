@@ -1,5 +1,6 @@
 {
   "type": "fantasyweapons:forging",
+  "forging_time": 4800,
   "key": {
     "A": {
       "item": "minecraft:copper_block"
