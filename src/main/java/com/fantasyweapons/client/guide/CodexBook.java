@@ -108,16 +108,16 @@ public final class CodexBook {
             int body = hover || open ? 0xFF000000 | tab.color() : 0xFF000000 | deepen(tab.color(), 0.78f);
             // the tab's end is cut in, like a ribbon's
             notched(c, x0, y, x1, y + h, NOTCH, 0xFF2A1A0C, z);
-            notched(c, x0, y + 0.6f, x1 - 0.7f, y + h - 0.6f, NOTCH - 0.25f, body, z + 0.01f);
+            notched(c, x0, y + 0.6f, x1 - 0.8f, y + h - 0.6f, NOTCH - 0.5f, body, z + 0.01f);
             c.quad(x0, y + 0.6f, x0, y + 1.4f, x1 - 0.7f - NOTCH * 0.8f / (h / 2), y + 1.4f, x1 - 0.7f, y + 0.6f, 0x55FFFFFF, z + 0.02f);
-            c.icon(TAB_ICONS, tab.icon(), 8, x1 - NOTCH - 8.2f, y + 1.3f, 7.4f);
+            c.icon(TAB_ICONS, tab.icon(), 8, x0 + 2.2f, y + 1.3f, 7.4f);
             y += h + 1;
         }
         c.lift = 0;
     }
 
     /** How deep the cut in a tab's end goes (sheet units). */
-    private static final float NOTCH = 2.6f;
+    private static final float NOTCH = 5.2f;
 
     /** A tab's shape: a rectangle whose outer end is cut in to a point at its middle, {@code depth} deep. */
     private static void notched(PageCanvas c, float x0, float y0, float x1, float y1, float depth, int argb, float z) {
