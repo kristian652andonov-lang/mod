@@ -65,6 +65,7 @@ final class DevScripts {
                 else if (name.equals("deeds")) deeds(b);
                 else if (name.equals("quests")) quests(b);
                 else if (name.equals("oreicons")) oreIcons(b);
+                else if (name.equals("gear")) gear(b);
                 else if (name.equals("forgefx")) forgeFx(b);
                 else if (name.equals("codexquests")) {
                     b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set none").cmd("/give @s fantasyweapons:wayfarers_codex")
@@ -1069,6 +1070,30 @@ final class DevScripts {
         b.cmd("/fw quest reset").wait(10).run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen())).wait(5)
                 .run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 + 5)).wait(10).screenshot("qs_notoast");
         b.cmd("/fw quest complete hunter_50").wait(20).screenshot("qs_toast").wait(200).screenshot("qs_after_toast").closeScreen();
+    }
+
+    /** The inventory's journal and class buttons, and gear tooltips telling whether the player's class can use it. */
+    private static void gear(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode survival").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set none").cmd("/fw quest reset")
+                .cmd("/fw quest complete first_page").cmd("/give @s fantasyweapons:voidfang").cmd("/give @s fantasyweapons:solaris_chestplate")
+                .wait(30).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10);
+        b.run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(10).screenshot("gear_inventory");
+        b.run(mc -> {
+            var screen = (net.minecraft.client.gui.screens.inventory.InventoryScreen) mc.screen;
+            screen.getRecipeBookComponent().toggleVisibility();
+        }).wait(10).screenshot("gear_inventory_book").closeScreen().wait(5);
+        java.util.function.Consumer<String> tooltips = name -> b.run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("tips")) {
+            @Override
+            public void render(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+                super.render(g, mx, my, pt);
+                g.renderTooltip(font, new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.WEAPONS.get("voidfang").get()), 4, 14);
+                g.renderTooltip(font, new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.ARMOR.get(com.fantasyweapons.armor.ArmorSet.SOLARIS)
+                        .get(net.minecraft.world.item.ArmorItem.Type.CHESTPLATE).get()), width / 2 + 4, 14);
+            }
+        })).wait(10).screenshot(name).closeScreen().wait(5);
+        tooltips.accept("gear_tips_none");
+        b.cmd("/fw class set assassin").wait(10);
+        tooltips.accept("gear_tips_assassin");
     }
 
     /** Clicks the open screen at gui coordinates measured from a centred panel {@code w} by {@code h}. */

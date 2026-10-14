@@ -93,6 +93,8 @@ public final class ClassService {
             if (a != null) a.addPermanentModifier(new AttributeModifier(modifierId(mod), mod.amount(), mod.operation()));
         }
         if (player.getHealth() > player.getMaxHealth()) player.setHealth(player.getMaxHealth());
+        // armor of another class comes off
+        ClassGear.stripArmor(player);
     }
 
     /** Lays the class on again, and the first time a player joins the world, puts the class menu before them. */
@@ -163,6 +165,8 @@ public final class ClassService {
 
     /** Every second: the paladin's blessing heals them once they have been out of combat a while. */
     public static void tick(ServerPlayer player) {
+        // armor put on some other way (or kept from creative mode) comes off if the class cannot wear it
+        if (player.tickCount % 20 == 0) ClassGear.stripArmor(player);
         if (player.tickCount % 60 != 0 || of(player) != PlayerClass.PALADIN) return;
         long since = player.level().getGameTime() - lastHurt.getOrDefault(player.getUUID(), 0L);
         if (since > 160 && player.getHealth() < player.getMaxHealth()) {
@@ -173,5 +177,6 @@ public final class ClassService {
 
     public static void onLogout(ServerPlayer player) {
         lastHurt.remove(player.getUUID());
+        ClassGear.forget(player.getUUID());
     }
 }

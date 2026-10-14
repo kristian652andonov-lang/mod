@@ -48,6 +48,11 @@ public final class MeleeHandler {
     public static void attack(ServerPlayer player, Entity rawTarget) {
         ItemStack stack = player.getMainHandItem();
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
+        // only the weapon's class can fight with it
+        if (!com.fantasyweapons.playerclass.ClassGear.canUse(player, stack)) {
+            com.fantasyweapons.playerclass.ClassGear.refuse(player, stack);
+            return;
+        }
         WeaponDefinition def = item.definition();
         WeaponData data = FantasyWeaponItem.data(stack);
         AbilityRuntime rt = player.getData(ModAttachments.ABILITY_RUNTIME);

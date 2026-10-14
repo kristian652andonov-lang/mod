@@ -153,6 +153,10 @@ public final class AbilityService {
         if (!rateLimit(player)) return;
         ItemStack stack = player.getMainHandItem();
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
+        if (!com.fantasyweapons.playerclass.ClassGear.canUse(player, stack)) {
+            com.fantasyweapons.playerclass.ClassGear.refuse(player, stack);
+            return;
+        }
         WeaponDefinition def = item.definition();
         if (!def.hasForms()) return;
         WeaponData data = FantasyWeaponItem.data(stack);
@@ -195,6 +199,10 @@ public final class AbilityService {
     private static void startCharge(ServerPlayer player) {
         ItemStack stack = player.getMainHandItem();
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
+        if (!com.fantasyweapons.playerclass.ClassGear.canUse(player, stack)) {
+            com.fantasyweapons.playerclass.ClassGear.refuse(player, stack);
+            return;
+        }
         AbilityRuntime rt = runtime(player);
         if (rt.isCharging() || !player.isAlive() || player.isSpectator()) return;
         WeaponDefinition def = item.definition();

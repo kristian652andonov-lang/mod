@@ -82,6 +82,7 @@ public final class ClientSetup {
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiEvent.Pre e) -> {
             if (com.fantasyweapons.client.guide.Codex.reading()) e.setCanceled(true);
         });
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.gui.InventoryButtons::onInit);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);
         NeoForge.EVENT_BUS.addListener(VfxManager::render);

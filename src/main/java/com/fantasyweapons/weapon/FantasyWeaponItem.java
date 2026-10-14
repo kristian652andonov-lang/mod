@@ -219,6 +219,7 @@ public class FantasyWeaponItem extends Item implements GeoItem {
         tooltip.add(Component.literal(def.title()).withStyle(s -> s.withColor(light).withItalic(true)));
         tooltip.add(Component.literal(def.rarity().displayName() + " " + def.weaponClass().displayName() + " of " + def.element().displayName())
                 .withStyle(s -> s.withColor(theme)));
+        com.fantasyweapons.playerclass.ClassGear.tooltip(com.fantasyweapons.SidedHooks.get().clientPlayer(), stack, tooltip);
         String runes = (def.displayName() + " " + def.title()).toLowerCase().replaceAll("[^a-z ]", "");
         tooltip.add(Component.literal(runes.length() > 30 ? runes.substring(0, 30) : runes)
                 .withStyle(s -> s.withColor(mix(theme, 0x000000, 0.4f)).withFont(ResourceLocation.withDefaultNamespace("alt"))));

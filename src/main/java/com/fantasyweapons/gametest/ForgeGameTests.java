@@ -144,7 +144,7 @@ public final class ForgeGameTests {
         });
     }
 
-    /** Fill lays the chosen recipe out on the grid from the inventory - only when everything it takes is there. */
+    /** Fill lays the chosen recipe out on the grid from the inventory, as much of it as is there, and the rest once it is. */
     @GameTest(template = ARENA)
     public static void fillLaysTheRecipeOut(GameTestHelper h) {
         ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
@@ -155,7 +155,7 @@ public final class ForgeGameTests {
         ForgeRecipe recipe = all.get(index).value();
         java.util.Map<net.minecraft.world.item.Item, Integer> needs = new java.util.HashMap<>();
         for (Ingredient ing : recipe.getIngredients()) if (!ing.isEmpty()) needs.merge(ing.getItems()[0].getItem(), 1, Integer::sum);
-        // one short: nothing happens
+        // one short: all but that one cell is laid out
         boolean first = true;
         for (var e : needs.entrySet()) {
             p.getInventory().add(new ItemStack(e.getKey(), first ? e.getValue() - 1 : e.getValue()));
@@ -163,7 +163,13 @@ public final class ForgeGameTests {
         }
         // something in the way, out of place
         menu.slots.get(LegendaryCraftingMenu.GRID_START).set(new ItemStack(Items.DIRT));
-        if (menu.clickMenuButton(p, LegendaryCraftingMenu.FILL + index)) h.fail("filled while one short");
+        if (!menu.clickMenuButton(p, LegendaryCraftingMenu.FILL + index)) h.fail("did not fill what there was");
+        int laid = 0, cells = 0;
+        for (Ingredient ing : recipe.getIngredients()) if (!ing.isEmpty()) cells++;
+        for (int i = 0; i < ForgeRecipe.SIZE * ForgeRecipe.SIZE; i++) if (!menu.slots.get(LegendaryCraftingMenu.GRID_START + i).getItem().isEmpty()) laid++;
+        if (laid != cells - 1) h.fail("one short laid out " + laid + " of " + cells);
+        if (!menu.slots.get(LegendaryCraftingMenu.RESULT).getItem().isEmpty()) h.fail("a recipe one short makes something");
+        if (menu.clickMenuButton(p, LegendaryCraftingMenu.FILL + index)) h.fail("filled again with nothing more to hand");
         var missing = needs.keySet().iterator().next();
         p.getInventory().add(new ItemStack(missing));
         if (!menu.clickMenuButton(p, LegendaryCraftingMenu.FILL + index)) h.fail("did not fill with everything to hand");

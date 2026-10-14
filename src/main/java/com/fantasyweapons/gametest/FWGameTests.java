@@ -635,6 +635,8 @@ public final class FWGameTests {
         // the test world is in creative mode, and a newly joined player can't be hurt for 3 seconds (mock players are
         // never ticked out of it): test players are vulnerable survival players from the start
         player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+        // test players may use every class's gear (the class tests take this away)
+        player.addTag(com.fantasyweapons.playerclass.ClassGear.ANY_CLASS);
         try {
             var f = ServerPlayer.class.getDeclaredField("spawnInvulnerableTime");
             f.setAccessible(true);

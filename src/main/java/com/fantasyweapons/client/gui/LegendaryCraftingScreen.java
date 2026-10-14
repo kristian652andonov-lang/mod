@@ -230,7 +230,7 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
         }
     }
 
-    /** Lays the chosen recipe out on the grid from the inventory; lit only when everything it takes is to hand. */
+    /** Lays the chosen recipe out on the grid from the inventory, as much as is to hand; lit while any of it is. */
     private void fillButton(GuiGraphics g, int x, int y, int mouseX, int mouseY) {
         boolean can = canFill(), hover = can && mouseX >= x && mouseX < x + FILL_W && mouseY >= y && mouseY < y + 14;
         UiDraw.button(g, x, y, FILL_W, 14, hover ? 1 : 0, can ? 1f : 0.45f);

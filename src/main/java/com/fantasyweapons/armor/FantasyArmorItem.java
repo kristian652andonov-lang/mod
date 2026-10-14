@@ -94,11 +94,29 @@ public class FantasyArmorItem extends ArmorItem implements GeoItem {
         return fullSet(entity, helmet.set) ? helmet.set : null;
     }
 
+    /** Only the set's class can put it on. */
+    @Override
+    public boolean canEquip(ItemStack stack, net.minecraft.world.entity.EquipmentSlot armorType, net.minecraft.world.entity.LivingEntity entity) {
+        if (entity instanceof Player player && !com.fantasyweapons.playerclass.ClassGear.canUse(player, stack)) return false;
+        return super.canEquip(stack, armorType, entity);
+    }
+
+    @Override
+    public net.minecraft.world.InteractionResultHolder<ItemStack> use(net.minecraft.world.level.Level level, Player player, net.minecraft.world.InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (!com.fantasyweapons.playerclass.ClassGear.canUse(player, stack)) {
+            if (player instanceof net.minecraft.server.level.ServerPlayer sp) com.fantasyweapons.playerclass.ClassGear.refuse(sp, stack);
+            return net.minecraft.world.InteractionResultHolder.fail(stack);
+        }
+        return super.use(level, player, hand);
+    }
+
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int color = set.material().color();
         int light = mix(color, 0xFFFFFF, 0.45f), ink = mix(0xD8C9A8, color, 0.15f), faded = mix(color, 0x9C8862, 0.55f);
         tooltip.add(Component.literal(set.armorClass().displayName() + " armor of " + set.element().displayName()).withStyle(s -> s.withColor(color)));
+        com.fantasyweapons.playerclass.ClassGear.tooltip(SidedHooks.get().clientPlayer(), stack, tooltip);
         for (String line : wrap(set.look(), 40)) tooltip.add(Component.literal(line).withStyle(s -> s.withColor(ink).withItalic(true)));
         tooltip.add(Component.empty());
         ArmorClass c = set.armorClass();

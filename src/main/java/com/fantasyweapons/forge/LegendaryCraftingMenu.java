@@ -299,11 +299,16 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
         return at;
     }
 
-    /**
-     * Whether {@code player} has everything to lay {@code recipe} out on {@code grid}: what already lies in its place
-     * counts, and what lies out of place would come back to them first.
-     */
+    /** Whether Fill would lay anything of {@code recipe} out on {@code grid} (see {@link #fillable}). */
     public static boolean canFill(Player player, Container grid, ForgeRecipe recipe) {
+        return fillable(player, grid, recipe) > 0;
+    }
+
+    /**
+     * How many of {@code recipe}'s cells still wanting their ingredient {@code player} could fill: from their inventory,
+     * and from what lies out of place on the grid (which comes back to them first).
+     */
+    public static int fillable(Player player, Container grid, ForgeRecipe recipe) {
         Ingredient[] at = layout(recipe);
         List<ItemStack> pool = new ArrayList<>();
         for (int i = 0; i < 36; i++) if (!player.getInventory().getItem(i).isEmpty()) pool.add(player.getInventory().getItem(i).copy());
@@ -311,22 +316,24 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
             ItemStack have = grid.getItem(i);
             if (!have.isEmpty() && (at[i] == null || !at[i].test(have))) pool.add(have.copy());
         }
+        int filled = 0;
         for (int i = 0; i < at.length; i++) {
             if (at[i] == null || at[i].test(grid.getItem(i))) continue;
-            ItemStack from = null;
             for (ItemStack s : pool) {
                 if (s.getCount() > 0 && at[i].test(s)) {
-                    from = s;
+                    s.shrink(1);
+                    filled++;
                     break;
                 }
             }
-            if (from == null) return false;
-            from.shrink(1);
         }
-        return true;
+        return filled;
     }
 
-    /** Lays {@code recipe} out on the grid from the player's inventory, if they have everything (see {@link #canFill}). */
+    /**
+     * Lays {@code recipe} out on the grid from the player's inventory, as much of it as they have: what is out of place
+     * goes back to them, and every cell they have the ingredient for is filled, even when the recipe is not yet whole.
+     */
     private boolean fill(Player player, ForgeRecipe recipe) {
         if (!canFill(player, grid, recipe)) return false;
         Ingredient[] at = layout(recipe);

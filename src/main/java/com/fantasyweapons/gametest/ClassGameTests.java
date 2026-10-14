@@ -13,6 +13,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -67,6 +68,85 @@ public final class ClassGameTests {
         // saved and read back, the offer is remembered
         var saved = ClassData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, d).getOrThrow();
         if (!ClassData.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, saved).getOrThrow().offered()) h.fail("the offer was not saved");
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
+    /** A player bound by the class rules (test players may use everything unless this is taken away). */
+    private static ServerPlayer bound(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        p.removeTag(com.fantasyweapons.playerclass.ClassGear.ANY_CLASS);
+        return p;
+    }
+
+    private static void recovered(ServerPlayer p) {
+        try {
+            var f = LivingEntity.class.getDeclaredField("attackStrengthTicker");
+            f.setAccessible(true);
+            f.setInt(p, 10000);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Each weapon and armor set answers to its set's class; there are gear for all three classes. */
+    @GameTest(template = ARENA)
+    public static void gearHasAClass(GameTestHelper h) {
+        java.util.Set<PlayerClass> seen = java.util.EnumSet.noneOf(PlayerClass.class);
+        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+            PlayerClass c = com.fantasyweapons.playerclass.ClassGear.ofWeapon(def.id());
+            if (c == PlayerClass.NONE || !c.available()) h.fail(def.id() + " answers to " + c);
+            seen.add(c);
+            var set = com.fantasyweapons.armor.ArmorSet.ofWeapon(def.id());
+            ItemStack chest = new ItemStack(com.fantasyweapons.registry.ModItems.ARMOR.get(set).get(net.minecraft.world.item.ArmorItem.Type.CHESTPLATE).get());
+            if (com.fantasyweapons.playerclass.ClassGear.of(chest) != c) h.fail(def.id() + "'s armor answers to another class");
+        }
+        if (!seen.containsAll(java.util.List.of(PlayerClass.ASSASSIN, PlayerClass.BERSERKER, PlayerClass.PALADIN))) h.fail("not every class has gear: " + seen);
+        h.succeed();
+    }
+
+    /** Only the weapon's class strikes with it; anyone else's blow does nothing. */
+    @GameTest(template = ARENA)
+    public static void onlyItsClassWieldsAWeapon(GameTestHelper h) {
+        ServerPlayer p = bound(h);
+        String weapon = "voidfang";
+        PlayerClass need = com.fantasyweapons.playerclass.ClassGear.ofWeapon(weapon);
+        PlayerClass other = need == PlayerClass.PALADIN ? PlayerClass.BERSERKER : PlayerClass.PALADIN;
+        p.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, new ItemStack(com.fantasyweapons.registry.ModItems.WEAPONS.get(weapon).get()));
+        Mob pig = h.spawn(EntityType.PIG, new BlockPos(2, 2, 4));
+        pig.setNoAi(true);
+        float hp = pig.getHealth();
+        recovered(p);
+        com.fantasyweapons.combat.MeleeHandler.attack(p, pig);
+        if (pig.getHealth() < hp) h.fail("a classless player struck with the " + weapon);
+        ClassService.set(p, other, false);
+        recovered(p);
+        com.fantasyweapons.combat.MeleeHandler.attack(p, pig);
+        if (pig.getHealth() < hp) h.fail("a " + other + " struck with the " + weapon);
+        ClassService.set(p, need, false);
+        recovered(p);
+        pig.invulnerableTime = 0;
+        com.fantasyweapons.combat.MeleeHandler.attack(p, pig);
+        if (pig.getHealth() >= hp) h.fail("its own class could not strike with the " + weapon);
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
+    /** Armor of another class cannot be put on, and comes off when the class changes. */
+    @GameTest(template = ARENA)
+    public static void onlyItsClassWearsArmor(GameTestHelper h) {
+        ServerPlayer p = bound(h);
+        var set = com.fantasyweapons.armor.ArmorSet.SOLARIS;
+        PlayerClass need = com.fantasyweapons.playerclass.ClassGear.of(set.armorClass());
+        PlayerClass other = need == PlayerClass.ASSASSIN ? PlayerClass.BERSERKER : PlayerClass.ASSASSIN;
+        ItemStack helmet = new ItemStack(com.fantasyweapons.registry.ModItems.ARMOR.get(set).get(net.minecraft.world.item.ArmorItem.Type.HELMET).get());
+        if (helmet.canEquip(net.minecraft.world.entity.EquipmentSlot.HEAD, p)) h.fail("a classless player can put on " + set);
+        ClassService.set(p, need, false);
+        if (!helmet.canEquip(net.minecraft.world.entity.EquipmentSlot.HEAD, p)) h.fail("its own class cannot put on " + set);
+        p.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, helmet.copy());
+        ClassService.set(p, other, false);
+        if (!p.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).isEmpty()) h.fail("the helmet stayed on after the class changed");
+        if (p.getInventory().countItem(helmet.getItem()) != 1) h.fail("the helmet taken off was not given back");
         FWGameTests.cleanup(p);
         h.succeed();
     }
