@@ -16,7 +16,8 @@ import net.minecraft.sounds.SoundEvent;
 /**
  * One of the mod's deeds, earned: in place of vanilla's advancement toast, a dark netherite plaque in a gold frame, the
  * deed's icon on a medallion haloed in its tier's colour (rays turning behind a legend's), its rank, its title in its own
- * colour and what it was for, a gleam sweeping across and sparkles glinting as it arrives, and the tier's fanfare.
+ * colour and what it was for, a gleam sweeping across and sparkles glinting as it arrives, and the tier's fanfare. The title
+ * and then what it was for are typed out letter by letter, a key clicking for each, behind a blinking caret.
  */
 public final class DeedToast implements Toast {
     private static final int W = 192, H = 42;
@@ -24,6 +25,11 @@ public final class DeedToast implements Toast {
     private final DeedPayload deed;
     private final AdvancementType type;
     private boolean played;
+    /** How many letters have been typed so far (their clicks played). */
+    private int typed;
+    private long typeEnd = -1;
+    /** When typing starts (ms into the toast), and how fast the title and the description are typed (letters a second). */
+    private static final float TYPE_FROM = 0.35f, TITLE_RATE = 22, DESC_RATE = 42, PAUSE = 0.15f;
 
     public DeedToast(DeedPayload deed) {
         this.deed = deed;
@@ -42,11 +48,13 @@ public final class DeedToast implements Toast {
     }
 
     private long duration() {
-        return switch (type) {
-            case TASK -> 5000;
-            case GOAL -> 6500;
-            case CHALLENGE -> 9000;
+        // its time to be read once it is all written
+        long read = switch (type) {
+            case TASK -> 3500;
+            case GOAL -> 4500;
+            case CHALLENGE -> 6500;
         };
+        return (typeEnd < 0 ? 4000 : typeEnd) + read;
     }
 
     private String header() {
@@ -103,13 +111,28 @@ public final class DeedToast implements Toast {
         UiDraw.text(g, Deeds.mark(type), x - 0.5f, 6, 0xFFFFFFFF, 0.85f, true);
         UiDraw.text(g, header(), x + 8.5f, 8, Colors.alpha(1f, color), 0.6f, true);
         Component title = deed.title();
+        String titleText = title.getString();
         float titleScale = UiDraw.font().width(title) > (W - x - 8) / 0.9f ? 0.75f : 0.9f;
-        UiDraw.text(g, title, x, 17, 0xFFFFFFFF, titleScale, true);
         String description = deed.description().getString();
         float descScale = 0.55f;
         int room = (int) ((W - x - 8) / descScale);
         if (UiDraw.font().width(description) > room) description = UiDraw.font().plainSubstrByWidth(description, room - UiDraw.font().width("...")) + "...";
-        UiDraw.text(g, description, x, 29, Colors.alpha(1f, 0xC9BDA2), descScale, false);
+        // typed out: the title, a breath, then what it was for
+        float since = Math.max(0, t - TYPE_FROM), titleTime = titleText.length() / TITLE_RATE;
+        int titleShown = Math.min(titleText.length(), (int) (since * TITLE_RATE));
+        int descShown = since < titleTime + PAUSE ? 0 : Math.min(description.length(), (int) ((since - titleTime - PAUSE) * DESC_RATE));
+        type(toasts, titleText, description, titleShown, descShown, time);
+        UiDraw.text(g, Component.literal(titleText.substring(0, titleShown)).withStyle(title.getStyle()), x, 17, 0xFFFFFFFF, titleScale, true);
+        UiDraw.text(g, description.substring(0, descShown), x, 29, Colors.alpha(1f, 0xC9BDA2), descScale, false);
+        // the caret, after the letter being typed, blinking a while once all is written
+        boolean writingTitle = titleShown < titleText.length() || descShown == 0;
+        float caretX = writingTitle ? x + UiDraw.font().width(titleText.substring(0, titleShown)) * titleScale + 0.6f
+                : x + UiDraw.font().width(description.substring(0, descShown)) * descScale + 0.5f;
+        float caretY = writingTitle ? 16.5f : 28.5f, caretH = writingTitle ? 8 * titleScale : 8 * descScale;
+        boolean done = descShown >= description.length();
+        if (t >= TYPE_FROM && (!done || (time - typeEnd < 1600 && (time / 260) % 2 == 0))) {
+            UiDraw.rect(g, caretX, caretY, caretX + (writingTitle ? 1 : 0.7f), caretY + caretH, Colors.alpha(0.9f, color));
+        }
 
         // a gleam sweeping across, and a legend's sparks
         if (t > 0.2f && t < 1.4f) {
@@ -126,6 +149,21 @@ public final class DeedToast implements Toast {
             sparkle(g, px, py, 5 + 7 * tw, t * 1.5f + i, Colors.alpha(0.9f * tw, Colors.lerpRgb(color, 0xFFFFFF, 0.55f)));
         }
         return time >= duration() ? Visibility.HIDE : Visibility.SHOW;
+    }
+
+    /** Clicks a key for each letter newly typed (not for spaces), and notes when the typing ends. */
+    private void type(ToastComponent toasts, String title, String description, int titleShown, int descShown, long time) {
+        int now = titleShown + descShown;
+        if (now > typed) {
+            int i = now - 1;
+            char c = i < title.length() ? title.charAt(i) : description.charAt(Math.min(description.length() - 1, i - title.length()));
+            if (c != ' ') {
+                float pitch = 0.92f + (float) ((i * 7919 % 23) / 23.0 * 0.22);
+                toasts.getMinecraft().getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.DEED_TYPE.get(), pitch, i < title.length() ? 0.5f : 0.32f));
+            }
+            typed = now;
+        }
+        if (typeEnd < 0 && descShown >= description.length() && titleShown >= title.length()) typeEnd = time;
     }
 
     /** The four-rayed sparkle, turning slowly, {@code size} across. */

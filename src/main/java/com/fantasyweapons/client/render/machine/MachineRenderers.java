@@ -25,7 +25,7 @@ public final class MachineRenderers {
     private MachineRenderers() {
     }
 
-    public static final class Block<T extends BlockEntity & GeoAnimatable> extends GeoBlockRenderer<T> {
+    public static class Block<T extends BlockEntity & GeoAnimatable> extends GeoBlockRenderer<T> {
         /** {@code model} names the block's geo model, animations and texture (with its glow mask). */
         public Block(String model) {
             super(new DefaultedBlockGeoModel<>(FantasyWeapons.id(model)));
@@ -61,6 +61,38 @@ public final class MachineRenderers {
         @Override
         public boolean shouldRenderOffScreen(T be) {
             return true;
+        }
+    }
+
+    /**
+     * The Legendary Crafting Table: while it forges, the item being forged lies over the grid as on an anvil (under the
+     * gyroscope), hovering, slowly turning and growing as the forging goes on, at full light.
+     */
+    public static final class Table extends Block<com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity> {
+        public Table() {
+            super("legendary_crafting_table");
+        }
+
+        @Override
+        public void render(com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity be, float partialTick, PoseStack poseStack, MultiBufferSource buffers,
+                           int light, int overlay) {
+            super.render(be, partialTick, poseStack, buffers, light, overlay);
+            net.minecraft.world.item.ItemStack made = be.forging().getItem(0);
+            Level level = be.getLevel();
+            if (made.isEmpty() || level == null) return;
+            float time = level.getGameTime() + partialTick;
+            float done = be.total() <= 0 ? 0 : Math.min(1, be.progress() / (float) be.total());
+            var at = be.forgePoint();
+            BlockPos pos = be.getBlockPos();
+            poseStack.pushPose();
+            poseStack.translate(at.x - pos.getX(), at.y - pos.getY() + 0.025 * Math.sin(time * 0.08), at.z - pos.getZ());
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(time * 0.8f));
+            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90));
+            float size = 0.45f + 0.3f * done;
+            poseStack.scale(size, size, size);
+            net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(made, net.minecraft.world.item.ItemDisplayContext.FIXED,
+                    LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, poseStack, buffers, level, (int) pos.asLong());
+            poseStack.popPose();
         }
     }
 

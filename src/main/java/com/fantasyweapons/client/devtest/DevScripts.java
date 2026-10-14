@@ -64,6 +64,7 @@ final class DevScripts {
                 else if (name.equals("codexall")) codexAll(b);
                 else if (name.equals("deeds")) deeds(b);
                 else if (name.equals("codexone")) codexOne(b);
+                else if (name.equals("codexflip")) codexFlip(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
@@ -800,11 +801,11 @@ final class DevScripts {
         b.run(mc -> mc.getSingleplayerServer().execute(() -> {
             var level = mc.getSingleplayerServer().overworld();
             if (level.getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 4)) instanceof com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity t) {
-                t.start(com.fantasyweapons.FantasyWeapons.id("forging/voidfang"), new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STICK), 140,
-                        java.util.List.of());
+                t.start(com.fantasyweapons.FantasyWeapons.id("forging/voidfang"), new net.minecraft.world.item.ItemStack(
+                        com.fantasyweapons.registry.ModItems.WEAPONS.get("voidfang").get()), 160, java.util.List.of());
             }
-        })).viewAt(0.5, 1.8, 0.4, 0.5, 1.0, 4.5).wait(30).screenshot("forge_crafting_a").wait(40).screenshot("forge_crafting_b")
-                .viewAt(3.6, 2.0, 1.2, 0.5, 1.0, 4.5).wait(40).screenshot("forge_crafting_c").wait(120).screenshot("forge_idle_again")
+        })).viewAt(0.5, 2.3, 1.9, 0.5, 1.5, 4.5).wait(30).screenshot("forge_crafting_a").wait(40).screenshot("forge_crafting_b")
+                .viewAt(2.9, 2.2, 2.0, 0.5, 1.5, 4.5).wait(40).screenshot("forge_crafting_c").wait(120).screenshot("forge_idle_again")
                 .run(mc -> mc.getSingleplayerServer().execute(() -> {
                     if (mc.getSingleplayerServer().overworld().getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 4))
                             instanceof com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity t) t.output().clearContent();
@@ -904,6 +905,25 @@ final class DevScripts {
         b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = new float[]{0, 56, 60}).wait(4).screenshot("codex_tooltip");
         b.run(mc -> com.fantasyweapons.client.guide.CodexPages.pinned = null).closeScreen().wait(4).screenshot("codex_closing").wait(20)
                 .screenshot("codex_closed");
+    }
+
+    /** A page turned (each tick of it), a spread with recipes held still, then the book closed (each tick of it). */
+    private static void codexFlip(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/give @s fantasyweapons:wayfarers_codex").wait(10).slot(0).hud(true)
+                .cmd("/tp @s 0 -60 0 0 0").wait(10).run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(110)
+                .run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("path"), false)).wait(20)
+                .screenshot("flip_before");
+        b.run(mc -> com.fantasyweapons.client.guide.Codex.next());
+        // the turn held at points along it (the test display draws too few frames to catch a moving one)
+        for (float t : new float[]{0.15f, 0.35f, 0.5f, 0.65f, 0.85f, 0.97f}) {
+            b.run(mc -> com.fantasyweapons.client.guide.Codex.frozenFlip = t).wait(8).screenshot("flip_" + (int) (t * 100));
+        }
+        b.run(mc -> com.fantasyweapons.client.guide.Codex.frozenFlip = -1).wait(10).screenshot("flip_after");
+        b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("refinery"), false)).wait(20)
+                .screenshot("flip_still_a").wait(7).screenshot("flip_still_b");
+        b.closeScreen();
+        for (int i = 1; i <= 34; i += 2) b.wait(2).screenshot("close_" + (i < 10 ? "0" : "") + i);
+        b.wait(20).screenshot("close_end");
     }
 
     /** One spread of the Codex (the path's first), for checking the pages quickly. */

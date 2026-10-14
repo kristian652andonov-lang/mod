@@ -186,6 +186,27 @@ public final class UiDraw {
         nineSlice(g, metalTex(BAR, BAR_MONO), x - 2, y - 2, w + 4, h + 4, Math.min(3, (h + 4) / 2f), 64, 12, 5, 0, 12, metalTint(Colors.alpha(alpha, 0xFFFFFF)));
     }
 
+    /**
+     * The molten head of a filling bar at {@code tipX}: its glow kept inside the bar (x, y, w, h), a bright edge where the
+     * fill ends, and sparks thrown out of that edge, rising and falling away. {@code time} in ticks.
+     */
+    public static void barTip(GuiGraphics g, float x, float y, float w, float h, float tipX, int rgb, float time) {
+        g.enableScissor((int) Math.floor(x), (int) Math.floor(y), (int) Math.ceil(x + w), (int) Math.ceil(y + h));
+        glow(g, tipX - 2, y + h / 2, h * 3.2f + 1.5f * (float) Math.sin(time * 0.6f), Colors.alpha(0.85f, rgb));
+        g.disableScissor();
+        vGradient(g, tipX - 1.2f, y, tipX, y + h, Colors.alpha(1f, 0xFFFDF0), Colors.alpha(0.9f, Colors.lerpRgb(rgb, 0xFFFFFF, 0.5f)));
+        for (int i = 0; i < 6; i++) {
+            float life = (time * 0.045f + i / 6f) % 1f;
+            float seed = (float) Math.sin(i * 12.9898f) * 43758.5453f;
+            seed -= (float) Math.floor(seed);
+            float vx = 3 + seed * 7, vy = -(4 + ((seed * 7) % 1) * 7);
+            float px = tipX + vx * life, py = y + h / 2 + vy * life + 14 * life * life;
+            int c = Colors.lerpRgb(0xFFFFFF, rgb, life);
+            glow(g, px, py, 4.5f * (1 - life) + 1.5f, Colors.alpha(0.9f * (1 - life), c));
+            rect(g, px - 0.5f, py - 0.5f, px + 0.5f, py + 0.5f, Colors.alpha(1 - life, c));
+        }
+    }
+
     private static void barFill(GuiGraphics g, float x, float y, float w, float h, float fw, int from, int to, float alpha, float shimmerTime) {
         float fraction = fw / w;
         hGradient(g, x, y, x + fw, y + h, Colors.alpha(alpha, from), Colors.alpha(alpha, Colors.lerpRgb(from, to, fraction)));
@@ -290,6 +311,36 @@ public final class UiDraw {
                     cx + s1 * rIn, cy + c1 * rIn, argb, argb, argb, argb);
         }
         g.flush();
+    }
+
+    /**
+     * An arcane circle behind a slot: two rings with runes turning between them and a pentagram turning the other way,
+     * on a soft glow; {@code strength} (0 to 1) dims it when the machine is idle. {@code time} in ticks.
+     */
+    public static void sigil(GuiGraphics g, float cx, float cy, float r, int rgb, float time, float strength) {
+        float a = Math.max(0, Math.min(1, strength));
+        if (a <= 0.01f) return;
+        glow(g, cx, cy, r * 3.0f, Colors.alpha(0.3f * a, rgb));
+        float full = (float) (Math.PI * 2), r2 = r * 0.8f;
+        arc(g, cx, cy, r - 0.8f, r, 0, full, Colors.alpha(0.8f * a, rgb), 56);
+        arc(g, cx, cy, r2 - 0.55f, r2, 0, full, Colors.alpha(0.6f * a, rgb), 48);
+        // runes between the rings, turning slowly
+        float spin = time * 0.012f;
+        for (int i = 0; i < 18; i++) {
+            float ang = spin + i * full / 18, len = i % 3 == 0 ? 0.09f : 0.04f;
+            arc(g, cx, cy, r2 + 0.9f, r - 1.7f, ang - len, ang + len, Colors.alpha((i % 3 == 0 ? 0.75f : 0.45f) * a, rgb), 1);
+        }
+        // the pentagram, turning the other way
+        float rot = -time * 0.008f;
+        float[] px = new float[5], py = new float[5];
+        for (int i = 0; i < 5; i++) {
+            double ang = rot + i * full / 5;
+            px[i] = cx + (float) Math.sin(ang) * r2;
+            py[i] = cy - (float) Math.cos(ang) * r2;
+        }
+        int line = Colors.alpha(0.7f * a, rgb);
+        for (int i = 0; i < 5; i++) line(g, px[i], py[i], px[(i + 2) % 5], py[(i + 2) % 5], 0.7f, line, line);
+        for (int i = 0; i < 5; i++) glow(g, px[i], py[i], 5, Colors.alpha(0.6f * a, Colors.lerpRgb(rgb, 0xFFFFFF, 0.4f)));
     }
 
     /** Diamond (rotated square) — node shape for the ability tree. */

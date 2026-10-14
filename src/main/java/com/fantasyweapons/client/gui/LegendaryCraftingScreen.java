@@ -44,6 +44,8 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
     private final List<RecipeHolder<ForgeRecipe>> recipes = new ArrayList<>();
     private int page;
     private RecipeHolder<ForgeRecipe> selected;
+    /** The table's chosen recipe as last seen (by place in ForgeRecipe.ordered), so the screen follows it; -2 before any. */
+    private int chosenSeen = -2;
 
     public LegendaryCraftingScreen(LegendaryCraftingMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -70,6 +72,20 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
         return Math.max(1, (recipes.size() + COLS * ROWS - 1) / (COLS * ROWS));
     }
 
+    /** Follows the recipe the table has chosen (the table remembers it for whoever opens it), turning to its page when opened. */
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        int chosen = menu.chosenRecipe();
+        if (chosen == chosenSeen || minecraft.level == null) return;
+        boolean first = chosenSeen == -2;
+        chosenSeen = chosen;
+        var all = ForgeRecipe.ordered(minecraft.level);
+        selected = chosen >= 0 && chosen < all.size() ? all.get(chosen) : null;
+        int i = selected == null ? -1 : recipes.indexOf(selected);
+        if (first && i >= 0) page = i / (COLS * ROWS);
+    }
+
     @Override
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
         float time = (minecraft.level == null ? 0 : minecraft.level.getGameTime()) + partialTick;
@@ -80,8 +96,16 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
         UiDraw.rect(g, gx - 5, gy - 5, gx + 9 * 18 + 3, gy + 9 * 18 + 3, Colors.alpha(0.45f, 0x000000));
         UiDraw.border(g, gx - 6, gy - 6, gx + 9 * 18 + 4, gy + 9 * 18 + 4, 1, Colors.alpha(0.8f, LINE));
         for (Slot s : menu.slots) {
-            if (s.index == LegendaryCraftingMenu.RESULT || s.index == LegendaryCraftingMenu.OUTPUT) resultFrame(g, x + s.x, y + s.y, time);
-            else slotFrame(g, x + s.x, y + s.y);
+            if (s.index == LegendaryCraftingMenu.RESULT || s.index == LegendaryCraftingMenu.OUTPUT) {
+                boolean lit = s.index == LegendaryCraftingMenu.RESULT ? menu.resultIsLegendary() || menu.busy() : s.hasItem();
+                UiDraw.sigil(g, x + s.x + 8, y + s.y + 8, 19, ARCANE, time, lit ? 1f : 0.45f);
+                resultFrame(g, x + s.x, y + s.y, time);
+            } else if (s.index == LegendaryCraftingMenu.FORGING) {
+                // no slot: nothing is put here; a seal engraved in the plate, lit while something is being forged
+                UiDraw.sigil(g, x + s.x + 8, y + s.y + 8, 11, ARCANE, time, menu.busy() ? 1f : 0.22f);
+            } else {
+                slotFrame(g, x + s.x, y + s.y);
+            }
         }
         UiDraw.textCentered(g, "Forged", x + LegendaryCraftingMenu.OUTPUT_X + 8, y + LegendaryCraftingMenu.OUTPUT_Y - 15, Colors.alpha(1f, UiDraw.INK_MUTED), 0.65f, false);
         forgeButton(g, x, y, mouseX, mouseY);
@@ -130,7 +154,7 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
         UiDraw.rect(g, sx, by, sx + (int) (w * f), by + 5, Colors.alpha(0.95f, 0xC8902E));
         UiDraw.rect(g, sx, by, sx + (int) (w * f), by + 2, Colors.alpha(0.6f, 0xFFE7A0));
         UiDraw.border(g, sx - 1, by - 1, sx + w + 1, by + 6, 1, Colors.alpha(0.9f, LINE));
-        if (!done) UiDraw.glow(g, sx + w * f, by + 2.5f, 10 + 2 * (float) Math.sin(time * 0.6f), Colors.alpha(0.7f, GOLD));
+        if (!done && f > 0) UiDraw.barTip(g, sx, by, w, 5, sx + (int) (w * f), GOLD, time);
         String left = done ? "" : ForgeStages.remaining(progress, total);
         UiDraw.text(g, left, sx + w - font.width(left) * 0.6f, sy - 1, Colors.alpha(1f, UiDraw.INK_MUTED), 0.6f, false);
     }
@@ -246,6 +270,10 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
             if (i < recipes.size()) {
                 RecipeHolder<ForgeRecipe> r = recipes.get(i);
                 selected = selected == r ? null : r;
+                // the table keeps the choice
+                int index = selected == null ? -1 : ForgeRecipe.ordered(minecraft.level).indexOf(selected);
+                chosenSeen = index;
+                minecraft.gameMode.handleInventoryButtonClick(menu.containerId, LegendaryCraftingMenu.CHOOSE + index);
                 return true;
             }
         }

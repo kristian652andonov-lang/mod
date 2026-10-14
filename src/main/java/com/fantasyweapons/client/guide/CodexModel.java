@@ -98,6 +98,70 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
         for (GeoBone child : bone.getChildBones()) collect(child, into);
     }
 
+    private software.bernie.geckolib.animation.Animation close, closeFrom;
+
+    /** The closing is the artist's opening backwards: made here from it, so the arms take the book down the way they brought it. */
+    @Override
+    public software.bernie.geckolib.animation.Animation getAnimation(WayfarersCodexItem animatable, String name) {
+        if (!WayfarersCodexItem.CLOSE_ANIMATION.equals(name)) return super.getAnimation(animatable, name);
+        var open = super.getAnimation(animatable, "animation.wayfarers_codex.open");
+        if (open == null) return null;
+        if (open != closeFrom) {
+            close = reversed(open, name);
+            closeFrom = open;
+        }
+        return close;
+    }
+
+    private static software.bernie.geckolib.animation.Animation reversed(software.bernie.geckolib.animation.Animation anim, String name) {
+        var bones = new software.bernie.geckolib.animation.keyframe.BoneAnimation[anim.boneAnimations().length];
+        for (int i = 0; i < bones.length; i++) {
+            var b = anim.boneAnimations()[i];
+            bones[i] = new software.bernie.geckolib.animation.keyframe.BoneAnimation(b.boneName(), reversed(b.rotationKeyFrames(), anim.length()),
+                    reversed(b.positionKeyFrames(), anim.length()), reversed(b.scaleKeyFrames(), anim.length()));
+        }
+        return new software.bernie.geckolib.animation.Animation(name, anim.length(), software.bernie.geckolib.animation.Animation.LoopType.HOLD_ON_LAST_FRAME,
+                bones, new software.bernie.geckolib.animation.Animation.Keyframes(new software.bernie.geckolib.animation.keyframe.event.data.SoundKeyframeData[0],
+                new software.bernie.geckolib.animation.keyframe.event.data.ParticleKeyframeData[0],
+                new software.bernie.geckolib.animation.keyframe.event.data.CustomInstructionKeyframeData[0]));
+    }
+
+    private static software.bernie.geckolib.animation.keyframe.KeyframeStack<software.bernie.geckolib.animation.keyframe.Keyframe<software.bernie.geckolib.loading.math.MathValue>> reversed(
+            software.bernie.geckolib.animation.keyframe.KeyframeStack<software.bernie.geckolib.animation.keyframe.Keyframe<software.bernie.geckolib.loading.math.MathValue>> stack, double length) {
+        return new software.bernie.geckolib.animation.keyframe.KeyframeStack<>(reversed(stack.xKeyframes(), length), reversed(stack.yKeyframes(), length),
+                reversed(stack.zKeyframes(), length));
+    }
+
+    /**
+     * One axis' keyframes played backwards over {@code length} (in ticks): each span runs from its end to its start, in
+     * reverse order, with its easing turned round; a pause before the first keyframe becomes one after the last.
+     */
+    private static List<software.bernie.geckolib.animation.keyframe.Keyframe<software.bernie.geckolib.loading.math.MathValue>> reversed(
+            List<software.bernie.geckolib.animation.keyframe.Keyframe<software.bernie.geckolib.loading.math.MathValue>> frames, double length) {
+        List<software.bernie.geckolib.animation.keyframe.Keyframe<software.bernie.geckolib.loading.math.MathValue>> out = new ArrayList<>();
+        if (frames.isEmpty()) return out;
+        double total = 0;
+        for (var f : frames) total += f.length();
+        // the opening holds its last value from `total` to the end: closing starts there
+        if (length > total) out.add(new software.bernie.geckolib.animation.keyframe.Keyframe<>(length - total, frames.get(frames.size() - 1).endValue(),
+                frames.get(frames.size() - 1).endValue()));
+        for (int i = frames.size() - 1; i >= 0; i--) {
+            var f = frames.get(i);
+            out.add(new software.bernie.geckolib.animation.keyframe.Keyframe<>(f.length(), f.endValue(), f.startValue(), turned(f.easingType()), f.easingArgs()));
+        }
+        return out;
+    }
+
+    private static software.bernie.geckolib.animation.EasingType turned(software.bernie.geckolib.animation.EasingType easing) {
+        var types = software.bernie.geckolib.animation.EasingType.EASING_TYPES;
+        String name = null;
+        for (var e : types.entrySet()) if (e.getValue() == easing) name = e.getKey();
+        if (name == null || name.startsWith("easeinout")) return easing;
+        if (name.startsWith("easein")) return types.getOrDefault("easeout" + name.substring(6), easing);
+        if (name.startsWith("easeout")) return types.getOrDefault("easein" + name.substring(7), easing);
+        return easing;
+    }
+
     @Override
     public void setCustomAnimations(WayfarersCodexItem animatable, long instanceId, AnimationState<WayfarersCodexItem> state) {
         if (instanceId != CodexRenderer.FIRST_PERSON) return;
@@ -108,10 +172,25 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
         }
         // and the stains would show through the words
         stainsAway(Codex.reading());
+        poseLeaf();
+    }
+
+    /**
+     * Lays the turning leaf where it is in its turn: swung about the spine from the right page to the left through the
+     * reader's side, curling (narrower) as it passes upright, so it never towers up before the reader's eyes. Called on
+     * every frame (the animations themselves move on only once a tick).
+     */
+    public void poseLeaf() {
         float t = Codex.flipProgress();
         GeoBone right = getAnimationProcessor().getBone(RIGHT_PAGE), left = getAnimationProcessor().getBone(LEFT_PAGE),
                 leaf = getAnimationProcessor().getBone(LEAF);
-        if (right == null || left == null || leaf == null || t < 0) return;
+        if (right == null || left == null || leaf == null) return;
+        if (t < 0) {
+            // no page turning: the leaf is put away at once (the animations would only tuck it back in on the next tick,
+            // leaving a blank page standing in the book meanwhile)
+            if (Codex.reading()) leaf.setScaleX(0.001f);
+            return;
+        }
         // eased: the leaf lifts slowly, sweeps, and settles
         float e = t * t * (3 - 2 * t);
         Matrix3f from = rotation(right), to = rotation(left);
@@ -132,7 +211,7 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
         leaf.setPosX(right.getPosX());
         leaf.setPosY(right.getPosY() + 0.0688f);
         leaf.setPosZ(right.getPosZ() + 0.0217f);
-        leaf.setScaleX(1);
+        leaf.setScaleX(1 - 0.6f * (float) Math.sin(Math.PI * e));
         leaf.setScaleY(1);
         leaf.setScaleZ(1);
     }

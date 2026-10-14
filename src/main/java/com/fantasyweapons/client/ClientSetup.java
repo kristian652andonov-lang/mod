@@ -73,7 +73,7 @@ public final class ClientSetup {
             e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.ARCANE_REFINERY.get(),
                     ctx -> new com.fantasyweapons.client.render.machine.MachineRenderers.Block<>("arcane_refinery"));
             e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.LEGENDARY_CRAFTING_TABLE.get(),
-                    ctx -> new com.fantasyweapons.client.render.machine.MachineRenderers.Block<>("legendary_crafting_table"));
+                    ctx -> new com.fantasyweapons.client.render.machine.MachineRenderers.Table());
         });
 
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.input.InputHandler::onInteractionKey);

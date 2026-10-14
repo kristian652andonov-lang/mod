@@ -486,6 +486,25 @@ public final class ForgeGameTests {
         h.succeed();
     }
 
+    /** A recipe chosen at the table stays chosen: for the next one to open it, and once the table is saved and loaded. */
+    @GameTest(template = ARENA)
+    public static void theChosenRecipeStays(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        LegendaryCraftingMenu menu = open(h, p);
+        int pick = 5;
+        menu.clickMenuButton(p, LegendaryCraftingMenu.CHOOSE + pick);
+        if (open(h, p).chosenRecipe() != pick) h.fail("chosen recipe not kept for the next opening: " + open(h, p).chosenRecipe());
+        LegendaryCraftingTableBlockEntity table = table(h);
+        var saved = table.saveWithoutMetadata(h.getLevel().registryAccess());
+        var copy = new LegendaryCraftingTableBlockEntity(table.getBlockPos(), table.getBlockState());
+        copy.loadWithComponents(saved, h.getLevel().registryAccess());
+        if (copy.chosen() == null || !copy.chosen().equals(table.chosen())) h.fail("chosen recipe not saved: " + copy.chosen());
+        menu.clickMenuButton(p, LegendaryCraftingMenu.CHOOSE - 1);
+        if (open(h, p).chosenRecipe() != -1) h.fail("choice not cleared");
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
     /** Every block and item of the mod has an English name (a missing one shows its raw translation key). */
     @GameTest(template = ARENA)
     public static void everythingHasAName(GameTestHelper h) {

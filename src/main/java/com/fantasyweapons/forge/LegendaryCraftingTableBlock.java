@@ -7,7 +7,6 @@ import com.fantasyweapons.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
@@ -89,17 +88,14 @@ public class LegendaryCraftingTableBlock extends MachineCoreBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return level.isClientSide ? null : createTickerHelper(type, ModBlockEntities.LEGENDARY_CRAFTING_TABLE.get(), LegendaryCraftingTableBlockEntity::serverTick);
+        return createTickerHelper(type, ModBlockEntities.LEGENDARY_CRAFTING_TABLE.get(),
+                level.isClientSide ? LegendaryCraftingTableBlockEntity::clientTick : LegendaryCraftingTableBlockEntity::serverTick);
     }
 
-    /** Starlight drifting up from the grid while it forges, and now and then the beacon's hum. */
+    /** Now and then the beacon's hum while it forges (its sights are the block entity's: see its clientTick). */
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         if (!state.getValue(CRAFTING)) return;
-        for (int i = 0; i < 2; i++) {
-            level.addParticle(ParticleTypes.END_ROD, pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 1.6, pos.getY() + 1.3,
-                    pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.8, 0, 0.02 + random.nextDouble() * 0.03, 0);
-        }
         if (random.nextInt(24) == 0) {
             level.playLocalSound(pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5, net.minecraft.sounds.SoundEvents.BEACON_AMBIENT,
                     net.minecraft.sounds.SoundSource.BLOCKS, 0.4f, 1.4f + random.nextFloat() * 0.2f, false);

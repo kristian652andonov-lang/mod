@@ -44,10 +44,13 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
     public static final int INV_X = 244, INV_Y = 144;
     public static final int RESULT = 0, OUTPUT = 1, FORGING = 2, GRID_START = 3, GRID_END = GRID_START + ForgeRecipe.SIZE * ForgeRecipe.SIZE,
             INV_START = GRID_END;
-    /** Menu buttons: start forging; lay out the legendary recipe at {@code FILL + i} in {@link ForgeRecipe#ordered}. */
-    public static final int FORGE_BUTTON = 0, FILL = 1000;
+    /**
+     * Menu buttons: start forging; lay out the legendary recipe at {@code FILL + i} in {@link ForgeRecipe#ordered}; choose it
+     * at {@code CHOOSE + i} (the table remembers it), or {@code CHOOSE - 1} for none.
+     */
+    public static final int FORGE_BUTTON = 0, FILL = 1000, CHOOSE = 2000;
     /** Synced numbers: the forging's progress and length, its recipe (by place in {@link ForgeRecipe#ordered}), and whether the result is forged. */
-    private static final int PROGRESS = 0, TOTAL = 1, RECIPE = 2, LEGENDARY = 3;
+    private static final int PROGRESS = 0, TOTAL = 1, RECIPE = 2, LEGENDARY = 3, CHOSEN = 4;
 
     private final Container grid, output, forging;
     private final ResultContainer result = new ResultContainer();
@@ -79,6 +82,7 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
                     case TOTAL -> table.total();
                     case RECIPE -> recipeIndex(table.recipe());
                     case LEGENDARY -> legendary ? 1 : 0;
+                    case CHOSEN -> recipeIndex(table.chosen());
                     default -> 0;
                 };
             }
@@ -89,9 +93,9 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
 
             @Override
             public int getCount() {
-                return 4;
+                return 5;
             }
-        } : new SimpleContainerData(4);
+        } : new SimpleContainerData(5);
         addSlot(new ResultSlot(RESULT_X, RESULT_Y));
         addSlot(new Slot(output, 0, OUTPUT_X, OUTPUT_Y) {
             @Override
@@ -181,6 +185,11 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
         return data.get(RECIPE);
     }
 
+    /** The recipe chosen at the table (by its place in {@link ForgeRecipe#ordered}), or -1: it stays chosen for everyone. */
+    public int chosenRecipe() {
+        return data.get(CHOSEN);
+    }
+
     /** Whether the result is a legendary recipe, to be forged with the Forge button. */
     public boolean resultIsLegendary() {
         return data.get(LEGENDARY) == 1;
@@ -209,6 +218,14 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
         if (id == FORGE_BUTTON) return forge(level, player);
         var all = ForgeRecipe.ordered(level);
         if (id >= FILL && id < FILL + all.size()) return fill(player, all.get(id - FILL).value());
+        if (id == CHOOSE - 1) {
+            table.choose(null);
+            return true;
+        }
+        if (id >= CHOOSE && id < CHOOSE + all.size()) {
+            table.choose(all.get(id - CHOOSE).id());
+            return true;
+        }
         return false;
     }
 

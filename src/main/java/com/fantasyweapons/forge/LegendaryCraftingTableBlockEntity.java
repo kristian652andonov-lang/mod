@@ -34,12 +34,12 @@ import java.util.List;
  * table takes its time ({@link ForgeRecipe#time()}), whether or not anyone watches, and the forged item then waits in the
  * Forged slot. Breaking the table drops the grid, the Forged slot and, mid-forging, what the forging took.
  * <p>
- * Plays the artist's crafting animation (and is {@link LegendaryCraftingTableBlock#CRAFTING}) while it forges and for a
- * moment after; the idle one otherwise.
+ * Is {@link LegendaryCraftingTableBlock#CRAFTING} while it forges and for a moment after. The artist's idle animation plays
+ * throughout; while it forges the item being forged floats over the grid (it is sent to the clients, see the renderer),
+ * glyphs stream into it from the two totems, the hammer's sparks burst about it and embers rise from the grid.
  */
 public class LegendaryCraftingTableBlockEntity extends BlockEntity implements GeoBlockEntity {
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("animation.legendary_crafting_table.idle");
-    private static final RawAnimation CRAFTING = RawAnimation.begin().thenLoop("animation.legendary_crafting_table.crafting");
     /** How long the table keeps crafting after an item is forged, in ticks. */
     public static final int AFTERGLOW = 60;
 
@@ -54,6 +54,9 @@ public class LegendaryCraftingTableBlockEntity extends BlockEntity implements Ge
     /** What the forging took from the grid, given back if the table is broken before it is done. */
     private final List<ItemStack> refund = new ArrayList<>();
     private long glowUntil;
+    /** The recipe last chosen in the table's screen, shown to whoever opens it next. */
+    @Nullable
+    private ResourceLocation chosen;
 
     public LegendaryCraftingTableBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.LEGENDARY_CRAFTING_TABLE.get(), pos, state);
@@ -69,6 +72,16 @@ public class LegendaryCraftingTableBlockEntity extends BlockEntity implements Ge
 
     public SimpleContainer forging() {
         return forging;
+    }
+
+    @Nullable
+    public ResourceLocation chosen() {
+        return chosen;
+    }
+
+    public void choose(@Nullable ResourceLocation id) {
+        chosen = id;
+        setChanged();
     }
 
     public boolean busy() {
@@ -97,6 +110,7 @@ public class LegendaryCraftingTableBlockEntity extends BlockEntity implements Ge
         refund.clear();
         for (ItemStack s : took) if (!s.isEmpty()) refund.add(s.copy());
         setChanged();
+        sync();
         if (level != null) {
             level.playSound(null, worldPosition, ModSounds.TABLE_FORGE_START.get(), SoundSource.BLOCKS, 1f, 1f);
         }
@@ -146,7 +160,105 @@ public class LegendaryCraftingTableBlockEntity extends BlockEntity implements Ge
         be.progress = be.total = 0;
         be.glowUntil = level.getGameTime() + AFTERGLOW;
         be.setChanged();
+        be.sync();
         level.playSound(null, pos, ModSounds.TABLE_FORGE_DONE.get(), SoundSource.BLOCKS, 1f, 1f);
+    }
+
+    /** Tells the players nearby what is being forged (and how far along), for the item floating over the grid. */
+    private void sync() {
+        if (level != null && !level.isClientSide) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+    }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        CompoundTag tag = new CompoundTag();
+        if (busy()) {
+            tag.put("Forging", forging.getItem(0).save(registries));
+            tag.putInt("Progress", progress);
+            tag.putInt("Total", total);
+        }
+        return tag;
+    }
+
+    @Override
+    public net.minecraft.network.protocol.Packet<net.minecraft.network.protocol.game.ClientGamePacketListener> getUpdatePacket() {
+        return net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    /** On a client: only what is being forged (the rest of the table lives on the server). */
+    @Override
+    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
+        forging.getItems().set(0, ItemStack.parseOptional(registries, tag.getCompound("Forging")));
+        progress = tag.getInt("Progress");
+        total = tag.getInt("Total");
+    }
+
+    @Override
+    public void onDataPacket(net.minecraft.network.Connection net, net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket packet,
+                             HolderLookup.Provider registries) {
+        handleUpdateTag(packet.getTag(), registries);
+    }
+
+    /** Where a spot of the model (pixels about the core's bottom centre, facing north) is in the world, as the table faces. */
+    public net.minecraft.world.phys.Vec3 spot(double mx, double my, double mz) {
+        double x = -mx / 16, z = mz / 16;
+        var facing = getBlockState().getValue(LegendaryCraftingTableBlock.FACING);
+        double a = switch (facing) {
+            case SOUTH -> Math.PI;
+            case WEST -> Math.PI / 2;
+            case EAST -> Math.PI * 1.5;
+            default -> 0;
+        };
+        double rx = x * Math.cos(a) + z * Math.sin(a), rz = -x * Math.sin(a) + z * Math.cos(a);
+        return new net.minecraft.world.phys.Vec3(worldPosition.getX() + 0.5 + rx, worldPosition.getY() + my / 16, worldPosition.getZ() + 0.5 + rz);
+    }
+
+    /** Just over the grid, under the gyroscope, where the item being forged lies. */
+    public net.minecraft.world.phys.Vec3 forgePoint() {
+        return spot(0, 19.6, 0);
+    }
+
+    /** On a client: the forging goes on between updates, and the table shows it. */
+    public static void clientTick(Level level, BlockPos pos, BlockState state, LegendaryCraftingTableBlockEntity be) {
+        if (be.busy() && be.progress < be.total) be.progress++;
+        if (!state.getValue(LegendaryCraftingTableBlock.CRAFTING)) return;
+        var random = level.random;
+        var at = be.forgePoint();
+        if (be.busy()) {
+            // glyphs streaming from the totems' crowns into the item
+            for (int side = -1; side <= 1; side += 2) {
+                var crown = be.spot(side * 8.9, 27.5, 6.4);
+                for (int i = 0; i < 2; i++) {
+                    level.addParticle(net.minecraft.core.particles.ParticleTypes.ENCHANT, at.x, at.y, at.z,
+                            crown.x - at.x + (random.nextDouble() - 0.5) * 0.2, crown.y - at.y + random.nextDouble() * 0.3, crown.z - at.z + (random.nextDouble() - 0.5) * 0.2);
+                }
+            }
+            // the hammer's strikes: sparks bursting off the item
+            if (random.nextInt(18) == 0) {
+                for (int i = 0; i < 10; i++) {
+                    double vx = (random.nextDouble() - 0.5) * 0.35, vy = random.nextDouble() * 0.25, vz = (random.nextDouble() - 0.5) * 0.35;
+                    level.addParticle(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, at.x, at.y + 0.05, at.z, vx, vy, vz);
+                }
+                for (int i = 0; i < 4; i++) {
+                    level.addParticle(net.minecraft.core.particles.ParticleTypes.SMALL_FLAME, at.x + (random.nextDouble() - 0.5) * 0.3, at.y,
+                            at.z + (random.nextDouble() - 0.5) * 0.3, (random.nextDouble() - 0.5) * 0.06, 0.03, (random.nextDouble() - 0.5) * 0.06);
+                }
+            }
+            // small embers rising off the grid
+            if (random.nextInt(5) == 0) {
+                var ember = be.spot((random.nextDouble() - 0.5) * 11, 18.6, (random.nextDouble() - 0.5) * 11);
+                level.addParticle(net.minecraft.core.particles.ParticleTypes.SMALL_FLAME, ember.x, ember.y, ember.z, 0, 0.01 + random.nextDouble() * 0.015, 0);
+            }
+            // now and then a mote of starlight circling up about the item
+            if (level.getGameTime() % 5 == 0) {
+                double a = level.getGameTime() * 0.31;
+                level.addParticle(net.minecraft.core.particles.ParticleTypes.END_ROD, at.x + Math.cos(a) * 0.45, at.y, at.z + Math.sin(a) * 0.45, 0, 0.02, 0);
+            }
+        } else if (random.nextInt(4) == 0) {
+            // forged: a last flourish of light
+            level.addParticle(net.minecraft.core.particles.ParticleTypes.TOTEM_OF_UNDYING, at.x, at.y, at.z,
+                    (random.nextDouble() - 0.5) * 0.4, random.nextDouble() * 0.35, (random.nextDouble() - 0.5) * 0.4);
+        }
     }
 
     /** Everything the table drops when it is broken. */
@@ -163,6 +275,7 @@ public class LegendaryCraftingTableBlockEntity extends BlockEntity implements Ge
         super.saveAdditional(tag, registries);
         tag.put("Grid", ContainerHelper.saveAllItems(new CompoundTag(), grid.getItems(), true, registries));
         if (!output.getItem(0).isEmpty()) tag.put("Output", output.getItem(0).save(registries));
+        if (chosen != null) tag.putString("Chosen", chosen.toString());
         if (busy()) {
             tag.put("Forging", forging.getItem(0).save(registries));
             if (recipe != null) tag.putString("Recipe", recipe.toString());
@@ -183,6 +296,7 @@ public class LegendaryCraftingTableBlockEntity extends BlockEntity implements Ge
         output.getItems().set(0, ItemStack.parseOptional(registries, tag.getCompound("Output")));
         forging.getItems().set(0, ItemStack.parseOptional(registries, tag.getCompound("Forging")));
         recipe = tag.contains("Recipe") ? ResourceLocation.tryParse(tag.getString("Recipe")) : null;
+        chosen = tag.contains("Chosen") ? ResourceLocation.tryParse(tag.getString("Chosen")) : null;
         progress = tag.getInt("Progress");
         total = tag.getInt("Total");
         refund.clear();
@@ -198,8 +312,9 @@ public class LegendaryCraftingTableBlockEntity extends BlockEntity implements Ge
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", 10,
-                state -> state.setAndContinue(getBlockState().getValue(LegendaryCraftingTableBlock.CRAFTING) ? CRAFTING : IDLE)));
+        // the artist's crafting animation forms a chestplate whatever is forged: the idle one plays always, and the table's
+        // own effects show the forging (see clientTick and the renderer)
+        controllers.add(new AnimationController<>(this, "main", 10, state -> state.setAndContinue(IDLE)));
     }
 
     @Override

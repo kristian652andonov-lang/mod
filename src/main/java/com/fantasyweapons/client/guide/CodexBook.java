@@ -85,7 +85,7 @@ public final class CodexBook {
         } else {
             if (spread < spreads() - 1) c.link("\u00BB", far - 5, y - 0.4f, 0.9f, Codex::next);
             if (Codex.canGoBack()) c.link("Back", outer, y + 0.6f, s, Codex::goBack);
-            tabs(c, i);
+            if (!c.leaf) tabs(c, i);
         }
     }
 
@@ -109,27 +109,28 @@ public final class CodexBook {
             c.fill(x0, y, x1, y + h, 0xFF2A1A0C, z);
             c.fill(x0, y + 0.6f, x1 - 0.6f, y + h - 0.6f, body, z + 0.01f);
             c.fill(x0, y + 0.6f, x1 - 0.6f, y + 1.4f, 0x55FFFFFF, z + 0.02f);
-            if (tab.icon() != null) c.item(tab.icon().get(), x1 - 8.6f, y + 1.6f, 6.8f);
-            else c.text(com.fantasyweapons.advancement.Deeds.mark(net.minecraft.advancements.AdvancementType.CHALLENGE).getVisualOrderText(),
-                    x1 - 8.4f, y + 1.8f, 0xFFFFFFFF, 0.85f);
+            c.icon(TAB_ICONS, tab.icon(), 8, x1 - 8.8f, y + 1.4f, 7.2f);
             y += h + 1;
         }
         c.lift = 0;
     }
 
-    /** A chapter's thumb tab; without an icon it bears the legend's emblem (the Deeds). */
-    private record Tab(String anchor, String name, int color, @Nullable java.util.function.Supplier<ItemStack> icon) {
+    /** A chapter's thumb tab, with its flat icon (by place in {@link #TAB_ICONS}). */
+    private record Tab(String anchor, String name, int color, int icon) {
     }
 
+    /** The tabs' flat pixel icons: the book, an ore, the refinery, the anvil, a sword, a chestplate, a flask, the legend's emblem. */
+    private static final net.minecraft.resources.ResourceLocation TAB_ICONS = FantasyWeapons.id("textures/gui/codex/tabs.png");
+
     private static final Tab[] TABS = {
-            new Tab("path", "The Path of Legends", 0x9A2A1E, () -> new ItemStack(ModItems.CODEX.get())),
-            new Tab("ores", "Legendary Ores", 0x8A6A3A, () -> new ItemStack(ModItems.RAW.get(Material.SOLARITE).get())),
-            new Tab("refinery", "The Arcane Refinery", 0x2F7F8C, () -> new ItemStack(ModItems.ARCANE_REFINERY.get())),
-            new Tab("table", "The Legendary Crafting Table", 0xB08A2E, () -> new ItemStack(ModItems.LEGENDARY_CRAFTING_TABLE.get())),
-            new Tab("weapons", "The Thirteen Weapons", 0x5E3A8C, () -> new ItemStack(ModItems.WEAPONS.get("voidfang").get())),
-            new Tab("armor", "Armor of Legend", 0x5A6470, () -> new ItemStack(ModItems.ARMOR.get(ArmorSet.SOLARIS).get(ArmorItem.Type.CHESTPLATE).get())),
-            new Tab("mastery", "Mastery", 0x3C7A3A, () -> new ItemStack(Items.EXPERIENCE_BOTTLE)),
-            new Tab("deeds", "Deeds", 0x7A3FA8, null)};
+            new Tab("path", "The Path of Legends", 0x9A2A1E, 0),
+            new Tab("ores", "Legendary Ores", 0x8A6A3A, 1),
+            new Tab("refinery", "The Arcane Refinery", 0x2F7F8C, 2),
+            new Tab("table", "The Legendary Crafting Table", 0xB08A2E, 3),
+            new Tab("weapons", "The Thirteen Weapons", 0x5E3A8C, 4),
+            new Tab("armor", "Armor of Legend", 0x5A6470, 5),
+            new Tab("mastery", "Mastery", 0x3C7A3A, 6),
+            new Tab("deeds", "Deeds", 0x7A3FA8, 7)};
 
     private static int deepen(int rgb, float k) {
         int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
@@ -573,7 +574,7 @@ public final class CodexBook {
             c.para("A core of a weapon's own material, crafted together with the weapon in any crafting grid, raises it "
                     + "one level at once.", PageCanvas.INK, 0.56f);
             float x = PageCanvas.MARGIN + 10, y = c.y + 2, cell = 16;
-            for (int r = 0; r < 3; r++) for (int col = 0; col < 3; col++) c.frame(x + col * cell, y + r * cell, x + (col + 1) * cell, y + (r + 1) * cell, 0.6f, 0x663A2614);
+            c.grid(x, y, 3, 3, cell, 0.6f, 0x663A2614, 0);
             c.item(weapon(Weapons.get("voidfang")), x + 1, y + 1, cell - 2);
             c.item(new ItemStack(ModItems.REFINED.get(Material.VOID_CRYSTAL).get()), x + cell + 1, y + 1, cell - 2);
             c.item(new ItemStack(ModItems.REFINED.get(Material.VOID_CRYSTAL).get()), x + 2 * cell + 1, y + 1, cell - 2);
@@ -644,7 +645,7 @@ public final class CodexBook {
             c.y += 6;
             float x0 = PageCanvas.MARGIN + 8, x1 = PageCanvas.W - PageCanvas.MARGIN - 8;
             c.fill(x0, c.y, x1, c.y + 3.5f, 0x33000000);
-            c.fill(x0, c.y, x0 + (x1 - x0) * done / deeds.size(), c.y + 3.5f, PageCanvas.GOLD);
+            c.fill(x0, c.y, x0 + (x1 - x0) * done / deeds.size(), c.y + 3.5f, PageCanvas.GOLD, 0.03f);
             c.frame(x0 - 0.5f, c.y - 0.5f, x1 + 0.5f, c.y + 4, 0.5f, 0x883A2614);
             c.y += 10;
             for (net.minecraft.advancements.AdvancementType type : new net.minecraft.advancements.AdvancementType[]{
@@ -763,10 +764,7 @@ public final class CodexBook {
     private void craftingGrid(PageCanvas c, net.minecraft.resources.ResourceLocation id, ItemStack fallback) {
         var holder = mc.level == null ? null : mc.level.getRecipeManager().byKey(id).orElse(null);
         float cell = 14, x = PageCanvas.MARGIN + 6, y = c.y + 1;
-        for (int r = 0; r < 3; r++) for (int col = 0; col < 3; col++) {
-            c.fill(x + col * cell, y + r * cell, x + (col + 1) * cell, y + (r + 1) * cell, 0x22000000);
-            c.frame(x + col * cell, y + r * cell, x + (col + 1) * cell, y + (r + 1) * cell, 0.5f, 0x663A2614);
-        }
+        c.grid(x, y, 3, 3, cell, 0.6f, 0x663A2614, 0x22000000);
         ItemStack result = fallback;
         if (holder != null && holder.value() instanceof ShapedRecipe shaped) {
             for (int r = 0; r < shaped.getHeight(); r++) {
@@ -786,7 +784,7 @@ public final class CodexBook {
         var holder = mc.level == null ? null : mc.level.getRecipeManager().byKey(id).orElse(null);
         float x = (PageCanvas.W - 9 * cell) / 2, y = c.y;
         c.fill(x - 1, y - 1, x + 9 * cell + 1, y + 9 * cell + 1, 0x18000000);
-        for (int r = 0; r < 9; r++) for (int col = 0; col < 9; col++) c.frame(x + col * cell, y + r * cell, x + (col + 1) * cell, y + (r + 1) * cell, 0.35f, 0x553A2614);
+        c.grid(x, y, 9, 9, cell, 0.5f, 0x663A2614, 0);
         Map<Item, Integer> needs = new LinkedHashMap<>();
         if (holder != null && holder.value() instanceof ForgeRecipe recipe) {
             var pattern = recipe.pattern();

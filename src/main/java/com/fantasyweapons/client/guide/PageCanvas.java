@@ -61,6 +61,10 @@ public final class PageCanvas {
 
     /** How far out from the page everything is drawn, besides its own offset (sheet units): raised for the thumb tabs. */
     public float lift;
+    /** Whether items are drawn: not on the hidden face of a turning leaf. */
+    public boolean items = true;
+    /** Whether this is a turning leaf's face (the thumb tabs stay on the book's right page). */
+    public boolean leaf;
 
     public float inner() {
         return W - 2 * MARGIN;
@@ -104,32 +108,79 @@ public final class PageCanvas {
         v.addVertex(content, x1, y0, z).setColor(argb);
     }
 
-    /** A rectangle's outline, {@code t} thick. */
+    /** A rectangle's outline, {@code t} thick, a layer above the fills (so the two never flicker over each other). */
     public void frame(float x0, float y0, float x1, float y1, float t, int argb) {
-        fill(x0, y0, x1, y0 + t, argb);
-        fill(x0, y1 - t, x1, y1, argb);
-        fill(x0, y0 + t, x0 + t, y1 - t, argb);
-        fill(x1 - t, y0 + t, x1, y1 - t, argb);
+        fill(x0, y0, x1, y0 + t, argb, LINES);
+        fill(x0, y1 - t, x1, y1, argb, LINES);
+        fill(x0, y0 + t, x0 + t, y1 - t, argb, LINES);
+        fill(x1 - t, y0 + t, x1, y1 - t, argb, LINES);
     }
 
-    /** An item drawn as in a slot, {@code size} across, with its tooltip when pointed at. */
+    /**
+     * A grid of {@code cols} by {@code rows} cells: its shading laid once, then each of its lines once, a layer above (cells
+     * drawn one by one would lay neighbouring edges twice, over each other, and they flicker).
+     */
+    public void grid(float x, float y, int cols, int rows, float cell, float t, int line, int shade) {
+        float w = cols * cell, h = rows * cell;
+        if ((shade >>> 24) != 0) fill(x, y, x + w, y + h, shade);
+        for (int c = 0; c <= cols; c++) {
+            float lx = x + c * cell - t / 2;
+            fill(lx, y - t / 2, lx + t, y + h + t / 2, line, LINES);
+        }
+        for (int r = 0; r <= rows; r++) {
+            float ly = y + r * cell - t / 2;
+            // across, between the uprights, so no spot is drawn twice
+            for (int c = 0; c < cols; c++) fill(x + c * cell + t / 2, ly, x + (c + 1) * cell - t / 2, ly + t, line, LINES);
+        }
+    }
+
+    /** The layer outlines and grid lines are drawn at, over the fills and under the writing (sheet units). */
+    private static final float LINES = 0.035f;
+
+    /**
+     * An item drawn as in a slot, {@code size} across, with its tooltip when pointed at. It is pressed flat onto the page
+     * (a block's cube would otherwise stand out of the tilted paper and look shifted off its place) and lit exactly as in
+     * the inventory, flat items from the front and blocks from above, whatever way the page faces.
+     */
     public void item(ItemStack stack, float x, float y, float size) {
-        if (stack.isEmpty()) return;
+        if (stack.isEmpty() || !items) return;
         var model = Minecraft.getInstance().getItemRenderer().getModel(stack, Minecraft.getInstance().level, null, 0);
         PoseStack pose = new PoseStack();
-        Matrix4f m = new Matrix4f(content).translate(x + size / 2, y + size / 2, (model.isGui3d() ? size * 0.5f : 0.3f) + lift).scale(size, -size, size);
+        Matrix4f m = new Matrix4f(content).translate(x + size / 2, y + size / 2, 0.16f + lift).scale(size, -size, DEPTH);
         pose.last().pose().set(m);
-        pose.last().normal().set(new Matrix3f(m).invert().transpose());
+        // the normals as in a slot on the screen (y flipped like the pose), not turned with the page
+        pose.last().normal().set(new Matrix3f().scaling(1, -1, 1));
+        boolean flatLight = !model.usesBlockLight();
+        if (flatLight) com.mojang.blaze3d.platform.Lighting.setupForFlatItems();
+        else com.mojang.blaze3d.platform.Lighting.setupFor3DItems();
         Minecraft.getInstance().getItemRenderer().render(stack, ItemDisplayContext.GUI, false, pose, buffers, LightTexture.FULL_BRIGHT,
                 OverlayTexture.NO_OVERLAY, model);
+        // drawn now, while its light is set
+        if (buffers instanceof MultiBufferSource.BufferSource source) source.endBatch();
         if (stack.getCount() > 1) {
             String n = String.valueOf(stack.getCount());
             float s = size / 16f * 0.7f;
-            Matrix4f t = new Matrix4f(content).translate(0, 0, model.isGui3d() ? size * 1.05f : 0.6f);
+            Matrix4f t = new Matrix4f(content).translate(0, 0, 0.9f + lift);
             font.drawInBatch(n, (x + size - font.width(n) * s) / s, (y + size - 6 * s) / s, 0xFFFFFFFF, true, t.scale(s, s, 1), buffers,
                     Font.DisplayMode.POLYGON_OFFSET, 0, LightTexture.FULL_BRIGHT);
         }
         regions.add(new Region(x, y, x + size, y + size, stack, null, null));
+    }
+
+    /**
+     * The depth an item keeps when pressed onto the page, whatever its size (sheet units): thin enough that it stays under
+     * a leaf lying on the page, so the page beneath a turning leaf never shows through it.
+     */
+    private static final float DEPTH = 0.2f;
+
+    /** Icon {@code index} of a sheet of {@code count} square icons in a row, {@code size} across, in its own colours. */
+    public void icon(net.minecraft.resources.ResourceLocation sheet, int index, int count, float x, float y, float size) {
+        VertexConsumer v = buffers.getBuffer(RenderType.text(sheet));
+        float u0 = index / (float) count, u1 = (index + 1) / (float) count, z = 0.06f + lift;
+        v.addVertex(content, x, y, z).setColor(0xFFFFFFFF).setUv(u0, 0).setLight(LightTexture.FULL_BRIGHT);
+        v.addVertex(content, x, y + size, z).setColor(0xFFFFFFFF).setUv(u0, 1).setLight(LightTexture.FULL_BRIGHT);
+        v.addVertex(content, x + size, y + size, z).setColor(0xFFFFFFFF).setUv(u1, 1).setLight(LightTexture.FULL_BRIGHT);
+        v.addVertex(content, x + size, y, z).setColor(0xFFFFFFFF).setUv(u1, 0).setLight(LightTexture.FULL_BRIGHT);
     }
 
     /** Notes a region the mouse can point at. */

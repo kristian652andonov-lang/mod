@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -23,7 +24,7 @@ public final class CodexPages {
     // just over the paper (and the stains the artist put on it, laid aside while the book is read: CodexModel), under the gilded frame
     private static final float RIGHT_Z = -0.125f / 16, LEFT_Z = 0.125f / 16;
     /** A turning leaf's two faces: the page it lifts away (in front), and the page it lays down (behind). */
-    private static final float LEAF_FRONT_Z = -0.21f / 16, LEAF_BACK_Z = -0.03f / 16;
+    private static final float LEAF_FRONT_Z = -0.24f / 16, LEAF_BACK_Z = 0f;
 
     private static final Matrix4f[] clip = {new Matrix4f(), new Matrix4f()};
     private static final float[][] mouse = {{-1, -1}, {-1, -1}};
@@ -43,6 +44,8 @@ public final class CodexPages {
         if (book == null) return;
         Matrix4f view = RenderSystem.getModelViewMatrix(), projection = RenderSystem.getProjectionMatrix();
         Matrix4f left = page(leftPart, LEFT_Z, view), right = page(rightPart, RIGHT_Z, view);
+        // the book itself first, all of it, so the pages' writing is laid over (and hidden behind) its paper
+        if (buffers instanceof MultiBufferSource.BufferSource source) source.endBatch();
         clip[0].set(projection).mul(view).mul(left);
         clip[1].set(projection).mul(view).mul(right);
         placed = true;
@@ -60,8 +63,14 @@ public final class CodexPages {
             // behind the leaf)
             boolean forward = Codex.flipForward();
             int from = Codex.flippedFrom(), to = Codex.spread();
-            book.draw(forward ? from : to, false, new PageCanvas(page(leafPart, LEAF_FRONT_Z, view), buffers, false, -1, -1));
-            book.draw(forward ? to : from, true, new PageCanvas(page(leafPart, LEAF_BACK_Z, view), buffers, true, -1, -1));
+            // only the face turned towards the reader is written on: nothing of the other side shows through the leaf
+            Matrix4f leafSeen = new Matrix4f(view).mul(leafPart);
+            boolean frontSeen = facing(leafSeen, new Vector3f(0, 0, -1), leafSeen.transformPosition(new Vector3f((X0 + X1) / 2, 0, LEAF_FRONT_Z)));
+            PageCanvas front = new PageCanvas(page(leafPart, LEAF_FRONT_Z, view), buffers, false, -1, -1);
+            PageCanvas back = new PageCanvas(page(leafPart, LEAF_BACK_Z, view), buffers, true, -1, -1);
+            front.leaf = back.leaf = true;
+            if (frontSeen) book.draw(forward ? from : to, false, front);
+            else book.draw(forward ? to : from, true, back);
         }
         if (buffers instanceof MultiBufferSource.BufferSource source) source.endBatch();
         var level = Minecraft.getInstance().level;
@@ -78,14 +87,26 @@ public final class CodexPages {
     private static Matrix4f page(Matrix4f part, float z, Matrix4f view) {
         Matrix4f seen = new Matrix4f(view).mul(part);
         float midX = (X0 + X1) / 2, midY = (Y0 + Y1) / 2;
-        Vector3f a = seen.transformPosition(new Vector3f(X0, midY, z)), b = seen.transformPosition(new Vector3f(X1, midY, z));
-        float left = a.x < b.x ? X0 : X1, right = left == X0 ? X1 : X0;
+        Vector3f centre = seen.transformPosition(new Vector3f(midX, midY, z));
+        // up the page is whichever end is higher on the screen (as seen, in perspective)
         Vector3f t = seen.transformPosition(new Vector3f(midX, Y1, z)), d = seen.transformPosition(new Vector3f(midX, Y0, z));
-        float top = t.y > d.y ? Y1 : Y0, bottom = top == Y1 ? Y0 : Y1;
-        float out = seen.transformDirection(new Vector3f(0, 0, 1)).z > 0 ? 1 : -1;
-        float su = (right - left) / PageCanvas.W, sv = (bottom - top) / PageCanvas.H;
+        float top = t.y / -t.z > d.y / -d.z ? Y1 : Y0, bottom = top == Y1 ? Y0 : Y1;
+        // out of the page towards the eye (the eye is at the origin of view space)
+        float out = facing(seen, new Vector3f(0, 0, 1), centre) ? 1 : -1;
+        float sv = (bottom - top) / PageCanvas.H;
+        // across the page whichever way keeps the sheet facing the eye like a screen, so its writing is never turned away
+        // and culled, however edgewise a turning leaf is seen
+        Vector3f down = seen.transformDirection(new Vector3f(0, bottom - top, 0));
+        Vector3f across = seen.transformDirection(new Vector3f(X1 - X0, 0, 0));
+        boolean x0Left = new Vector3f(across).cross(down).dot(centre) > 0;
+        float left = x0Left ? X0 : X1, right = x0Left ? X1 : X0, su = (right - left) / PageCanvas.W;
         Matrix4f sheet = new Matrix4f(su, 0, 0, 0, 0, sv, 0, 0, 0, 0, out * Math.abs(su), 0, left, top, z, 1);
         return new Matrix4f(part).mul(sheet);
+    }
+
+    /** Whether the side of a part a direction (in its own space) points out of faces the eye, from a spot of it in view space. */
+    private static boolean facing(Matrix4f seen, Vector3f direction, Vector3f spot) {
+        return seen.transformDirection(new Vector3f(direction)).dot(spot) < 0;
     }
 
     /** Where a spot of page {@code i} is in the window, as fractions of its width and height. */

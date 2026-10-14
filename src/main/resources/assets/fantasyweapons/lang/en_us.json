@@ -213,5 +213,6 @@
   "attribute.name.fantasyweapons.burn_on_dash": "Burn on Dash",
   "subtitles.fantasyweapons.deed.task": "Deed earned",
   "subtitles.fantasyweapons.deed.goal": "Feat accomplished",
-  "subtitles.fantasyweapons.deed.challenge": "Legend forged"
+  "subtitles.fantasyweapons.deed.challenge": "Legend forged",
+  "subtitles.fantasyweapons.deed.type": "A deed is written"
 }

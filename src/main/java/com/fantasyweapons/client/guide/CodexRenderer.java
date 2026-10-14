@@ -44,9 +44,15 @@ public final class CodexRenderer extends GeoItemRenderer<WayfarersCodexItem> {
         if (context.firstPerson()) raise(poseStack, Codex.raised());
         capturing = reading;
         gotLeft = gotRight = gotLeaf = false;
-        super.renderByItem(stack, context, poseStack, buffers, reading ? LightTexture.FULL_BRIGHT : light, overlay);
-        capturing = false;
-        if (reading && gotLeft && gotRight) CodexPages.render(leftPage, rightPage, gotLeaf ? leaf : null, buffers);
+        if (reading) Codex.holdFrame(true);
+        try {
+            super.renderByItem(stack, context, poseStack, buffers, reading ? LightTexture.FULL_BRIGHT : light, overlay);
+            capturing = false;
+            if (reading && gotLeft && gotRight) CodexPages.render(leftPage, rightPage, gotLeaf ? leaf : null, buffers);
+        } finally {
+            capturing = false;
+            if (reading) Codex.holdFrame(false);
+        }
     }
 
     /**
@@ -67,6 +73,15 @@ public final class CodexRenderer extends GeoItemRenderer<WayfarersCodexItem> {
         poseStack.last().normal().set(new org.joml.Matrix3f(pose).invert().transpose());
     }
 
+    /** The turning leaf is laid on every frame, so it turns smoothly (the animations move on once a tick). */
+    @Override
+    public void preRender(PoseStack poseStack, WayfarersCodexItem animatable, software.bernie.geckolib.cache.object.BakedGeoModel model,
+                          MultiBufferSource bufferSource, VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay,
+                          int colour) {
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        if (capturing) ((CodexModel) getGeoModel()).poseLeaf();
+    }
+
     @Override
     public void renderCubesOfBone(PoseStack poseStack, GeoBone bone, VertexConsumer buffer, int light, int overlay, int colour) {
         if (capturing) {
@@ -76,7 +91,8 @@ public final class CodexRenderer extends GeoItemRenderer<WayfarersCodexItem> {
             } else if (bone.getName().equals(CodexModel.RIGHT_PAGE)) {
                 rightPage.set(poseStack.last().pose());
                 gotRight = true;
-            } else if (bone.getName().equals(CodexModel.LEAF) && bone.getScaleX() > 0.5f) {
+            }
+            if (capturing && bone.getName().equals(CodexModel.LEAF) && bone.getScaleX() > 0.2f) {
                 leaf.set(poseStack.last().pose());
                 gotLeaf = true;
             }

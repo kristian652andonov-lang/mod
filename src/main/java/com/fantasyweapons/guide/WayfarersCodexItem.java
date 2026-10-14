@@ -31,8 +31,13 @@ public class WayfarersCodexItem extends Item implements GeoItem {
     private static final RawAnimation CLOSED = RawAnimation.begin().thenLoop("animation.wayfarers_codex.closed");
     private static final RawAnimation OPEN = RawAnimation.begin().thenPlay("animation.wayfarers_codex.open");
     private static final RawAnimation HELD = RawAnimation.begin().thenLoop("animation.wayfarers_codex.held");
+    /** The opening played backwards (the client's model makes it from the artist's opening). */
+    public static final String CLOSE_ANIMATION = "animation.wayfarers_codex.close";
+    private static final RawAnimation CLOSE = RawAnimation.begin().thenPlay(CLOSE_ANIMATION);
+    /** How much faster the book closes than it opens. */
+    public static final double CLOSE_SPEED = 4;
     /** The reading states, as {@link SidedHooks#codexPhase()} reports them. */
-    public static final int CLOSED_PHASE = 0, OPENING_PHASE = 1, READING_PHASE = 2;
+    public static final int CLOSED_PHASE = 0, OPENING_PHASE = 1, READING_PHASE = 2, CLOSING_PHASE = 3;
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -63,9 +68,11 @@ public class WayfarersCodexItem extends Item implements GeoItem {
         controllers.add(new AnimationController<>(this, "main", 0, state -> {
             ItemDisplayContext ctx = state.getData(DataTickets.ITEM_RENDER_PERSPECTIVE);
             int phase = ctx != null && ctx.firstPerson() ? SidedHooks.get().codexPhase() : CLOSED_PHASE;
-            // opening plays from its first frame; closing eases back to the shut book
-            state.getController().transitionLength(phase == CLOSED_PHASE ? 8 : 0);
-            return state.setAndContinue(phase == READING_PHASE ? HELD : phase == OPENING_PHASE ? OPEN : CLOSED);
+            // opening plays from its first frame; closing plays it backwards (the arms bring the book down and away), then
+            // eases into the shut book
+            state.getController().transitionLength(phase == CLOSED_PHASE ? 6 : 0);
+            state.getController().setAnimationSpeed(phase == CLOSING_PHASE ? CLOSE_SPEED : 1);
+            return state.setAndContinue(phase == READING_PHASE ? HELD : phase == OPENING_PHASE ? OPEN : phase == CLOSING_PHASE ? CLOSE : CLOSED);
         }));
     }
 

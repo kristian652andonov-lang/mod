@@ -490,5 +490,26 @@
         "stream": false
       }
     ]
+  },
+  "deed.type": {
+    "subtitle": "subtitles.fantasyweapons.deed.type",
+    "sounds": [
+      {
+        "name": "fantasyweapons:deed/type_1",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:deed/type_2",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:deed/type_3",
+        "stream": false
+      },
+      {
+        "name": "fantasyweapons:deed/type_4",
+        "stream": false
+      }
+    ]
   }
 }

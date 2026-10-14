@@ -26,6 +26,10 @@ public final class Codex {
 
     private static long openedAt = -1, closedAt = -1;
     private static boolean reading;
+    /** Whether the book is being closed by playing its opening backwards (it was open and read). */
+    private static boolean closingBack;
+    /** How long closing takes: the opening's five seconds, played faster. */
+    public static final long CLOSE_MS = (long) (5000 / WayfarersCodexItem.CLOSE_SPEED);
     private static InteractionHand hand = InteractionHand.MAIN_HAND;
     private static CameraType cameraBefore;
 
@@ -40,7 +44,9 @@ public final class Codex {
     }
 
     public static int phase() {
-        return reading ? WayfarersCodexItem.READING_PHASE : openedAt >= 0 ? WayfarersCodexItem.OPENING_PHASE : WayfarersCodexItem.CLOSED_PHASE;
+        if (reading) return WayfarersCodexItem.READING_PHASE;
+        if (openedAt >= 0) return WayfarersCodexItem.OPENING_PHASE;
+        return closing() ? WayfarersCodexItem.CLOSING_PHASE : WayfarersCodexItem.CLOSED_PHASE;
     }
 
     public static boolean reading() {
@@ -89,6 +95,7 @@ public final class Codex {
         if (openedAt >= 0) {
             play(ModSounds.CODEX_CLOSE.get(), 1f);
             closedAt = Util.getMillis();
+            closingBack = reading;
         }
         reading = false;
         openedAt = -1;
@@ -106,8 +113,14 @@ public final class Codex {
     public static float raised() {
         long now = Util.getMillis();
         if (openedAt >= 0) return ease(Math.min(1, (now - openedAt) / 250f));
+        if (closedAt >= 0 && closingBack) return ease(1 - Math.min(1, Math.max(0, now - closedAt - CLOSE_MS) / 250f));
         if (closedAt >= 0) return ease(1 - Math.min(1, (now - closedAt) / 450f));
         return 0;
+    }
+
+    /** Whether the book is still playing its closing (its opening backwards). */
+    private static boolean closing() {
+        return closingBack && closedAt >= 0 && Util.getMillis() - closedAt < CLOSE_MS;
     }
 
     private static float ease(float t) {
@@ -157,7 +170,21 @@ public final class Codex {
     }
 
     /** How far the turning page has gone (0 to 1), or -1 when no page is turning. */
+    /** For scripted screenshots: a turn held still at this point (0 to 1), or -1. */
+    public static float frozenFlip = -1;
+
+    /** The turn as it stands for the book being drawn now (read once per frame: see {@link #holdFrame}), or NaN. */
+    private static float frameFlip = Float.NaN;
+
+    /** Fixes the turn's progress while the book is drawn, so the leaf and the writing on it agree; {@code false} lets it go. */
+    public static void holdFrame(boolean hold) {
+        frameFlip = Float.NaN;
+        if (hold) frameFlip = flipProgress();
+    }
+
     public static float flipProgress() {
+        if (frozenFlip >= 0) return frozenFlip;
+        if (!Float.isNaN(frameFlip)) return frameFlip;
         if (flipAt < 0) return -1;
         float t = (Util.getMillis() - flipAt) / (float) FLIP_MS;
         if (t >= 1) {

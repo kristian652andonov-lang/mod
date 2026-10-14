@@ -62,9 +62,15 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         UiDraw.rect(g, x + 12, y + 24, x + imageWidth - 12, y + 126, Colors.alpha(0.35f, 0x000000));
         UiDraw.border(g, x + 12, y + 24, x + imageWidth - 12, y + 126, 1, Colors.alpha(0.5f, LINE));
         UiDraw.divider(g, x + imageWidth / 2f, y + RefineryMenu.INV_Y - 18, imageWidth - 30, 0.8f);
+        boolean working = menu.burning() && menu.progress() > 0;
         for (Slot s : menu.slots) {
-            if (s.index < RefineryMenu.MACHINE) machineSlot(g, x + s.x, y + s.y, s.index == 2);
-            else slotFrame(g, x + s.x, y + s.y);
+            if (s.index < RefineryMenu.MACHINE) {
+                boolean tray = s.index == 2;
+                UiDraw.sigil(g, x + s.x + 8, y + s.y + 8, tray ? 18 : 13, ARCANE, time, working || (tray && s.hasItem()) ? 1f : s.hasItem() ? 0.6f : 0.35f);
+                machineSlot(g, x + s.x, y + s.y, tray);
+            } else {
+                slotFrame(g, x + s.x, y + s.y);
+            }
         }
 
         // the fire: a column of heat between the crucible and the firebox, gold on a fast fire
@@ -83,7 +89,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         float p = menu.progress();
         float bx = x + RefineryMenu.INPUT_X + 28, by = y + RefineryMenu.OUTPUT_Y + 5, bw = RefineryMenu.OUTPUT_X - RefineryMenu.INPUT_X - 40;
         UiDraw.bar(g, bx, by, bw, 7, p, 0x3FA8C0, CRYSTAL, 1f, p > 0 ? time / 20f : -1);
-        if (p > 0) UiDraw.glow(g, bx + bw * p, by + 3, 20, Colors.alpha(0.55f, ARCANE));
+        if (p > 0 && p < 1) UiDraw.barTip(g, bx, by, bw, 7, bx + bw * p, CRYSTAL, time);
         ItemStack making = result();
         if (!making.isEmpty()) {
             float cx = bx + bw * 0.76f, cy = y + 36;

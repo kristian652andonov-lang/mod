@@ -75,6 +75,8 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> DEED_TASK = reg("deed.task");
     public static final DeferredHolder<SoundEvent, SoundEvent> DEED_GOAL = reg("deed.goal");
     public static final DeferredHolder<SoundEvent, SoundEvent> DEED_CHALLENGE = reg("deed.challenge");
+    /** A letter of a deed's toast being typed. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> DEED_TYPE = reg("deed.type");
 
     // the Wayfarer's Codex: unbuckled and opened, a page turned, shut again
     public static final DeferredHolder<SoundEvent, SoundEvent> CODEX_OPEN = reg("codex.open");
