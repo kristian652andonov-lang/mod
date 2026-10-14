@@ -141,6 +141,7 @@ public final class ClientSetup {
     }
 
     private static void onClientTickPost(ClientTickEvent.Post event) {
+        com.fantasyweapons.client.render.FrameStripTextures.tick();
         InputHandler.postTick();
         Minecraft mc = Minecraft.getInstance();
         com.fantasyweapons.client.guide.Codex.tick(mc);
@@ -266,6 +267,17 @@ public final class ClientSetup {
         @Override
         public void handleProgression(ProgressionEventPayload payload) {
             Notifications.handle(payload);
+        }
+
+        @Override
+        public void handleQuestCompleted(String id) {
+            com.fantasyweapons.quest.Quest q = com.fantasyweapons.quest.Quests.get(id);
+            if (q == null) return;
+            var payload = new com.fantasyweapons.network.DeedPayload(com.fantasyweapons.FantasyWeapons.id("quest/" + id),
+                    net.minecraft.network.chat.Component.literal(q.title()).withColor(q.chapter().color()),
+                    net.minecraft.network.chat.Component.literal("Claim your reward in the Quest Journal (" + com.fantasyweapons.client.input.KeyBindings.QUESTS
+                            .getTranslatedKeyMessage().getString() + ")"), q.icon(), net.minecraft.advancements.AdvancementType.GOAL.ordinal());
+            Minecraft.getInstance().getToasts().addToast(new com.fantasyweapons.client.hud.DeedToast(payload, "QUEST COMPLETE"));
         }
 
         @Override

@@ -584,6 +584,40 @@ public final class CodexBook {
             c.y = y + 3 * cell + 6;
             c.para("A full armor set gives its power on top: read about each set beside its weapon.", PageCanvas.FADED, 0.52f);
         });
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("The Quest Journal");
+            c.para("Over a hundred quests lead the way: find and mine every ore, refine its core, forge and raise every "
+                    + "weapon, wear every set, hunt the great beasts and travel the realms.", PageCanvas.INK, 0.54f);
+            keyLine(c, "Open the journal", KeyBindings.QUESTS.getTranslatedKeyMessage().getString());
+            c.gap(1);
+            c.para("A quest done is announced; claim it in the journal for its reward: ores and cores, diamonds, "
+                    + "netherite, enchanted apples and more. Some quests open only once the one before is claimed.", PageCanvas.INK, 0.52f);
+            float x = PageCanvas.MARGIN + 6, y = c.y + 3;
+            for (ItemStack reward : new ItemStack[]{new ItemStack(ModItems.RAW.get(Material.VOID_CRYSTAL).get()),
+                    new ItemStack(ModItems.REFINED.get(Material.SOLARITE).get()), new ItemStack(net.minecraft.world.item.Items.DIAMOND),
+                    new ItemStack(net.minecraft.world.item.Items.NETHERITE_INGOT), new ItemStack(net.minecraft.world.item.Items.ENCHANTED_GOLDEN_APPLE)}) {
+                c.item(reward, x, y, 12);
+                x += 17;
+            }
+            c.y = y + 16;
+        });
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("Classes");
+            c.para("Every wayfarer may take a calling. The first choice is free; changing it waits "
+                    + com.fantasyweapons.playerclass.ClassService.CHANGE_WAIT / 20 / 60 + " minutes.", PageCanvas.INK, 0.54f);
+            keyLine(c, "Choose a class", KeyBindings.CLASSES.getTranslatedKeyMessage().getString());
+            int count = com.fantasyweapons.playerclass.PlayerClass.values().length;
+            for (var pc : com.fantasyweapons.playerclass.PlayerClass.values()) {
+                if (pc == com.fantasyweapons.playerclass.PlayerClass.NONE) continue;
+                float y = c.y;
+                c.icon(com.fantasyweapons.client.gui.ClassScreen.EMBLEMS, pc.ordinal(), count, PageCanvas.MARGIN, y, 14);
+                c.text(pc.displayName(), PageCanvas.MARGIN + 17, y + 1, PageCanvas.RED, 0.6f);
+                c.text(pc.available() ? pc.tagline() : "Still being written", PageCanvas.MARGIN + 17, y + 7.5f, PageCanvas.FADED, 0.5f);
+                c.y = y + 16;
+            }
+        });
     }
 
     private void keyLine(PageCanvas c, String what, String key) {

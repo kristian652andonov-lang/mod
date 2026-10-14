@@ -63,6 +63,28 @@ final class DevScripts {
                 else if (name.equals("codex")) codex(b);
                 else if (name.equals("codexall")) codexAll(b);
                 else if (name.equals("deeds")) deeds(b);
+                else if (name.equals("quests")) quests(b);
+                else if (name.equals("oreicons")) oreIcons(b);
+                else if (name.equals("codexquests")) {
+                    b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set none").cmd("/give @s fantasyweapons:wayfarers_codex")
+                            .wait(10).slot(0).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10)
+                            .run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(110);
+                    for (int i = 0; i <= 3; i++) {
+                        int n = i;
+                        b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("mastery") + n, false))
+                                .wait(16).screenshot("codex_mastery_" + n);
+                    }
+                    b.closeScreen().wait(30).run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(5);
+                    int cardsLeft = (416 - (4 * 98 + 3 * 4)) / 2;
+                    b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 102 + 30, 24 + 176 - 14)).wait(6).screenshot("class_confirm2").closeScreen();
+                }
+                else if (name.equals("oretiming")) {
+                    b.cmd("/gamemode creative").cmd("/clear @s").cmd("/fw quest reset").wait(20).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10)
+                            .run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen())).wait(2)
+                            .run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 + 5));
+                    for (int t : new int[]{1, 4, 10, 20, 40, 80, 160}) b.wait(t == 1 ? 1 : t / 2).screenshot("oretime_" + t);
+                    b.closeScreen();
+                }
                 else if (name.equals("codexone")) codexOne(b);
                 else if (name.equals("codexflip")) codexFlip(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
@@ -968,6 +990,82 @@ final class DevScripts {
             mc.screen.mouseClicked(0, 0, 0);
             com.fantasyweapons.client.guide.CodexPages.pinned = null;
         }).wait(16).screenshot("deed_codex_tab_clicked").closeScreen().wait(30);
+    }
+
+    /** Every ore item drawn twice in a row, then once each between other items: for checking items drawn in a screen. */
+    private static void oreIcons(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").wait(20).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10);
+        b.run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("ores")) {
+            @Override
+            public void render(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+                super.render(g, mx, my, pt);
+                int i = 0;
+                for (var m : com.fantasyweapons.material.Material.values()) {
+                    var stack = new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.ORES.get(m).get());
+                    g.renderFakeItem(stack, 20 + i * 20, 20);
+                    g.renderFakeItem(stack, 20 + i * 20, 40);
+                    g.renderFakeItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STONE), 20 + i * 20, 60);
+                    g.renderFakeItem(stack, 20 + i * 20, 80);
+                    g.drawString(font, "x", 20 + i * 20, 100, 0xFFFFFF);
+                    g.renderFakeItem(stack, 20 + i * 20, 110);
+                    i++;
+                }
+            }
+        })).wait(10).screenshot("oreicons").closeScreen();
+        b.run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("rows")) {
+            @Override
+            public void render(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+                super.render(g, mx, my, pt);
+                var mats = com.fantasyweapons.material.Material.values();
+                for (int col = 0; col < 5; col++) {
+                    int x = 10 + col * 80;
+                    if (col == 0) g.enableScissor(x - 2, 0, x + 70, 300);
+                    for (int i = 0; i < mats.length; i++) {
+                        int y = 10 + i * 17;
+                        var stack = new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.ORES.get(mats[i]).get());
+                        if (col != 3) com.fantasyweapons.client.hud.UiDraw.rect(g, x, y, x + 70, y + 16, 0x26000000);
+                        g.renderFakeItem(stack, x + 2, y);
+                        if (col == 2) com.fantasyweapons.client.hud.UiDraw.rect(g, x + 2, y, x + 18, y + 16, 0x30101010);
+                        if (col != 1 && col != 4) com.fantasyweapons.client.hud.UiDraw.text(g, "row " + i, x + 21, y + 3, 0xFFFFFFFF, 0.62f, true);
+                        if (col == 4) g.drawString(font, "r" + i, x + 21, y + 3, 0xFFFFFF, true);
+                    }
+                    if (col == 0) g.disableScissor();
+                }
+            }
+        })).wait(10).screenshot("orerows").closeScreen();
+        b.cmd("/fw quest reset").wait(10).run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen())).wait(5)
+                .run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 + 5)).wait(10).screenshot("qs_notoast");
+        b.cmd("/fw quest complete hunter_50").wait(20).screenshot("qs_toast").wait(200).screenshot("qs_after_toast").closeScreen();
+    }
+
+    /** Clicks the open screen at gui coordinates measured from a centred panel {@code w} by {@code h}. */
+    private static void clickPanel(net.minecraft.client.Minecraft mc, int w, int h, int x, int y) {
+        int left = (mc.getWindow().getGuiScaledWidth() - w) / 2, top = (mc.getWindow().getGuiScaledHeight() - h) / 2;
+        if (mc.screen != null) mc.screen.mouseClicked(left + x, top + y, 0);
+    }
+
+    /** The quests' toast, the Quest Journal's chapters, and the class menu: its cards, choosing one, and the wait after. */
+    private static void quests(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/fw quest reset").cmd("/fw class set none").wait(20).hud(true)
+                .cmd("/tp @s 0 -60 0 0 0").wait(10);
+        b.cmd("/fw quest complete first_page").wait(12).screenshot("quest_toast").wait(30).screenshot("quest_toast_settled").wait(120);
+        b.cmd("/fw quest claim first_page").cmd("/give @s minecraft:diamond_pickaxe").cmd("/fw quest complete prospect_void_crystal")
+                .cmd("/fw quest complete prospect_solarite_crystal").cmd("/fw quest claim prospect_solarite_crystal")
+                .cmd("/fw quest complete hunter_50").wait(200);
+        b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen())).wait(10).screenshot("quest_journal");
+        b.run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 + 5)).wait(6).screenshot("quest_ores");
+        b.run(mc -> clickPanel(mc, 416, 236, 120, 30 + 5)).wait(6).screenshot("quest_ores_first");
+        b.run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 * 3 + 5)).wait(6).screenshot("quest_weapons");
+        b.run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 * 5 + 5)).wait(6).screenshot("quest_hunts");
+        b.run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 * 7 + 5)).wait(6).screenshot("quest_mastery").closeScreen().wait(10);
+        // the class menu: no class yet, then the Assassin's button asked twice, then the wait
+        b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(10).screenshot("class_menu");
+        int cardsLeft = (416 - (4 * 98 + 3 * 4)) / 2;
+        b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 30, 24 + 176 - 14)).wait(4).screenshot("class_confirm");
+        b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 30, 24 + 176 - 14)).wait(20).screenshot("class_chosen").closeScreen().wait(4)
+                .screenshot("class_chosen_world");
+        b.cmd("/fw class ready").cmd("/fw class set paladin").wait(10).run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(10)
+                .screenshot("class_paladin").closeScreen().wait(10);
     }
 
     /** Every spread of the Codex in turn, for checking that each page's writing fits. */

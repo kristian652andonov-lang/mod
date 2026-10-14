@@ -17,6 +17,8 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.server.packs.resources.ResourceMetadata;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.cache.texture.AnimatableTexture;
+import software.bernie.geckolib.cache.texture.AutoGlowingTexture;
+import software.bernie.geckolib.cache.texture.GeoAbstractTexture;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,7 +37,8 @@ import java.util.stream.Stream;
  * material's 32x16 - but their {@code .mcmeta} files don't give the frame size, and Minecraft (and GeckoLib after it)
  * then takes the frames to be squares: every face is drawn from the wrong part of the strip. Without changing the files,
  * each such texture is registered as a GeckoLib animated texture whose frame height comes from its model's texture size.
- * The glow layers follow the corrected frames, since GeckoLib builds them from the base texture.
+ * The glow layers follow the corrected frames, since GeckoLib builds them from the base texture. Every animated texture
+ * is also prepared here, so none is drawn blank the first time it appears (see {@link #warm}).
  */
 public final class FrameStripTextures implements ResourceManagerReloadListener {
     @Override
@@ -63,6 +66,67 @@ public final class FrameStripTextures implements ResourceManagerReloadListener {
             }
         }
         if (fixed > 0) FantasyWeapons.LOGGER.debug("Corrected the frame size of {} animated textures", fixed);
+        // prepared once loading is over: GeckoLib's glow layers can't be built during a reload (they wait on its workers)
+        List<ResourceLocation> animated = new ArrayList<>();
+        for (var e : pngs.entrySet()) {
+            try {
+                if (e.getValue().metadata().getSection(AnimationMetadataSection.SERIALIZER).isPresent()) animated.add(e.getKey());
+            } catch (IOException ex) {
+                // not animated as far as can be told
+            }
+        }
+        toWarm = animated;
+    }
+
+    /** Animated textures waiting to be prepared, after the last reload. */
+    private static List<ResourceLocation> toWarm = List.of();
+
+    /** Every client tick: once the loading screen is gone, prepares the textures the last reload found. */
+    public static void tick() {
+        Minecraft mc = Minecraft.getInstance();
+        if (toWarm.isEmpty() || mc.getOverlay() != null) return;
+        List<ResourceLocation> pending = toWarm;
+        toWarm = List.of();
+        int warmed = 0;
+        for (ResourceLocation location : pending) {
+            try {
+                if (warm(mc.getTextureManager(), mc.getResourceManager(), location)) warmed++;
+            } catch (IOException | RuntimeException ex) {
+                FantasyWeapons.LOGGER.warn("Could not prepare the animated texture {}: {}", location, ex.getMessage());
+            }
+        }
+        FantasyWeapons.LOGGER.debug("Prepared {} animated textures", warmed);
+    }
+
+    /**
+     * Loads an animated texture and its glow layer now, and plays its animation through once. GeckoLib uploads a frame
+     * only when the animation moves on to it, so a texture first drawn mid-game (an ore's icon in a menu, say) stayed
+     * blank - drawn black - until its first frame change; prepared here, every frame is in place before it is drawn.
+     */
+    private static boolean warm(TextureManager textures, ResourceManager resources, ResourceLocation location) throws IOException {
+        if (!(textures.getTexture(location) instanceof AnimatableTexture texture) || !texture.isAnimated()) return false;
+        if (resources.getResource(GeoAbstractTexture.appendToPath(location, "_glowmask")).isPresent()) AutoGlowingTexture.getEmissiveResource(location);
+        int length = animationLength(texture);
+        for (int tick = 0; tick < length; tick++) texture.setAnimationFrame(tick);
+        texture.setAnimationFrame(0);
+        return true;
+    }
+
+    /** How many ticks the texture's animation lasts (read from GeckoLib, which does not expose it), or a generous guess. */
+    private static int animationLength(AnimatableTexture texture) {
+        try {
+            var contents = AnimatableTexture.class.getDeclaredField("animationContents");
+            contents.setAccessible(true);
+            Object animation = contents.get(texture);
+            var animated = animation.getClass().getDeclaredField("animatedTexture");
+            animated.setAccessible(true);
+            Object frames = animated.get(animation);
+            var total = frames.getClass().getDeclaredField("totalFrameTime");
+            total.setAccessible(true);
+            return Math.max(1, Math.min(4096, total.getInt(frames)));
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return 256;
+        }
     }
 
     /** Width and height from the PNG header. */

@@ -68,6 +68,10 @@ public interface SidedHooks {
     default void handleProgression(ProgressionEventPayload payload) {
     }
 
+    /** One of the player's quests is done: its toast. */
+    default void handleQuestCompleted(String quest) {
+    }
+
     /** The player earned one of the mod's deeds (advancements): its toast and fanfare. */
     default void handleDeed(com.fantasyweapons.network.DeedPayload payload) {
     }

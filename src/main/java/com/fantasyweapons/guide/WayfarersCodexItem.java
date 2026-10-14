@@ -48,7 +48,10 @@ public class WayfarersCodexItem extends Item implements GeoItem {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (level.isClientSide) SidedHooks.get().openCodex(hand);
-        else if (player instanceof net.minecraft.server.level.ServerPlayer server) com.fantasyweapons.advancement.ModTriggers.CODEX_OPENED.get().trigger(server, "");
+        else if (player instanceof net.minecraft.server.level.ServerPlayer server) {
+            com.fantasyweapons.advancement.ModTriggers.CODEX_OPENED.get().trigger(server, "");
+            com.fantasyweapons.quest.QuestService.event(server, "codex");
+        }
         return InteractionResultHolder.consume(player.getItemInHand(hand));
     }
 

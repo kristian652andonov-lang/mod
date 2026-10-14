@@ -31,8 +31,16 @@ public final class DeedToast implements Toast {
     /** When typing starts (ms into the toast), and how fast the title and the description are typed (letters a second). */
     private static final float TYPE_FROM = 0.35f, TITLE_RATE = 22, DESC_RATE = 42, PAUSE = 0.15f;
 
+    /** Another heading in place of the rank's (a quest's "QUEST COMPLETE"), or null. */
+    private final String headerOverride;
+
     public DeedToast(DeedPayload deed) {
+        this(deed, null);
+    }
+
+    public DeedToast(DeedPayload deed, String header) {
         this.deed = deed;
+        this.headerOverride = header;
         AdvancementType[] types = AdvancementType.values();
         this.type = types[Math.max(0, Math.min(types.length - 1, deed.tier()))];
     }
@@ -58,6 +66,7 @@ public final class DeedToast implements Toast {
     }
 
     private String header() {
+        if (headerOverride != null) return headerOverride;
         return switch (type) {
             case TASK -> "DEED EARNED";
             case GOAL -> "FEAT ACCOMPLISHED";

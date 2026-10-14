@@ -19,6 +19,12 @@ public final class KeyBindings {
     /** Open the weapon progression menu. */
     public static final KeyMapping MENU = new KeyMapping("key.fantasyweapons.menu", KeyConflictContext.IN_GAME,
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, CATEGORY);
+    /** Open the Quest Journal. */
+    public static final KeyMapping QUESTS = new KeyMapping("key.fantasyweapons.quests", KeyConflictContext.IN_GAME,
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, CATEGORY);
+    /** Open the class menu. */
+    public static final KeyMapping CLASSES = new KeyMapping("key.fantasyweapons.classes", KeyConflictContext.IN_GAME,
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY);
     /** Cycle the selected ability. */
     public static final KeyMapping CYCLE = new KeyMapping("key.fantasyweapons.cycle", KeyConflictContext.IN_GAME,
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CATEGORY);
@@ -31,5 +37,7 @@ public final class KeyBindings {
         event.register(FORM);
         event.register(MENU);
         event.register(CYCLE);
+        event.register(QUESTS);
+        event.register(CLASSES);
     }
 }

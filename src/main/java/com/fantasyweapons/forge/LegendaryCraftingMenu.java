@@ -241,6 +241,7 @@ public class LegendaryCraftingMenu extends AbstractContainerMenu {
         if (player instanceof net.minecraft.server.level.ServerPlayer server) {
             com.fantasyweapons.advancement.ModTriggers.FORGE_STARTED.get().trigger(server,
                     net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(made.getItem()).getPath());
+            com.fantasyweapons.quest.QuestService.event(server, "forge");
         }
         slotsChanged(grid);
         return true;

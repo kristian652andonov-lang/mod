@@ -214,5 +214,7 @@
   "subtitles.fantasyweapons.deed.task": "Deed earned",
   "subtitles.fantasyweapons.deed.goal": "Feat accomplished",
   "subtitles.fantasyweapons.deed.challenge": "Legend forged",
-  "subtitles.fantasyweapons.deed.type": "A deed is written"
+  "subtitles.fantasyweapons.deed.type": "A deed is written",
+  "key.fantasyweapons.quests": "Quest Journal",
+  "key.fantasyweapons.classes": "Choose Class"
 }

@@ -97,6 +97,48 @@ public final class FWCommand {
                         .then(Commands.argument("biome", net.minecraft.commands.arguments.ResourceLocationArgument.id())
                                 .executes(c -> oreScanBiome(c.getSource(), net.minecraft.commands.arguments.ResourceLocationArgument.getId(c, "biome"),
                                         IntegerArgumentType.getInteger(c, "radius"))))))
+                .then(Commands.literal("quest")
+                        .then(Commands.literal("complete").then(Commands.argument("quest", StringArgumentType.word())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(com.fantasyweapons.quest.Quests.all().stream().map(com.fantasyweapons.quest.Quest::id), b))
+                                .executes(c -> {
+                                    String id = StringArgumentType.getString(c, "quest");
+                                    var q = com.fantasyweapons.quest.Quests.get(id);
+                                    if (q == null) {
+                                        c.getSource().sendFailure(Component.literal("No quest " + id));
+                                        return 0;
+                                    }
+                                    com.fantasyweapons.quest.QuestService.force(c.getSource().getPlayerOrException(), q);
+                                    c.getSource().sendSuccess(() -> Component.literal("Filled the objectives of " + q.title()), false);
+                                    return 1;
+                                })))
+                        .then(Commands.literal("claim").then(Commands.argument("quest", StringArgumentType.word())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(com.fantasyweapons.quest.Quests.all().stream().map(com.fantasyweapons.quest.Quest::id), b))
+                                .executes(c -> {
+                                    com.fantasyweapons.quest.QuestService.claim(c.getSource().getPlayerOrException(), StringArgumentType.getString(c, "quest"));
+                                    return 1;
+                                })))
+                        .then(Commands.literal("reset").executes(c -> {
+                            com.fantasyweapons.quest.QuestService.reset(c.getSource().getPlayerOrException());
+                            c.getSource().sendSuccess(() -> Component.literal("Quests reset"), false);
+                            return 1;
+                        })))
+                .then(Commands.literal("class")
+                        .then(Commands.literal("set").then(Commands.argument("class", StringArgumentType.word())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(java.util.Arrays.stream(com.fantasyweapons.playerclass.PlayerClass.values())
+                                        .map(com.fantasyweapons.playerclass.PlayerClass::id), b))
+                                .executes(c -> {
+                                    ServerPlayer p = c.getSource().getPlayerOrException();
+                                    var chosen = com.fantasyweapons.playerclass.PlayerClass.byId(StringArgumentType.getString(c, "class"));
+                                    com.fantasyweapons.playerclass.ClassService.set(p, chosen, false);
+                                    c.getSource().sendSuccess(() -> Component.literal("Class set to " + chosen.displayName()), false);
+                                    return 1;
+                                })))
+                        .then(Commands.literal("ready").executes(c -> {
+                            ServerPlayer p = c.getSource().getPlayerOrException();
+                            com.fantasyweapons.playerclass.ClassService.set(p, com.fantasyweapons.playerclass.ClassService.of(p), false);
+                            c.getSource().sendSuccess(() -> Component.literal("Class change wait cleared"), false);
+                            return 1;
+                        })))
                 .then(Commands.literal("info").executes(c -> info(c, held(c.getSource().getPlayerOrException()))))
                 .then(Commands.literal("give").then(Commands.argument("weapon", StringArgumentType.word())
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(ModItems.WEAPONS.keySet(), b))

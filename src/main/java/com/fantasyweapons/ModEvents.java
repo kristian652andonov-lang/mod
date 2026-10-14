@@ -44,6 +44,9 @@ public final class ModEvents {
         bus.addListener(ModEvents::onChorus);
         bus.addListener(ModEvents::onCrafted);
         bus.addListener(com.fantasyweapons.advancement.Deeds::onEarned);
+        bus.addListener(com.fantasyweapons.quest.QuestService::onBreak);
+        bus.addListener(com.fantasyweapons.playerclass.ClassService::onLogin);
+        bus.addListener(com.fantasyweapons.playerclass.ClassService::onRespawn);
         bus.addListener(com.fantasyweapons.guide.CodexGift::onLogin);
         bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
     }
@@ -65,6 +68,8 @@ public final class ModEvents {
         ExpService.onLivingDeath(event);
         com.fantasyweapons.weapons.bloomfall.BloomfallAbilities.onDeath(event);
         com.fantasyweapons.armor.SetAbilities.onDeath(event);
+        com.fantasyweapons.quest.QuestService.onDeath(event);
+        com.fantasyweapons.playerclass.ClassService.onDeath(event);
     }
 
     private static void onPlayerTick(PlayerTickEvent.Post event) {
@@ -73,8 +78,13 @@ public final class ModEvents {
             com.fantasyweapons.armor.ArmorEffects.tick(player);
             if (player.tickCount % 20 == 0) {
                 com.fantasyweapons.armor.ArmorSet set = com.fantasyweapons.armor.FantasyArmorItem.fullSet(player);
-                if (set != null) com.fantasyweapons.advancement.ModTriggers.FULL_SET.get().trigger(player, set.id());
+                if (set != null) {
+                    com.fantasyweapons.advancement.ModTriggers.FULL_SET.get().trigger(player, set.id());
+                    com.fantasyweapons.quest.QuestService.event(player, "wear:" + set.id());
+                }
             }
+            com.fantasyweapons.quest.QuestService.tick(player);
+            com.fantasyweapons.playerclass.ClassService.tick(player);
         }
     }
 
@@ -91,6 +101,7 @@ public final class ModEvents {
     private static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             AbilityService.onLogout(player);
+            com.fantasyweapons.playerclass.ClassService.onLogout(player);
             com.fantasyweapons.weapons.stormbreaker.StormbreakerAbilities.forget(player.getUUID());
             com.fantasyweapons.weapons.gravebite.GravebiteAbilities.forget(player.getUUID());
             com.fantasyweapons.weapons.eclipse.EclipseReaperAbilities.forget(player.getUUID());
@@ -113,6 +124,7 @@ public final class ModEvents {
         // frost, fire and undead resistance from armor
         float armor = com.fantasyweapons.armor.ArmorEffects.incoming(event.getEntity(), event.getSource());
         if (armor != 1f) event.setAmount(event.getAmount() * armor);
+        if (!event.getEntity().level().isClientSide) com.fantasyweapons.playerclass.ClassService.onIncomingDamage(event);
     }
 
     private static void onFall(net.neoforged.neoforge.event.entity.living.LivingFallEvent event) {
@@ -145,6 +157,7 @@ public final class ModEvents {
             var input = grid.getItem(i);
             if (input.getItem() == item) {
                 com.fantasyweapons.advancement.ModTriggers.INFUSED.get().trigger(player, item.definition().id());
+                com.fantasyweapons.quest.QuestService.event(player, "infuse");
                 ExpService.announceLevelUp(player, item.definition(), FantasyWeaponItem.data(input), FantasyWeaponItem.data(event.getCrafting()));
                 return;
             }

@@ -84,6 +84,12 @@ public final class InputHandler {
         while (KeyBindings.CYCLE.consumeClick()) {
             if (!held.isEmpty()) PacketDistributor.sendToServer(new C2SPayloads.CycleAbility(mc.player.isShiftKeyDown() ? -1 : 1));
         }
+        while (KeyBindings.QUESTS.consumeClick()) {
+            if (mc.screen == null) mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen());
+        }
+        while (KeyBindings.CLASSES.consumeClick()) {
+            if (mc.screen == null) mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen());
+        }
         while (KeyBindings.MENU.consumeClick()) {
             int slot = ProgressionScreen.findWeaponSlot(mc.player);
             if (slot >= 0) mc.setScreen(new ProgressionScreen(slot));
