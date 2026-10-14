@@ -34,6 +34,8 @@ public final class FWNetwork {
                 ctx.enqueueWork(() -> SidedHooks.get().handleDeed(p)));
         r.playToServer(QuestPayloads.Claim.TYPE, QuestPayloads.Claim.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> com.fantasyweapons.quest.QuestService.claim((ServerPlayer) ctx.player(), p.quest())));
+        r.playToServer(QuestPayloads.ClaimAll.TYPE, QuestPayloads.ClaimAll.CODEC, (p, ctx) ->
+                ctx.enqueueWork(() -> com.fantasyweapons.quest.QuestService.claimAll((ServerPlayer) ctx.player())));
         r.playToServer(QuestPayloads.ChooseClass.TYPE, QuestPayloads.ChooseClass.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> com.fantasyweapons.playerclass.ClassService.choose((ServerPlayer) ctx.player(),
                         com.fantasyweapons.playerclass.PlayerClass.byId(p.playerClass()))));

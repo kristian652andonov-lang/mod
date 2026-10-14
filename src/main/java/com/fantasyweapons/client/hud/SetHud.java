@@ -38,7 +38,7 @@ public final class SetHud {
         alpha += ((set == null ? 0f : 1f) - alpha) * Math.min(1, dt * 8);
         if (alpha < 0.02f || shown == null) return;
 
-        float scale = (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0);
+        float scale = (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0) * UiScale.hud();
         ClientConfig.HudAnchor anchor = ClientConfig.SPEC.isLoaded() ? ClientConfig.HUD_ANCHOR.get() : ClientConfig.HudAnchor.BOTTOM_RIGHT;
         float x0 = 8, y0 = g.guiHeight() - H * scale - 8;
         // on a narrow screen it would run into the hotbar (and the off-hand slot beside it): lift it above the hearts

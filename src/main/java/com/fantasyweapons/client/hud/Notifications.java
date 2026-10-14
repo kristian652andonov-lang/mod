@@ -128,7 +128,12 @@ public final class Notifications {
                 float out = Math.min(1, (current.durationMs() - elapsed) / 450f);
                 float alpha = Math.min(in, out);
                 float slide = (1 - easeOut(in)) * -26 + (1 - easeOut(out)) * -12;
-                current.render(g, t, sw / 2f, 26 + slide, alpha);
+                float hud = UiScale.hud();
+                g.pose().pushPose();
+                g.pose().translate(sw / 2f, (26 + slide) * hud, 0);
+                g.pose().scale(hud, hud, 1);
+                current.render(g, t, 0, 0, alpha);
+                g.pose().popPose();
             }
         }
 
@@ -138,16 +143,17 @@ public final class Notifications {
             pendingExp = 0;
             pendingExpAt = 0;
         }
-        float px = sw - WeaponHud.W * (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0) / 2f - 8;
-        float py = sh - WeaponHud.H * (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0) - 22;
+        float hud = UiScale.hud(), panel = (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0) * hud;
+        float px = sw - WeaponHud.W * panel / 2f - 8 * hud;
+        float py = sh - WeaponHud.H * panel - 22 * hud;
         POPUPS.removeIf(p -> now - p.start() > 1600);
         int i = 0;
         for (Popup p : POPUPS) {
             float t = (now - p.start()) / 1600f;
             float a = t < 0.1f ? t / 0.1f : (t > 0.7f ? 1 - (t - 0.7f) / 0.3f : 1);
-            float y = py - t * 18 - i * 9;
-            UiDraw.glow(g, px, y + 3, 50, Colors.alpha(a * 0.25f, p.color()));
-            UiDraw.title(g, p.text(), px, y, Colors.alpha(a, p.color()), 0.75f);
+            float y = py - (t * 18 + i * 9) * hud;
+            UiDraw.glow(g, px, y + 3 * hud, 50 * hud, Colors.alpha(a * 0.25f, p.color()));
+            UiDraw.title(g, p.text(), px, y, Colors.alpha(a, p.color()), 0.75f * hud);
             i++;
         }
 
@@ -157,7 +163,7 @@ public final class Notifications {
             if (t < 1) {
                 float a = t > 0.7f ? 1 - (t - 0.7f) / 0.3f : 1;
                 float shake = t < 0.15f ? (float) Math.sin(t * 120) * 2 * (1 - t / 0.15f) : 0;
-                UiDraw.title(g, deniedText, sw / 2f + shake, sh - 72, Colors.alpha(a, UiDraw.BAD), 0.8f);
+                UiDraw.title(g, deniedText, sw / 2f + shake * hud, sh - 72 * hud, Colors.alpha(a, UiDraw.BAD), 0.8f * hud);
             }
         }
     }

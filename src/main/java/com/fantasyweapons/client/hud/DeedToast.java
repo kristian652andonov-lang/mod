@@ -45,14 +45,22 @@ public final class DeedToast implements Toast {
         this.type = types[Math.max(0, Math.min(types.length - 1, deed.tier()))];
     }
 
+    /**
+     * Sized like the rest of the HUD (see {@link UiScale#hud}), but never under one of the game's toast rows (32 GUI units),
+     * which would leave gaps between the toasts stacked down the screen.
+     */
+    private static float scale() {
+        return Math.max(UiScale.hud(), 31f / H);
+    }
+
     @Override
     public int width() {
-        return W;
+        return Math.round(W * scale());
     }
 
     @Override
     public int height() {
-        return H;
+        return Math.round(H * scale());
     }
 
     private long duration() {
@@ -88,6 +96,17 @@ public final class DeedToast implements Toast {
             played = true;
             toasts.getMinecraft().getSoundManager().play(SimpleSoundInstance.forUI(sound(), 1f, 0.9f));
         }
+        float hud = scale();
+        g.pose().pushPose();
+        g.pose().scale(hud, hud, 1);
+        try {
+            return draw(g, toasts, time);
+        } finally {
+            g.pose().popPose();
+        }
+    }
+
+    private Visibility draw(GuiGraphics g, ToastComponent toasts, long time) {
         float t = time / 1000f;
         int color = Deeds.color(type);
         boolean legend = type == AdvancementType.CHALLENGE;

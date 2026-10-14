@@ -88,6 +88,11 @@ public final class UiDraw {
         INK_MUTED = inkMuted;
     }
 
+    /** Dyes the ribbon banners (until {@link #resetTheme}). */
+    public static void dyeRibbon(int rgb) {
+        ribbon = rgb;
+    }
+
     /** Back to the plain gold-and-crimson tome. */
     public static void resetTheme() {
         body = LEATHER;

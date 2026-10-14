@@ -85,18 +85,51 @@ public final class QuestService {
     /** Pays out a quest the player claims from the journal, if it is open, done and not yet claimed. */
     public static void claim(ServerPlayer player, String id) {
         Quest q = Quests.get(id);
+        if (q == null || !pay(player, q)) return;
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.8f, 1.2f);
+        // what it opened may be done already
+        announceDone(player);
+        player.syncData(ModAttachments.QUESTS);
+    }
+
+    /**
+     * Pays out every quest the player has done, and the quests those open that are done too; how many. (Toasts are not
+     * shown for quests claimed at once.)
+     */
+    public static int claimAll(ServerPlayer player) {
+        int paid = 0;
+        boolean more = true;
+        while (more) {
+            more = false;
+            for (Quest q : Quests.all()) {
+                if (pay(player, q)) {
+                    paid++;
+                    more = true;
+                }
+            }
+        }
+        if (paid == 0) return 0;
+        // the quests just paid need no announcing
         QuestData d = data(player);
-        if (q == null || d.claimed(id) || !unlocked(player, q) || !complete(player, q)) return;
-        d.claim(id);
+        for (Quest q : Quests.all()) if (d.claimed(q.id())) d.announce(q.id());
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.9f, 1.0f);
+        player.displayClientMessage(net.minecraft.network.chat.Component.literal("Claimed " + paid + (paid == 1 ? " quest" : " quests")).withColor(0xF2C46B), true);
+        announceDone(player);
+        player.syncData(ModAttachments.QUESTS);
+        return paid;
+    }
+
+    /** Gives a quest's rewards, if it is open, done and not yet claimed; whether it did. */
+    private static boolean pay(ServerPlayer player, Quest q) {
+        QuestData d = data(player);
+        if (d.claimed(q.id()) || !unlocked(player, q) || !complete(player, q)) return false;
+        d.claim(q.id());
         for (var reward : q.rewards()) {
             ItemStack stack = reward.get();
             if (!player.getInventory().add(stack)) player.drop(stack, false);
         }
         if (q.xp() > 0) player.giveExperiencePoints(q.xp());
-        player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.8f, 1.2f);
-        // what it opened may be done already
-        announceDone(player);
-        player.syncData(ModAttachments.QUESTS);
+        return true;
     }
 
     /** Operator tool: a quest's counted objectives filled (what it asks to be held still has to be held). */

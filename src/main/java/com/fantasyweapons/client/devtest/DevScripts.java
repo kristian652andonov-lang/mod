@@ -65,6 +65,7 @@ final class DevScripts {
                 else if (name.equals("deeds")) deeds(b);
                 else if (name.equals("quests")) quests(b);
                 else if (name.equals("oreicons")) oreIcons(b);
+                else if (name.equals("classpages")) classPages(b);
                 else if (name.equals("gear")) gear(b);
                 else if (name.equals("forgefx")) forgeFx(b);
                 else if (name.equals("codexquests")) {
@@ -77,8 +78,10 @@ final class DevScripts {
                                 .wait(16).screenshot("codex_mastery_" + n);
                     }
                     b.closeScreen().wait(30).run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(5);
-                    int cardsLeft = (416 - (4 * 98 + 3 * 4)) / 2;
-                    b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 102 + 30, 24 + 176 - 14)).wait(6).screenshot("class_confirm2").closeScreen();
+                    classScreen(b, c -> c.devPage(com.fantasyweapons.playerclass.PlayerClass.BERSERKER));
+                    b.wait(10);
+                    classScreen(b, c -> c.devChoose());
+                    b.wait(6).screenshot("class_confirm2").closeScreen();
                 }
                 else if (name.equals("oretiming")) {
                     b.cmd("/gamemode creative").cmd("/clear @s").cmd("/fw quest reset").wait(20).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10)
@@ -1102,6 +1105,44 @@ final class DevScripts {
         if (mc.screen != null) mc.screen.mouseClicked(left + x, top + y, 0);
     }
 
+    private static void classScreen(ScreenshotDirector.Builder b, java.util.function.Consumer<com.fantasyweapons.client.gui.ClassScreen> action) {
+        b.run(mc -> {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.ClassScreen c) action.accept(c);
+        });
+    }
+
+    /** The class menu a page at a time; then the HUD, a toast and the menus at GUI scales 2, 3 and 4. */
+    private static void classPages(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode survival").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set none").cmd("/fw quest reset").wait(20).hud(true)
+                .cmd("/tp @s 0 -60 0 0 0").wait(10);
+        b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(12).screenshot("cp_assassin");
+        for (var pc : new com.fantasyweapons.playerclass.PlayerClass[]{com.fantasyweapons.playerclass.PlayerClass.BERSERKER,
+                com.fantasyweapons.playerclass.PlayerClass.PALADIN, com.fantasyweapons.playerclass.PlayerClass.MAGE}) {
+            classScreen(b, c -> c.devPage(pc));
+            b.wait(3).screenshot("cp_" + pc.id() + "_turning").wait(12).screenshot("cp_" + pc.id());
+        }
+        classScreen(b, c -> c.devPage(com.fantasyweapons.playerclass.PlayerClass.PALADIN));
+        b.wait(12);
+        classScreen(b, c -> c.devChoose());
+        b.wait(6).screenshot("cp_confirm");
+        classScreen(b, c -> c.devChoose());
+        b.wait(20).screenshot("cp_chosen").closeScreen().wait(10);
+        b.cmd("/fw class set assassin").cmd("/give @s fantasyweapons:voidfang").cmd("/fw quest complete first_page").wait(5).slot(0);
+        for (int scale : new int[]{2, 3, 4}) {
+            int s = scale;
+            b.run(mc -> {
+                mc.options.guiScale().set(s);
+                mc.resizeDisplay();
+            }).cmd("/fw quest complete " + (s == 2 ? "unleashed" : s == 3 ? "hunter_50" : "into_the_nether")).wait(30).screenshot("scale" + s + "_hud");
+            b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen())).wait(12).screenshot("scale" + s + "_journal");
+            b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(12).screenshot("scale" + s + "_classes").closeScreen().wait(5);
+        }
+        b.run(mc -> {
+            mc.options.guiScale().set(0);
+            mc.resizeDisplay();
+        }).wait(5);
+    }
+
     private static void journal(ScreenshotDirector.Builder b, java.util.function.Consumer<com.fantasyweapons.client.gui.QuestScreen> action) {
         b.run(mc -> {
             if (mc.screen instanceof com.fantasyweapons.client.gui.QuestScreen q) action.accept(q);
@@ -1143,11 +1184,12 @@ final class DevScripts {
         journal(b, q -> q.devChapter(com.fantasyweapons.quest.Chapter.ARMOR));
         b.wait(8).screenshot("quest_armor");
         b.run(mc -> com.fantasyweapons.client.gui.QuestScreen.devMouse = null).closeScreen().wait(10);
-        // the class menu: no class yet, then the Assassin's button asked twice, then the wait
+        // the class menu: no class yet, then the Assassin's seal asked twice, then the wait
         b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(10).screenshot("class_menu");
-        int cardsLeft = (416 - (4 * 98 + 3 * 4)) / 2;
-        b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 30, 24 + 176 - 14)).wait(4).screenshot("class_confirm");
-        b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 30, 24 + 176 - 14)).wait(20).screenshot("class_chosen").closeScreen().wait(10);
+        classScreen(b, c -> c.devChoose());
+        b.wait(4).screenshot("class_confirm");
+        classScreen(b, c -> c.devChoose());
+        b.wait(20).screenshot("class_chosen").closeScreen().wait(10);
     }
 
     /** Every spread of the Codex in turn, for checking that each page's writing fits. */

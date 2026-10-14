@@ -75,7 +75,7 @@ public final class WeaponHud {
     }
 
     private static void renderPanel(GuiGraphics g, WeaponDefinition def, WeaponData data, float dt, long nowMs) {
-        float scale = (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0);
+        float scale = (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0) * UiScale.hud();
         int sw = g.guiWidth(), sh = g.guiHeight();
         ClientConfig.HudAnchor anchor = ClientConfig.SPEC.isLoaded() ? ClientConfig.HUD_ANCHOR.get() : ClientConfig.HudAnchor.BOTTOM_RIGHT;
         float x0 = switch (anchor) {
@@ -315,6 +315,20 @@ public final class WeaponHud {
         ClientState.ChargeInfo ci = ClientState.localCharge();
         if (ci == null) return;
         float cx = g.guiWidth() / 2f, cy = g.guiHeight() / 2f;
+        // sized like the rest of the HUD, about the crosshair
+        float hud = UiScale.hud();
+        g.pose().pushPose();
+        g.pose().translate(cx, cy, 0);
+        g.pose().scale(hud, hud, 1);
+        g.pose().translate(-cx, -cy, 0);
+        try {
+            chargeRing(g, def, data, nowMs, ci, cx, cy);
+        } finally {
+            g.pose().popPose();
+        }
+    }
+
+    private static void chargeRing(GuiGraphics g, WeaponDefinition def, WeaponData data, long nowMs, ClientState.ChargeInfo ci, float cx, float cy) {
         int theme = def.themePrimary(data), light = def.themeSecondary(data);
         float f = ci.fraction();
         boolean full = f >= 1f;

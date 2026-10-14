@@ -83,6 +83,7 @@ public final class QuestScreen extends Screen {
     private final List<Link> links = new ArrayList<>();
     private ItemStack hoveredReward = ItemStack.EMPTY;
     private int left, top;
+    private final GuiZoom zoom = new GuiZoom(W, H);
 
     public QuestScreen() {
         super(Component.literal("Quest Journal"));
@@ -90,8 +91,9 @@ public final class QuestScreen extends Screen {
 
     @Override
     protected void init() {
-        left = (width - W) / 2;
-        top = (height - H) / 2;
+        zoom.fit(width, height);
+        left = zoom.left(width);
+        top = zoom.top(height);
     }
 
     @Override
@@ -339,9 +341,16 @@ public final class QuestScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
+        int realX = mouseX, realY = mouseY;
+        // the menu is drawn zoomed to the window (see GuiZoom): the mouse, in its units
         if (devMouse != null) {
             mouseX = devMouse[0];
             mouseY = devMouse[1];
+            realX = (int) (mouseX * zoom.zoom);
+            realY = (int) (mouseY * zoom.zoom);
+        } else {
+            mouseX = (int) zoom.in(mouseX);
+            mouseY = (int) zoom.in(mouseY);
         }
         time = Util.getMillis() / 50f;
         float dt = lastTime < 0 ? 1 : Math.min(20, time - lastTime);
@@ -350,15 +359,17 @@ public final class QuestScreen extends Screen {
         layout();
         clampPan();
         UiDraw.style(UiDraw.NETHERITE, -1, GOLD, GOLD_LIGHT, MUTED);
+        zoom.push(g);
         try {
             UiDraw.panel(g, left, top, W, H, chapter.color(), 1f);
-            header(g);
+            header(g, mouseX, mouseY);
             tabs(g, mouseX, mouseY);
             map(g, mouseX, mouseY);
         } finally {
+            zoom.pop(g);
             UiDraw.resetTheme();
         }
-        if (!hoveredReward.isEmpty()) g.renderTooltip(font, hoveredReward, mouseX, mouseY);
+        if (!hoveredReward.isEmpty()) g.renderTooltip(font, hoveredReward, realX, realY);
     }
 
     private void animate(float dt) {
@@ -376,17 +387,32 @@ public final class QuestScreen extends Screen {
         panY += (panTargetY - panY) * k;
     }
 
-    private void header(GuiGraphics g) {
+    private int claimable() {
+        var player = minecraft.player;
+        int n = 0;
+        for (Quest q : Quests.all()) if (!QuestService.data(player).claimed(q.id()) && QuestService.unlocked(player, q) && QuestService.complete(player, q)) n++;
+        return n;
+    }
+
+    private static final int CLAIM_ALL_X = PAD + 1, CLAIM_ALL_Y = 6, CLAIM_ALL_W = 82, CLAIM_ALL_H = 14;
+
+    private void header(GuiGraphics g, int mouseX, int mouseY) {
+        // claim every quest that is done, at once
+        int n = claimable(), bx = left + CLAIM_ALL_X, by = top + CLAIM_ALL_Y;
+        boolean ready = n > 0, over = ready && inside(mouseX, mouseY, bx, by, CLAIM_ALL_W, CLAIM_ALL_H);
+        UiDraw.button(g, bx, by, CLAIM_ALL_W, CLAIM_ALL_H, ready ? over ? 1 : 0 : 2, ready ? 1f : 0.5f);
+        if (ready) UiDraw.glowBorder(g, bx, by, bx + CLAIM_ALL_W, by + CLAIM_ALL_H, GOLD, 0.5f + 0.3f * (float) Math.sin(time * 0.3f), 3);
+        UiDraw.textCentered(g, ready ? "Claim All (" + n + ")" : "Claim All", bx + CLAIM_ALL_W / 2f, by + 3.5f,
+                Colors.alpha(ready ? 1f : 0.55f, over ? 0xFFFFFF : GOLD), 0.68f, true);
         UiDraw.title(g, "Quest Journal", left + W / 2f, top + 9, Colors.alpha(1f, GOLD_LIGHT), 1f);
         UiDraw.miniSigil(g, left + W / 2f - UiDraw.font().width("Quest Journal") / 2f - 10, top + 13, 6, chapter.color(), time, 0.8f);
         UiDraw.miniSigil(g, left + W / 2f + UiDraw.font().width("Quest Journal") / 2f + 10, top + 13, 6, chapter.color(), -time, 0.8f);
         int claimed = 0, all = Quests.all().size();
         for (Quest q : Quests.all()) if (QuestService.data(minecraft.player).claimed(q.id())) claimed++;
-        float bx = left + W - PAD - 80, by = top + 15;
+        float px = left + W - PAD - 80, py = top + 15;
         UiDraw.textRight(g, claimed + " / " + all + " claimed", left + W - PAD, top + 7, Colors.alpha(1f, MUTED), 0.55f, false);
-        UiDraw.rect(g, bx, by, bx + 80, by + 2.5f, Colors.alpha(0.6f, 0x000000));
-        UiDraw.rect(g, bx, by, bx + 80 * claimed / (float) all, by + 2.5f, Colors.alpha(1f, GOLD));
-        UiDraw.text(g, chapter.title(), left + PAD + 2, top + 9, Colors.alpha(1f, chapter.color()), 0.7f, true);
+        UiDraw.rect(g, px, py, px + 80, py + 2.5f, Colors.alpha(0.6f, 0x000000));
+        UiDraw.rect(g, px, py, px + 80 * claimed / (float) all, py + 2.5f, Colors.alpha(1f, GOLD));
     }
 
     // ---- the chapter tabs ----
@@ -419,10 +445,10 @@ public final class QuestScreen extends Screen {
             }
             g.renderFakeItem(chapterIcon(c), x + 4, (int) (y + (h - 16) / 2));
             UiDraw.text(g, c.title(), x + 23, y + h / 2 - 6, Colors.alpha(1f, on ? 0xFFFFFF : c.color()), 0.68f, true);
-            float bw = TABS_W - 46;
+            float bw = TABS_W - 50;
             UiDraw.rect(g, x + 23, y + h / 2 + 2.5f, x + 23 + bw, y + h / 2 + 4.5f, Colors.alpha(0.6f, 0x000000));
             if (!quests.isEmpty()) UiDraw.rect(g, x + 23, y + h / 2 + 2.5f, x + 23 + bw * done / quests.size(), y + h / 2 + 4.5f, Colors.alpha(1f, c.color()));
-            UiDraw.text(g, done + "/" + quests.size(), x + 25 + bw, y + h / 2 + 1.5f, Colors.alpha(1f, MUTED), 0.45f, false);
+            UiDraw.text(g, done + "/" + quests.size(), x + 25 + bw, y + h / 2 + 1f, Colors.alpha(1f, MUTED), 0.52f, false);
             if (waiting > 0) {
                 float pulse = 0.6f + 0.4f * (float) Math.sin(time * 0.25f);
                 UiDraw.glow(g, x + TABS_W - 7, y + 6, 14, Colors.alpha(0.7f * pulse, GOLD));
@@ -436,7 +462,7 @@ public final class QuestScreen extends Screen {
     private void map(GuiGraphics g, int mouseX, int mouseY) {
         int mx = left + MAP_X, my = top + TOP;
         hoveredReward = ItemStack.EMPTY;
-        g.enableScissor(mx, my, mx + MAP_W, my + MAP_H);
+        zoom.scissor(g, mx, my, mx + MAP_W, my + MAP_H);
         background(g, mx, my);
         float visW = visibleW();
         boolean overMap = inside(mouseX, mouseY, mx, my, (int) visW, MAP_H);
@@ -816,7 +842,16 @@ public final class QuestScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        mouseX = zoom.in(mouseX);
+        mouseY = zoom.in(mouseY);
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+        if (inside(mouseX, mouseY, left + CLAIM_ALL_X, top + CLAIM_ALL_Y, CLAIM_ALL_W, CLAIM_ALL_H)) {
+            if (claimable() > 0) {
+                PacketDistributor.sendToServer(new QuestPayloads.ClaimAll());
+                click(SoundEvents.PLAYER_LEVELUP, 1.4f);
+            }
+            return true;
+        }
         // tabs
         float step = tabStep();
         for (Chapter c : Chapter.values()) {
@@ -876,6 +911,10 @@ public final class QuestScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragDX, double dragDY) {
+        mouseX = zoom.in(mouseX);
+        mouseY = zoom.in(mouseY);
+        dragDX = zoom.in(dragDX);
+        dragDY = zoom.in(dragDY);
         if (dragging) {
             if (Math.abs(mouseX - dragX) + Math.abs(mouseY - dragY) > 3) dragMoved = true;
             panX -= (float) dragDX;
@@ -890,6 +929,8 @@ public final class QuestScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        mouseX = zoom.in(mouseX);
+        mouseY = zoom.in(mouseY);
         if (dragging) {
             dragging = false;
             if (!dragMoved && selected != null) {
@@ -904,6 +945,8 @@ public final class QuestScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        mouseX = zoom.in(mouseX);
+        mouseY = zoom.in(mouseY);
         if (inside(mouseX, mouseY, left + MAP_X, top + TOP, MAP_W, MAP_H)) {
             panTargetY -= (float) scrollY * 24;
             panTargetX -= (float) scrollX * 24;

@@ -24,6 +24,17 @@ public final class QuestPayloads {
         }
     }
 
+    /** Every quest that is done, claimed at once (client to server). */
+    public record ClaimAll() implements CustomPacketPayload {
+        public static final Type<ClaimAll> TYPE = new Type<>(FantasyWeapons.id("quest_claim_all"));
+        public static final StreamCodec<ByteBuf, ClaimAll> CODEC = StreamCodec.unit(new ClaimAll());
+
+        @Override
+        public Type<ClaimAll> type() {
+            return TYPE;
+        }
+    }
+
     /** A class chosen in the class menu (client to server). */
     public record ChooseClass(String playerClass) implements CustomPacketPayload {
         public static final Type<ChooseClass> TYPE = new Type<>(FantasyWeapons.id("choose_class"));

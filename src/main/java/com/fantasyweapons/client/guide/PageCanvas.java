@@ -98,6 +98,19 @@ public final class PageCanvas {
         fill(x0, y0, x1, y1, argb, 0.02f);
     }
 
+    /**
+     * A filled four-cornered shape {@code z} out from the page, its corners given as a rectangle's would be: top left,
+     * bottom left, bottom right, top right (so it faces the reader).
+     */
+    public void quad(float ax, float ay, float bx, float by, float cx, float cy, float dx, float dy, int argb, float z) {
+        z += lift;
+        VertexConsumer v = buffers.getBuffer(RenderType.gui());
+        v.addVertex(content, ax, ay, z).setColor(argb);
+        v.addVertex(content, bx, by, z).setColor(argb);
+        v.addVertex(content, cx, cy, z).setColor(argb);
+        v.addVertex(content, dx, dy, z).setColor(argb);
+    }
+
     /** A filled rectangle {@code z} out from the page (sheet units). */
     public void fill(float x0, float y0, float x1, float y1, int argb, float z) {
         z += lift;

@@ -16,18 +16,17 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 /**
- * Two buttons in the player's inventory, beside the recipe book's: the Quest Journal (with a gold mark while a quest
- * waits to be claimed) and the class menu (showing the player's class's emblem). They keep beside the recipe book's
- * button when the book opens and moves the inventory aside.
+ * Two buttons in the player's inventory, beside the recipe book's and framed like it: the Quest Journal (a sealed scroll,
+ * with a gold mark while a quest waits to be claimed) and the class menu (the player's class's sign). They keep beside
+ * the recipe book's button when the book opens and moves the inventory aside.
  */
 public final class InventoryButtons {
-    private static final ResourceLocation BUTTON = ResourceLocation.withDefaultNamespace("widget/button");
-    private static final ResourceLocation BUTTON_HOVER = ResourceLocation.withDefaultNamespace("widget/button_highlighted");
+    private static ResourceLocation sprite(String name, boolean hover) {
+        return com.fantasyweapons.FantasyWeapons.id("inventory/" + name + (hover ? "_highlighted" : ""));
+    }
 
     private InventoryButtons() {
     }
@@ -53,12 +52,17 @@ public final class InventoryButtons {
             // beside the recipe book's button, wherever the open book has moved the inventory
             setX(screen.getGuiLeft() + offset);
             setY(screen.height / 2 - 22);
-            g.blitSprite(isHoveredOrFocused() ? BUTTON_HOVER : BUTTON, getX(), getY(), width, height);
-            icon(g, getX() + width / 2f, getY() + height / 2f);
+            g.blitSprite(sprite(spriteName(), isHoveredOrFocused()), getX(), getY(), width, height);
+            mark(g, getX(), getY());
             setTooltip(Tooltip.create(tooltip()));
         }
 
-        abstract void icon(GuiGraphics g, float cx, float cy);
+        /** The button's sprite (framed icon) in {@code textures/gui/sprites/inventory}. */
+        abstract String spriteName();
+
+        /** Anything drawn over the sprite. */
+        void mark(GuiGraphics g, int x, int y) {
+        }
 
         abstract Component tooltip();
 
@@ -88,17 +92,18 @@ public final class InventoryButtons {
         }
 
         @Override
-        void icon(GuiGraphics g, float cx, float cy) {
-            g.renderFakeItem(new ItemStack(Items.WRITABLE_BOOK), (int) cx - 8, (int) cy - 8);
-            if (waiting() > 0) {
-                // a quest waits to be claimed
-                float pulse = 0.6f + 0.4f * (float) Math.sin(net.minecraft.Util.getMillis() / 180.0);
-                g.pose().pushPose();
-                g.pose().translate(0, 0, 200);
-                UiDraw.glow(g, cx + 6, cy - 5, 9, Colors.alpha(0.8f * pulse, 0xF2C46B));
-                UiDraw.disc(g, cx + 6, cy - 5, 2, Colors.alpha(1f, 0xFFE7A8));
-                g.pose().popPose();
-            }
+        String spriteName() {
+            return "quests";
+        }
+
+        @Override
+        void mark(GuiGraphics g, int x, int y) {
+            if (waiting() == 0) return;
+            // a quest waits to be claimed: a gold gem in the corner, glinting
+            float pulse = 0.6f + 0.4f * (float) Math.sin(net.minecraft.Util.getMillis() / 180.0);
+            UiDraw.glow(g, x + 17, y + 3, 8, Colors.alpha(0.8f * pulse, 0xF2C46B));
+            g.fill(x + 15, y + 1, x + 19, y + 5, 0xFF3A2410);
+            g.fill(x + 16, y + 2, x + 18, y + 4, Colors.alpha(1f, 0xFFD25A));
         }
 
         @Override
@@ -121,8 +126,9 @@ public final class InventoryButtons {
         }
 
         @Override
-        void icon(GuiGraphics g, float cx, float cy) {
-            ClassScreen.emblem(g, ClassService.of(Minecraft.getInstance().player), cx - 8, cy - 8, 16, 0xFFFFFFFF);
+        String spriteName() {
+            PlayerClass c = ClassService.of(Minecraft.getInstance().player);
+            return "class_" + (c == PlayerClass.ASSASSIN || c == PlayerClass.BERSERKER || c == PlayerClass.PALADIN ? c.id() : "none");
         }
 
         @Override

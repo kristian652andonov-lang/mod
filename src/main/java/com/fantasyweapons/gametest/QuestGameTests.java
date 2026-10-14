@@ -94,6 +94,24 @@ public final class QuestGameTests {
         h.succeed();
     }
 
+    /** Claim All pays every quest that is done, and the quests that opens which are done too, each once. */
+    @GameTest(template = ARENA)
+    public static void claimAllPaysEverythingDone(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        QuestService.event(p, "codex");
+        p.getInventory().add(new ItemStack(Items.DIAMOND_PICKAXE));
+        QuestService.event(p, "kill:hostile", 50);
+        int paid = QuestService.claimAll(p);
+        for (String id : new String[]{"first_page", "diamond_pick", "hunter_50"}) {
+            if (!QuestService.data(p).claimed(id)) h.fail(id + " was not claimed");
+        }
+        if (paid != 3) h.fail("claimed " + paid + " quests, not 3");
+        if (count(p, Items.BREAD) != 12) h.fail("first page paid " + count(p, Items.BREAD) + " bread");
+        if (QuestService.claimAll(p) != 0) h.fail("claimed again with nothing new done");
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
     /** Mining counts up to the target and no further; a quest still locked counts nothing until it opens. */
     @GameTest(template = ARENA)
     public static void lockedQuestsWaitTheirTurn(GameTestHelper h) {

@@ -90,7 +90,7 @@ public class ProgressionScreen extends Screen {
     @Override
     protected void init() {
         openedAt = Util.getMillis();
-        scale = Math.min(1.6f, Math.min(width / (CW + 8), height / (CH + 6)));
+        scale = com.fantasyweapons.client.hud.UiScale.menu(width, height, CW + 4, CH + 2);
         ox = (width - CW * scale) / 2f;
         oy = (height - CH * scale) / 2f;
     }

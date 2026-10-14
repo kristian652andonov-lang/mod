@@ -102,24 +102,35 @@ public final class CodexBook {
             Integer at = anchors.get(tab.anchor());
             if (at == null) continue;
             boolean open = at < chapter.size() && chapter.get(at).equals(here) && !here.isEmpty();
-            float x0 = PageCanvas.W + 4, x1 = PageCanvas.W + (open ? 25 : 21);
+            float x0 = PageCanvas.W + 4, x1 = PageCanvas.W + (open ? 28 : 24);
             c.region(x0, y, x1, y + h, List.of(Component.literal(tab.name())), go(tab.anchor()));
             boolean hover = c.hovered(x0, y, x1, y + h);
             int body = hover || open ? 0xFF000000 | tab.color() : 0xFF000000 | deepen(tab.color(), 0.78f);
-            c.fill(x0, y, x1, y + h, 0xFF2A1A0C, z);
-            c.fill(x0, y + 0.6f, x1 - 0.6f, y + h - 0.6f, body, z + 0.01f);
-            c.fill(x0, y + 0.6f, x1 - 0.6f, y + 1.4f, 0x55FFFFFF, z + 0.02f);
-            c.icon(TAB_ICONS, tab.icon(), 8, x1 - 8.8f, y + 1.4f, 7.2f);
+            // the tab's end is cut in, like a ribbon's
+            notched(c, x0, y, x1, y + h, NOTCH, 0xFF2A1A0C, z);
+            notched(c, x0, y + 0.6f, x1 - 0.7f, y + h - 0.6f, NOTCH - 0.25f, body, z + 0.01f);
+            c.quad(x0, y + 0.6f, x0, y + 1.4f, x1 - 0.7f - NOTCH * 0.8f / (h / 2), y + 1.4f, x1 - 0.7f, y + 0.6f, 0x55FFFFFF, z + 0.02f);
+            c.icon(TAB_ICONS, tab.icon(), 8, x1 - NOTCH - 8.2f, y + 1.3f, 7.4f);
             y += h + 1;
         }
         c.lift = 0;
+    }
+
+    /** How deep the cut in a tab's end goes (sheet units). */
+    private static final float NOTCH = 2.6f;
+
+    /** A tab's shape: a rectangle whose outer end is cut in to a point at its middle, {@code depth} deep. */
+    private static void notched(PageCanvas c, float x0, float y0, float x1, float y1, float depth, int argb, float z) {
+        float mid = (y0 + y1) / 2;
+        c.quad(x0, y0, x0, mid, x1 - depth, mid, x1, y0, argb, z);
+        c.quad(x0, mid, x0, y1, x1, y1, x1 - depth, mid, argb, z);
     }
 
     /** A chapter's thumb tab, with its flat icon (by place in {@link #TAB_ICONS}). */
     private record Tab(String anchor, String name, int color, int icon) {
     }
 
-    /** The tabs' flat pixel icons: the book, an ore, the refinery, the anvil, a sword, a chestplate, a flask, the legend's emblem. */
+    /** The tabs' pixel icons: the book, an ore, the furnace, the anvil, a sword, a chestplate, a flask, a star compass. */
     private static final net.minecraft.resources.ResourceLocation TAB_ICONS = FantasyWeapons.id("textures/gui/codex/tabs.png");
 
     private static final Tab[] TABS = {
