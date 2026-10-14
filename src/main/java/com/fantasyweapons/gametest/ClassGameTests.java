@@ -57,6 +57,20 @@ public final class ClassGameTests {
         h.succeed();
     }
 
+    /** A player joining for the first time is offered the class menu, and only the first time. */
+    @GameTest(template = ARENA)
+    public static void theMenuIsOfferedOnJoin(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        ClassData d = p.getData(ModAttachments.PLAYER_CLASS);
+        if (!d.offered()) h.fail("joining did not offer the class menu");
+        if (d.playerClass() != PlayerClass.NONE) h.fail("joining chose a class");
+        // saved and read back, the offer is remembered
+        var saved = ClassData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, d).getOrThrow();
+        if (!ClassData.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, saved).getOrThrow().offered()) h.fail("the offer was not saved");
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
     /** The Mage is still being made: it cannot be taken. */
     @GameTest(template = ARENA)
     public static void theMageIsSealed(GameTestHelper h) {

@@ -68,6 +68,10 @@ public interface SidedHooks {
     default void handleProgression(ProgressionEventPayload payload) {
     }
 
+    /** The player joined the world for the first time: the class menu, once the world is on screen. */
+    default void handleOpenClasses() {
+    }
+
     /** One of the player's quests is done: its toast. */
     default void handleQuestCompleted(String quest) {
     }

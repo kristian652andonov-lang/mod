@@ -64,6 +64,7 @@ public final class ClientSetup {
             e.register(com.fantasyweapons.registry.ModMenus.LEGENDARY_CRAFTING.get(), com.fantasyweapons.client.gui.LegendaryCraftingScreen::new);
         });
         modBus.addListener(ClientSetup::registerExtensions);
+        modBus.addListener(com.fantasyweapons.client.particle.ForgeParticles::register);
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent e) ->
                 e.registerReloadListener(new com.fantasyweapons.client.render.FrameStripTextures()));
         modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) -> {
@@ -131,6 +132,9 @@ public final class ClientSetup {
     private static void registerExtensions(RegisterClientExtensionsEvent event) {
         Item[] items = ModItems.WEAPONS.values().stream().map(h -> (Item) h.get()).toArray(Item[]::new);
         event.registerItem(new WeaponClientExtensions(), items);
+        event.registerBlock(new com.fantasyweapons.client.particle.MachineBreakParticles(), com.fantasyweapons.registry.ModBlocks.ARCANE_REFINERY.get(),
+                com.fantasyweapons.registry.ModBlocks.REFINERY_PART.get(), com.fantasyweapons.registry.ModBlocks.LEGENDARY_CRAFTING_TABLE.get(),
+                com.fantasyweapons.registry.ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get());
     }
 
     /** Whether each in-flight living-entity render pushed a spin rotation (popped again in Post). */
@@ -142,6 +146,7 @@ public final class ClientSetup {
 
     private static void onClientTickPost(ClientTickEvent.Post event) {
         com.fantasyweapons.client.render.FrameStripTextures.tick();
+        com.fantasyweapons.client.gui.ClassScreen.tickPending(Minecraft.getInstance());
         InputHandler.postTick();
         Minecraft mc = Minecraft.getInstance();
         com.fantasyweapons.client.guide.Codex.tick(mc);
@@ -267,6 +272,11 @@ public final class ClientSetup {
         @Override
         public void handleProgression(ProgressionEventPayload payload) {
             Notifications.handle(payload);
+        }
+
+        @Override
+        public void handleOpenClasses() {
+            com.fantasyweapons.client.gui.ClassScreen.openWhenReady();
         }
 
         @Override

@@ -26,6 +26,10 @@ public final class CodexRenderer extends GeoItemRenderer<WayfarersCodexItem> {
             .rotateX((float) Math.toRadians(35)).rotateY((float) Math.PI);
 
     private final Matrix4f leftPage = new Matrix4f(), rightPage = new Matrix4f(), leaf = new Matrix4f();
+    /** Where the pages' gilded frames were drawn this frame (right, left). */
+    private final Matrix4f[] frames = {new Matrix4f(), new Matrix4f()};
+    /** How far a frame stands off the leaf's paper (blocks), as it stands off its page. */
+    private static final float FRAME_LIFT = 0.12f / 16;
     private boolean capturing, gotLeft, gotRight, gotLeaf;
 
     public CodexRenderer() {
@@ -92,11 +96,56 @@ public final class CodexRenderer extends GeoItemRenderer<WayfarersCodexItem> {
                 rightPage.set(poseStack.last().pose());
                 gotRight = true;
             }
+            for (int i = 0; i < CodexModel.FRAMES.length; i++) {
+                if (bone.getName().equals(CodexModel.FRAMES[i])) frames[i].set(poseStack.last().pose());
+            }
             if (capturing && bone.getName().equals(CodexModel.LEAF) && bone.getScaleX() > 0.2f) {
                 leaf.set(poseStack.last().pose());
                 gotLeaf = true;
+                super.renderCubesOfBone(poseStack, bone, buffer, light, overlay, colour);
+                framesOnLeaf(poseStack, buffer, light, overlay, colour);
+                return;
             }
         }
         super.renderCubesOfBone(poseStack, bone, buffer, light, overlay, colour);
+    }
+
+    /**
+     * The turning leaf carries the pages' gilded frames, as the pages themselves do: the right page's on the face it lifts
+     * from the right, the left page's on the face it lays down on the left. The leaf's own space is the right page's as it
+     * lifts and the left page's as it lands, so each frame is drawn in it just as on its page (the leaf's paper hides the
+     * face turned away). Without them the frames, and the writing inside them, seemed to come only once the leaf landed.
+     */
+    private void framesOnLeaf(PoseStack poseStack, VertexConsumer buffer, int light, int overlay, int colour) {
+        CodexModel model = (CodexModel) getGeoModel();
+        GeoBone leafBone = model.getAnimationProcessor().getBone(CodexModel.LEAF);
+        Matrix4f now = new Matrix4f(poseStack.last().pose());
+        // the leaf's parent, and the leaf as it lay on each page
+        Matrix4f parent = new Matrix4f(now).mul(local(leafBone, leafBone.getRotX(), leafBone.getRotY(), leafBone.getRotZ(),
+                leafBone.getScaleX(), leafBone.getScaleY(), leafBone.getScaleZ()).invert());
+        Matrix4f[] lying = {
+                new Matrix4f(parent).mul(local(leafBone, model.leafStart.x, model.leafStart.y, model.leafStart.z, 1, 1, 1)),
+                new Matrix4f(parent).mul(local(leafBone, model.leafEnd.x, model.leafEnd.y, model.leafEnd.z, 1, 1, 1))};
+        for (int i = 0; i < CodexModel.FRAMES.length; i++) {
+            GeoBone frame = model.getAnimationProcessor().getBone(CodexModel.FRAMES[i]);
+            if (frame == null || frame.isHidden()) continue;
+            // the frame as it sits against the leaf lying on its page, carried along by the leaf, just off its paper
+            // (the right page's frame on the face towards the reader at the start, the left page's on the other)
+            Matrix4f pose = new Matrix4f(now).translate(0, 0, i == 0 ? -FRAME_LIFT : FRAME_LIFT)
+                    .mul(new Matrix4f(lying[i]).invert()).mul(frames[i]);
+            poseStack.pushPose();
+            poseStack.last().pose().set(pose);
+            poseStack.last().normal().set(new org.joml.Matrix3f(pose).invert().transpose());
+            super.renderCubesOfBone(poseStack, frame, buffer, light, overlay, colour);
+            poseStack.popPose();
+        }
+    }
+
+    /** A part's own placement as GeckoLib makes it: moved, then turned (z, y, x) and sized about its pivot. */
+    private static Matrix4f local(GeoBone b, float rx, float ry, float rz, float sx, float sy, float sz) {
+        return new Matrix4f().translate(-b.getPosX() / 16f, b.getPosY() / 16f, b.getPosZ() / 16f)
+                .translate(b.getPivotX() / 16f, b.getPivotY() / 16f, b.getPivotZ() / 16f)
+                .rotateZYX(rz, ry, rx).scale(sx, sy, sz)
+                .translate(-b.getPivotX() / 16f, -b.getPivotY() / 16f, -b.getPivotZ() / 16f);
     }
 }

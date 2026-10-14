@@ -7,8 +7,8 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /**
- * The Quest Journal's and class menu's messages: a quest claimed and a class chosen (client to server), and a quest done
- * (server to its player, for the toast).
+ * The Quest Journal's and class menu's messages: a quest claimed and a class chosen (client to server), a quest done
+ * (server to its player, for the toast), and the class menu opened for a newcomer.
  */
 public final class QuestPayloads {
     private QuestPayloads() {
@@ -31,6 +31,17 @@ public final class QuestPayloads {
 
         @Override
         public Type<ChooseClass> type() {
+            return TYPE;
+        }
+    }
+
+    /** The class menu, put before a player joining the world for the first time (server to client). */
+    public record OpenClasses() implements CustomPacketPayload {
+        public static final Type<OpenClasses> TYPE = new Type<>(FantasyWeapons.id("open_classes"));
+        public static final StreamCodec<ByteBuf, OpenClasses> CODEC = StreamCodec.unit(new OpenClasses());
+
+        @Override
+        public Type<OpenClasses> type() {
             return TYPE;
         }
     }

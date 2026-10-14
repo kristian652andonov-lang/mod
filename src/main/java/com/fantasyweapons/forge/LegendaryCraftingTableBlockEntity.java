@@ -1,5 +1,7 @@
 package com.fantasyweapons.forge;
 
+import com.fantasyweapons.registry.ModParticles;
+
 import com.fantasyweapons.registry.ModBlockEntities;
 import com.fantasyweapons.sound.ModSounds;
 import net.minecraft.core.BlockPos;
@@ -225,39 +227,39 @@ public class LegendaryCraftingTableBlockEntity extends BlockEntity implements Ge
         var random = level.random;
         var at = be.forgePoint();
         if (be.busy()) {
-            // glyphs streaming from the totems' crowns into the item
+            // runes drawn from the totems' crowns into the work
             for (int side = -1; side <= 1; side += 2) {
                 var crown = be.spot(side * 8.9, 27.5, 6.4);
-                for (int i = 0; i < 2; i++) {
-                    level.addParticle(net.minecraft.core.particles.ParticleTypes.ENCHANT, at.x, at.y, at.z,
-                            crown.x - at.x + (random.nextDouble() - 0.5) * 0.2, crown.y - at.y + random.nextDouble() * 0.3, crown.z - at.z + (random.nextDouble() - 0.5) * 0.2);
+                if (random.nextInt(3) == 0) {
+                    level.addParticle(ModParticles.FORGE_RUNE.get(), at.x, at.y, at.z,
+                            crown.x - at.x + (random.nextDouble() - 0.5) * 0.25, crown.y - at.y + random.nextDouble() * 0.3,
+                            crown.z - at.z + (random.nextDouble() - 0.5) * 0.25);
                 }
             }
-            // the hammer's strikes: sparks bursting off the item
+            // the hammer's strikes: sparks flung off the work, and a flash
             if (random.nextInt(18) == 0) {
-                for (int i = 0; i < 10; i++) {
-                    double vx = (random.nextDouble() - 0.5) * 0.35, vy = random.nextDouble() * 0.25, vz = (random.nextDouble() - 0.5) * 0.35;
-                    level.addParticle(net.minecraft.core.particles.ParticleTypes.ELECTRIC_SPARK, at.x, at.y + 0.05, at.z, vx, vy, vz);
+                for (int i = 0; i < 12; i++) {
+                    double vx = (random.nextDouble() - 0.5) * 0.3, vy = 0.08 + random.nextDouble() * 0.2, vz = (random.nextDouble() - 0.5) * 0.3;
+                    level.addParticle(ModParticles.FORGE_SPARK.get(), at.x, at.y + 0.05, at.z, vx, vy, vz);
                 }
-                for (int i = 0; i < 4; i++) {
-                    level.addParticle(net.minecraft.core.particles.ParticleTypes.SMALL_FLAME, at.x + (random.nextDouble() - 0.5) * 0.3, at.y,
-                            at.z + (random.nextDouble() - 0.5) * 0.3, (random.nextDouble() - 0.5) * 0.06, 0.03, (random.nextDouble() - 0.5) * 0.06);
-                }
+                level.addParticle(ModParticles.FORGE_FLARE.get(), at.x, at.y + 0.05, at.z, 0, 0, 0);
             }
-            // small embers rising off the grid
-            if (random.nextInt(5) == 0) {
+            // embers rising off the grid
+            if (random.nextInt(4) == 0) {
                 var ember = be.spot((random.nextDouble() - 0.5) * 11, 18.6, (random.nextDouble() - 0.5) * 11);
-                level.addParticle(net.minecraft.core.particles.ParticleTypes.SMALL_FLAME, ember.x, ember.y, ember.z, 0, 0.01 + random.nextDouble() * 0.015, 0);
+                level.addParticle(ModParticles.FORGE_EMBER.get(), ember.x, ember.y, ember.z, 0, 0.012 + random.nextDouble() * 0.015, 0);
             }
-            // now and then a mote of starlight circling up about the item
-            if (level.getGameTime() % 5 == 0) {
+            // stars circling up about the work
+            if (level.getGameTime() % 4 == 0) {
                 double a = level.getGameTime() * 0.31;
-                level.addParticle(net.minecraft.core.particles.ParticleTypes.END_ROD, at.x + Math.cos(a) * 0.45, at.y, at.z + Math.sin(a) * 0.45, 0, 0.02, 0);
+                level.addParticle(ModParticles.FORGE_STAR.get(), at.x + Math.cos(a) * 0.45, at.y, at.z + Math.sin(a) * 0.45, 0, 0.025, 0);
             }
-        } else if (random.nextInt(4) == 0) {
-            // forged: a last flourish of light
-            level.addParticle(net.minecraft.core.particles.ParticleTypes.TOTEM_OF_UNDYING, at.x, at.y, at.z,
-                    (random.nextDouble() - 0.5) * 0.4, random.nextDouble() * 0.35, (random.nextDouble() - 0.5) * 0.4);
+        } else if (random.nextInt(3) == 0) {
+            // forged: flares of light bursting off the finished work
+            level.addParticle(ModParticles.FORGE_FLARE.get(), at.x + (random.nextDouble() - 0.5) * 0.4, at.y + random.nextDouble() * 0.3,
+                    at.z + (random.nextDouble() - 0.5) * 0.4, (random.nextDouble() - 0.5) * 0.06, random.nextDouble() * 0.05, (random.nextDouble() - 0.5) * 0.06);
+            level.addParticle(ModParticles.FORGE_STAR.get(), at.x, at.y, at.z,
+                    (random.nextDouble() - 0.5) * 0.2, 0.05 + random.nextDouble() * 0.12, (random.nextDouble() - 0.5) * 0.2);
         }
     }
 

@@ -343,6 +343,59 @@ public final class UiDraw {
         for (int i = 0; i < 5; i++) glow(g, px[i], py[i], 5, Colors.alpha(0.6f * a, Colors.lerpRgb(rgb, 0xFFFFFF, 0.4f)));
     }
 
+    /**
+     * A small turning sigil for a map node: a ring with runes turning one way and a pentagram the other, on a soft glow,
+     * drawn in one batch (a map holds dozens of them).
+     */
+    public static void miniSigil(GuiGraphics g, float cx, float cy, float r, int rgb, float time, float strength) {
+        float a = Math.max(0, Math.min(1, strength));
+        if (a <= 0.01f) return;
+        glow(g, cx, cy, r * 2.8f, Colors.alpha(0.3f * a, rgb));
+        Matrix4f m = g.pose().last().pose();
+        VertexConsumer vc = g.bufferSource().getBuffer(RenderType.gui());
+        float full = (float) (Math.PI * 2), r2 = r * 0.78f;
+        int ring = Colors.alpha(0.8f * a, rgb), inner = Colors.alpha(0.5f * a, rgb), rune = Colors.alpha(0.65f * a, rgb);
+        arcInto(vc, m, cx, cy, r - 0.7f, r, 0, full, ring, 32);
+        arcInto(vc, m, cx, cy, r2 - 0.5f, r2, 0, full, inner, 28);
+        float spin = time * 0.02f;
+        for (int i = 0; i < 8; i++) {
+            float ang = spin + i * full / 8, len = i % 2 == 0 ? 0.13f : 0.06f;
+            arcInto(vc, m, cx, cy, r2 + 0.5f, r - 1.1f, ang - len, ang + len, rune, 1);
+        }
+        float rot = -time * 0.015f;
+        float[] px = new float[5], py = new float[5];
+        for (int i = 0; i < 5; i++) {
+            double ang = rot + i * full / 5;
+            px[i] = cx + (float) Math.sin(ang) * r2;
+            py[i] = cy - (float) Math.cos(ang) * r2;
+        }
+        int star = Colors.alpha(0.7f * a, rgb);
+        for (int i = 0; i < 5; i++) lineInto(vc, m, px[i], py[i], px[(i + 2) % 5], py[(i + 2) % 5], 0.6f, star, star);
+        g.flush();
+    }
+
+    private static void arcInto(VertexConsumer vc, Matrix4f m, float cx, float cy, float rIn, float rOut, float a0, float a1, int argb, int segs) {
+        for (int i = 0; i < segs; i++) {
+            float b0 = a0 + (a1 - a0) * i / segs, b1 = a0 + (a1 - a0) * (i + 1) / segs;
+            float s0 = (float) Math.sin(b0), c0 = (float) -Math.cos(b0), s1 = (float) Math.sin(b1), c1 = (float) -Math.cos(b1);
+            emit(vc, m, cx + s0 * rIn, cy + c0 * rIn, cx + s0 * rOut, cy + c0 * rOut, cx + s1 * rOut, cy + c1 * rOut,
+                    cx + s1 * rIn, cy + c1 * rIn, argb, argb, argb, argb);
+        }
+    }
+
+    private static void lineInto(VertexConsumer vc, Matrix4f m, float x1, float y1, float x2, float y2, float width, int c1, int c2) {
+        float dx = x2 - x1, dy = y2 - y1;
+        float len = (float) Math.sqrt(dx * dx + dy * dy);
+        if (len < 1e-3) return;
+        float nx = -dy / len * width * 0.5f, ny = dx / len * width * 0.5f;
+        emit(vc, m, x1 + nx, y1 + ny, x1 - nx, y1 - ny, x2 - nx, y2 - ny, x2 + nx, y2 + ny, c1, c1, c2, c2);
+    }
+
+    /** A filled disc. */
+    public static void disc(GuiGraphics g, float cx, float cy, float r, int argb) {
+        arc(g, cx, cy, 0, r, 0, (float) (Math.PI * 2), argb, Math.max(12, (int) (r * 3)));
+    }
+
     /** Diamond (rotated square) — node shape for the ability tree. */
     public static void diamond(GuiGraphics g, float cx, float cy, float r, int argb) {
         Matrix4f m = g.pose().last().pose();

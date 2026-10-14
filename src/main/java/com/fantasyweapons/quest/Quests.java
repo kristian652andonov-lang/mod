@@ -94,15 +94,16 @@ public final class Quests {
     private static void ores(List<Quest> list) {
         for (Material m : Material.values()) {
             String raw = m.rawId(), ore = BuiltInRegistries.BLOCK.getKey(ModBlocks.ORES.get(m).get()).toString();
+            QuestGroup group = new QuestGroup("ore_" + raw, m.materialName(), () -> stack(ModItems.ORES.get(m).get(), 1));
             list.add(quest("prospect_" + raw, Chapter.ORES, "Prospector: " + m.materialName(), m.found() + ". Find its ore and break into it.",
                     () -> stack(ModItems.ORES.get(m).get(), 1))
                     .count("mine:" + ore, 8, "Mine 8 " + m.oreName(), () -> stack(ModItems.ORES.get(m).get(), 1))
-                    .reward(() -> stack(ModItems.RAW.get(m).get(), 8)).reward(() -> stack(m.additive(), 8)).reward(Items.EMERALD, 4).xp(60).build());
+                    .reward(() -> stack(ModItems.RAW.get(m).get(), 8)).reward(() -> stack(m.additive(), 8)).reward(Items.EMERALD, 4).xp(60).group(group).build());
             list.add(quest("vein_" + raw, Chapter.ORES, "Deep Vein: " + m.materialName(), "A prospector finds one ore; a legend empties the vein. Mine its ore by the dozen.",
                     () -> stack(ModItems.ORES.get(m).get(), 1))
                     .count("mine:" + ore, 32, "Mine 32 " + m.oreName(), () -> stack(ModItems.ORES.get(m).get(), 1))
                     .reward(() -> stack(ModItems.RAW.get(m).get(), 16)).reward(() -> stack(m.additive(), 16)).reward(Items.DIAMOND, 3).xp(200)
-                    .requires("prospect_" + raw).build());
+                    .requires("prospect_" + raw).group(group).build());
         }
     }
 
@@ -125,17 +126,18 @@ public final class Quests {
             String id = def.id(), name = def.displayName();
             Material m = Material.ofWeapon(id);
             Supplier<ItemStack> icon = () -> stack(ModItems.WEAPONS.get(id).get(), 1);
+            QuestGroup group = new QuestGroup("weapon_" + id, name, icon);
             list.add(quest("forge_" + id, Chapter.WEAPONS, "Forged: " + name, "Lay the " + name + "'s pattern on the Legendary Crafting Table and forge it.", icon)
                     .collect(() -> ModItems.WEAPONS.get(id).get(), 1, "Hold the " + name)
-                    .reward(() -> stack(ModItems.REFINED.get(m).get(), 4)).reward(Items.EXPERIENCE_BOTTLE, 16).xp(400).build());
+                    .reward(() -> stack(ModItems.REFINED.get(m).get(), 4)).reward(Items.EXPERIENCE_BOTTLE, 16).xp(400).group(group).build());
             list.add(quest("blooded_" + id, Chapter.WEAPONS, "Blooded: " + name, "Fight with the " + name + " until it reaches level 25.", icon)
                     .reach(id, 25, "Raise the " + name + " to level 25", icon)
                     .reward(() -> stack(ModItems.REFINED.get(m).get(), 3)).reward(Items.DIAMOND, 4).reward(Items.NETHERITE_SCRAP, 2).xp(500)
-                    .requires("forge_" + id).build());
+                    .requires("forge_" + id).group(group).build());
             list.add(quest("champion_" + id, Chapter.WEAPONS, "Champion: " + name, "Fight on until the " + name + " reaches level 50.", icon)
                     .reach(id, 50, "Raise the " + name + " to level 50", icon)
                     .reward(() -> stack(ModItems.REFINED.get(m).get(), 6)).reward(Items.NETHERITE_INGOT, 1).reward(Items.ENCHANTED_GOLDEN_APPLE, 1).xp(1200)
-                    .requires("blooded_" + id).build());
+                    .requires("blooded_" + id).group(group).build());
         }
         Builder b = quest("the_thirteen", Chapter.WEAPONS, "The Thirteen", "Hold every one of the thirteen legendary weapons at once.",
                 () -> stack(ModItems.WEAPONS.get("monolith").get(), 1));
@@ -268,6 +270,7 @@ public final class Quests {
         private final List<Supplier<ItemStack>> rewards = new ArrayList<>();
         private int xp;
         private String requires;
+        private QuestGroup group;
 
         Builder(String id, Chapter chapter, String title, String description, Supplier<ItemStack> icon) {
             this.id = id;
@@ -312,8 +315,13 @@ public final class Quests {
             return this;
         }
 
+        Builder group(QuestGroup group) {
+            this.group = group;
+            return this;
+        }
+
         Quest build() {
-            return new Quest(id, chapter, title, description, icon, List.copyOf(objectives), List.copyOf(rewards), xp, requires);
+            return new Quest(id, chapter, title, description, icon, List.copyOf(objectives), List.copyOf(rewards), xp, requires, group);
         }
     }
 }

@@ -95,8 +95,16 @@ public final class ClassService {
         if (player.getHealth() > player.getMaxHealth()) player.setHealth(player.getMaxHealth());
     }
 
+    /** Lays the class on again, and the first time a player joins the world, puts the class menu before them. */
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) apply(player);
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        apply(player);
+        ClassData d = player.getData(ModAttachments.PLAYER_CLASS);
+        if (!d.offered()) {
+            player.setData(ModAttachments.PLAYER_CLASS, d.withOffered());
+            player.syncData(ModAttachments.PLAYER_CLASS);
+            if (d.playerClass() == PlayerClass.NONE) net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new com.fantasyweapons.network.QuestPayloads.OpenClasses());
+        }
     }
 
     public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {

@@ -65,6 +65,7 @@ final class DevScripts {
                 else if (name.equals("deeds")) deeds(b);
                 else if (name.equals("quests")) quests(b);
                 else if (name.equals("oreicons")) oreIcons(b);
+                else if (name.equals("forgefx")) forgeFx(b);
                 else if (name.equals("codexquests")) {
                     b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set none").cmd("/give @s fantasyweapons:wayfarers_codex")
                             .wait(10).slot(0).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10)
@@ -799,6 +800,38 @@ final class DevScripts {
     }
 
     /** The Legendary Crafting Table in the world, its screen with a recipe laid out as ghosts, partly filled, and forging. */
+    /** The table at work with its own particles, its last flourish, and a table and a refinery broken. */
+    private static void forgeFx(ScreenshotDirector.Builder b) {
+        b.cmd("/gamerule sendCommandFeedback false").cmd("/gamemode creative").cmd("/time set midnight").hud(false).cmd("/kill @e[type=!player]")
+                .cmd("/fill -6 -60 2 6 -56 10 minecraft:air").cmd("/kill @e[type=item]").cmd("/tp @s 0 -60 0 0 30").cmd("/clear @s")
+                .cmd("/give @s fantasyweapons:legendary_crafting_table").wait(10).slot(0);
+        b.run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
+                new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -61, 4.5), net.minecraft.core.Direction.UP,
+                        new net.minecraft.core.BlockPos(0, -61, 4), false))).wait(20);
+        b.run(mc -> mc.getSingleplayerServer().execute(() -> {
+            var level = mc.getSingleplayerServer().overworld();
+            if (level.getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 4)) instanceof com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity t) {
+                t.start(com.fantasyweapons.FantasyWeapons.id("forging/voidfang"), new net.minecraft.world.item.ItemStack(
+                        com.fantasyweapons.registry.ModItems.WEAPONS.get("voidfang").get()), 120, java.util.List.of());
+            }
+        })).viewAt(0.5, 2.1, 2.1, 0.5, 1.4, 4.5).wait(30).screenshot("forgefx_a").wait(13).screenshot("forgefx_b").wait(17).screenshot("forgefx_c")
+                .viewAt(2.4, 1.9, 2.6, 0.5, 1.45, 4.5).wait(20).screenshot("forgefx_d").wait(50).screenshot("forgefx_done").wait(10).screenshot("forgefx_done2");
+        b.run(mc -> mc.getSingleplayerServer().execute(() -> {
+            if (mc.getSingleplayerServer().overworld().getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 4))
+                    instanceof com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity t) t.output().clearContent();
+        })).cmd("/time set noon").wait(5);
+        // broken: debris over the whole table, a block's worth for each of its blocks
+        b.viewAt(0.5, 2.4, 0.6, 0.5, 0.6, 4.5).wait(10).screenshot("break_table_before")
+                .run(mc -> mc.gameMode.startDestroyBlock(new net.minecraft.core.BlockPos(0, -60, 4), net.minecraft.core.Direction.NORTH))
+                .wait(2).screenshot("break_table_a").wait(6).screenshot("break_table_b").wait(30);
+        b.cmd("/clear @s").cmd("/give @s fantasyweapons:arcane_refinery").wait(5).slot(0)
+                .run(mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
+                        new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(0.5, -61, 4.5), net.minecraft.core.Direction.UP,
+                                new net.minecraft.core.BlockPos(0, -61, 4), false))).wait(20)
+                .run(mc -> mc.gameMode.startDestroyBlock(new net.minecraft.core.BlockPos(0, -60, 4), net.minecraft.core.Direction.NORTH))
+                .wait(2).screenshot("break_refinery_a").wait(30);
+    }
+
     private static void forge(ScreenshotDirector.Builder b) {
         b.cmd("/gamerule sendCommandFeedback false").cmd("/gamemode creative").cmd("/time set noon").hud(false).cmd("/kill @e[type=!player]")
                 .cmd("/fill -6 -60 2 6 -56 10 minecraft:air").cmd("/kill @e[type=item]").cmd("/tp @s 0 -60 0 0 30").cmd("/clear @s")
@@ -1044,28 +1077,52 @@ final class DevScripts {
         if (mc.screen != null) mc.screen.mouseClicked(left + x, top + y, 0);
     }
 
-    /** The quests' toast, the Quest Journal's chapters, and the class menu: its cards, choosing one, and the wait after. */
+    private static void journal(ScreenshotDirector.Builder b, java.util.function.Consumer<com.fantasyweapons.client.gui.QuestScreen> action) {
+        b.run(mc -> {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.QuestScreen q) action.accept(q);
+        });
+    }
+
+    /** The class menu offered on first joining, the quests' toast, the Quest Journal's map, and the class menu. */
     private static void quests(ScreenshotDirector.Builder b) {
+        // a world never joined since the class menu came: it opens by itself
+        b.wait(70).screenshot("class_first_join").closeScreen().wait(5);
         b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/fw quest reset").cmd("/fw class set none").wait(20).hud(true)
                 .cmd("/tp @s 0 -60 0 0 0").wait(10);
         b.cmd("/fw quest complete first_page").wait(12).screenshot("quest_toast").wait(30).screenshot("quest_toast_settled").wait(120);
         b.cmd("/fw quest claim first_page").cmd("/give @s minecraft:diamond_pickaxe").cmd("/fw quest complete prospect_void_crystal")
                 .cmd("/fw quest complete prospect_solarite_crystal").cmd("/fw quest claim prospect_solarite_crystal")
-                .cmd("/fw quest complete hunter_50").wait(200);
-        b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen())).wait(10).screenshot("quest_journal");
-        b.run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 + 5)).wait(6).screenshot("quest_ores");
-        b.run(mc -> clickPanel(mc, 416, 236, 120, 30 + 5)).wait(6).screenshot("quest_ores_first");
-        b.run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 * 3 + 5)).wait(6).screenshot("quest_weapons");
-        b.run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 * 5 + 5)).wait(6).screenshot("quest_hunts");
-        b.run(mc -> clickPanel(mc, 416, 236, 15, 30 + 25 * 7 + 5)).wait(6).screenshot("quest_mastery").closeScreen().wait(10);
+                .cmd("/fw quest complete hunter_50").cmd("/fw quest claim hunter_50").cmd("/fw quest complete unleashed").wait(260);
+        b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen())).wait(10).screenshot("quest_map_first");
+        journal(b, q -> q.devHover("arcane_engineering"));
+        b.wait(4).screenshot("quest_map_hover");
+        journal(b, q -> {
+            com.fantasyweapons.client.gui.QuestScreen.devMouse = new int[]{0, 0};
+            q.devSelect("diamond_pick");
+        });
+        b.wait(14).screenshot("quest_page_claim");
+        journal(b, q -> q.devChapter(com.fantasyweapons.quest.Chapter.ORES));
+        b.wait(8).screenshot("quest_ores");
+        journal(b, q -> q.devExpand("ore_void_crystal"));
+        b.wait(14).screenshot("quest_ores_open");
+        journal(b, q -> q.devSelect("prospect_void_crystal"));
+        b.wait(14).screenshot("quest_ores_page");
+        journal(b, q -> q.devChapter(com.fantasyweapons.quest.Chapter.WEAPONS));
+        b.wait(8).screenshot("quest_weapons");
+        journal(b, q -> q.devExpand("weapon_solaris"));
+        b.wait(14).screenshot("quest_weapons_open");
+        journal(b, q -> q.devChapter(com.fantasyweapons.quest.Chapter.HUNTS));
+        b.wait(8).screenshot("quest_hunts");
+        journal(b, q -> q.devChapter(com.fantasyweapons.quest.Chapter.MASTERY));
+        b.wait(8).screenshot("quest_mastery");
+        journal(b, q -> q.devChapter(com.fantasyweapons.quest.Chapter.ARMOR));
+        b.wait(8).screenshot("quest_armor");
+        b.run(mc -> com.fantasyweapons.client.gui.QuestScreen.devMouse = null).closeScreen().wait(10);
         // the class menu: no class yet, then the Assassin's button asked twice, then the wait
         b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(10).screenshot("class_menu");
         int cardsLeft = (416 - (4 * 98 + 3 * 4)) / 2;
         b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 30, 24 + 176 - 14)).wait(4).screenshot("class_confirm");
-        b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 30, 24 + 176 - 14)).wait(20).screenshot("class_chosen").closeScreen().wait(4)
-                .screenshot("class_chosen_world");
-        b.cmd("/fw class ready").cmd("/fw class set paladin").wait(10).run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(10)
-                .screenshot("class_paladin").closeScreen().wait(10);
+        b.run(mc -> clickPanel(mc, 416, 236, cardsLeft + 30, 24 + 176 - 14)).wait(20).screenshot("class_chosen").closeScreen().wait(10);
     }
 
     /** Every spread of the Codex in turn, for checking that each page's writing fits. */

@@ -30,6 +30,7 @@ public final class FantasyWeapons {
         ModComponents.REGISTER.register(modBus);
         ModAttachments.REGISTER.register(modBus);
         ModSounds.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModParticles.REGISTER.register(modBus);
         com.fantasyweapons.registry.ModAttributes.REGISTER.register(modBus);
         com.fantasyweapons.registry.ModArmorMaterials.REGISTER.register(modBus);
         modBus.addListener(com.fantasyweapons.registry.ModAttributes::addToPlayers);

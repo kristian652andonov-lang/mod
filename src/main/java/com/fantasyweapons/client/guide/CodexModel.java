@@ -23,6 +23,8 @@ import java.util.List;
  */
 public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> {
     static final String ROOT = "book", RIGHT_PAGE = "wayfarers_codex_codex", LEFT_PAGE = "wayfarers_codex_cover", LEAF = "wayfarers_codex_leaf_0";
+    /** The gilded frames round the right and left pages. */
+    static final String[] FRAMES = {"wayfarers_codex_glow_right", "wayfarers_codex_glow_left"};
 
     private BakedGeoModel flattened;
     /** The small stains the artist dabbed on the paper's writing area (they would show through the words), by page. */
@@ -180,6 +182,9 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
      * reader's side, curling (narrower) as it passes upright, so it never towers up before the reader's eyes. Called on
      * every frame (the animations themselves move on only once a tick).
      */
+    /** The leaf's rotation (x, y, z) lying on the right page and on the left page: where its turn starts and ends. */
+    final Vector3f leafStart = new Vector3f(), leafEnd = new Vector3f();
+
     public void poseLeaf() {
         float t = Codex.flipProgress();
         GeoBone right = getAnimationProcessor().getBone(RIGHT_PAGE), left = getAnimationProcessor().getBone(LEFT_PAGE),
@@ -203,6 +208,8 @@ public final class CodexModel extends DefaultedItemGeoModel<WayfarersCodexItem> 
             turn.angle = (float) (2 * Math.PI) - turn.angle;
         }
         float angle = turn.angle * (Codex.flipForward() ? e : 1 - e);
+        new Matrix3f(from).getEulerAnglesZYX(leafStart);
+        new Matrix3f(from).mul(new Matrix3f().rotation(turn.angle, axis)).getEulerAnglesZYX(leafEnd);
         Matrix3f pose = new Matrix3f(from).mul(new Matrix3f().rotation(angle, axis));
         Vector3f euler = pose.getEulerAnglesZYX(new Vector3f());
         leaf.setRotX(euler.x);

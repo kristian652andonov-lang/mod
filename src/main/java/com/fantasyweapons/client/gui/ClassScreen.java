@@ -31,6 +31,9 @@ public final class ClassScreen extends Screen {
     /** How long a first click on "Choose" waits for the second, confirming one (ticks). */
     private static final int CONFIRM_TICKS = 80;
 
+    /** Ticks until the class menu opens for a newcomer (once the world is showing), or -1. */
+    private static int pendingOpen = -1;
+
     private int left, top;
     private PlayerClass confirming;
     private float confirmUntil;
@@ -38,6 +41,19 @@ public final class ClassScreen extends Screen {
 
     public ClassScreen() {
         super(Component.literal("Choose Your Class"));
+    }
+
+    /** Opens the menu for a player new to the world, a moment after the world appears. */
+    public static void openWhenReady() {
+        pendingOpen = 40;
+    }
+
+    public static void tickPending(net.minecraft.client.Minecraft mc) {
+        if (pendingOpen < 0 || mc.player == null || mc.getOverlay() != null || mc.screen != null) return;
+        if (--pendingOpen <= 0) {
+            pendingOpen = -1;
+            mc.setScreen(new ClassScreen());
+        }
     }
 
     @Override
@@ -163,7 +179,10 @@ public final class ClassScreen extends Screen {
             statusColor = GOOD;
         }
         UiDraw.textRight(g, status, left + W - 15, y + 4, Colors.alpha(1f, statusColor), 0.55f, true);
-        UiDraw.textRight(g, "Changing waits " + ClassService.CHANGE_WAIT / 20 / 60 + " min", left + W - 15, y + 12, Colors.alpha(1f, MUTED), 0.5f, false);
+        String hint = current == PlayerClass.NONE
+                ? "Or choose later: " + com.fantasyweapons.client.input.KeyBindings.CLASSES.getTranslatedKeyMessage().getString()
+                : "Changing waits " + ClassService.CHANGE_WAIT / 20 / 60 + " min";
+        UiDraw.textRight(g, hint, left + W - 15, y + 12, Colors.alpha(1f, MUTED), 0.5f, false);
     }
 
     private static String minutes(long ticks) {

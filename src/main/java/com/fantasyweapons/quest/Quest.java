@@ -8,10 +8,12 @@ import java.util.function.Supplier;
 
 /**
  * One quest of the journal: what it asks ({@link #objectives}, all of them), what it gives when claimed ({@link #rewards} and
- * {@link #xp} experience points), and the quest that must be claimed before it opens ({@link #requires}).
+ * {@link #xp} experience points), the quest that must be claimed before it opens ({@link #requires}), and the group it is
+ * shown under in the journal, if any.
  */
 public record Quest(String id, Chapter chapter, String title, String description, Supplier<ItemStack> iconOf,
-                    List<QuestObjective> objectives, List<Supplier<ItemStack>> rewards, int xp, @Nullable String requires) {
+                    List<QuestObjective> objectives, List<Supplier<ItemStack>> rewards, int xp, @Nullable String requires,
+                    @Nullable QuestGroup group) {
     public ItemStack icon() {
         return iconOf.get();
     }
