@@ -74,6 +74,14 @@ public final class MageGameTests {
         if (com.fantasyweapons.combat.ImpactHits.armed(p)) h.fail("a fizzled cast left its impact frame armed");
         com.fantasyweapons.combat.ImpactHits.arm(p, heal);
         if (com.fantasyweapons.combat.ImpactHits.armed(p)) h.fail("a heal armed an impact frame");
+        // seen from 20 to 35 blocks for an ordinary ability, 35 to 50 for an ultimate, by its area
+        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+            for (var a : def.castables()) {
+                boolean ult = a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE;
+                float seen = com.fantasyweapons.combat.ImpactHits.seenFrom(a, ult);
+                if (seen < (ult ? 35 : 20) || seen > (ult ? 50 : 35)) h.fail(a.key() + " impact frames seen from " + seen + " blocks");
+            }
+        }
         FWGameTests.cleanup(p);
         h.succeed();
     }

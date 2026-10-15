@@ -59,19 +59,23 @@ public final class GenericFx {
     // swing trails (client-side, from every observed swing)
     // ------------------------------------------------------------------------------------------------------------
 
-    /** How close to a blow other players must be to see its impact frames too (blocks). */
-    private static final double IMPACT_FRAME_RADIUS = 16;
-
     /**
-     * Impact frames when an ability's blow lands: for the caster, and for every other player close to where it lands -
-     * the same frames (an ultimate's full sequence, any other ability's flash), the speed lines bursting from the hit.
+     * Impact frames when an ability's blow lands: for the caster, and for every other player within the ability's radius
+     * (20 to 50 blocks, sent with it) of the hit or of the caster - the same frames (an ultimate's full sequence, any
+     * other ability's flash), the speed lines bursting from the hit.
      */
     private static void impactFrame(FxPayload p) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         boolean ultimate = p.level() == 1;
-        if (p.caster() == mc.player.getId()) ImpactFrames.play(ultimate, 1f, p.pos());
-        else if (mc.player.position().distanceTo(p.pos()) < IMPACT_FRAME_RADIUS) ImpactFrames.play(ultimate, 0.9f, p.pos());
+        if (p.caster() == mc.player.getId()) {
+            ImpactFrames.play(ultimate, 1f, p.pos());
+            return;
+        }
+        double seen = p.scale() > 0 ? p.scale() : 20;
+        Entity caster = mc.level == null ? null : mc.level.getEntity(p.caster());
+        boolean near = mc.player.position().distanceTo(p.pos()) < seen || (caster != null && mc.player.distanceTo(caster) < seen);
+        if (near) ImpactFrames.play(ultimate, 0.9f, p.pos());
     }
 
     public static void onSwing(LivingEntity entity, ItemStack stack) {

@@ -15,14 +15,21 @@ import java.util.UUID;
 /**
  * Impact frames belong to the blow landing, not to the cast: casting an ability that deals damage arms one for the
  * caster, and the first hit that ability lands fires it, where it lands - an ultimate's full sequence, any other
- * ability's quick flash - for the caster and for the players close to the hit. Heals, shields and blessings (no damage) never arm one, a cast that fizzles is disarmed, and an
+ * ability's quick flash - for the caster and for the players within 20 to 50 blocks (by the ability) of the hit or the
+ * caster. Heals, shields and blessings (no damage) never arm one, a cast that fizzles is disarmed, and an
  * armed frame that never lands (a miss) lapses after a few seconds. Swings, bolts and damage over time do not fire it.
  */
 public final class ImpactHits {
     /** How long an armed frame waits for its hit (ticks): ultimates are often slow to land (a meteor, a dive). */
     private static final int ACTIVE_WINDOW = 120, ULTIMATE_WINDOW = 260;
 
-    private record Armed(boolean ultimate, long expires) {
+    /**
+     * How far other players see it (blocks), by the ability: 20 to 35 for an ordinary one, 35 to 50 for an ultimate,
+     * the wider its area the further.
+     */
+    private static final float ACTIVE_SEEN = 20, ACTIVE_SEEN_MAX = 35, ULTIMATE_SEEN = 35, ULTIMATE_SEEN_MAX = 50;
+
+    private record Armed(boolean ultimate, long expires, float seen) {
     }
 
     /** Server thread only. */
@@ -39,7 +46,14 @@ public final class ImpactHits {
         }
         boolean ultimate = ability.kind() == AbilityKind.ULTIMATE;
         long now = caster.serverLevel().getGameTime();
-        ARMED.put(caster.getUUID(), new Armed(ultimate, now + (ultimate ? ULTIMATE_WINDOW : ACTIVE_WINDOW)));
+        ARMED.put(caster.getUUID(), new Armed(ultimate, now + (ultimate ? ULTIMATE_WINDOW : ACTIVE_WINDOW), seenFrom(ability, ultimate)));
+    }
+
+    /** How far away other players see this ability's impact frames. */
+    public static float seenFrom(AbilityDefinition ability, boolean ultimate) {
+        float area = ability.hasParam("radius") ? (float) ability.param("radius") : 0;
+        float base = ultimate ? ULTIMATE_SEEN : ACTIVE_SEEN, max = ultimate ? ULTIMATE_SEEN_MAX : ACTIVE_SEEN_MAX;
+        return Math.min(max, base + area * 2);
     }
 
     /** The cast failed: nothing will land. */
@@ -52,8 +66,8 @@ public final class ImpactHits {
         Armed armed = ARMED.remove(attacker.getUUID());
         if (armed == null || attacker.serverLevel().getGameTime() > armed.expires()) return;
         FxPayload frame = FxPayload.of(FxIds.IMPACT_FRAME).caster(attacker.getId())
-                .pos(target.position().add(0, target.getBbHeight() * 0.5, 0)).level(armed.ultimate() ? 1 : 0).build();
-        // everyone near the blow (their clients show it within a close radius), and the caster wherever they stand
+                .pos(target.position().add(0, target.getBbHeight() * 0.5, 0)).level(armed.ultimate() ? 1 : 0).scale(armed.seen()).build();
+        // everyone near the blow or the caster (their clients show it within the ability's radius), and the caster wherever they stand
         Fx.near(attacker.serverLevel(), frame);
         if (attacker.position().distanceTo(frame.pos()) > Fx.VIEW_RADIUS) Fx.only(attacker, frame);
     }
