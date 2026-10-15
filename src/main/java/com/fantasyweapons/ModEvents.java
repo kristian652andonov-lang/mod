@@ -29,6 +29,7 @@ public final class ModEvents {
     }
 
     public static void register(IEventBus bus) {
+        bus.addListener(com.fantasyweapons.material.OreBlockEntities::onChunkLoad);
         bus.addListener(ModEvents::onAttack);
         bus.addListener(EventPriority.LOWEST, ModEvents::onDeath);
         bus.addListener(ModEvents::onPlayerTick);

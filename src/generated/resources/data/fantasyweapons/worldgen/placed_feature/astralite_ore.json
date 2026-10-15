@@ -2,8 +2,12 @@
   "feature": "fantasyweapons:astralite_ore",
   "placement": [
     {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
       "type": "minecraft:rarity_filter",
-      "chance": 4
+      "chance": 8
     },
     {
       "type": "minecraft:in_square"

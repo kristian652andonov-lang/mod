@@ -2,8 +2,12 @@
   "feature": "fantasyweapons:bloodstone_ore",
   "placement": [
     {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
       "type": "minecraft:rarity_filter",
-      "chance": 5
+      "chance": 10
     },
     {
       "type": "minecraft:in_square"

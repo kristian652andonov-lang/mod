@@ -2,8 +2,12 @@
   "feature": "fantasyweapons:thundercryst_ore",
   "placement": [
     {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
       "type": "minecraft:rarity_filter",
-      "chance": 3
+      "chance": 6
     },
     {
       "type": "minecraft:in_square"

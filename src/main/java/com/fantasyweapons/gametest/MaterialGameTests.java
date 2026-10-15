@@ -45,6 +45,29 @@ public final class MaterialGameTests {
     }
 
     /** Every ore needs a diamond pickaxe; it drops exactly one raw material, the ore itself with Silk Touch. */
+    /**
+     * Ores written straight into a chunk section, as the vanilla ore feature does, have no block entity (and so nothing
+     * to draw them); loading the chunk gives each one its block entity.
+     */
+    @GameTest(template = ARENA)
+    public static void generatedOresGetTheirBlockEntity(GameTestHelper h) {
+        ServerLevel level = h.getLevel();
+        BlockPos pos = h.absolutePos(new BlockPos(3, 2, 3));
+        var chunk = level.getChunkAt(pos);
+        var section = chunk.getSection(chunk.getSectionIndex(pos.getY()));
+        BlockState ore = ModBlocks.ORES.get(Material.SOLARITE).get().defaultBlockState();
+        section.setBlockState(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15, ore);
+        if (chunk.getBlockEntity(pos, net.minecraft.world.level.chunk.LevelChunk.EntityCreationType.CHECK) != null) {
+            h.fail("an ore written into the section already had a block entity");
+        }
+        com.fantasyweapons.material.OreBlockEntities.onChunkLoad(new net.neoforged.neoforge.event.level.ChunkEvent.Load(chunk, false));
+        if (!(chunk.getBlockEntity(pos, net.minecraft.world.level.chunk.LevelChunk.EntityCreationType.CHECK) instanceof MaterialOreBlockEntity)) {
+            h.fail("loading the chunk did not give the generated ore its block entity");
+        }
+        level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        h.succeed();
+    }
+
     @GameTest(template = ARENA)
     public static void oresDropTheirRawMaterial(GameTestHelper h) {
         ServerLevel level = h.getLevel();

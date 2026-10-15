@@ -102,6 +102,7 @@ final class DevScripts {
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.equals("magehud")) mageHud(b);
                 else if (name.equals("impacthit")) impactHit(b);
+                else if (name.equals("oregen")) oreGen(b);
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
                 else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
                 else if (name.startsWith("holds:")) holds(b, java.util.Arrays.stream(name.substring(6).split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
@@ -276,6 +277,60 @@ final class DevScripts {
     /** Every weapon held: third person from the player's right side and from the front, and first person. */
     private static void holds(ScreenshotDirector.Builder b) {
         holds(b, com.fantasyweapons.weapon.Weapons.all());
+    }
+
+    /**
+     * Naturally generated ores: fresh chunks of a crimson forest in the Nether are generated, their Bloodstone ores counted
+     * (and whether each has its block entity), then the rock round one is cleared and it is looked at.
+     */
+    private static void oreGen(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode spectator").cmd("/time set noon").wait(5);
+        b.run(mc -> {
+            var server = mc.getSingleplayerServer();
+            java.util.UUID id = mc.player.getUUID();
+            server.execute(() -> {
+                var nether = server.getLevel(net.minecraft.world.level.Level.NETHER);
+                var sp = server.getPlayerList().getPlayer(id);
+                var found = nether.findClosestBiome3d(h -> h.is(net.minecraft.world.level.biome.Biomes.CRIMSON_FOREST), new net.minecraft.core.BlockPos(4000, 64, 4000),
+                        6400, 32, 64);
+                if (found == null || sp == null) {
+                    com.fantasyweapons.FantasyWeapons.LOGGER.warn("oregen: no crimson forest found");
+                    return;
+                }
+                net.minecraft.core.BlockPos c = found.getFirst();
+                java.util.List<net.minecraft.core.BlockPos> ores = new java.util.ArrayList<>();
+                int withEntity = 0, chunks = 0;
+                for (int dx = -5; dx <= 5; dx++) {
+                    for (int dz = -5; dz <= 5; dz++) {
+                        var chunk = nether.getChunk((c.getX() >> 4) + dx, (c.getZ() >> 4) + dz);
+                        chunks++;
+                        for (int y = 10; y < 118; y++) {
+                            for (int x = 0; x < 16; x++) {
+                                for (int z = 0; z < 16; z++) {
+                                    net.minecraft.core.BlockPos q = new net.minecraft.core.BlockPos(chunk.getPos().getMinBlockX() + x, y, chunk.getPos().getMinBlockZ() + z);
+                                    if (!(chunk.getBlockState(q).getBlock() instanceof com.fantasyweapons.material.MaterialOreBlock)) continue;
+                                    ores.add(q);
+                                    if (chunk.getBlockEntity(q) != null) withEntity++;
+                                }
+                            }
+                        }
+                    }
+                }
+                com.fantasyweapons.FantasyWeapons.LOGGER.warn("oregen: {} chunks, {} ores, {} with their block entity", chunks, ores.size(), withEntity);
+                if (ores.isEmpty()) return;
+                net.minecraft.core.BlockPos ore = ores.get(0);
+                // open a little cave round the ore and stand in it, looking at the ore
+                for (net.minecraft.core.BlockPos q : net.minecraft.core.BlockPos.betweenClosed(ore.offset(-3, -1, -3), ore.offset(3, 2, 3))) {
+                    if (!q.equals(ore)) nether.setBlock(q, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+                }
+                for (net.minecraft.core.BlockPos q : net.minecraft.core.BlockPos.betweenClosed(ore.offset(-3, -2, -3), ore.offset(3, -2, 3))) {
+                    nether.setBlock(q, net.minecraft.world.level.block.Blocks.NETHERRACK.defaultBlockState(), 2);
+                }
+                sp.teleportTo(nether, ore.getX() + 2.5, ore.getY() - 1, ore.getZ() + 2.5, 135, 15);
+            });
+        });
+        b.wait(400).hud(false).screenshot("oregen_a").wait(40).screenshot("oregen_b");
+        b.cmd("/gamemode creative");
     }
 
     /** Impact frames fire on the hit, not the cast: Meteor Brand's meteor falls a moment after casting; every 2 ticks. */

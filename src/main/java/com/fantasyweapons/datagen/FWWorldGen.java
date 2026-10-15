@@ -47,7 +47,7 @@ import java.util.function.Function;
 /**
  * Where the legendary ores generate. They are split across the three dimensions by element - void and cosmic in the End;
  * fire, blood and soul in the Nether; earth, nature, ice, storm, death, sun, light and aether in the Overworld - and every
- * one is extremely rare: a small vein (one to three ores) in only one chunk in several of its own biomes.
+ * one is rare: a small vein (one to three ores) in only one chunk in a few of its own biomes.
  */
 public final class FWWorldGen {
     private FWWorldGen() {
@@ -55,7 +55,7 @@ public final class FWWorldGen {
 
     /**
      * @param size   ore feature size (3 gives veins of one to three ores)
-     * @param chunks on average one vein in this many chunks of the right biomes
+     * @param chunks the base rarity: one vein in this many chunks of the right biomes (generated at one and a half times it)
      */
     record Spec(Function<HolderGetter<Biome>, HolderSet<Biome>> biomes, List<RuleTest> replaces, int size, int chunks, int minY, int maxY,
                 float airDiscard, boolean nearLava) {
@@ -145,10 +145,13 @@ public final class FWWorldGen {
             Spec spec = specs.get(i);
             List<PlacementModifier> mods = new ArrayList<>();
             if (spec.nearLava()) {
-                // tries a few spots in each chunk of the deltas and keeps only those right beside lava
-                mods.add(CountPlacement.of(3));
+                // tries a few spots in each chunk of the deltas (four and a half on average) and keeps only those right beside lava
+                mods.add(CountPlacement.of(9));
+                mods.add(RarityFilter.onAverageOnceEvery(2));
             } else {
-                mods.add(RarityFilter.onAverageOnceEvery(spec.chunks()));
+                // three tries a chunk, each at half the base chance: half again as many veins as one try at the base chance
+                mods.add(CountPlacement.of(3));
+                mods.add(RarityFilter.onAverageOnceEvery(spec.chunks() * 2));
             }
             mods.add(InSquarePlacement.spread());
             mods.add(HeightRangePlacement.uniform(VerticalAnchor.absolute(spec.minY()), VerticalAnchor.absolute(spec.maxY())));
