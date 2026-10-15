@@ -86,6 +86,51 @@ public final class MageGameTests {
         h.succeed();
     }
 
+    /**
+     * Player against player: abilities and their damage over time hurt another player when the server allows PvP, but
+     * not a teammate on a team with friendly fire off, and nobody at all with PvP off.
+     */
+    @GameTest(template = ARENA)
+    public static void abilitiesHurtOtherPlayers(GameTestHelper h) {
+        var server = h.getLevel().getServer();
+        boolean pvp = server.isPvpAllowed();
+        server.setPvpAllowed(true);
+        ServerPlayer a = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        ServerPlayer b = FWGameTests.player(h, new Vec3(2.5, 2, 5.5), 180);
+        ItemStack staff = FWGameTests.giveWeapon(a, "cinderspire");
+        try {
+            float before = b.getHealth();
+            com.fantasyweapons.combat.FWDamage.deal(a, staff, b, 4, com.fantasyweapons.combat.FWDamage.Kind.ABILITY, null, 0);
+            if (b.getHealth() >= before) h.fail("an ability did not hurt another player");
+            b.invulnerableTime = 0;
+            before = b.getHealth();
+            com.fantasyweapons.combat.FWDamage.deal(a, staff, b, 2, com.fantasyweapons.combat.FWDamage.Kind.DOT, null, 0);
+            if (b.getHealth() >= before) h.fail("damage over time did not hurt another player");
+            // teammates are spared when their team has friendly fire off (as in vanilla)
+            var board = h.getLevel().getScoreboard();
+            var team = board.addPlayerTeam("fw_pvp_test");
+            team.setAllowFriendlyFire(false);
+            board.addPlayerToTeam(a.getScoreboardName(), team);
+            board.addPlayerToTeam(b.getScoreboardName(), team);
+            b.invulnerableTime = 0;
+            before = b.getHealth();
+            com.fantasyweapons.combat.FWDamage.deal(a, staff, b, 4, com.fantasyweapons.combat.FWDamage.Kind.ABILITY, null, 0);
+            board.removePlayerTeam(team);
+            if (b.getHealth() < before) h.fail("an ability hurt a teammate with friendly fire off");
+            // and with PvP off on the server, nobody
+            server.setPvpAllowed(false);
+            b.invulnerableTime = 0;
+            before = b.getHealth();
+            com.fantasyweapons.combat.FWDamage.deal(a, staff, b, 4, com.fantasyweapons.combat.FWDamage.Kind.ABILITY, null, 0);
+            if (b.getHealth() < before) h.fail("an ability hurt a player with PvP off");
+        } finally {
+            server.setPvpAllowed(pvp);
+            FWGameTests.cleanup(a);
+            FWGameTests.cleanup(b);
+        }
+        h.succeed();
+    }
+
     /** Healing restores a share of the target's health, never more than it lacks, and the healer's weapon grows by it. */
     @GameTest(template = ARENA)
     public static void healingRestoresAndRewards(GameTestHelper h) {

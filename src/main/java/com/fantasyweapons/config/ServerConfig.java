@@ -141,7 +141,9 @@ public final class ServerConfig {
         DAMAGE_GROWTH = d("growth_per_level", 1.05, 1.0, 2.0, "Damage multiplier gained per weapon level (1.05 = +5% per level, compounding)");
         HEAVY_ATTACK_MIN_STRENGTH = d("heavy_attack_min_strength", 0.95, 0, 1,
                 "Attack-cooldown fraction required for a sneak-attack to count as a HEAVY attack");
-        ABILITIES_HURT_PLAYERS = bool("abilities_hurt_players", false, "Whether area abilities damage other players (PvP)");
+        // renamed from abilities_hurt_players (default off) so that existing worlds pick up the new default
+        ABILITIES_HURT_PLAYERS = bool("abilities_pvp", true,
+                "Whether abilities (and their curses and burns) damage other players. Follows the server's own PvP rules too: PvP must be on (server.properties pvp=true), and teammates are spared when their team has friendly fire off");
         ABILITIES_HURT_TAMED = bool("abilities_hurt_tamed", false, "Whether area abilities damage tamed animals");
         CUSTOM_DEATH_EFFECT = bool("custom_death_effect", true, "Mobs killed by fantasy weapons dissolve in an elemental effect instead of the vanilla death puff");
         B.push("level1_damage");
