@@ -311,6 +311,7 @@ final class DevScripts {
         java.util.List<String> ids = weapons.length == 1 && weapons[0].equals("all")
                 ? com.fantasyweapons.weapon.Weapons.focuses().stream().map(com.fantasyweapons.weapon.WeaponDefinition::id).toList()
                 : java.util.List.of(weapons);
+        b.cmd("/gamemode creative").cmd("/fw class set mage").wait(5);
         for (String w : ids) {
             var def = com.fantasyweapons.weapon.Weapons.get(w);
             b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/tp @s 0 -60 0 0 0").cmd("/fw give " + w + " 100").wait(130).slot(0)
