@@ -141,8 +141,12 @@ public final class Quests {
         }
         Builder b = quest("the_thirteen", Chapter.WEAPONS, "The Thirteen", "Hold every one of the thirteen legendary weapons at once.",
                 () -> stack(ModItems.WEAPONS.get("monolith").get(), 1));
-        for (WeaponDefinition def : Weapons.all()) b.collect(() -> ModItems.WEAPONS.get(def.id()).get(), 1, def.displayName());
+        for (WeaponDefinition def : Weapons.blades()) b.collect(() -> ModItems.WEAPONS.get(def.id()).get(), 1, def.displayName());
         list.add(b.reward(Items.NETHER_STAR, 1).reward(Items.ENCHANTED_GOLDEN_APPLE, 3).reward(Items.NETHERITE_INGOT, 8).xp(3000).build());
+        Builder mage = quest("archmage", Chapter.WEAPONS, "Archmage", "Hold every staff and spellbook of the six elements at once.",
+                () -> stack(ModItems.WEAPONS.get("lumen_psalter").get(), 1));
+        for (WeaponDefinition def : Weapons.focuses()) mage.collect(() -> ModItems.WEAPONS.get(def.id()).get(), 1, def.displayName());
+        list.add(mage.reward(Items.NETHER_STAR, 1).reward(Items.ENCHANTED_GOLDEN_APPLE, 3).reward(Items.EXPERIENCE_BOTTLE, 64).xp(3000).build());
     }
 
     private static void armor(List<Quest> list) {

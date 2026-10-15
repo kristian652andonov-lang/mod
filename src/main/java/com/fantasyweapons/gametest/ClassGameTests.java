@@ -18,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
-/** The classes: what each lays on the player, the wait between changes, the Mage still sealed, and the perks in a fight. */
+/** The classes: what each lays on the player, the wait between changes, the Mage's gear, and the perks in a fight. */
 @GameTestHolder(FantasyWeapons.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class ClassGameTests {
@@ -97,11 +97,18 @@ public final class ClassGameTests {
             PlayerClass c = com.fantasyweapons.playerclass.ClassGear.ofWeapon(def.id());
             if (c == PlayerClass.NONE || !c.available()) h.fail(def.id() + " answers to " + c);
             seen.add(c);
+            if (def.weaponClass().magic()) {
+                // the mage's staffs and spellbooks have no armor of their own
+                if (c != PlayerClass.MAGE) h.fail(def.id() + " should answer to the Mage, not " + c);
+                continue;
+            }
             var set = com.fantasyweapons.armor.ArmorSet.ofWeapon(def.id());
             ItemStack chest = new ItemStack(com.fantasyweapons.registry.ModItems.ARMOR.get(set).get(net.minecraft.world.item.ArmorItem.Type.CHESTPLATE).get());
             if (com.fantasyweapons.playerclass.ClassGear.of(chest) != c) h.fail(def.id() + "'s armor answers to another class");
         }
-        if (!seen.containsAll(java.util.List.of(PlayerClass.ASSASSIN, PlayerClass.BERSERKER, PlayerClass.PALADIN))) h.fail("not every class has gear: " + seen);
+        if (!seen.containsAll(java.util.List.of(PlayerClass.ASSASSIN, PlayerClass.BERSERKER, PlayerClass.PALADIN, PlayerClass.MAGE))) {
+            h.fail("not every class has gear: " + seen);
+        }
         h.succeed();
     }
 
@@ -151,12 +158,16 @@ public final class ClassGameTests {
         h.succeed();
     }
 
-    /** The Mage is still being made: it cannot be taken. */
+    /** The Mage can be taken: one heart fewer, and the staffs and spellbooks answer to it. */
     @GameTest(template = ARENA)
-    public static void theMageIsSealed(GameTestHelper h) {
+    public static void theMageCanBeTaken(GameTestHelper h) {
         ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
         ClassService.choose(p, PlayerClass.MAGE);
-        if (ClassService.of(p) != PlayerClass.NONE) h.fail("the Mage was taken");
+        if (ClassService.of(p) != PlayerClass.MAGE) h.fail("the Mage was not taken");
+        if (Math.abs(p.getMaxHealth() - 18) > 0.01) h.fail("a Mage has " + p.getMaxHealth() + " health, expected 18");
+        if (!com.fantasyweapons.playerclass.ClassGear.canUse(p, new ItemStack(com.fantasyweapons.registry.ModItems.WEAPONS.get("cinderspire").get()))) {
+            h.fail("a Mage cannot use the Cinderspire");
+        }
         FWGameTests.cleanup(p);
         h.succeed();
     }

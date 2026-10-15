@@ -48,5 +48,6 @@ public final class FxDispatcher {
         MonolithFx.register();
         InfernochainFx.register();
         ArmorFx.register();
+        com.fantasyweapons.client.fx.mage.MageFx.register();
     }
 }

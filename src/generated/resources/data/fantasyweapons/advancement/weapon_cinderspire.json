@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:cinderspire"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Cinderspire",
+      "translate": "advancements.fantasyweapons.weapon_cinderspire.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:cinderspire"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF6A1A",
+      "fallback": "The Spire Kindles",
+      "translate": "advancements.fantasyweapons.weapon_cinderspire.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -25,6 +25,11 @@ public final class StatusEffects {
         public transient UUID source;
         /** Server-only: auxiliary point (e.g. gravity well centre). */
         public transient double px, py, pz;
+        /** Server-only: the weapon that laid it (its instance id), for spells that reward or read the caster's weapon. */
+        @Nullable
+        public transient UUID weapon;
+        /** Server-only: a status's own extra number (a curse's starting potency, a bubble's strength...). */
+        public transient float extra;
 
         public Instance(StatusType type, int stacks, int duration, float potency) {
             this.type = type;

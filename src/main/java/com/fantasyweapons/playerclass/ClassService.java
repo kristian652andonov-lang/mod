@@ -139,6 +139,12 @@ public final class ClassService {
             case PALADIN -> {
                 if (target.isInvertedHealAndHarm()) amount *= 1.5f;
             }
+            case MAGE -> {
+                // spells, and the bolts of a staff or spellbook
+                if (event.getSource().is(com.fantasyweapons.combat.FWDamage.ABILITY) || com.fantasyweapons.magic.MageBolts.isFocus(player.getMainHandItem())) {
+                    amount *= 1.15f;
+                }
+            }
             default -> {
             }
         }
@@ -167,8 +173,13 @@ public final class ClassService {
     public static void tick(ServerPlayer player) {
         // armor put on some other way (or kept from creative mode) comes off if the class cannot wear it
         if (player.tickCount % 20 == 0) ClassGear.stripArmor(player);
-        if (player.tickCount % 60 != 0 || of(player) != PlayerClass.PALADIN) return;
+        if (player.tickCount % 60 != 0) return;
         long since = player.level().getGameTime() - lastHurt.getOrDefault(player.getUUID(), 0L);
+        // the mage's Arcane Ward: a shield of two hearts gathers once out of combat a while
+        if (of(player) == PlayerClass.MAGE && since > 160 && player.getAbsorptionAmount() < 4) {
+            com.fantasyweapons.magic.Heals.barrierFlat(player, player, 4, 20 * 30);
+        }
+        if (of(player) != PlayerClass.PALADIN) return;
         if (since > 160 && player.getHealth() < player.getMaxHealth()) {
             player.heal(1);
             player.serverLevel().sendParticles(ParticleTypes.HAPPY_VILLAGER, player.getX(), player.getY() + 1.2, player.getZ(), 3, 0.3, 0.4, 0.3, 0);

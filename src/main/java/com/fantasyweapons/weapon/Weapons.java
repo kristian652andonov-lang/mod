@@ -13,6 +13,18 @@ import com.fantasyweapons.weapons.soulreaper.Soulreaper;
 import com.fantasyweapons.weapons.starforge.Starforge;
 import com.fantasyweapons.weapons.stormbreaker.Stormbreaker;
 import com.fantasyweapons.weapons.voidfang.Voidfang;
+import com.fantasyweapons.weapons.cinderspire.Cinderspire;
+import com.fantasyweapons.weapons.pyrecodex.PyreCodex;
+import com.fantasyweapons.weapons.rimeheart.Rimeheart;
+import com.fantasyweapons.weapons.frostbound.FrostboundGrimoire;
+import com.fantasyweapons.weapons.tidecaller.Tidecaller;
+import com.fantasyweapons.weapons.codexoftides.CodexOfTides;
+import com.fantasyweapons.weapons.thornwake.Thornwake;
+import com.fantasyweapons.weapons.verdantalmanac.VerdantAlmanac;
+import com.fantasyweapons.weapons.sunwarden.Sunwarden;
+import com.fantasyweapons.weapons.lumenpsalter.LumenPsalter;
+import com.fantasyweapons.weapons.gloamreach.Gloamreach;
+import com.fantasyweapons.weapons.umbralcodex.UmbralCodex;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -20,8 +32,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Registry of the 13 weapon definitions, in the order of the design brief. Each weapon lives in its own package
- * ({@code com.fantasyweapons.weapons.<name>}): a definition class and its server-side abilities.
+ * Registry of the weapon definitions: the 13 legendary weapons in the order of the design brief, then the mage's twelve
+ * staffs and spellbooks, element by element. Each weapon lives in its own package ({@code com.fantasyweapons.weapons.<name>}):
+ * a definition class and its server-side abilities.
  */
 public final class Weapons {
     private static final Map<String, WeaponDefinition> BY_ID = new LinkedHashMap<>();
@@ -40,6 +53,29 @@ public final class Weapons {
         add(Aetherlance.create());
         add(Monolith.create());
         add(Infernochain.create());
+        // the mage's focuses: fire attacks, ice defends, water heals and shields, nature heals, light blesses, the void curses
+        add(Cinderspire.create());
+        add(PyreCodex.create());
+        add(Rimeheart.create());
+        add(FrostboundGrimoire.create());
+        add(Tidecaller.create());
+        add(CodexOfTides.create());
+        add(Thornwake.create());
+        add(VerdantAlmanac.create());
+        add(Sunwarden.create());
+        add(LumenPsalter.create());
+        add(Gloamreach.create());
+        add(UmbralCodex.create());
+    }
+
+    /** The 13 legendary blades, without the mage's focuses. */
+    public static List<WeaponDefinition> blades() {
+        return all().stream().filter(d -> !d.weaponClass().magic()).toList();
+    }
+
+    /** The mage's staffs and spellbooks. */
+    public static List<WeaponDefinition> focuses() {
+        return all().stream().filter(d -> d.weaponClass().magic()).toList();
     }
 
     private Weapons() {

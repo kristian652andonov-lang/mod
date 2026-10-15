@@ -21,6 +21,26 @@
       },
       "trigger": "minecraft:inventory_changed"
     },
+    "cinderspire": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:cinderspire"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "codex_of_tides": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:codex_of_tides"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
     "doomcleaver": {
       "conditions": {
         "items": [
@@ -41,11 +61,31 @@
       },
       "trigger": "minecraft:inventory_changed"
     },
+    "frostbound_grimoire": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostbound_grimoire"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
     "frostrend": {
       "conditions": {
         "items": [
           {
             "items": "fantasyweapons:frostrend"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "gloamreach": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:gloamreach"
           }
         ]
       },
@@ -71,11 +111,41 @@
       },
       "trigger": "minecraft:inventory_changed"
     },
+    "lumen_psalter": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:lumen_psalter"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
     "monolith": {
       "conditions": {
         "items": [
           {
             "items": "fantasyweapons:monolith"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "pyre_codex": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:pyre_codex"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "rimeheart": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:rimeheart"
           }
         ]
       },
@@ -116,6 +186,56 @@
         "items": [
           {
             "items": "fantasyweapons:stormbreaker"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "sunwarden": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:sunwarden"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "thornwake": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:thornwake"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "tidecaller": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:tidecaller"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "umbral_codex": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:umbral_codex"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "verdant_almanac": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:verdant_almanac"
           }
         ]
       },
@@ -164,7 +284,19 @@
       "starforge",
       "aetherlance",
       "monolith",
-      "infernochain"
+      "infernochain",
+      "cinderspire",
+      "pyre_codex",
+      "rimeheart",
+      "frostbound_grimoire",
+      "tidecaller",
+      "codex_of_tides",
+      "thornwake",
+      "verdant_almanac",
+      "sunwarden",
+      "lumen_psalter",
+      "gloamreach",
+      "umbral_codex"
     ]
   ],
   "sends_telemetry_event": true

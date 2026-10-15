@@ -27,6 +27,17 @@ public final class C2SPayloads {
         }
     }
 
+    /** A staff's or spellbook's click: loose a bolt (the server checks the focus has recovered). */
+    public record CastBolt() implements CustomPacketPayload {
+        public static final Type<CastBolt> TYPE = new Type<>(FantasyWeapons.id("cast_bolt"));
+        public static final StreamCodec<ByteBuf, CastBolt> CODEC = StreamCodec.unit(new CastBolt());
+
+        @Override
+        public Type<CastBolt> type() {
+            return TYPE;
+        }
+    }
+
     /** Cycle the selected castable ability (+1 / -1). */
     public record CycleAbility(int direction) implements CustomPacketPayload {
         public static final Type<CycleAbility> TYPE = new Type<>(FantasyWeapons.id("cycle_ability"));

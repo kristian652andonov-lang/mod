@@ -17,6 +17,8 @@ public final class FWNetwork {
 
         r.playToServer(C2SPayloads.AbilityKey.TYPE, C2SPayloads.AbilityKey.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> AbilityService.handleAbilityKey((ServerPlayer) ctx.player(), p.pressed())));
+        r.playToServer(C2SPayloads.CastBolt.TYPE, C2SPayloads.CastBolt.CODEC, (p, ctx) ->
+                ctx.enqueueWork(() -> com.fantasyweapons.magic.MageBolts.cast((ServerPlayer) ctx.player())));
         r.playToServer(C2SPayloads.CycleAbility.TYPE, C2SPayloads.CycleAbility.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> AbilityService.handleCycle((ServerPlayer) ctx.player(), p.direction())));
         r.playToServer(C2SPayloads.SwitchForm.TYPE, C2SPayloads.SwitchForm.CODEC, (p, ctx) ->

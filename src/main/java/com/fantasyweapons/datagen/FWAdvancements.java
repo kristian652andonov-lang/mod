@@ -124,14 +124,30 @@ final class FWAdvancements implements AdvancementProvider.AdvancementGenerator {
                 {"starforge", "Starborn", "Forge the Starforge"},
                 {"aetherlance", "Skypiercer", "Forge the Aetherlance"},
                 {"monolith", "The Unmoving Stone", "Forge the Monolith"},
-                {"infernochain", "Chains of the Inferno", "Forge the Infernochain"}};
+                {"infernochain", "Chains of the Inferno", "Forge the Infernochain"},
+                {"cinderspire", "The Spire Kindles", "Forge the Cinderspire"},
+                {"pyre_codex", "The Pyre Opens", "Bind the Pyre Codex"},
+                {"rimeheart", "A Heart of Rime", "Forge the Rimeheart"},
+                {"frostbound_grimoire", "The Book That Keeps", "Bind the Frostbound Grimoire"},
+                {"tidecaller", "The Tide Answers", "Forge the Tidecaller"},
+                {"codex_of_tides", "Mariner's Mercy", "Bind the Codex of Tides"},
+                {"thornwake", "The First Green", "Forge the Thornwake"},
+                {"verdant_almanac", "An Early Spring", "Bind the Verdant Almanac"},
+                {"sunwarden", "Herald of the Dawn", "Forge the Sunwarden"},
+                {"lumen_psalter", "The Choir Sings", "Bind the Lumen Psalter"},
+                {"gloamreach", "The Long Dusk", "Forge the Gloamreach"},
+                {"umbral_codex", "Small Deaths", "Bind the Umbral Codex"}};
         for (String[] w : weapons) {
             Item weapon = ModItems.WEAPONS.get(w[0]).get();
             deed("weapon_" + w[0], reborn, weapon, w[1], Material.ofWeapon(w[0]).color(), w[2], AdvancementType.GOAL, b -> b.addCriterion("has", has(weapon)));
         }
         deed("the_thirteen", reborn, ModItems.WEAPONS.get("monolith").get(), "The Thirteen", VIOLET,
-                "Forge every legendary weapon", AdvancementType.CHALLENGE, b -> {
-                    for (WeaponDefinition def : Weapons.all()) b.addCriterion(def.id(), has(ModItems.WEAPONS.get(def.id()).get()));
+                "Forge every one of the thirteen legendary weapons", AdvancementType.CHALLENGE, b -> {
+                    for (WeaponDefinition def : Weapons.blades()) b.addCriterion(def.id(), has(ModItems.WEAPONS.get(def.id()).get()));
+                });
+        deed("archmage", reborn, ModItems.WEAPONS.get("lumen_psalter").get(), "Archmage", ARCANE,
+                "Forge every staff and bind every spellbook of the six elements", AdvancementType.CHALLENGE, b -> {
+                    for (WeaponDefinition def : Weapons.focuses()) b.addCriterion(def.id(), has(ModItems.WEAPONS.get(def.id()).get()));
                 });
 
         // ---- mastery ----

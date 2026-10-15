@@ -48,6 +48,11 @@ public final class MeleeHandler {
     public static void attack(ServerPlayer player, Entity rawTarget) {
         ItemStack stack = player.getMainHandItem();
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
+        // a staff or spellbook does not strike: its click looses a bolt
+        if (item.definition().weaponClass().magic()) {
+            com.fantasyweapons.magic.MageBolts.cast(player);
+            return;
+        }
         // only the weapon's class can fight with it
         if (!com.fantasyweapons.playerclass.ClassGear.canUse(player, stack)) {
             com.fantasyweapons.playerclass.ClassGear.refuse(player, stack);

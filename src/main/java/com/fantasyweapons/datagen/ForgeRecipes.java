@@ -76,7 +76,7 @@ final class ForgeRecipes {
         WEAPONS.put("sunwarden", new Theme(Items.GOLD_BLOCK, Items.GLOWSTONE, Items.BLAZE_ROD));
         WEAPONS.put("lumen_psalter", new Theme(Items.GLOWSTONE, Items.GOLD_INGOT, Items.LEATHER));
         WEAPONS.put("gloamreach", new Theme(Items.ENDER_EYE, Items.CRYING_OBSIDIAN, Items.END_ROD));
-        WEAPONS.put("umbral_codex", new Theme(Items.DRAGON_BREATH, Items.CRYING_OBSIDIAN, Items.LEATHER));
+        WEAPONS.put("umbral_codex", new Theme(Items.SCULK_CATALYST, Items.CRYING_OBSIDIAN, Items.LEATHER));
 
         ARMOR.put(ArmorSet.VOIDFANG, new ItemLike[]{Items.BLACK_WOOL});        // charcoal cloth
         ARMOR.put(ArmorSet.SOLARIS, new ItemLike[]{Items.GOLD_INGOT});         // white and gold plate

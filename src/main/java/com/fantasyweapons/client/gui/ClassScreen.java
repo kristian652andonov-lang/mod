@@ -61,9 +61,9 @@ public final class ClassScreen extends Screen {
             case PALADIN -> new Page(new int[]{5, 3, 2, 5, 3}, "Holy Aegis",
                     "The undead take half again as much from you and deal a quarter less. Out of combat, the light mends your wounds.",
                     MobEffects.DAMAGE_RESISTANCE);
-            default -> new Page(new int[]{1, 4, 3, 2, 5}, "Arcane Arts",
-                    "Spells of fire, frost and the void are still being written. The mage will come in a later update.",
-                    MobEffects.NIGHT_VISION);
+            default -> new Page(new int[]{1, 4, 3, 2, 5}, "Arcane Ward",
+                    "Every spell strikes, heals and shields 15% stronger. Out of combat a ward of arcane light gathers around you, a shield of two hearts.",
+                    MobEffects.ABSORPTION);
         };
     }
 
@@ -310,8 +310,14 @@ public final class ClassScreen extends Screen {
         // the gear that answers to the class
         int gy = y + 76;
         box(g, rx, gy, rx + 252, gy + 30);
-        gearRow(g, "WEAPONS", weapons(c), rx + 6, gy, mouseX, mouseY, locked);
-        gearRow(g, "ARMOR", armor(c), rx + 130, gy, mouseX, mouseY, locked);
+        List<ItemStack> armor = armor(c);
+        if (armor.isEmpty()) {
+            // the mage wears no legendary armor: its staffs and spellbooks have the whole row
+            gearRow(g, "STAFFS AND SPELLBOOKS", weapons(c), rx + 6, gy, mouseX, mouseY, locked);
+        } else {
+            gearRow(g, "WEAPONS", weapons(c), rx + 6, gy, mouseX, mouseY, locked);
+            gearRow(g, "ARMOR", armor, rx + 130, gy, mouseX, mouseY, locked);
+        }
         // the signature gift
         int sy = gy + 36;
         box(g, rx, sy, rx + 252, sy + 36);

@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:rimeheart"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Rimeheart",
+      "translate": "advancements.fantasyweapons.weapon_rimeheart.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:rimeheart"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#7FE8FF",
+      "fallback": "A Heart of Rime",
+      "translate": "advancements.fantasyweapons.weapon_rimeheart.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:verdant_almanac"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Bind the Verdant Almanac",
+      "translate": "advancements.fantasyweapons.weapon_verdant_almanac.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:verdant_almanac"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#7DFF4A",
+      "fallback": "An Early Spring",
+      "translate": "advancements.fantasyweapons.weapon_verdant_almanac.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

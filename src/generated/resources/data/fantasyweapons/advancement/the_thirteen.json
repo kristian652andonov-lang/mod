@@ -135,7 +135,7 @@
   "display": {
     "announce_to_chat": false,
     "description": {
-      "fallback": "Forge every legendary weapon",
+      "fallback": "Forge every one of the thirteen legendary weapons",
       "translate": "advancements.fantasyweapons.the_thirteen.description"
     },
     "frame": "challenge",

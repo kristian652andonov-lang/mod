@@ -487,6 +487,11 @@ public final class FWGameTests {
     private static final java.util.Set<String> AIRBORNE_FX = java.util.Set.of(
             // the caster's impact frames (a screen effect, placed at their eyes)
             "impact_frame",
+            // the mage's spells carried from the caster's focus to a friend or foe, and what blooms on them
+            "mage/bless", "mage/bolt", "mage/bolt_hit", "heal_number", "mage/bubble_pop", "mage/ward_shatter", "mage/shard_block",
+            "mage/spring_save", "mage/ascension_ray", "mage/bane_bloom", "mage/plague_spread", "pyre_codex/chain", "frostbound_grimoire/tomb",
+            "frostbound_grimoire/tomb_shatter", "gloamreach/wither", "umbral_codex/hex", "umbral_codex/seed", "umbral_codex/contagion",
+            "verdant_almanac/vines", "lumen_psalter/hymn", "codex_of_tides/embrace", "thornwake/pulse",
             // projectiles and where they end
             "aetherlance/bolt", "aetherlance/bolt_end", "gravebite/legion_launch", "gravebite/soul_hit", "gravebite/soul_volley",
             "infernochain/hook", "infernochain/hook_end", "solaris/supernova", "solaris/supernova_impact", "stormbreaker/chain",
@@ -565,7 +570,12 @@ public final class FWGameTests {
     }
 
     /** Ability ids whose effect is a self buff / utility and deals no damage by itself. */
-    private static final java.util.Set<String> NON_DAMAGING = java.util.Set.of("doomcleaver/blood_rage");
+    /** Abilities that hurt no one: a self-buff, and the mage's heals, wards and blessings (the test checks those elsewhere). */
+    private static final java.util.Set<String> NON_DAMAGING = java.util.Set.of("doomcleaver/blood_rage",
+            "rimeheart/glacial_ward", "frostbound_grimoire/shatterguard", "tidecaller/tidal_spring", "codex_of_tides/bubble_aegis",
+            "codex_of_tides/healing_rain", "codex_of_tides/tides_embrace", "thornwake/lifebloom", "thornwake/worldtrees_boon",
+            "verdant_almanac/mending_vines", "verdant_almanac/spring_eternal", "sunwarden/blessing_of_valor", "lumen_psalter/hymn_of_swiftness",
+            "lumen_psalter/halo_of_fortitude", "lumen_psalter/ascension");
 
     private static void abilityTest(GameTestHelper h, WeaponDefinition def, AbilityDefinition a) {
         ServerPlayer p = player(h, new Vec3(12.5, 2, 5.5), 0);

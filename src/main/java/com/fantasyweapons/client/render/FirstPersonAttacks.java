@@ -171,7 +171,7 @@ public final class FirstPersonAttacks {
         float[] d = debugPose;
         if (d == null) return;
         pose.translate(d[0] * side, d[1], d[2]);
-        orient(pose, d[3], d[4], d[5], side);
+        orient(pose, BLADE, d[3], d[4], d[5], side);
     }
 
     private static Key[] motion(WeaponClass.SwingStyle style, int variant) {
@@ -193,6 +193,7 @@ public final class FirstPersonAttacks {
      */
     public static void apply(PoseStack pose, WeaponClass.SwingStyle style, int variant, int side, float heavy, float s) {
         Key[] keys = motion(style, variant);
+        Rest rest = style == WeaponClass.SwingStyle.CAST ? STAFF : BLADE;
         s = Math.max(0, Math.min(1, s));
         int i = 0;
         while (i < keys.length - 2 && s > keys[i + 1].s()) i++;
@@ -200,17 +201,17 @@ public final class FirstPersonAttacks {
         float u = (s - k1.s()) / Math.max(1e-4f, k2.s() - k1.s());
         float x = cr(k0.x(), k1.x(), k2.x(), k3.x(), u), y = cr(k0.y(), k1.y(), k2.y(), k3.y(), u), z = cr(k0.z(), k1.z(), k2.z(), k3.z(), u);
         float wide = 1 + (heavy - 1) * 0.4f;
-        float yaw = cr(yaw(k0), yaw(k1), yaw(k2), yaw(k3), u);
-        yaw = IDLE_YAW + (yaw - IDLE_YAW) * wide;
-        float elev = cr(elev(k0), elev(k1), elev(k2), elev(k3), u);
+        float yaw = cr(rest.yaw(k0), rest.yaw(k1), rest.yaw(k2), rest.yaw(k3), u);
+        yaw = rest.yaw + (yaw - rest.yaw) * wide;
+        float elev = cr(rest.elev(k0), rest.elev(k1), rest.elev(k2), rest.elev(k3), u);
         float roll = cr(k0.roll(), k1.roll(), k2.roll(), k3.roll(), u);
         pose.translate(x * side, y, z);
-        orient(pose, yaw, elev, roll, side);
+        orient(pose, rest, yaw, elev, roll, side);
     }
 
     /** Turns the weapon about the grip from its resting direction onto (yaw, elev), rolled about itself by roll. */
-    private static void orient(PoseStack pose, float yaw, float elev, float roll, int side) {
-        Vector3f rest = new Vector3f(REST_DIR.x * side, REST_DIR.y, REST_DIR.z);
+    private static void orient(PoseStack pose, Rest from, float yaw, float elev, float roll, int side) {
+        Vector3f rest = new Vector3f(from.dir.x * side, from.dir.y, from.dir.z);
         double cy = Math.toRadians(yaw * side), ce = Math.toRadians(elev);
         Vector3f dir = new Vector3f((float) (-Math.sin(cy) * Math.cos(ce)), (float) Math.sin(ce), (float) (-Math.cos(cy) * Math.cos(ce))).normalize();
         Quaternionf turn = new Quaternionf().rotationTo(rest, dir);
@@ -220,21 +221,27 @@ public final class FirstPersonAttacks {
     }
 
     /**
-     * Which way the blade points in the hand at rest: model up turned by the weapons' first-person display rotation
-     * (-35, 20, 25), as {@code ItemTransform} applies it (X, then Y, then Z, about the model's own axes).
+     * Which way the weapon points in the hand at rest: model up turned by its first-person display rotation, as
+     * {@code ItemTransform} applies it (X, then Y, then Z, about the model's own axes) - (-35, 20, 25) for the melee
+     * weapons, the more upright (-12, 20, 6) for the staffs (keep in step with their item models).
      */
-    private static final Vector3f REST_DIR = new Quaternionf().rotationXYZ((float) Math.toRadians(-35), (float) Math.toRadians(20), (float) Math.toRadians(25))
-            .transform(new Vector3f(0, 1, 0)).normalize();
-    private static final float IDLE_YAW = (float) Math.toDegrees(Math.atan2(-REST_DIR.x, -REST_DIR.z));
-    private static final float IDLE_ELEV = (float) Math.toDegrees(Math.asin(REST_DIR.y));
+    private record Rest(Vector3f dir, float yaw, float elev) {
+        static Rest of(float rx, float ry, float rz) {
+            Vector3f d = new Quaternionf().rotationXYZ((float) Math.toRadians(rx), (float) Math.toRadians(ry), (float) Math.toRadians(rz))
+                    .transform(new Vector3f(0, 1, 0)).normalize();
+            return new Rest(d, (float) Math.toDegrees(Math.atan2(-d.x, -d.z)), (float) Math.toDegrees(Math.asin(d.y)));
+        }
 
-    private static float yaw(Key k) {
-        return Float.isNaN(k.yaw()) ? IDLE_YAW : k.yaw();
+        float yaw(Key k) {
+            return Float.isNaN(k.yaw()) ? yaw : k.yaw();
+        }
+
+        float elev(Key k) {
+            return Float.isNaN(k.elev()) ? elev : k.elev();
+        }
     }
 
-    private static float elev(Key k) {
-        return Float.isNaN(k.elev()) ? IDLE_ELEV : k.elev();
-    }
+    private static final Rest BLADE = Rest.of(-35, 20, 25), STAFF = Rest.of(-12, 20, 6);
 
     /** Catmull-Rom through p1 (u = 0) and p2 (u = 1). */
     private static float cr(float p0, float p1, float p2, float p3, float u) {

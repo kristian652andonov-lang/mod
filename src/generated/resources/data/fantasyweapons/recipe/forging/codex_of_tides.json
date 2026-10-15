@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3000,
+  "key": {
+    "A": {
+      "item": "minecraft:prismarine_crystals"
+    },
+    "C": {
+      "item": "minecraft:nautilus_shell"
+    },
+    "H": {
+      "item": "minecraft:leather"
+    },
+    "R": {
+      "item": "fantasyweapons:aetherite_core"
+    }
+  },
+  "pattern": [
+    "         ",
+    "   ARA   ",
+    "  RRHRR  ",
+    "  RRCRR  ",
+    "  RRHRR  ",
+    "   ARA   ",
+    "         ",
+    "         ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:codex_of_tides"
+  }
+}

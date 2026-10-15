@@ -100,6 +100,9 @@ final class DevScripts {
                 else if (name.startsWith("after:")) after(b, name.substring(6));
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
+                else if (name.equals("magehud")) mageHud(b);
+                else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
+                else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
                 else if (name.startsWith("holds:")) holds(b, java.util.Arrays.stream(name.substring(6).split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
                 else if (name.startsWith("abilities:")) {
                     for (String k : name.substring(10).split(",")) single(b.cmd("/clear @s").cmd("/kill @e[type=!player]").wait(10), k);
@@ -272,6 +275,106 @@ final class DevScripts {
     /** Every weapon held: third person from the player's right side and from the front, and first person. */
     private static void holds(ScreenshotDirector.Builder b) {
         holds(b, com.fantasyweapons.weapon.Weapons.all());
+    }
+
+    /** Buffs and curses on the player: the status icons in the HUD and their visuals, in first and third person. */
+    private static void mageHud(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode survival").cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/tp @s 0 -60 0 0 0").wait(10);
+        b.run(mc -> {
+            var server = mc.getSingleplayerServer();
+            java.util.UUID id = mc.player.getUUID();
+            server.execute(() -> {
+                var sp = server.getPlayerList().getPlayer(id);
+                if (sp == null) return;
+                com.fantasyweapons.status.StatusType[] types = {com.fantasyweapons.status.StatusType.VALOR, com.fantasyweapons.status.StatusType.SWIFT,
+                        com.fantasyweapons.status.StatusType.HALO, com.fantasyweapons.status.StatusType.BARRIER, com.fantasyweapons.status.StatusType.MENDING,
+                        com.fantasyweapons.status.StatusType.FROST_WARD, com.fantasyweapons.status.StatusType.WITHERING, com.fantasyweapons.status.StatusType.SOAKED};
+                for (var t : types) com.fantasyweapons.status.StatusService.apply(sp, t, 600, 1, 1, sp.getUUID());
+            });
+        });
+        b.wait(10).playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 10).wait(10).screenshot("magehud_fp");
+        b.cmd("/fw give lumen_psalter 20").wait(20).slot(0).wait(20).screenshot("magehud_fp_held");
+        b.hud(false).viewFrom(2.2, 0.6, 3.2).wait(10).screenshot("magehud_tp").viewFrom(-2.6, 0.4, 2.4).wait(6).screenshot("magehud_tp2");
+        b.playerView().cmd("/gamemode creative");
+    }
+
+    /** The mage spells that only heal, shield or bless: cast on a tamed wolf rather than at the dummies. */
+    private static final java.util.Set<String> SUPPORT = java.util.Set.of("glacial_ward", "shatterguard", "tidal_spring", "bubble_aegis", "healing_rain",
+            "tides_embrace", "lifebloom", "worldtrees_boon", "mending_vines", "spring_eternal", "blessing_of_valor", "hymn_of_swiftness",
+            "halo_of_fortitude", "ascension", "sanctified_ground", "maelstrom_sanctuary", "everfrost_bastion", "dawnbringer");
+
+    /**
+     * Every spell of the given mage weapons ("all" for the twelve), cast from afar: offensive ones at three dummies eleven
+     * blocks out, supportive ones on a wounded tamed wolf off to the left; then a left-click bolt.
+     */
+    private static void mages(ScreenshotDirector.Builder b, String[] weapons) {
+        java.util.List<String> ids = weapons.length == 1 && weapons[0].equals("all")
+                ? com.fantasyweapons.weapon.Weapons.focuses().stream().map(com.fantasyweapons.weapon.WeaponDefinition::id).toList()
+                : java.util.List.of(weapons);
+        for (String w : ids) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/tp @s 0 -60 0 0 0").cmd("/fw give " + w + " 100").wait(130).slot(0)
+                    .cmd("/fw points 300").hud(false);
+            for (var a : def.castables()) {
+                boolean support = SUPPORT.contains(a.id());
+                b.cmd("/kill @e[type=!player]").wait(3);
+                summonDummies(b);
+                b.run(mc -> spawnAlly(mc, -3.5, 6.5));
+                b.playerView().camera(CameraType.FIRST_PERSON).cmd("/fw cooldowns").wait(4);
+                b.look(support ? 33.7f : 0, support ? 9.6f : 6).select(a.id()).wait(6).viewAt(8, 4.5, -3, -1, 0.5, 7);
+                b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+                boolean ult = a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE;
+                String n = "mage_" + w + "_" + a.id();
+                b.wait(3).screenshot(n + "_a").wait(7).screenshot(n + "_b").wait(12).screenshot(n + "_c").wait(23).screenshot(n + "_d");
+                if (ult) b.wait(35).screenshot(n + "_e").wait(50).screenshot(n + "_f");
+                b.wait(ult ? 60 : 20);
+            }
+            b.cmd("/kill @e[type=!player]").wait(3);
+            summonDummies(b);
+            b.playerView().camera(CameraType.FIRST_PERSON).look(0, 6).wait(10).viewAt(5, 2.5, -2, 0, 1, 6);
+            b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastBolt()));
+            for (int i = 0; i < 6; i++) b.wait(2).screenshot("mage_" + w + "_bolt" + i);
+            b.wait(20);
+        }
+        b.playerView();
+    }
+
+    private static void summonDummies(ScreenshotDirector.Builder b) {
+        double[][] at = {{0.5, 11.5}, {-2, 12.5}, {3, 12.5}};
+        for (double[] p : at) {
+            b.cmd("/summon minecraft:husk " + p[0] + " -60 " + p[1] + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+        }
+    }
+
+    /** A wounded wolf tamed by the player (an ally for the healing and blessing spells). */
+    private static void spawnAlly(net.minecraft.client.Minecraft mc, double x, double z) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || mc.player == null) return;
+        java.util.UUID id = mc.player.getUUID();
+        server.execute(() -> {
+            var sp = server.getPlayerList().getPlayer(id);
+            if (sp == null) return;
+            var wolf = net.minecraft.world.entity.EntityType.WOLF.create(sp.serverLevel());
+            if (wolf == null) return;
+            wolf.moveTo(x, -60, z, 180, 0);
+            wolf.tame(sp);
+            wolf.setNoAi(true);
+            wolf.setHealth(wolf.getMaxHealth() * 0.4f);
+            sp.serverLevel().addFreshEntity(wolf);
+        });
+    }
+
+    /** First-person hold of each weapon: idle, the attack at three points, ability charge and cast. */
+    private static void fpHold(ScreenshotDirector.Builder b, String[] weapons) {
+        b.look(0, 0).playerView().camera(CameraType.FIRST_PERSON).hud(true);
+        for (String w : weapons) {
+            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).wait(8);
+            b.pin(-1, false, false, -1, -1, -1).wait(4).screenshot("fph_" + w + "_idle");
+            for (float t : new float[]{0.16f, 0.34f, 0.6f}) b.pin(t, false, false, -1, -1, -1).wait(3).screenshot("fph_" + w + "_swing" + Math.round(t * 100));
+            b.pin(-1, false, false, 0.9f, -1, -1).wait(3).screenshot("fph_" + w + "_charge");
+            b.pin(-1, false, false, -1, 0.4f, -1).wait(3).screenshot("fph_" + w + "_cast");
+            b.pin(-1, false, false, -1, -1, -1);
+        }
     }
 
     private static void holds(ScreenshotDirector.Builder b, java.util.List<com.fantasyweapons.weapon.WeaponDefinition> all) {

@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:lumen_psalter"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Bind the Lumen Psalter",
+      "translate": "advancements.fantasyweapons.weapon_lumen_psalter.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:lumen_psalter"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FFB030",
+      "fallback": "The Choir Sings",
+      "translate": "advancements.fantasyweapons.weapon_lumen_psalter.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

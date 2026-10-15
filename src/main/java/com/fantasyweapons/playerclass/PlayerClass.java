@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * The classes a player can take: how each changes them ({@link #modifiers}) and what it can do ({@link #perks}, done in
- * {@link ClassService}). The Mage is still being made and cannot be chosen yet.
+ * {@link ClassService}).
  */
 public enum PlayerClass {
     NONE("Wayfarer", 0xCFC3A6, "No calling yet", "", true, List.of(), List.of()),
@@ -38,9 +38,13 @@ public enum PlayerClass {
                     new Mod(Attributes.MOVEMENT_SPEED, -0.05, AttributeModifier.Operation.ADD_MULTIPLIED_BASE)),
             List.of("+3 hearts, +4 armor, +2 toughness", "Smite: +50% damage to the undead", "Aegis: -25% damage from the undead",
                     "Blessed: heals out of combat", "+30% knockback resistance", "-5% movement speed")),
-    MAGE("Mage", 0x6FB8FF, "In the making",
-            "Spells of fire, frost and the void are being written. The mage will come in a later update.", false,
-            List.of(), List.of("Coming in a later update"));
+    MAGE("Mage", 0x6FB8FF, "Master of the elements",
+            "Fire, frost, tide, bloom, light and the void answer to the mage. Frail up close, but no foe is beyond the reach of a spell, and no friend beyond its mending.", true,
+            List.of(new Mod(Attributes.MAX_HEALTH, -2, AttributeModifier.Operation.ADD_VALUE),
+                    new Mod(Attributes.MOVEMENT_SPEED, 0.05, AttributeModifier.Operation.ADD_MULTIPLIED_BASE),
+                    new Mod(Attributes.ARMOR, -0.1, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)),
+            List.of("Staffs and spellbooks of six elements", "+15% spell damage, healing and shields", "Arcane Ward: a 2-heart shield out of combat",
+                    "+5% movement speed", "-1 heart, -10% armor"));
 
     /** A change to one of the player's attributes. */
     public record Mod(Holder<Attribute> attribute, double amount, AttributeModifier.Operation operation) {
@@ -78,7 +82,7 @@ public enum PlayerClass {
         return lore;
     }
 
-    /** Whether it can be chosen (the Mage is not ready yet). */
+    /** Whether it can be chosen. */
     public boolean available() {
         return available;
     }

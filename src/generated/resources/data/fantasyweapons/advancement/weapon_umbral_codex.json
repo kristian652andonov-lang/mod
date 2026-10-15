@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:umbral_codex"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Bind the Umbral Codex",
+      "translate": "advancements.fantasyweapons.weapon_umbral_codex.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:umbral_codex"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#B04DFF",
+      "fallback": "Small Deaths",
+      "translate": "advancements.fantasyweapons.weapon_umbral_codex.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

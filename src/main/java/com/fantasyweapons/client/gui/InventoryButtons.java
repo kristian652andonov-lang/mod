@@ -128,7 +128,7 @@ public final class InventoryButtons {
         @Override
         String spriteName() {
             PlayerClass c = ClassService.of(Minecraft.getInstance().player);
-            return "class_" + (c == PlayerClass.ASSASSIN || c == PlayerClass.BERSERKER || c == PlayerClass.PALADIN ? c.id() : "none");
+            return "class_" + (c == PlayerClass.NONE ? "none" : c.id());
         }
 
         @Override

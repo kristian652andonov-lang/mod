@@ -197,6 +197,8 @@ public final class StatusVisuals {
                     ctx.billboard(vc, p, 0.28f, 0, Colors.alpha(fade, 0xC99BFF));
                 }
             }
+            // the mage's statuses
+            default -> com.fantasyweapons.client.fx.mage.MageStatusVisuals.draw(ctx, e, inst, box, feet, t, seed, fade, self);
         }
     }
 }

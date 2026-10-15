@@ -58,6 +58,8 @@ public final class WeaponHud {
         ItemStack held = ClientState.heldWeapon(mc.player);
         if (!held.isEmpty()) shownStack = held;
         alpha += ((held.isEmpty() ? 0f : 1f) - alpha) * Math.min(1, dt * 9);
+        // without the panel, buffs and curses still show on their own in its corner (a mage's teammate may hold anything)
+        if (alpha < 0.98f) renderLooseStatuses(g, 1 - alpha);
         if (alpha < 0.02f || shownStack.isEmpty()) {
             if (held.isEmpty()) shownLevel = -1;
             return;
@@ -290,11 +292,34 @@ public final class WeaponHud {
     }
 
     private static void renderStatuses(GuiGraphics g, float a) {
+        renderStatuses(g, a, W - 14, -16);
+    }
+
+    /** The status row alone, where the panel would sit (its anchor, scale and offsets), when no weapon is held. */
+    private static void renderLooseStatuses(GuiGraphics g, float a) {
         var player = Minecraft.getInstance().player;
         if (player == null) return;
         StatusEffects effects = player.getExistingDataOrNull(ModAttachments.STATUS);
         if (effects == null || effects.isEmpty()) return;
-        float x = W - 14, y = -16;
+        float scale = (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0) * UiScale.hud();
+        int sw = g.guiWidth(), sh = g.guiHeight();
+        ClientConfig.HudAnchor anchor = ClientConfig.SPEC.isLoaded() ? ClientConfig.HUD_ANCHOR.get() : ClientConfig.HudAnchor.BOTTOM_RIGHT;
+        boolean right = anchor == ClientConfig.HudAnchor.BOTTOM_RIGHT || anchor == ClientConfig.HudAnchor.TOP_RIGHT;
+        boolean bottom = anchor == ClientConfig.HudAnchor.BOTTOM_RIGHT || anchor == ClientConfig.HudAnchor.BOTTOM_LEFT;
+        float x0 = (right ? sw - W * scale - 8 : 8) + ClientConfig.get(ClientConfig.HUD_OFFSET_X, 0);
+        float y0 = (bottom ? sh - 16 * scale - 8 : 22) + ClientConfig.get(ClientConfig.HUD_OFFSET_Y, 0);
+        g.pose().pushPose();
+        g.pose().translate(x0, y0, 0);
+        g.pose().scale(scale, scale, 1);
+        renderStatuses(g, a, W - 14, 0);
+        g.pose().popPose();
+    }
+
+    private static void renderStatuses(GuiGraphics g, float a, float x, float y) {
+        var player = Minecraft.getInstance().player;
+        if (player == null) return;
+        StatusEffects effects = player.getExistingDataOrNull(ModAttachments.STATUS);
+        if (effects == null || effects.isEmpty()) return;
         for (StatusEffects.Instance inst : effects.all()) {
             int col = inst.type.color();
             UiDraw.glow(g, x + 6, y + 6, 22, Colors.alpha(a * 0.35f, col));

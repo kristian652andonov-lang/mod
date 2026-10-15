@@ -2,7 +2,6 @@ package com.fantasyweapons.client.vfx;
 
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.config.ClientConfig;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import net.minecraft.Util;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -19,8 +18,7 @@ import java.util.List;
 public final class VfxManager {
     private static final List<Vfx> ACTIVE = new ArrayList<>();
     private static final List<Vfx> PENDING = new ArrayList<>();
-    private static final ByteBufferBuilder BUFFER = new ByteBufferBuilder(1 << 20);
-    private static final MultiBufferSource.BufferSource SOURCE = MultiBufferSource.immediate(BUFFER);
+    private static final MultiBufferSource.BufferSource SOURCE = new VfxBufferSource();
     private static boolean ticking;
 
     private VfxManager() {

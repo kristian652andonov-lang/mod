@@ -157,4 +157,68 @@ public final class FxIds {
     public static final ResourceLocation SET_PRECISION_BOLT_END = FantasyWeapons.id("armor/precision_bolt_end");
     public static final ResourceLocation SET_SHOCKWAVE = FantasyWeapons.id("armor/shockwave");
     public static final ResourceLocation SET_HELLFIRE_TRAIL = FantasyWeapons.id("armor/hellfire_trail");
+
+    // ---- the mage's weapons (client side: MageFx) ----
+    /** A green number over a healed ally. power = health restored. */
+    public static final ResourceLocation HEAL_NUMBER = FantasyWeapons.id("heal_number");
+    /** A staff or spellbook's bolt: pos start, dir velocity, power range, level element, scale 1 staff / 0 book, seed. */
+    public static final ResourceLocation MAGE_BOLT = FantasyWeapons.id("mage/bolt");
+    public static final ResourceLocation MAGE_BOLT_HIT = FantasyWeapons.id("mage/bolt_hit");
+    /** A blessing or ward carried from the caster's focus to an ally (pos focus, point target, level = which spell). */
+    public static final ResourceLocation MAGE_BLESS = FantasyWeapons.id("mage/bless");
+    public static final ResourceLocation MAGE_WARD_SHATTER = FantasyWeapons.id("mage/ward_shatter");
+    public static final ResourceLocation MAGE_BUBBLE_POP = FantasyWeapons.id("mage/bubble_pop");
+    public static final ResourceLocation MAGE_SHARD_BLOCK = FantasyWeapons.id("mage/shard_block");
+    public static final ResourceLocation MAGE_ASCENSION_RAY = FantasyWeapons.id("mage/ascension_ray");
+    public static final ResourceLocation MAGE_SPRING_SAVE = FantasyWeapons.id("mage/spring_save");
+    public static final ResourceLocation MAGE_BANE_BLOOM = FantasyWeapons.id("mage/bane_bloom");
+    public static final ResourceLocation MAGE_PLAGUE_SPREAD = FantasyWeapons.id("mage/plague_spread");
+    // fire: Cinderspire, Pyre Codex
+    public static final ResourceLocation CINDER_BRAND = FantasyWeapons.id("cinderspire/brand");
+    public static final ResourceLocation CINDER_METEOR = FantasyWeapons.id("cinderspire/meteor");
+    public static final ResourceLocation CINDER_COMBUST = FantasyWeapons.id("cinderspire/combust");
+    public static final ResourceLocation CINDER_GEYSER = FantasyWeapons.id("cinderspire/geyser");
+    public static final ResourceLocation CINDER_VOLCANO = FantasyWeapons.id("cinderspire/volcano");
+    public static final ResourceLocation CINDER_BOMB = FantasyWeapons.id("cinderspire/bomb");
+    public static final ResourceLocation CINDER_ERUPTION = FantasyWeapons.id("cinderspire/eruption");
+    public static final ResourceLocation PYRE_CHAIN = FantasyWeapons.id("pyre_codex/chain");
+    public static final ResourceLocation PYRE_WILDFIRE = FantasyWeapons.id("pyre_codex/wildfire");
+    public static final ResourceLocation PYRE_WALL = FantasyWeapons.id("pyre_codex/wall");
+    public static final ResourceLocation PYRE_PHOENIX = FantasyWeapons.id("pyre_codex/phoenix");
+    public static final ResourceLocation PYRE_PHOENIX_CRASH = FantasyWeapons.id("pyre_codex/phoenix_crash");
+    // ice: Rimeheart, Frostbound Grimoire
+    public static final ResourceLocation RIME_RAMPART = FantasyWeapons.id("rimeheart/rampart");
+    public static final ResourceLocation RIME_BASTION = FantasyWeapons.id("rimeheart/bastion");
+    public static final ResourceLocation FROST_TOMB = FantasyWeapons.id("frostbound_grimoire/tomb");
+    public static final ResourceLocation FROST_TOMB_SHATTER = FantasyWeapons.id("frostbound_grimoire/tomb_shatter");
+    public static final ResourceLocation FROST_WINTER = FantasyWeapons.id("frostbound_grimoire/winter");
+    public static final ResourceLocation FROST_WINTER_FREEZE = FantasyWeapons.id("frostbound_grimoire/winter_freeze");
+    // water: Tidecaller, Codex of Tides
+    public static final ResourceLocation TIDE_SPRING = FantasyWeapons.id("tidecaller/spring");
+    public static final ResourceLocation TIDE_RIPTIDE = FantasyWeapons.id("tidecaller/riptide");
+    public static final ResourceLocation TIDE_MAELSTROM = FantasyWeapons.id("tidecaller/maelstrom");
+    public static final ResourceLocation TIDES_RAIN = FantasyWeapons.id("codex_of_tides/rain");
+    public static final ResourceLocation TIDES_EMBRACE = FantasyWeapons.id("codex_of_tides/embrace");
+    public static final ResourceLocation TIDES_BREAK = FantasyWeapons.id("codex_of_tides/break");
+    // nature: Thornwake, Verdant Almanac
+    public static final ResourceLocation THORN_LIFEBLOOM = FantasyWeapons.id("thornwake/lifebloom");
+    public static final ResourceLocation THORN_PULSE = FantasyWeapons.id("thornwake/pulse");
+    public static final ResourceLocation THORN_GROVE = FantasyWeapons.id("thornwake/grove");
+    public static final ResourceLocation THORN_WORLDTREE = FantasyWeapons.id("thornwake/worldtree");
+    public static final ResourceLocation VERDANT_VINES = FantasyWeapons.id("verdant_almanac/vines");
+    public static final ResourceLocation VERDANT_POLLEN = FantasyWeapons.id("verdant_almanac/pollen");
+    public static final ResourceLocation VERDANT_SPRING = FantasyWeapons.id("verdant_almanac/spring");
+    // light: Sunwarden, Lumen Psalter
+    public static final ResourceLocation SUN_SANCTIFY = FantasyWeapons.id("sunwarden/sanctify");
+    public static final ResourceLocation SUN_DAWN = FantasyWeapons.id("sunwarden/dawn");
+    public static final ResourceLocation LUMEN_HYMN = FantasyWeapons.id("lumen_psalter/hymn");
+    public static final ResourceLocation LUMEN_ASCENSION = FantasyWeapons.id("lumen_psalter/ascension");
+    // void: Gloamreach, Umbral Codex
+    public static final ResourceLocation GLOAM_WITHER = FantasyWeapons.id("gloamreach/wither");
+    public static final ResourceLocation GLOAM_MIASMA = FantasyWeapons.id("gloamreach/miasma");
+    public static final ResourceLocation GLOAM_DIRGE = FantasyWeapons.id("gloamreach/dirge");
+    public static final ResourceLocation UMBRAL_HEX = FantasyWeapons.id("umbral_codex/hex");
+    public static final ResourceLocation UMBRAL_SEED = FantasyWeapons.id("umbral_codex/seed");
+    public static final ResourceLocation UMBRAL_CONTAGION = FantasyWeapons.id("umbral_codex/contagion");
+    public static final ResourceLocation UMBRAL_PLAGUE = FantasyWeapons.id("umbral_codex/plague");
 }

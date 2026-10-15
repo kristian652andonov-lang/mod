@@ -40,6 +40,16 @@ public final class InputHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || !(mc.player.getMainHandItem().getItem() instanceof FantasyWeaponItem)) return;
         boolean ready = mc.player.getAttackStrengthScale(0f) >= 0.97f;
+        // a staff or spellbook never strikes or digs: every click looses a bolt at the crosshair once it has recovered
+        if (com.fantasyweapons.magic.MageBolts.isFocus(mc.player.getMainHandItem())) {
+            event.setCanceled(true);
+            event.setSwingHand(ready);
+            if (ready) {
+                PacketDistributor.sendToServer(new C2SPayloads.CastBolt());
+                mc.player.resetAttackStrengthTicker();
+            }
+            return;
+        }
         if (mc.hitResult != null && mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
             // a block can still be broken by holding attack, but the weapon only swings at its own pace: a fresh click
             // waits for the cooldown like any other attack, and every swing restarts it

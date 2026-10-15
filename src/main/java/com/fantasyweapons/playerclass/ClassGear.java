@@ -39,6 +39,8 @@ public final class ClassGear {
     }
 
     public static PlayerClass ofWeapon(String weaponId) {
+        var def = com.fantasyweapons.weapon.Weapons.get(weaponId);
+        if (def != null && def.weaponClass().magic()) return PlayerClass.MAGE;
         ArmorSet set = ArmorSet.ofWeapon(weaponId);
         return set == null ? PlayerClass.NONE : of(set.armorClass());
     }

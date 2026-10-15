@@ -49,6 +49,7 @@ public final class ModEvents {
         bus.addListener(com.fantasyweapons.playerclass.ClassService::onRespawn);
         bus.addListener(com.fantasyweapons.guide.CodexGift::onLogin);
         bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
+        com.fantasyweapons.magic.MagicEvents.register(bus);
     }
 
     /**
@@ -70,6 +71,7 @@ public final class ModEvents {
         com.fantasyweapons.armor.SetAbilities.onDeath(event);
         com.fantasyweapons.quest.QuestService.onDeath(event);
         com.fantasyweapons.playerclass.ClassService.onDeath(event);
+        com.fantasyweapons.magic.MagicEvents.onDeath(event);
     }
 
     private static void onPlayerTick(PlayerTickEvent.Post event) {
@@ -85,6 +87,7 @@ public final class ModEvents {
             }
             com.fantasyweapons.quest.QuestService.tick(player);
             com.fantasyweapons.playerclass.ClassService.tick(player);
+            com.fantasyweapons.magic.MagicEvents.tick(player);
         }
     }
 
@@ -125,6 +128,8 @@ public final class ModEvents {
         float armor = com.fantasyweapons.armor.ArmorEffects.incoming(event.getEntity(), event.getSource());
         if (armor != 1f) event.setAmount(event.getAmount() * armor);
         if (!event.getEntity().level().isClientSide) com.fantasyweapons.playerclass.ClassService.onIncomingDamage(event);
+        // shatterguard, wards, rime and decay on the target; valor, radiance, dawn and the choir on the attacker
+        if (!event.isCanceled()) com.fantasyweapons.magic.MagicStatus.incoming(event);
     }
 
     private static void onFall(net.neoforged.neoforge.event.entity.living.LivingFallEvent event) {

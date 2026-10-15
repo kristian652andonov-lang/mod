@@ -29,6 +29,9 @@ public final class StatusService {
     private static final ResourceLocation BERSERK_SPEED_ID = FantasyWeapons.id("status_berserk_speed");
     private static final ResourceLocation BERSERK_KB_ID = FantasyWeapons.id("status_berserk_kb");
     private static final ResourceLocation OVERHEAT_SPEED_ID = FantasyWeapons.id("status_overheat_speed");
+    private static final ResourceLocation SWIFT_SPEED_ID = FantasyWeapons.id("status_swift_speed");
+    private static final ResourceLocation HALO_KB_ID = FantasyWeapons.id("status_halo_kb");
+    private static final ResourceLocation BARRIER_ID = FantasyWeapons.id("status_barrier");
 
     private StatusService() {
     }
@@ -58,6 +61,15 @@ public final class StatusService {
     public static void remove(LivingEntity target, StatusType type) {
         StatusEffects effects = target.getExistingDataOrNull(ModAttachments.STATUS);
         if (effects != null && effects.remove(type) != null) onChanged(target, effects);
+    }
+
+    /** Takes one stack off a status (a shatterguard shard spent), removing it at none. */
+    public static void consume(LivingEntity target, StatusType type) {
+        StatusEffects effects = target.getExistingDataOrNull(ModAttachments.STATUS);
+        StatusEffects.Instance inst = effects == null ? null : effects.get(type);
+        if (inst == null) return;
+        if (--inst.stacks <= 0) effects.remove(type);
+        onChanged(target, effects);
     }
 
     public static int stacks(LivingEntity target, StatusType type) {
@@ -109,16 +121,21 @@ public final class StatusService {
         if (effects == null || effects.isEmpty()) return;
         boolean changed = false;
         boolean pulse = entity.tickCount % 10 == 0;
+        java.util.List<StatusEffects.Instance> ended = null;
         Iterator<StatusEffects.Instance> it = effects.all().iterator();
         while (it.hasNext()) {
             StatusEffects.Instance inst = it.next();
             if (--inst.duration <= 0) {
                 it.remove();
                 changed = true;
+                if (inst.type.ordinal() >= StatusType.KINDLED.ordinal()) {
+                    if (ended == null) ended = new java.util.ArrayList<>();
+                    ended.add(inst);
+                }
                 continue;
             }
             switch (inst.type) {
-                case SOLAR_BURN, NATURE_POISON, SOUL_DRAIN, ECLIPSE_DARKNESS, SEARED -> {
+                case SOLAR_BURN, NATURE_POISON, SOUL_DRAIN, ECLIPSE_DARKNESS, SEARED, WITHERING, ROT, RUIN, LEECH, BANE, PLAGUE -> {
                     if (pulse) dot(entity, inst);
                 }
                 case FROZEN, ROOTED -> entity.setDeltaMovement(0, Math.min(0, entity.getDeltaMovement().y), 0);
@@ -135,8 +152,15 @@ public final class StatusService {
                 }
             }
         }
+        // the mage's statuses (healing over time, spreading plague, bursting bubbles...); a copy, as they may add statuses
+        if (!effects.isEmpty()) {
+            for (StatusEffects.Instance inst : new java.util.ArrayList<>(effects.all())) {
+                if (inst.type.ordinal() >= StatusType.KINDLED.ordinal() && inst.duration > 0) com.fantasyweapons.magic.MagicStatus.tick(entity, inst);
+            }
+        }
         if (changed) onChanged(entity, effects);
         else updateAttributes(entity, effects);
+        if (ended != null) for (StatusEffects.Instance inst : ended) com.fantasyweapons.magic.MagicStatus.expired(entity, inst);
     }
 
     private static void dot(LivingEntity entity, StatusEffects.Instance inst) {
@@ -144,11 +168,15 @@ public final class StatusService {
         ServerPlayer source = level.getServer().getPlayerList().getPlayer(inst.source);
         if (source == null) return;
         float amount = inst.potency * inst.stacks;
+        // the Withering curse grows with every pulse, up to three times what it began at
+        if (inst.type == StatusType.WITHERING && inst.extra > 0) inst.potency = Math.min(inst.extra * 3, inst.potency * 1.12f);
         float dealt = FWDamage.deal(source, ItemStack.EMPTY, entity, amount, FWDamage.Kind.DOT, null, FWDamage.FLAG_DOT);
         // keep the weapon's kill credit alive while its damage-over-time ticks
         com.fantasyweapons.combat.HitTracker tracker = entity.getExistingDataOrNull(ModAttachments.HIT_TRACKER);
         if (dealt > 0 && tracker != null && source.getUUID().equals(tracker.player)) tracker.gameTime = level.getServer().overworld().getGameTime();
         if (inst.type == StatusType.SOUL_DRAIN) FWDamage.lifesteal(source, dealt, 0.5f);
+        // the Leeching Hex pours what it drains into its caster (healing measured against their own health)
+        if (inst.type == StatusType.LEECH && dealt > 0) source.heal(Math.min(dealt * 0.6f, source.getMaxHealth() * 0.04f));
     }
 
     private static void onChanged(LivingEntity entity, StatusEffects effects) {
@@ -166,6 +194,7 @@ public final class StatusService {
             StatusEffects.Instance poison = effects.get(StatusType.NATURE_POISON);
             if (poison != null) slow = Math.max(slow, 0.25);
             if (effects.has(StatusType.STAGGERED)) slow = Math.max(slow, 0.5);
+            slow = Math.max(slow, com.fantasyweapons.magic.MagicStatus.slow(effects));
         }
         setModifier(entity, Attributes.MOVEMENT_SPEED, SLOW_ID, slow > 0 ? -Math.min(1.0, slow) : 0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
 
@@ -175,6 +204,14 @@ public final class StatusService {
 
         StatusEffects.Instance heat = effects.get(StatusType.INFERNO_OVERHEAT);
         setModifier(entity, Attributes.ATTACK_SPEED, OVERHEAT_SPEED_ID, heat != null ? 0.05 * heat.stacks : 0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+
+        StatusEffects.Instance swift = effects.get(StatusType.SWIFT);
+        setModifier(entity, Attributes.ATTACK_SPEED, SWIFT_SPEED_ID, swift != null ? swift.potency : 0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+        setModifier(entity, Attributes.KNOCKBACK_RESISTANCE, HALO_KB_ID, effects.has(StatusType.HALO) ? 1.0 : 0, AttributeModifier.Operation.ADD_VALUE);
+        // a barrier raises how much absorption its bearer can hold; when it goes, whatever is left of it goes too
+        StatusEffects.Instance barrier = effects.get(StatusType.BARRIER);
+        setModifier(entity, Attributes.MAX_ABSORPTION, BARRIER_ID, barrier != null ? barrier.potency : 0, AttributeModifier.Operation.ADD_VALUE);
+        if (entity.getAbsorptionAmount() > entity.getMaxAbsorption()) entity.setAbsorptionAmount(entity.getMaxAbsorption());
     }
 
     private static void setModifier(LivingEntity entity, Holder<Attribute> attribute, ResourceLocation id, double amount, AttributeModifier.Operation op) {

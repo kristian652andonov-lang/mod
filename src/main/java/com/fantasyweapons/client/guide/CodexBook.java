@@ -185,7 +185,7 @@ public final class CodexBook {
         if (mc.player != null) c.centered("carried by " + mc.player.getGameProfile().getName(), c.y, PageCanvas.FADED, 0.42f);
         c.y += 4;
         // the thirteen weapons in a ring
-        List<WeaponDefinition> all = new ArrayList<>(Weapons.all());
+        List<WeaponDefinition> all = new ArrayList<>(Weapons.blades());
         float cx = PageCanvas.W / 2, cy = c.y + 25, r = 22, size = 11;
         for (int i = 0; i < all.size(); i++) {
             double a = -Math.PI / 2 + i * 2 * Math.PI / all.size();
@@ -203,7 +203,7 @@ public final class CodexBook {
         c.gap(2);
         String[][] entries = {{"The Path of Legends", "path"}, {"Legendary Ores", "ores"}, {"The Arcane Refinery", "refinery"},
                 {"The Crafting Table", "table"}, {"The Thirteen Weapons", "weapons"}, {"Armor of Legend", "armor"},
-                {"Mastery", "mastery"}, {"Deeds", "deeds"}};
+                {"The Mage's Arts", "mage"}, {"Mastery", "mastery"}, {"Deeds", "deeds"}};
         for (String[] e : entries) {
             int page = anchors.getOrDefault(e[1], 0) + 1;
             float s = 0.68f;
@@ -423,7 +423,7 @@ public final class CodexBook {
     // ---- weapons and armor ----
 
     private void weapons() {
-        List<WeaponDefinition> all = new ArrayList<>(Weapons.all());
+        List<WeaponDefinition> all = new ArrayList<>(Weapons.blades());
         chapter("The Thirteen Weapons", "weapons");
         for (int half = 0; half < 2; half++) {
             List<WeaponDefinition> on = half == 0 ? all.subList(0, 7) : all.subList(7, all.size());
@@ -473,6 +473,60 @@ public final class CodexBook {
             }
         });
         for (WeaponDefinition def : all) weapon(def, ArmorSet.ofWeapon(def.id()));
+        mage();
+    }
+
+    /** The mage's chapter: what the six elements are for, and the twelve staffs and spellbooks. */
+    private void mage() {
+        List<WeaponDefinition> focuses = new ArrayList<>(Weapons.focuses());
+        chapter("The Mage's Arts", "mage");
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("The Mage's Arts");
+            c.para("A mage fights from afar with a staff or a spellbook. Each click looses a bolt at the crosshair: a staff's "
+                    + "is swift and strong, a spellbook's lighter but it curves after its target. Every spell is laid at a distance: "
+                    + "on the ground you point at, or on the friend or foe in your sights.", PageCanvas.INK, 0.5f);
+            c.gap(2);
+            String[][] roles = {{"Fire", "destruction"}, {"Ice", "defense: wards and walls"}, {"Water", "healing and shields"},
+                    {"Nature", "healing that grows"}, {"Light", "blessings that make allies stronger"}, {"Void", "curses that slowly kill"}};
+            for (String[] r : roles) {
+                c.text(r[0], PageCanvas.MARGIN, c.y, PageCanvas.RED, 0.55f);
+                c.text(r[1], PageCanvas.MARGIN + 26, c.y + 0.3f, PageCanvas.INK, 0.5f);
+                c.y += 7;
+            }
+            c.gap(2);
+            c.para("Only a Mage can wield them; healing and blessing others is how a healer's weapon grows.", PageCanvas.FADED, 0.48f);
+        });
+        for (int half = 0; half < 2; half++) {
+            List<WeaponDefinition> on = half == 0 ? focuses.subList(0, Math.min(6, focuses.size())) : focuses.subList(Math.min(6, focuses.size()), focuses.size());
+            boolean first = half == 0;
+            page(c -> {
+                c.y = PageCanvas.TOP;
+                c.heading(first ? "Staffs and Spellbooks" : "Staffs and Spellbooks (cont.)");
+                for (WeaponDefinition def : on) {
+                    float y = c.y;
+                    c.item(weapon(def), PageCanvas.MARGIN, y, 12);
+                    c.link(def.displayName(), PageCanvas.MARGIN + 15, y + 0.5f, 0.62f, go("weapon_" + def.id()));
+                    c.text(def.weaponClass().displayName() + " · " + def.element().displayName(), PageCanvas.MARGIN + 15, y + 7.5f,
+                            PageCanvas.FADED, 0.45f);
+                    c.y += 17f;
+                }
+            });
+        }
+        for (WeaponDefinition def : focuses) weapon(def, null);
+    }
+
+    /** What a focus's bolt leaves on the foes it strikes. */
+    private static String boltMark(WeaponDefinition def) {
+        return switch (def.element()) {
+            case FIRE -> "It sears what it strikes, burning on.";
+            case ICE -> "It frostbites what it strikes, slowing it.";
+            case WATER -> "It soaks what it strikes, slowing it.";
+            case NATURE -> "It poisons what it strikes.";
+            case LIGHT -> "It lights up what it strikes for all to see, and burns the undead.";
+            case VOID -> "It lays a layer of rot on what it strikes.";
+            default -> "";
+        };
     }
 
     private void weapon(WeaponDefinition def, @Nullable ArmorSet set) {
@@ -491,7 +545,8 @@ public final class CodexBook {
             String kind = def.weaponClass().displayName() + " · " + def.element().displayName();
             c.centered(kind, c.y, PageCanvas.RED, 0.6f);
             c.y += 7;
-            String stats = String.format(Locale.ROOT, "%.0f damage · %.1f swings a second", def.baseDamage(), def.weaponClass().attackSpeed());
+            String stats = String.format(Locale.ROOT, def.weaponClass().magic() ? "%.0f damage · %.1f bolts a second" : "%.0f damage · %.1f swings a second",
+                    def.baseDamage(), def.weaponClass().attackSpeed());
             c.centered(stats, c.y, PageCanvas.FADED, 0.5f);
             c.y += 8;
             lore(c, def.lore(), 0.46f);
@@ -538,7 +593,23 @@ public final class CodexBook {
         if (set != null) anchors.put("armor_" + set.name(), pages.size());
         page(c -> {
             c.y = PageCanvas.TOP;
-            if (set == null) return;
+            if (set == null) {
+                if (!def.weaponClass().magic()) return;
+                // a staff or spellbook has no armor: its page tells of its bolt instead
+                boolean staff = def.weaponClass() == com.fantasyweapons.weapon.WeaponClass.STAFF;
+                c.heading("Its Bolt");
+                c.para((staff ? "A click looses a swift bolt of " : "A click looses a seeking bolt of ") + def.element().displayName().toLowerCase(Locale.ROOT)
+                        + " at the crosshair. " + boltMark(def), PageCanvas.INK, 0.52f);
+                c.gap(2);
+                var core = Material.ofWeapon(def.id());
+                if (core != null) {
+                    c.text("Forged and infused with " + core.refinedName() + "s", PageCanvas.MARGIN, c.y, PageCanvas.FADED, 0.48f);
+                    c.y += 6;
+                    c.item(new ItemStack(ModItems.REFINED.get(core).get()), PageCanvas.MARGIN, c.y, 14);
+                    c.y += 16;
+                }
+                return;
+            }
             c.heading(set.displayName() + " Armor");
             float x = (PageCanvas.W - 4 * 22) / 2;
             for (ArmorItem.Type type : ArmorSet.PIECES) {
@@ -648,7 +719,7 @@ public final class CodexBook {
         for (Material m : Material.values()) ORDER.add("ore_" + m.rawId());
         ORDER.addAll(List.of("every_ore", "arcane_refinery", "first_core", "every_core", "legendary_table", "first_forging", "legend_reborn"));
         for (WeaponDefinition def : Weapons.all()) ORDER.add("weapon_" + def.id());
-        ORDER.addAll(List.of("the_thirteen", "first_blood", "centurion", "thousand_souls", "giant_slayer", "level_10", "level_30", "level_50",
+        ORDER.addAll(List.of("the_thirteen", "archmage", "first_blood", "centurion", "thousand_souls", "giant_slayer", "level_10", "level_30", "level_50",
                 "level_100", "first_ability", "ultimate", "infused", "legendary_armor", "full_set", "every_set"));
     }
 
@@ -657,7 +728,7 @@ public final class CodexBook {
         if (id.equals("glimmer") || id.startsWith("ore_") || id.equals("every_ore")) return 1;
         if (id.equals("arcane_refinery") || id.endsWith("_core")) return 2;
         if (id.equals("legendary_table") || id.equals("first_forging")) return 3;
-        if (id.equals("legend_reborn") || id.startsWith("weapon_") || id.equals("the_thirteen")) return 4;
+        if (id.equals("legend_reborn") || id.startsWith("weapon_") || id.equals("the_thirteen") || id.equals("archmage")) return 4;
         if (id.equals("legendary_armor") || id.endsWith("_set")) return 6;
         return ORDER.contains(id) ? 5 : 7;
     }
