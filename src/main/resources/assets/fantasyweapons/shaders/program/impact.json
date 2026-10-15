@@ -89,30 +89,6 @@
       ]
     },
     {
-      "name": "TintR",
-      "type": "float",
-      "count": 1,
-      "values": [
-        1.0
-      ]
-    },
-    {
-      "name": "TintG",
-      "type": "float",
-      "count": 1,
-      "values": [
-        1.0
-      ]
-    },
-    {
-      "name": "TintB",
-      "type": "float",
-      "count": 1,
-      "values": [
-        1.0
-      ]
-    },
-    {
       "name": "CenterX",
       "type": "float",
       "count": 1,

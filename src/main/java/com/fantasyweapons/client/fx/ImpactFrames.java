@@ -13,11 +13,11 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Impact frames, as anime draws a blow landing: for a few frames the picture freezes and is redrawn as a stark still -
- * a negative, black ink on white paper, light on black in the weapon's colour - with speed lines bursting from where
- * the blow lands, the view punched in; then it snaps back through a split of colour while the camera springs out.
- * An ultimate gets the long sequence - seven stills over about a second, pushing slowly in, each landing with a jolt
- * and fresh speed lines that flicker as it holds, then a slow snap back; any other ability a quick two-frame flash.
+ * Impact frames, as anime draws a blow landing: for a few frames the picture freezes and is redrawn as a stark
+ * black-and-white still - a negative, black ink on white paper, white light on black - with speed lines bursting from
+ * where the blow lands, the view punched in; then it snaps back, the colour flooding back in, as the camera springs out.
+ * An ultimate gets the long sequence - five stills in half a second, pushing in, each landing with a jolt and fresh,
+ * flickering speed lines, the last held longest, then the snap back; any other ability a quick two-frame flash.
  * <p>
  * Drawn by the post chain {@code shaders/post/impact.json} over the finished frame (world and hand) just before the HUD.
  */
@@ -28,14 +28,14 @@ public final class ImpactFrames {
     private record Still(int ms, int mode) {
     }
 
-    /** About 1.6 seconds in all: the stills come quick, then hold longer and longer, the last held longest. */
-    private static final Still[] ULTIMATE = {new Still(110, NEGATIVE), new Still(120, INK), new Still(110, LIGHT), new Still(140, INK),
-            new Still(120, NEGATIVE), new Still(160, LIGHT), new Still(260, INK)};
+    /** About three quarters of a second in all: each still on screen long enough to read, the last held longest. */
+    private static final Still[] ULTIMATE = {new Still(85, NEGATIVE), new Still(85, INK), new Still(85, LIGHT), new Still(95, NEGATIVE),
+            new Still(150, INK)};
     private static final Still[] ACTIVE = {new Still(55, INK), new Still(50, NEGATIVE)};
-    private static final int ULTIMATE_SNAP = 560, ACTIVE_SNAP = 180;
+    private static final int ULTIMATE_SNAP = 260, ACTIVE_SNAP = 180;
     /** How far an ultimate's stills push in over the sequence, and how often their speed lines flicker (ms). */
-    private static final float ULTIMATE_ZOOM = 0.09f;
-    private static final int FLICKER_MS = 85;
+    private static final float ULTIMATE_ZOOM = 0.07f;
+    private static final int FLICKER_MS = 70;
 
     @Nullable
     private static PostChain chain;
@@ -45,7 +45,7 @@ public final class ImpactFrames {
     private static Still[] stills;
     private static int snapMs;
     private static long start = -1;
-    private static float strength, tintR, tintG, tintB, centerX, centerY, seed, punch;
+    private static float strength, centerX, centerY, seed, punch;
     /** The first frame of a sequence captures the picture the stills are drawn from. */
     private static boolean capture;
 
@@ -62,12 +62,11 @@ public final class ImpactFrames {
     /**
      * Plays impact frames.
      *
-     * @param tint     the weapon's colour (RGB)
      * @param ultimate the full sequence, or a quick flash
      * @param strength 0..1, how strongly the stills replace the picture
      * @param at       where the blow lands (its speed lines burst from there), or null for the middle of the view
      */
-    public static void play(int tint, boolean ultimate, float strength, @Nullable Vec3 at) {
+    public static void play(boolean ultimate, float strength, @Nullable Vec3 at) {
         if (!ClientConfig.get(ClientConfig.IMPACT_FRAMES, true)) return;
         if (!ultimate && !ClientConfig.get(ClientConfig.IMPACT_FRAMES_ALL, true)) return;
         // a quick flash never cuts short an ultimate's sequence still playing
@@ -77,9 +76,6 @@ public final class ImpactFrames {
         start = Util.getMillis();
         capture = true;
         ImpactFrames.strength = Math.max(0, Math.min(1, strength));
-        tintR = ((tint >> 16) & 255) / 255f;
-        tintG = ((tint >> 8) & 255) / 255f;
-        tintB = (tint & 255) / 255f;
         float[] c = at == null ? new float[]{0.5f, 0.5f} : screen(at);
         centerX = c[0];
         centerY = c[1];
@@ -89,6 +85,11 @@ public final class ImpactFrames {
 
     private static boolean active() {
         return start >= 0 && Util.getMillis() - start < frozenMs() + snapMs;
+    }
+
+    /** Whether a still is on screen right now (screen tints stay off then, so the still is black and white). */
+    public static boolean holding() {
+        return start >= 0 && stills != null && !broken && elapsed() < frozenMs();
     }
 
     private static int frozenMs() {
@@ -141,9 +142,6 @@ public final class ImpactFrames {
         post.setUniform("Strength", mode == 0 ? strength * fade : strength);
         post.setUniform("Fade", fade);
         post.setUniform("Lines", 1f);
-        post.setUniform("TintR", tintR);
-        post.setUniform("TintG", tintG);
-        post.setUniform("TintB", tintB);
         post.setUniform("CenterX", centerX);
         post.setUniform("CenterY", 1 - centerY);
         post.setUniform("Seed", lines);

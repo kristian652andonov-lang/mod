@@ -40,7 +40,7 @@ public final class ScreenFx {
     }
 
     public static void render(GuiGraphics g, DeltaTracker delta) {
-        if (OVERLAYS.isEmpty()) return;
+        if (OVERLAYS.isEmpty() || ImpactFrames.holding()) return;
         Minecraft mc = Minecraft.getInstance();
         float partial = delta.getGameTimeDeltaPartialTick(false);
         int w = g.guiWidth(), h = g.guiHeight();

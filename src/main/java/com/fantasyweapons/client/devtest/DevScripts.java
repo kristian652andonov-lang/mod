@@ -1222,7 +1222,7 @@ final class DevScripts {
     /** The class menu a page at a time; then the HUD, a toast and the menus at GUI scales 2, 3 and 4. */
     /** Impact frames: an ultimate's four stills and its snap back, then an ordinary ability's flash, each pinned in place. */
     private static void impact(ScreenshotDirector.Builder b) {
-        String[][] casts = {{"solaris", "celestial_inferno", "50,170,290,420,560,700,900,1100,1250,1450"}, {"voidfang", "rift_tear", "10,70,150"}};
+        String[][] casts = {{"solaris", "celestial_inferno", "40,130,210,300,420,540,620,700,780"}, {"voidfang", "rift_tear", "10,70,150"}};
         for (String[] c : casts) {
             var a = com.fantasyweapons.weapon.Weapons.get(c[0]).ability(c[1]);
             b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + c[0] + " 100").wait(130).slot(0).cmd("/fw points 200").cmd("/fw cooldowns").hud(true);

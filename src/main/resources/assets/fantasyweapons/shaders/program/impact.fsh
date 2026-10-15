@@ -1,17 +1,15 @@
 #version 150
 
-// Impact frames: the held frame redrawn as a stark still - a negative, black ink on white, or light on black in the
-// weapon's colour - with speed lines bursting from where the blow lands; then a colour split as the picture snaps back.
+// Impact frames: the held frame redrawn as a stark black-and-white still - a negative, black ink on white paper, or
+// white light on black - with speed lines bursting from where the blow lands; then the picture snaps back, the colour
+// flooding back into it.
 uniform sampler2D DiffuseSampler;
 uniform vec2 InSize;
 
-uniform float Mode;      // 0 none (snapping back), 1 negative, 2 ink on paper, 3 light on black
+uniform float Mode;      // 0 none (snapping back), 1 negative, 2 ink on paper, 3 white light on black
 uniform float Strength;  // how much of the still is shown
-uniform float Fade;      // the snap back: colour split and a white wash, 1 -> 0
+uniform float Fade;      // the snap back: grey with a white wash, 1 -> 0, as the colour returns
 uniform float Lines;     // speed line strength
-uniform float TintR;
-uniform float TintG;
-uniform float TintB;
 uniform float CenterX;
 uniform float CenterY;
 uniform float Seed;
@@ -38,15 +36,13 @@ float lumaAt(vec2 uv) {
 
 void main() {
     vec2 uv = texCoord;
-    vec3 tint = vec3(TintR, TintG, TintB);
     vec2 center = vec2(CenterX, CenterY);
     vec3 src = texture(DiffuseSampler, uv).rgb;
 
-    // the snap back: red and blue pulled apart along the burst, a white wash fading off
+    // the snap back: the live picture still grey under a white wash, its colour flooding back in
     if (Mode < 0.5) {
-        vec2 off = (uv - center) * 0.018 * Fade;
-        vec3 split = vec3(texture(DiffuseSampler, uv + off).r, src.g, texture(DiffuseSampler, uv - off).b);
-        vec3 washed = mix(split, vec3(1.0), 0.18 * Fade * Fade);
+        vec3 grey = vec3(luma(src));
+        vec3 washed = mix(grey, vec3(1.0), 0.18 * Fade * Fade);
         fragColor = vec4(mix(src, washed, Strength), 1.0);
         return;
     }
@@ -79,9 +75,9 @@ void main() {
 
     vec3 still;
     if (Mode < 1.5) {
-        // negative: every colour turned inside out, the contrast pushed, the shadows washed in the weapon's colour
-        vec3 inv = clamp((1.0 - src - 0.5) * 1.7 + 0.5, 0.0, 1.0);
-        still = mix(inv, inv * tint * 1.4, 0.4);
+        // negative: the picture in grey turned inside out, its contrast pushed hard
+        float inv = clamp((1.0 - l - 0.5) * 1.9 + 0.5, 0.0, 1.0);
+        still = vec3(inv);
         still = mix(still, vec3(0.0), line);
         still *= 1.0 - 0.5 * vig;
     } else if (Mode < 2.5) {
@@ -89,10 +85,10 @@ void main() {
         still = mix(vec3(0.03), vec3(1.0), lit);
         still = mix(still, vec3(0.0), edge);
         still = mix(still, vec3(0.0), line);
-        still = mix(still, tint * 0.25, vig * 0.6);
+        still = mix(still, vec3(0.0), vig * 0.6);
     } else {
-        // light on black: silhouettes and edges burning in the weapon's colour, speed lines of white light
-        still = mix(tint * 1.15, vec3(0.0), lit);
+        // light on black: the shadows burning white against black, white edges and speed lines of white light
+        still = mix(vec3(0.94), vec3(0.0), lit);
         still = mix(still, vec3(1.0), edge);
         still = mix(still, vec3(1.0), line);
         still *= 1.0 - 0.6 * vig;
