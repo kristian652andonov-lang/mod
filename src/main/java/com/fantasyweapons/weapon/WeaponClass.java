@@ -20,9 +20,13 @@ public enum WeaponClass {
     WARHAMMER("Warhammer", 0.55f, 0.75f, 360f, 3.2f, 1.4f, true, SwingStyle.SLAM),
     LANCE("Lance", 1.25f, 3.0f, 0f, 6.5f, 0.7f, true, SwingStyle.THRUST),
     COLOSSAL("Colossal Greatsword", 0.38f, 1.75f, 140f, 5.0f, 2.2f, true, SwingStyle.SLAM),
-    CHAINBLADE("Transforming Chainblade", 1.1f, 0.75f, 60f, 3.6f, 0.4f, false, SwingStyle.SLASH);
+    CHAINBLADE("Transforming Chainblade", 1.1f, 0.75f, 60f, 3.6f, 0.4f, false, SwingStyle.SLASH),
+    // the mage's focuses: they do not cut, they cast - a left click looses an elemental bolt (see MageBolts)
+    STAFF("Staff", 1.0f, 0f, 0f, 3.0f, 0.3f, false, SwingStyle.CAST),
+    TOME("Spellbook", 1.25f, 0f, 0f, 3.0f, 0.2f, false, SwingStyle.INVOKE);
 
-    public enum SwingStyle { SLASH, HEAVY_SLASH, CHOP, REAP, SLAM, THRUST }
+    /** CAST: a staff swept forward, its head leading; INVOKE: the free hand thrust out over the floating book. */
+    public enum SwingStyle { SLASH, HEAVY_SLASH, CHOP, REAP, SLAM, THRUST, CAST, INVOKE }
 
     private final String displayName;
     private final float attackSpeed;
@@ -75,5 +79,10 @@ public enum WeaponClass {
 
     public SwingStyle swingStyle() {
         return swingStyle;
+    }
+
+    /** A spellcaster's focus (staff or spellbook) rather than a blade: no melee, a bolt on every click. */
+    public boolean magic() {
+        return this == STAFF || this == TOME;
     }
 }

@@ -112,6 +112,40 @@ public final class FirstPersonAttacks {
             k(0.60f, -0.10f, 0.16f, -0.20f, 15, 25, 0),
             k(0.85f, -0.02f, 0.02f, 0.00f, 35, 45, 0), REST1};
 
+    // ---- staff: raised and levelled at the crosshair head first, swept across, lifted high and driven forward ----
+    private static final Key[] CAST_POINT = {REST0,
+            k(0.16f, 0.02f, 0.12f, 0.12f, 40, 75, 0),
+            k(0.34f, -0.12f, 0.14f, -0.32f, 25, 25, 0),
+            k(0.52f, -0.12f, 0.12f, -0.30f, 25, 28, 0),
+            k(0.80f, -0.03f, 0.03f, -0.05f, 40, 50, 0), REST1};
+    private static final Key[] CAST_SWEEP = {REST0,
+            k(0.16f, 0.15f, 0.10f, 0.05f, 70, 45, 0),
+            k(0.36f, -0.15f, 0.16f, -0.22f, 10, 30, 0),
+            k(0.55f, -0.25f, 0.10f, -0.10f, -10, 30, 0),
+            k(0.80f, -0.06f, 0.02f, 0.00f, 30, 50, 0), REST1};
+    private static final Key[] CAST_RAISE = {REST0,
+            k(0.20f, -0.04f, 0.30f, 0.05f, 40, 85, 0),
+            k(0.40f, -0.10f, 0.22f, -0.25f, 30, 35, 0),
+            k(0.60f, -0.10f, 0.18f, -0.22f, 30, 38, 0),
+            k(0.82f, -0.03f, 0.04f, -0.04f, 42, 52, 0), REST1};
+
+    // ---- spellbook: the floating book drawn back and pushed out as the spell leaves it ----
+    private static final Key[] INVOKE_PUSH = {REST0,
+            k(0.15f, 0.02f, -0.03f, 0.06f, Float.NaN, Float.NaN, 0),
+            k(0.32f, -0.06f, 0.08f, -0.18f, Float.NaN, Float.NaN, 0),
+            k(0.50f, -0.06f, 0.07f, -0.16f, Float.NaN, Float.NaN, 0),
+            k(0.80f, -0.01f, 0.01f, -0.02f, Float.NaN, Float.NaN, 0), REST1};
+    private static final Key[] INVOKE_LIFT = {REST0,
+            k(0.18f, 0.00f, -0.04f, 0.04f, Float.NaN, Float.NaN, 0),
+            k(0.36f, -0.10f, 0.16f, -0.12f, Float.NaN, Float.NaN, 0),
+            k(0.55f, -0.10f, 0.14f, -0.10f, Float.NaN, Float.NaN, 0),
+            k(0.82f, -0.02f, 0.02f, -0.01f, Float.NaN, Float.NaN, 0), REST1};
+    private static final Key[] INVOKE_SWAY = {REST0,
+            k(0.16f, 0.06f, 0.00f, 0.03f, Float.NaN, Float.NaN, 0),
+            k(0.34f, -0.12f, 0.06f, -0.14f, Float.NaN, Float.NaN, 0),
+            k(0.52f, -0.14f, 0.05f, -0.12f, Float.NaN, Float.NaN, 0),
+            k(0.80f, -0.02f, 0.01f, -0.02f, Float.NaN, Float.NaN, 0), REST1};
+
     /** The same keys on a heavier rhythm: a longer wind-up, the strike a little later, a slower follow-through. */
     private static Key[] retime(Key[] keys) {
         float[] from = {0, 0.14f, 0.26f, 0.36f, 0.46f, 0.58f, 0.80f, 1};
@@ -148,6 +182,8 @@ public final class FirstPersonAttacks {
             case SLAM -> variant == 1 ? HEAVY_FORE : variant == 2 ? SLAM_UPPER : SLAM_OVER;
             case REAP -> variant == 1 ? REAP_BACK : variant == 2 ? CHOP_OVER : REAP_FORE;
             case THRUST -> variant == 1 ? SLASH_FORE : variant == 2 ? THRUST_HIGH : THRUST_STRAIGHT;
+            case CAST -> variant == 1 ? CAST_SWEEP : variant == 2 ? CAST_RAISE : CAST_POINT;
+            case INVOKE -> variant == 1 ? INVOKE_LIFT : variant == 2 ? INVOKE_SWAY : INVOKE_PUSH;
         };
     }
 

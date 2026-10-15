@@ -29,7 +29,8 @@ public class WeaponClientExtensions implements IClientItemExtensions {
     @Override
     public HumanoidModel.ArmPose getArmPose(LivingEntity entity, InteractionHand hand, ItemStack stack) {
         if (hand != InteractionHand.MAIN_HAND || !(stack.getItem() instanceof FantasyWeaponItem item)) return HumanoidModel.ArmPose.ITEM;
-        return item.definition().weaponClass().twoHanded() ? WeaponArmPoses.TWO_HANDED.getValue() : WeaponArmPoses.ONE_HANDED.getValue();
+        return com.fantasyweapons.client.anim.WeaponPoses.bothArms(item.definition().weaponClass()) ? WeaponArmPoses.TWO_HANDED.getValue()
+                : WeaponArmPoses.ONE_HANDED.getValue();
     }
 
     @Override

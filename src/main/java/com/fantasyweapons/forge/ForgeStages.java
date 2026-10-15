@@ -51,7 +51,21 @@ public final class ForgeStages {
                 default -> "Polishing the " + piece;
             };
         }
-        String blade = made.getItem() instanceof FantasyWeaponItem w ? blade(w.definition().weaponClass()) : "blade";
+        WeaponClass cls = made.getItem() instanceof FantasyWeaponItem w ? w.definition().weaponClass() : WeaponClass.LONGSWORD;
+        if (cls.magic()) {
+            boolean book = cls == WeaponClass.TOME;
+            return switch (stage) {
+                case 0 -> "Laying out the " + core;
+                case 1 -> "Heating the " + core + " in the forge-light";
+                case 2 -> book ? "Pressing the pages" : "Turning the shaft";
+                case 3 -> book ? "Inking the incantations" : "Carving its runes";
+                case 4 -> book ? "Binding the covers" : "Crowning the head";
+                case 5 -> "Setting the " + catalyst + " at its heart";
+                case 6 -> "Quenching " + name;
+                default -> "Waking " + name + "...";
+            };
+        }
+        String blade = blade(cls);
         return switch (stage) {
             case 0 -> "Laying out the " + core;
             case 1 -> "Heating the " + core + " in the forge-light";

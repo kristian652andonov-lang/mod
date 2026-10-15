@@ -110,6 +110,8 @@ public final class FxIds {
     public static final ResourceLocation STARFORGE_STARFALL = FantasyWeapons.id("starforge/starfall");
 
     // ---- aetherlance ----
+    /** An ability was cast: impact frames on the caster's screen (and an ultimate's on those nearby). level 1 = ultimate, seed = colour. */
+    public static final ResourceLocation IMPACT_FRAME = FantasyWeapons.id("impact_frame");
     public static final ResourceLocation AETHERLANCE_THRUST = FantasyWeapons.id("aetherlance/thrust");
     public static final ResourceLocation AETHERLANCE_BOLT = FantasyWeapons.id("aetherlance/bolt");
     public static final ResourceLocation AETHERLANCE_PIERCE = FantasyWeapons.id("aetherlance/pierce");

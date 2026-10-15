@@ -172,8 +172,22 @@ public enum Material {
         };
     }
 
+    /**
+     * The material a weapon is forged from and infused with: its own, or for a mage's staff or spellbook (which have no
+     * ore of their own) the legendary material of its element.
+     */
     public static Material ofWeapon(String weaponId) {
         for (Material m : values()) if (m.weapon.equals(weaponId)) return m;
-        return null;
+        WeaponDefinition def = Weapons.get(weaponId);
+        if (def == null) return null;
+        return switch (def.element()) {
+            case FIRE -> INFERNITE;
+            case ICE -> FROSTHEART;
+            case WATER -> AETHERITE;
+            case NATURE -> VERDANT;
+            case LIGHT, SOLAR -> SOLARITE;
+            case VOID -> VOID_CRYSTAL;
+            default -> null;
+        };
     }
 }

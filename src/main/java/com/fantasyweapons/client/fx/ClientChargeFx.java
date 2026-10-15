@@ -45,6 +45,8 @@ public final class ClientChargeFx {
                 case SCYTHE, WARHAMMER -> 2.0f;
                 case LANCE -> 2.8f;
                 case COLOSSAL -> 3.0f;
+                case STAFF -> 2.2f;
+                case TOME -> 0.8f;
             };
             AURAS.put(p.getId(), VfxManager.add(new ChargeAuraVfx(p, theme.primary(), theme.light(), blade)));
         }

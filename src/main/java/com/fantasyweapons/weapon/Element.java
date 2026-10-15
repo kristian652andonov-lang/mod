@@ -16,7 +16,9 @@ public enum Element {
     COSMIC("Cosmic", 0x8A6CFF, 0x070A2E, 0xF0EDFF),
     ENERGY("Energy", 0x5FF3FF, 0x062433, 0xF2FFFF),
     EARTH("Earth", 0xB08A5A, 0x1E1812, 0xE8D9C0),
-    FIRE("Fire", 0xFF5A1F, 0x1A0500, 0xFFD38A);
+    FIRE("Fire", 0xFF5A1F, 0x1A0500, 0xFFD38A),
+    WATER("Water", 0x3FA8FF, 0x041C3A, 0xCDEFFF),
+    LIGHT("Light", 0xFFE58A, 0x3A2A08, 0xFFFDF0);
 
     private final String displayName;
     private final int primary;

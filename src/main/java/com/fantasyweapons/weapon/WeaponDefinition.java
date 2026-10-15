@@ -187,8 +187,16 @@ public final class WeaponDefinition {
 
     /** Full GeckoLib animation name for a short name, e.g. {@code attack -> animation.voidfang.attack}. */
     public String anim(String shortName) {
-        return "animation." + geoName + "." + shortName;
+        return "animation." + geoName + "." + (weaponClass.magic() ? MAGIC_ANIMS.getOrDefault(shortName, shortName) : shortName);
     }
+
+    /**
+     * A staff or spellbook has only four animations of its own (idle, spell_cast, spell_activation, recharge): the
+     * blades' names stand for the nearest of them - a click looses a bolt with the activation, a charge holds the cast.
+     */
+    private static final java.util.Map<String, String> MAGIC_ANIMS = java.util.Map.of(
+            "attack", "spell_activation", "heavy_attack", "spell_activation", "impact", "spell_activation", "recovery", "recharge",
+            "charge", "spell_cast", "ability_activation", "spell_activation", "ability_execution", "recharge");
 
     @Nullable
     public MeleeHook meleeHook() {

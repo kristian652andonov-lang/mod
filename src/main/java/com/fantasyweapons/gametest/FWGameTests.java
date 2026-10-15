@@ -485,6 +485,8 @@ public final class FWGameTests {
     // ------------------------------------------------------------------------------------------------------------
 
     private static final java.util.Set<String> AIRBORNE_FX = java.util.Set.of(
+            // the caster's impact frames (a screen effect, placed at their eyes)
+            "impact_frame",
             // projectiles and where they end
             "aetherlance/bolt", "aetherlance/bolt_end", "gravebite/legion_launch", "gravebite/soul_hit", "gravebite/soul_volley",
             "infernochain/hook", "infernochain/hook_end", "solaris/supernova", "solaris/supernova_impact", "stormbreaker/chain",

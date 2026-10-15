@@ -29,6 +29,8 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue DISTORTION;
     public static final ModConfigSpec.DoubleValue SCREEN_SHAKE;
     public static final ModConfigSpec.IntValue MAX_VFX_INSTANCES;
+    public static final ModConfigSpec.BooleanValue IMPACT_FRAMES;
+    public static final ModConfigSpec.BooleanValue IMPACT_FRAMES_ALL;
 
     public static final ModConfigSpec.BooleanValue HUD_ENABLED;
     public static final ModConfigSpec.EnumValue<HudAnchor> HUD_ANCHOR;
@@ -50,6 +52,9 @@ public final class ClientConfig {
         DISTORTION = B.comment("Screen-space distortion behind rifts / shockwaves (HIGH and ULTRA only)").define("distortion", true);
         SCREEN_SHAKE = B.comment("Camera shake strength for heavy impacts (0 = off)").defineInRange("screen_shake", 1.0, 0.0, 3.0);
         MAX_VFX_INSTANCES = B.comment("Upper bound of simultaneously alive VFX objects").defineInRange("max_instances", 512, 16, 8192);
+        IMPACT_FRAMES = B.comment("Anime impact frames when you cast: the picture freezes for an instant as a stark still with speed lines")
+                .define("impact_frames", true);
+        IMPACT_FRAMES_ALL = B.comment("Impact frames for every ability (a quick flash), not only for ultimates").define("impact_frames_every_ability", true);
         B.pop();
 
         B.push("hud");

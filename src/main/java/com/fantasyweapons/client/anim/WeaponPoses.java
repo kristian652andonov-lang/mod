@@ -90,6 +90,10 @@ public final class WeaponPoses {
             case SCYTHE -> pt(-0.42f, -0.1f, 0.12f, -1.05f, 0.45f, 0f, -0.1f, 0f, 1.62f, 0);
             // lance couched forward
             case LANCE -> p(-0.4f, 0.05f, 0f, -0.85f, 0.45f, 0f, -0.15f, 0).grip(0.55f, 0);
+            // the staff stood upright at the side, its head a little ahead; the free hand open at the hip
+            case STAFF -> pt(-0.38f, -0.08f, 0.1f, -0.12f, 0.05f, -0.14f, 0, 0, 1.45f, 0);
+            // the spellbook floats level over the palm held out in front (see #levelBook); the free hand near it
+            case TOME -> p(-1.05f, -0.28f, 0f, -0.38f, 0.18f, -0.08f, 0, 0);
         };
     }
 
@@ -168,6 +172,36 @@ public final class WeaponPoses {
                         new Key(0.58f, pt(-0.85f, -0.05f, 0, -0.9f, 0.35f, 0, 0, 0.4f, -0.45f, 0)),
                         new Key(0.8f, pt(-0.75f, -0.05f, 0, -0.8f, 0.35f, 0, 0, 0.38f, -0.55f, 0)), new Key(1, stance)};
             };
+            // staff: raised high and levelled at the foe, swept across head first, then lifted to the sky and driven down
+            case CAST -> switch (variant) {
+                case 1 -> new Key[]{new Key(0, stance),
+                        new Key(0.16f, pt(-1.3f, 0.9f, 0.1f, -0.45f, 0.1f, -0.1f, -0.45f, 0.02f, 0.8f, 0.3f)),
+                        new Key(0.36f, pt(-1.5f, -0.2f, 0, -0.95f, 0.3f, 0, 0.3f, 0.06f, 0.45f, -0.1f)),
+                        new Key(0.56f, pt(-1.35f, -0.85f, 0, -0.65f, 0.2f, 0, 0.6f, 0.08f, 0.4f, -0.25f)), new Key(1, stance)};
+                case 2 -> new Key[]{new Key(0, stance),
+                        new Key(0.2f, pt(-2.8f, -0.1f, 0, -2.6f, 0.3f, 0, 0, -0.1f, 1.57f, 0)),
+                        new Key(0.42f, pt(-1.05f, -0.1f, 0, -1.45f, 0.4f, 0, 0, 0.12f, 1.2f, 0)),
+                        new Key(0.65f, pt(-0.95f, -0.1f, 0, -1.35f, 0.4f, 0, 0, 0.1f, 1.25f, 0)), new Key(1, stance)};
+                default -> new Key[]{new Key(0, stance),
+                        new Key(0.18f, pt(-2.3f, -0.1f, 0.05f, -0.35f, 0.1f, -0.1f, -0.1f, -0.05f, 1.7f, 0)),
+                        new Key(0.38f, pt(-1.55f, -0.15f, 0, -1.3f, 0.35f, 0, 0.15f, 0.08f, 0.35f, 0)),
+                        new Key(0.62f, pt(-1.5f, -0.15f, 0, -1.25f, 0.35f, 0, 0.15f, 0.08f, 0.3f, 0)), new Key(1, stance)};
+            };
+            // spellbook: the book held steady while the free hand throws the spell - a push, a sweep, both hands raised
+            case INVOKE -> switch (variant) {
+                case 1 -> new Key[]{new Key(0, stance),
+                        new Key(0.2f, p(-1.6f, -0.35f, 0, -0.65f, 0.9f, 0, -0.3f, 0)),
+                        new Key(0.4f, p(-1.4f, -0.3f, 0, -1.4f, -0.4f, 0.1f, 0.25f, 0.04f)),
+                        new Key(0.6f, p(-1.35f, -0.3f, 0, -1.3f, -0.6f, 0.1f, 0.3f, 0.04f)), new Key(1, stance)};
+                case 2 -> new Key[]{new Key(0, stance),
+                        new Key(0.22f, p(-2.2f, -0.3f, 0, -2.4f, 0.3f, 0, 0, -0.08f)),
+                        new Key(0.44f, p(-1.3f, -0.3f, 0, -1.7f, 0.1f, 0, 0.1f, 0.06f)),
+                        new Key(0.64f, p(-1.25f, -0.3f, 0, -1.65f, 0.1f, 0, 0.1f, 0.05f)), new Key(1, stance)};
+                default -> new Key[]{new Key(0, stance),
+                        new Key(0.18f, p(-1.1f, -0.3f, 0, -0.95f, 0.6f, -0.1f, -0.15f, 0)),
+                        new Key(0.36f, p(-1.15f, -0.25f, 0, -1.65f, -0.05f, 0, 0.2f, 0.05f)),
+                        new Key(0.6f, p(-1.15f, -0.25f, 0, -1.6f, -0.05f, 0, 0.2f, 0.05f)), new Key(1, stance)};
+            };
             // lance: a straight thrust, the shaft swept across like a staff, then a thrust driven down from high
             case THRUST -> switch (variant) {
                 case 1 -> levelFore(stance, -0.05f);
@@ -225,6 +259,10 @@ public final class WeaponPoses {
             case SCYTHE -> p(-0.95f, -1.2f, 0.4f, -1.3f, -0.2f, 0f, -0.8f, 0f).grip(0.9f, 0.4f);
             // lance levelled at the target
             case LANCE -> p(-1.5f, 0.05f, 0f, -1.5f, 0.35f, 0f, -0.3f, 0f).grip(-0.6f, 0);
+            // the staff held up to the sky, the free hand reaching out to where the spell will fall
+            case STAFF -> pt(-2.75f, -0.2f, 0.15f, -1.45f, 0.35f, -0.1f, 0, -0.06f, 1.57f, 0);
+            // the book raised before the eyes, the free hand spread over its pages
+            case TOME -> p(-1.5f, -0.35f, 0, -1.4f, 0.55f, 0, 0, 0);
         };
     }
 
@@ -232,6 +270,8 @@ public final class WeaponPoses {
         return switch (cls) {
             case SCYTHE -> p(-0.9f, 1.0f, -0.2f, -1.0f, 1.35f, 0, 0.9f, 0.1f).grip(0.6f, 0.3f);
             case WARHAMMER, COLOSSAL -> p(-0.35f, -0.1f, 0, -0.45f, 0.3f, 0, 0, 0.4f).grip(-0.2f, 0);
+            case STAFF -> pt(-1.6f, -0.12f, 0, -1.4f, 0.3f, 0, 0.25f, 0.1f, 0.3f, 0);
+            case TOME -> p(-1.2f, -0.3f, 0, -1.7f, 0, 0, 0.25f, 0.05f);
             // thrust the weapon at the target
             default -> p(-1.6f, 0.1f, 0f, -1.55f, 0.45f, 0f, 0.3f, 0.12f).grip(-0.6f, 0);
         };
@@ -284,7 +324,7 @@ public final class WeaponPoses {
             // every weapon looses its abilities with its own first attack: a clean, designed motion, never a jerk to
             // a fixed pose
             Pose sw = sample(swingKeys(cls, stance, 0), Math.min(1, cast * 1.15f)).addPitch(headPitch * 0.35f);
-            pose = cls.twoHanded() ? sw : sw.withLeft(pose);
+            pose = bothArms(cls) ? sw : sw.withLeft(pose);
         }
 
         float[] plant = AnimTracker.plantPhase(e, partial);
@@ -302,11 +342,25 @@ public final class WeaponPoses {
         if (swing >= 0) {
             Pose sw = sample(swingKeys(cls, stance, AnimTracker.variant(e)), swing);
             if (AnimTracker.heavy(e)) sw = sw.amplify(stance, 1.2f);
-            if (!cls.twoHanded()) sw = sw.withLeft(pose); // free hand keeps its own pose
+            if (!bothArms(cls)) sw = sw.withLeft(pose); // free hand keeps its own pose
             pose = sw.addPitch(headPitch * 0.35f);
         }
+        if (cls == WeaponClass.TOME) pose = levelBook(pose);
         if (debugGrip != null) pose = pose.grip(debugGrip[0], debugGrip[1]);
         return pose;
+    }
+
+    /** Two-handed weapons pose both arms; so do the mage's focuses, whose free hand weaves the spells. */
+    public static boolean bothArms(WeaponClass cls) {
+        return cls.twoHanded() || cls.magic();
+    }
+
+    /**
+     * Keeps a spellbook floating level over the palm whatever the arm does: with the arm pitched to {@code rx} the
+     * item's up is tilted from the vertical by {@code rx + π/2}, so the grip turns it back by as much.
+     */
+    private static Pose levelBook(Pose pose) {
+        return pose.grip(pose.rx() + (float) (Math.PI / 2), 0);
     }
 
     /** DEVELOPMENT ONLY (screenshot director): forces the grip angles. */

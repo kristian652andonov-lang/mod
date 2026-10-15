@@ -91,6 +91,7 @@ final class DevScripts {
                     b.closeScreen();
                 }
                 else if (name.equals("codexone")) codexOne(b);
+                else if (name.equals("impact")) impact(b);
                 else if (name.equals("codexflip")) codexFlip(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
@@ -1112,6 +1113,26 @@ final class DevScripts {
     }
 
     /** The class menu a page at a time; then the HUD, a toast and the menus at GUI scales 2, 3 and 4. */
+    /** Impact frames: an ultimate's four stills and its snap back, then an ordinary ability's flash, each pinned in place. */
+    private static void impact(ScreenshotDirector.Builder b) {
+        String[][] casts = {{"solaris", "celestial_inferno", "10,100,170,240,300,420"}, {"voidfang", "rift_tear", "10,70,150"}};
+        for (String[] c : casts) {
+            var a = com.fantasyweapons.weapon.Weapons.get(c[0]).ability(c[1]);
+            b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + c[0] + " 100").wait(130).slot(0).cmd("/fw points 200").cmd("/fw cooldowns").hud(true);
+            for (int i = 0; i < 3; i++) {
+                b.cmd("/summon minecraft:husk " + (i - 1) * 2.5 + " -60 6 {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+            }
+            b.wait(10).camera(CameraType.FIRST_PERSON).look(0, 12).select(c[1]).wait(5)
+                    .run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = 10L);
+            b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp().wait(3);
+            for (String t : c[2].split(",")) {
+                long ms = Long.parseLong(t);
+                b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = ms).wait(10).screenshot("impact_" + c[1] + "_" + t);
+            }
+            b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = null).wait(60);
+        }
+    }
+
     private static void classPages(ScreenshotDirector.Builder b) {
         b.cmd("/gamemode survival").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set none").cmd("/fw quest reset").wait(20).hud(true)
                 .cmd("/tp @s 0 -60 0 0 0").wait(10);

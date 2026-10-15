@@ -48,6 +48,7 @@ public final class GenericFx {
     static void register() {
         FxDispatcher.register(FxIds.MELEE_HIT, GenericFx::meleeHit);
         FxDispatcher.register(FxIds.DAMAGE_NUMBER, GenericFx::damageNumber);
+        FxDispatcher.register(FxIds.IMPACT_FRAME, GenericFx::impactFrame);
         FxDispatcher.register(FxIds.LEVEL_UP, GenericFx::levelUp);
         FxDispatcher.register(FxIds.FORM_SWITCH, GenericFx::formSwitch);
         FxDispatcher.register(FxIds.ABILITY_FIZZLE, GenericFx::fizzle);
@@ -57,6 +58,16 @@ public final class GenericFx {
     // ------------------------------------------------------------------------------------------------------------
     // swing trails (client-side, from every observed swing)
     // ------------------------------------------------------------------------------------------------------------
+
+    /** Impact frames for the caster; an ultimate cast nearby gets a softer set on everyone else's screen too. */
+    private static void impactFrame(FxPayload p) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        boolean ultimate = p.level() == 1;
+        int tint = (int) p.seed();
+        if (p.caster() == mc.player.getId()) ImpactFrames.play(tint, ultimate, 1f, null);
+        else if (ultimate && mc.player.position().distanceTo(p.pos()) < 40) ImpactFrames.play(tint, true, 0.65f, p.pos());
+    }
 
     public static void onSwing(LivingEntity entity, ItemStack stack) {
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
@@ -73,6 +84,8 @@ public final class GenericFx {
         WeaponClass cls = def.weaponClass();
         boolean heavy = entity.isCrouching();
         AnimTracker.onSwing(entity, def, stack, heavy);
+        // a staff or spellbook leaves no slash in the air: its click looses a bolt, drawn by MageFx
+        if (cls.magic()) return;
         if (InfernochainFx.isInfernochain(stack) && InfernochainFx.chainForm(stack)) {
             // the chainblade's lash is drawn from the real chain (fire sheet + flames), not a generic arc
             InfernochainFx.onSwing(entity);

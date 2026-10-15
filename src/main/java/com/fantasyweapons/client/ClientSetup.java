@@ -65,8 +65,10 @@ public final class ClientSetup {
         });
         modBus.addListener(ClientSetup::registerExtensions);
         modBus.addListener(com.fantasyweapons.client.particle.ForgeParticles::register);
-        modBus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent e) ->
-                e.registerReloadListener(new com.fantasyweapons.client.render.FrameStripTextures()));
+        modBus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent e) -> {
+            e.registerReloadListener(new com.fantasyweapons.client.render.FrameStripTextures());
+            e.registerReloadListener((net.minecraft.server.packs.resources.ResourceManagerReloadListener) rm -> com.fantasyweapons.client.fx.ImpactFrames.reset());
+        });
         modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) -> {
             e.registerEntityRenderer(com.fantasyweapons.registry.ModEntities.THROWN_WEAPON.get(),
                     com.fantasyweapons.client.render.ThrownWeaponRenderer::new);
@@ -82,6 +84,8 @@ public final class ClientSetup {
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiEvent.Pre e) -> {
             if (com.fantasyweapons.client.guide.Codex.reading()) e.setCanceled(true);
         });
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.ImpactFrames::render);
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.ImpactFrames::fov);
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.gui.InventoryButtons::onInit);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);

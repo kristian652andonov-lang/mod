@@ -64,6 +64,19 @@ final class ForgeRecipes {
         WEAPONS.put("eclipse_reaper", new Theme(Items.CLOCK, Items.GLOWSTONE, Items.BLAZE_ROD, Items.OBSIDIAN, true));
         WEAPONS.put("aetherlance", new Theme(Items.HEART_OF_THE_SEA, Items.GOLD_INGOT, Items.BREEZE_ROD));
         WEAPONS.put("monolith", new Theme(Items.HEAVY_CORE, Items.OBSIDIAN, Items.BREEZE_ROD));
+        // the mage's focuses: a staff's haft (H) is a rod, a spellbook's spine is leather
+        WEAPONS.put("cinderspire", new Theme(Items.NETHERITE_INGOT, Items.MAGMA_BLOCK, Items.BLAZE_ROD));
+        WEAPONS.put("pyre_codex", new Theme(Items.GHAST_TEAR, Items.BLAZE_POWDER, Items.LEATHER));
+        WEAPONS.put("rimeheart", new Theme(Items.DIAMOND, Items.BLUE_ICE, Items.BREEZE_ROD));
+        WEAPONS.put("frostbound_grimoire", new Theme(Items.DIAMOND, Items.PACKED_ICE, Items.LEATHER));
+        WEAPONS.put("tidecaller", new Theme(Items.HEART_OF_THE_SEA, Items.PRISMARINE, Items.BREEZE_ROD));
+        WEAPONS.put("codex_of_tides", new Theme(Items.NAUTILUS_SHELL, Items.PRISMARINE_CRYSTALS, Items.LEATHER));
+        WEAPONS.put("thornwake", new Theme(Items.SPORE_BLOSSOM, Items.MOSS_BLOCK, Items.BAMBOO));
+        WEAPONS.put("verdant_almanac", new Theme(Items.GOLDEN_APPLE, Items.FLOWERING_AZALEA, Items.LEATHER));
+        WEAPONS.put("sunwarden", new Theme(Items.GOLD_BLOCK, Items.GLOWSTONE, Items.BLAZE_ROD));
+        WEAPONS.put("lumen_psalter", new Theme(Items.GLOWSTONE, Items.GOLD_INGOT, Items.LEATHER));
+        WEAPONS.put("gloamreach", new Theme(Items.ENDER_EYE, Items.CRYING_OBSIDIAN, Items.END_ROD));
+        WEAPONS.put("umbral_codex", new Theme(Items.DRAGON_BREATH, Items.CRYING_OBSIDIAN, Items.LEATHER));
 
         ARMOR.put(ArmorSet.VOIDFANG, new ItemLike[]{Items.BLACK_WOOL});        // charcoal cloth
         ARMOR.put(ArmorSet.SOLARIS, new ItemLike[]{Items.GOLD_INGOT});         // white and gold plate
@@ -86,6 +99,28 @@ final class ForgeRecipes {
      */
     static String[] shape(WeaponClass c) {
         return switch (c) {
+            // a staff: a crown of cores round the catalyst on a long haft
+            case STAFF -> new String[]{
+                    "   RRR   ",
+                    "  RRCRR  ",
+                    "   RRR   ",
+                    "    R    ",
+                    "    H    ",
+                    "    H    ",
+                    "    H    ",
+                    "    H    ",
+                    "    A    "};
+            // a spellbook laid open: pages of cores either side of a leather spine, the catalyst at its heart
+            case TOME -> new String[]{
+                    "         ",
+                    "   ARA   ",
+                    "  RRHRR  ",
+                    "  RRCRR  ",
+                    "  RRHRR  ",
+                    "   ARA   ",
+                    "         ",
+                    "         ",
+                    "         "};
             case LONGSWORD -> new String[]{
                     "    R    ",
                     "   RRR   ",
@@ -238,6 +273,8 @@ final class ForgeRecipes {
             case BATTLEAXE -> 240;
             case GREATSWORD -> 270;
             case WARHAMMER, COLOSSAL -> 300;
+            case STAFF -> 180;
+            case TOME -> 150;
         };
         return seconds * 20;
     }
