@@ -331,7 +331,7 @@ public final class MageFx {
                 }
                 case Spells.BLESS_VALOR -> {
                     // a blade of light flashes above the blessed, and embers of valor rise
-                    VfxManager.add(new BeamVfx(feet.add(0, h + 2.4, 0), feet.add(0, h + 0.4, 0), 0.5f, Colors.argb(240, LIGHT.main()), 12));
+                    VfxManager.add(new BeamVfx(feet.add(0, h + 2.4, 0), feet.add(0, h + 0.4, 0), 0.5f, Colors.argb(240, LIGHT.main()), 12).fade(0.4f, 0.12f));
                     VfxManager.add(new DecalVfx(feet.add(0, 0.05, 0), UP, w + 1f, Colors.argb(220, LIGHT.main()), VfxTextures.RUNE_CIRCLE, 26)
                             .spin(0.08f).energy().timing(0.1f, 0.5f));
                     VfxManager.add(new ShardBurstVfx(feet.add(0, 0.3, 0), UP, 0.5f, 0.12f, 16, 0.14f, Colors.argb(255, LIGHT.core()), Colors.argb(0, LIGHT.main()), 22, seed)
@@ -339,7 +339,7 @@ public final class MageFx {
                 }
                 case Spells.BLESS_HALO -> {
                     // the halo comes down out of the light onto the ally's head
-                    VfxManager.add(new BeamVfx(feet.add(0, h + 6, 0), feet.add(0, h, 0), 1.2f, Colors.argb(200, LIGHT.core()), 10));
+                    VfxManager.add(new BeamVfx(feet.add(0, h + 6, 0), feet.add(0, h, 0), 1.2f, Colors.argb(200, LIGHT.core()), 10).fade(0.45f, 0.1f));
                     VfxManager.add(new ShockwaveVfx(feet.add(0, 0.06, 0), UP, 0.2f, w + 2f, 0.4f, Colors.argb(200, LIGHT.main()), 14).energy());
                 }
                 default -> {
@@ -389,8 +389,8 @@ public final class MageFx {
 
     private static void ascensionRay(FxPayload p) {
         Vec3 g = p.pos();
-        VfxManager.add(new BeamVfx(g.add(0, 14, 0), g, 0.9f, Colors.argb(240, LIGHT.core()), 8));
-        VfxManager.add(new BeamVfx(g.add(0, 14, 0), g, 0.35f, Colors.argb(255, 0xFFFFFF), 6));
+        VfxManager.add(new BeamVfx(g.add(0, 14, 0), g, 0.9f, Colors.argb(240, LIGHT.core()), 8).fade(0.45f, 0.04f));
+        VfxManager.add(new BeamVfx(g.add(0, 14, 0), g, 0.35f, Colors.argb(255, 0xFFFFFF), 6).fade(0.45f, 0.04f));
         VfxManager.add(new FlashVfx(g.add(0, 1, 0), 0.4f, 2.2f, Colors.argb(220, LIGHT.main()), 8).energy());
         VfxManager.add(new ShockwaveVfx(g.add(0, 0.06, 0), UP, 0.2f, 1.8f, 0.3f, Colors.argb(200, LIGHT.core()), 10).energy());
         VfxManager.add(new ShardBurstVfx(g.add(0, 0.5, 0), UP, 0.8f, 0.14f, 10, 0.12f, Colors.argb(255, LIGHT.core()), Colors.argb(0, LIGHT.main()), 14, (long) (g.x * 7))
@@ -405,7 +405,7 @@ public final class MageFx {
         VfxManager.add(new FlashVfx(g.add(0, h * 0.5, 0), 0.5f, 3.5f, Colors.argb(230, NATURE.main()), 14).energy());
         VfxManager.add(new ShardBurstVfx(g.add(0, h * 0.6, 0), UP, 1.4f, 0.16f, 40, 0.22f, Colors.argb(255, 0xFFE0F0), Colors.argb(0, NATURE.main()), 40, (long) (g.x * 5 + g.z))
                 .texture(VfxTextures.PETAL_SOFT, false).physics(0.004f, 0.95f));
-        VfxManager.add(new BeamVfx(g, g.add(0, 9, 0), 1.6f, Colors.argb(200, NATURE.core()), 16));
+        VfxManager.add(new BeamVfx(g, g.add(0, 9, 0), 1.6f, Colors.argb(200, NATURE.core()), 16).fade(0.04f, 0.5f));
         if (e == Minecraft.getInstance().player) com.fantasyweapons.client.fx.ScreenFx.flash(NATURE.main(), 0.3f, 14);
     }
 

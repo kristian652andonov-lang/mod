@@ -70,9 +70,9 @@ final class WaterMageFx {
                 double y = 2.6 * (4 * cyc * (1 - cyc));
                 Vec3 q = g.add(Math.cos(a) * out, 0.1 + y, Math.sin(a) * out);
                 ctx.billboard(drop, q, 0.18f, 0, Colors.alpha(k * 0.9f, FOAM));
-                if (cyc < 0.5f) ctx.stretched(streak, q, UP, 0.5f, 0.07f, Colors.alpha(k * 0.6f, WATER.core()));
+                if (cyc < 0.5f) ctx.streak(streak, q, UP, 0.5f, 0.07f, Colors.alpha(k * 0.6f, WATER.core()));
             }
-            ctx.beam(ctx.additive(VfxTextures.STREAK), g, g.add(0, 2.2, 0), 0.35f, Colors.alpha(k * 0.6f, WATER.core()), -ticks * 0.4f, -ticks * 0.4f + 2);
+            ctx.softBeam(ctx.additive(VfxTextures.STREAK), g, g.add(0, 2.2, 0), 0.35f, Colors.alpha(k * 0.6f, WATER.core()), -ticks * 0.4f, -ticks * 0.4f + 2, 0.05f, 0.5f);
             // bubbles and glints rising out of the pool
             for (int i = 0; i < 18; i++) {
                 float ph = hash(seed, 100 + i);
@@ -141,7 +141,7 @@ final class WaterMageFx {
                     double rr = r * (1 - u * 0.85);
                     ps[i] = g.add(Math.cos(a) * rr, 0.12 + u * 0.3, Math.sin(a) * rr);
                     ws[i] = 0.9f * (1 - u * 0.5f);
-                    cs[i] = Colors.alpha(k * (0.3f + 0.6f * u), Colors.lerpRgb(WATER.main(), FOAM, u));
+                    cs[i] = Colors.alpha(k * (0.3f + 0.6f * u) * Math.min(1, u * 5) * Math.min(1, (1 - u) * 6), Colors.lerpRgb(WATER.main(), FOAM, u));
                 }
                 ctx.ribbon(streak, ps, ws, cs, -ticks * 0.1f, 0.2f);
             }
@@ -187,7 +187,7 @@ final class WaterMageFx {
                 double a = ph * 6.283, rr = r * Math.sqrt(hash(seed, 200 + i));
                 Vec3 col = g.add(Math.cos(a) * rr, 0, Math.sin(a) * rr);
                 Vec3 q = col.add(0, top * (1 - cyc), 0);
-                ctx.stretched(streak, q, UP, 0.9f, 0.05f, Colors.alpha(k * 0.6f, WATER.core()));
+                ctx.streak(streak, q, UP, 0.9f, 0.05f, Colors.alpha(k * 0.6f, WATER.core()));
                 if (cyc > 0.9f) {
                     float s = (cyc - 0.9f) / 0.1f;
                     ctx.ring(ring, MageFx.ground(col).add(0, 0.06, 0), new Vec3(1, 0, 0), new Vec3(0, 0, 1), 0.05f + s * 0.3f, 0.1f + s * 0.35f, 10,
@@ -253,7 +253,7 @@ final class WaterMageFx {
                     double a = ph * 6.283;
                     Vec3 q = g.add(Math.cos(a) * 0.5 * ph, 0, Math.sin(a) * 0.5 * ph);
                     float h = (float) Math.sin(Math.min(1, ticks / 14f) * Math.PI) * (5 + 3 * ph);
-                    ctx.stretched(water, q.add(0, h * 0.5, 0), UP, h, 0.7f + ph * 0.5f, Colors.alpha(col * 0.8f, Colors.lerpRgb(WATER.main(), FOAM, ph)));
+                    ctx.streak(water, q.add(0, h * 0.5, 0), UP, h, 0.7f + ph * 0.5f, Colors.alpha(col * 0.8f, Colors.lerpRgb(WATER.main(), FOAM, ph)));
                 }
                 ctx.billboard(foam, g.add(0, 1.2, 0), 4.5f * col, 0, Colors.alpha(col * 0.7f, FOAM));
             }

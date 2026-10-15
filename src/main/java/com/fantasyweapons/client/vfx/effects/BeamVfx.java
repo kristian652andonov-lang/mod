@@ -12,6 +12,8 @@ public class BeamVfx extends Vfx {
     private final Vec3 to;
     private final float width;
     private final int color;
+    /** Share of the length faded in at the start and out at the end (no hard square ends). */
+    private float fadeFrom = 0.08f, fadeTo = 0.08f;
 
     public BeamVfx(Vec3 from, Vec3 to, float width, int color, int lifetime) {
         super(lifetime);
@@ -21,6 +23,13 @@ public class BeamVfx extends Vfx {
         this.color = color;
     }
 
+    /** How much of the beam fades at each end, 0..0.5 of its length: a beam out of the sky melts into the air at its top. */
+    public BeamVfx fade(float atFrom, float atTo) {
+        this.fadeFrom = atFrom;
+        this.fadeTo = atTo;
+        return this;
+    }
+
     @Override
     public void render(VfxContext ctx) {
         float t = progress(ctx.partial);
@@ -28,7 +37,7 @@ public class BeamVfx extends Vfx {
         float alpha = (1 - easeIn(t)) * ((color >>> 24) & 255) / 255f;
         float len = (float) from.distanceTo(to);
         float scroll = -(age + ctx.partial) * 0.2f;
-        ctx.beam(ctx.energy(VfxTextures.STREAK), from, to, w * 2.2f, Colors.alpha(alpha * 0.7f, color), scroll, scroll + len * 0.25f);
-        ctx.beam(ctx.additive(VfxTextures.LIGHTNING), from, to, w, Colors.alpha(alpha, Colors.brighten(color, 0.6f)), 0, 1);
+        ctx.softBeam(ctx.energy(VfxTextures.STREAK), from, to, w * 2.2f, Colors.alpha(alpha * 0.7f, color), scroll, scroll + len * 0.25f, fadeFrom, fadeTo);
+        ctx.softBeam(ctx.additive(VfxTextures.LIGHTNING), from, to, w, Colors.alpha(alpha, Colors.brighten(color, 0.6f)), 0, 1, fadeFrom, fadeTo);
     }
 }

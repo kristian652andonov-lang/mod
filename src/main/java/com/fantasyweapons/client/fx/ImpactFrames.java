@@ -16,7 +16,8 @@ import org.joml.Vector3f;
  * Impact frames, as anime draws a blow landing: for a few frames the picture freezes and is redrawn as a stark still -
  * a negative, black ink on white paper, light on black in the weapon's colour - with speed lines bursting from where
  * the blow lands, the view punched in; then it snaps back through a split of colour while the camera springs out.
- * An ultimate gets the full sequence; any other ability a quick two-frame flash.
+ * An ultimate gets the long sequence - seven stills over about a second, pushing slowly in, each landing with a jolt
+ * and fresh speed lines that flicker as it holds, then a slow snap back; any other ability a quick two-frame flash.
  * <p>
  * Drawn by the post chain {@code shaders/post/impact.json} over the finished frame (world and hand) just before the HUD.
  */
@@ -27,9 +28,14 @@ public final class ImpactFrames {
     private record Still(int ms, int mode) {
     }
 
-    private static final Still[] ULTIMATE = {new Still(70, NEGATIVE), new Still(75, INK), new Still(70, LIGHT), new Still(60, INK)};
+    /** About 1.6 seconds in all: the stills come quick, then hold longer and longer, the last held longest. */
+    private static final Still[] ULTIMATE = {new Still(110, NEGATIVE), new Still(120, INK), new Still(110, LIGHT), new Still(140, INK),
+            new Still(120, NEGATIVE), new Still(160, LIGHT), new Still(260, INK)};
     private static final Still[] ACTIVE = {new Still(55, INK), new Still(50, NEGATIVE)};
-    private static final int ULTIMATE_SNAP = 320, ACTIVE_SNAP = 180;
+    private static final int ULTIMATE_SNAP = 560, ACTIVE_SNAP = 180;
+    /** How far an ultimate's stills push in over the sequence, and how often their speed lines flicker (ms). */
+    private static final float ULTIMATE_ZOOM = 0.09f;
+    private static final int FLICKER_MS = 85;
 
     @Nullable
     private static PostChain chain;
@@ -103,20 +109,31 @@ public final class ImpactFrames {
         Minecraft mc = Minecraft.getInstance();
         PostChain post = chain(mc);
         if (post == null) return;
-        int mode = 0;
+        int mode = 0, index = 0;
         float fade = 0;
         if (t < frozen) {
             long acc = 0;
-            for (Still s : stills) {
-                acc += s.ms();
+            for (int i = 0; i < stills.length; i++) {
+                acc += stills[i].ms();
                 if (t < acc) {
-                    mode = s.mode();
+                    mode = stills[i].mode();
+                    index = i;
                     break;
                 }
             }
         } else {
             fade = 1 - (t - frozen) / (float) snapMs;
         }
+        boolean longSequence = stills == ULTIMATE;
+        // an ultimate's stills push slowly in about the burst, and each new one lands with a small jolt
+        float zoom = longSequence && mode != 0 ? 1 + ULTIMATE_ZOOM * (float) Math.sqrt(t / (float) frozen) : 1;
+        float joltX = 0, joltY = 0;
+        if (longSequence && mode != 0 && index > 0) {
+            joltX = (hash(seed + index * 3.1f) - 0.5f) * 0.012f;
+            joltY = (hash(seed + index * 5.7f) - 0.5f) * 0.012f;
+        }
+        // fresh speed lines for every still; on the long holds they flicker
+        float lines = seed + index * 7.31f + (longSequence ? (t / FLICKER_MS) * 3.17f : 0);
         // the stills are all drawn from the one frozen picture; snapping back, the picture is live again
         post.setUniform("Capture", capture || mode == 0 ? 1f : 0f);
         capture = false;
@@ -129,7 +146,10 @@ public final class ImpactFrames {
         post.setUniform("TintB", tintB);
         post.setUniform("CenterX", centerX);
         post.setUniform("CenterY", 1 - centerY);
-        post.setUniform("Seed", seed + (mode * 13.7f));
+        post.setUniform("Seed", lines);
+        post.setUniform("Zoom", zoom);
+        post.setUniform("ShiftX", joltX);
+        post.setUniform("ShiftY", joltY);
         try {
             post.process(event.getPartialTick().getGameTimeDeltaPartialTick(false));
         } finally {
@@ -149,6 +169,11 @@ public final class ImpactFrames {
             k = (1 - u) * (1 - u);
         } else return;
         event.setFOV(event.getFOV() * (1 - punch * k));
+    }
+
+    private static float hash(float n) {
+        double v = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+        return (float) (v - Math.floor(v));
     }
 
     @Nullable

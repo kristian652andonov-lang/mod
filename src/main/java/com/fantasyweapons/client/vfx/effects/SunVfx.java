@@ -64,7 +64,7 @@ public class SunVfx extends Vfx {
             double ang = i * Math.PI * 2 / rays + time * 0.012 * (i % 2 == 0 ? 1 : -1);
             Vec3 dir = ctx.camLeft.scale(Math.cos(ang)).add(ctx.camUp.scale(Math.sin(ang)));
             float len = r * (1.1f + 0.45f * (float) Math.sin(time * 0.3f + i * 1.7f));
-            ctx.stretched(rayVc, p.add(dir.scale(r * 0.95 + len * 0.5)), dir, len, r * 0.45f, Colors.alpha(a * 0.6f, color));
+            ctx.flame(rayVc, p.add(dir.scale(r * 0.8)), dir, len, r * 0.5f, Colors.alpha(a * 0.6f, color));
         }
         ctx.billboard(ctx.additive(VfxTextures.GLOW), p, r * 5.5f, 0, Colors.alpha(a * 0.45f, color));
         int lat = ctx.segments(12), lon = ctx.segments(18);

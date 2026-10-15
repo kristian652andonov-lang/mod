@@ -185,7 +185,7 @@ public final class InfernochainFx {
                 for (int i = 0; i < ChainTracker.POINTS; i++) {
                     float flick = 0.7f + 0.3f * (float) Math.sin(time * 1.7 + i * 2.3);
                     float size = (0.28f + 0.22f * flames) * flick * (i == 7 ? 1.3f : 1f);
-                    ctx.stretched(flame, s.pts[i].add(0, size * 0.35, 0), UP, size * 1.7f, size, Colors.alpha(Math.min(1, flames) * 0.85f * flick,
+                    ctx.flame(flame, s.pts[i].subtract(0, size * 0.4, 0), UP, size * 1.7f, size, Colors.alpha(Math.min(1, flames) * 0.85f * flick,
                             Colors.lerpRgb(FIRE, CORE, flick - 0.55f)));
                 }
                 var glow = ctx.additive(VfxTextures.GLOW);
@@ -421,7 +421,7 @@ public final class InfernochainFx {
                         double rr = r * (ring == 0 ? 0.92 : 0.6);
                         Vec3 at = c.add(Math.cos(ang + ring) * rr, ring * 0.3 - 0.4, Math.sin(ang + ring) * rr);
                         Vec3 tangent = new Vec3(-Math.sin(ang + ring), 0.25, Math.cos(ang + ring));
-                        ctx.stretched(flame, at, tangent, 1.6f * flick, 0.7f * flick, Colors.alpha(a * flick * (ring == 0 ? 0.8f : 0.55f),
+                        ctx.flame(flame, at.subtract(tangent.normalize().scale(0.8f * flick)), tangent, 1.6f * flick, 0.7f * flick, Colors.alpha(a * flick * (ring == 0 ? 0.8f : 0.55f),
                                 Colors.lerpRgb(ring == 0 ? FIRE : CRIMSON, CORE, flick - 0.6f)));
                     }
                 }

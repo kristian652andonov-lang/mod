@@ -37,6 +37,8 @@ public final class VfxTextures {
     public static final ResourceLocation DISC = t("disc");
     public static final ResourceLocation ICE = t("ice");
     public static final ResourceLocation ROCK = t("rock");
+    /** A jagged stone chip with a soft alpha edge, for flying debris sprites (ROCK is a tiling square). */
+    public static final ResourceLocation ROCK_CHIP = t("rock_chip");
     public static final ResourceLocation BARK = t("bark");
     public static final ResourceLocation FROST = t("frost");
     public static final ResourceLocation SNOWFLAKE = t("snowflake");

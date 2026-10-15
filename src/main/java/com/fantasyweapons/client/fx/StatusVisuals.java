@@ -66,7 +66,7 @@ public final class StatusVisuals {
                     double a = ph * 6.283 + t * 0.03;
                     Vec3 p = new Vec3(center.x + Math.cos(a) * w * 0.45, box.minY + h * (0.1 + 0.8 * cyc), center.z + Math.sin(a) * w * 0.45);
                     float s = (float) (0.35 + w * 0.35) * (1 - cyc * 0.6f);
-                    ctx.stretched(flame, p, new Vec3(0, 1, 0), s * 1.6f, s, Colors.alpha(fade * (1 - cyc) * 0.85f, Colors.lerpRgb(col, 0xFFF0B0, 1 - cyc)));
+                    ctx.flame(flame, p.subtract(0, s * 0.8, 0), new Vec3(0, 1, 0), s * 1.6f, s, Colors.alpha(fade * (1 - cyc) * 0.85f, Colors.lerpRgb(col, 0xFFF0B0, 1 - cyc)));
                 }
                 if (!self) ctx.billboard(ctx.additive(VfxTextures.GLOW), center, (float) (w + h) * 0.9f, 0, Colors.alpha(fade * 0.22f, col));
             }
@@ -121,7 +121,7 @@ public final class StatusVisuals {
                     double rr = self ? 0.9 : w * 0.6;
                     Vec3 p = new Vec3(center.x + Math.cos(a) * rr, box.minY + h * (0.05 + 0.9 * cyc), center.z + Math.sin(a) * rr);
                     float s = (float) (0.45 + w * 0.3) * (1 - cyc * 0.5f);
-                    ctx.stretched(flame, p, new Vec3(0, 1, 0), s * 1.8f, s * 0.8f, Colors.alpha(fade * (1 - cyc) * 0.7f, Colors.lerpRgb(0xE0213A, 0xFF7A8A, cyc)));
+                    ctx.flame(flame, p.subtract(0, s * 0.9, 0), new Vec3(0, 1, 0), s * 1.8f, s * 0.8f, Colors.alpha(fade * (1 - cyc) * 0.7f, Colors.lerpRgb(0xE0213A, 0xFF7A8A, cyc)));
                 }
                 if (!self) {
                     ctx.billboard(ctx.additive(VfxTextures.GLOW), center, (float) (w + h) * 1.1f, 0, Colors.alpha(fade * 0.25f, 0xE0213A));

@@ -181,7 +181,7 @@ final class IceMageFx {
                 Vec3 q = g.add(Math.cos(a) * rr, h, Math.sin(a) * rr);
                 Vec3 tangent = new Vec3(-Math.sin(a), -0.15, Math.cos(a));
                 ctx.billboard(mist, q, 2.2f + 1.5f * ph, ph * 6 + ticks * 0.02f, Colors.alpha(k * 0.28f, 0xE8F6FF));
-                ctx.stretched(streak, q.add(0, 0.5, 0), tangent, 2.4f, 0.08f, Colors.alpha(k * 0.5f, 0xFFFFFF));
+                ctx.streak(streak, q.add(0, 0.5, 0), tangent, 2.4f, 0.08f, Colors.alpha(k * 0.5f, 0xFFFFFF));
             }
         }));
         ScreenFx.zoneVignette(0xBFE6FF, 0.3f, life, g, r);

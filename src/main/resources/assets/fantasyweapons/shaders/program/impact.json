@@ -1,22 +1,164 @@
 {
-  "blend": {"func": "add", "srcrgb": "one", "dstrgb": "zero"},
+  "blend": {
+    "func": "add",
+    "srcrgb": "one",
+    "dstrgb": "zero"
+  },
   "vertex": "sobel",
   "fragment": "fantasyweapons:impact",
-  "attributes": ["Position"],
-  "samplers": [{"name": "DiffuseSampler"}],
+  "attributes": [
+    "Position"
+  ],
+  "samplers": [
+    {
+      "name": "DiffuseSampler"
+    }
+  ],
   "uniforms": [
-    {"name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]},
-    {"name": "InSize", "type": "float", "count": 2, "values": [1.0, 1.0]},
-    {"name": "OutSize", "type": "float", "count": 2, "values": [1.0, 1.0]},
-    {"name": "Mode", "type": "float", "count": 1, "values": [0.0]},
-    {"name": "Strength", "type": "float", "count": 1, "values": [1.0]},
-    {"name": "Fade", "type": "float", "count": 1, "values": [0.0]},
-    {"name": "Lines", "type": "float", "count": 1, "values": [1.0]},
-    {"name": "TintR", "type": "float", "count": 1, "values": [1.0]},
-    {"name": "TintG", "type": "float", "count": 1, "values": [1.0]},
-    {"name": "TintB", "type": "float", "count": 1, "values": [1.0]},
-    {"name": "CenterX", "type": "float", "count": 1, "values": [0.5]},
-    {"name": "CenterY", "type": "float", "count": 1, "values": [0.5]},
-    {"name": "Seed", "type": "float", "count": 1, "values": [0.0]}
+    {
+      "name": "ProjMat",
+      "type": "matrix4x4",
+      "count": 16,
+      "values": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "name": "InSize",
+      "type": "float",
+      "count": 2,
+      "values": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "OutSize",
+      "type": "float",
+      "count": 2,
+      "values": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "Mode",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "name": "Strength",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "Fade",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "name": "Lines",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "TintR",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "TintG",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "TintB",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "CenterX",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.5
+      ]
+    },
+    {
+      "name": "CenterY",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.5
+      ]
+    },
+    {
+      "name": "Seed",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "name": "Zoom",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "ShiftX",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "name": "ShiftY",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.0
+      ]
+    }
   ]
 }

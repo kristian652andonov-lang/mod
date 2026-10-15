@@ -16,8 +16,9 @@ import java.util.List;
 /**
  * Broken ground made of the terrain's own material: irregular chunks thrown out of an impact that tumble, bounce and
  * settle, and plates of earth that buckle up out of the ground, tilted away from the blow, then sink back. Each piece
- * is a jittered block textured with the real block's top and side textures (so grass breaks into green-topped sods,
- * stone into stone). Pieces shrink into the ground at the end instead of popping out.
+ * is textured with the real block's top and side textures (so grass breaks into green-topped sods, stone into stone):
+ * the plates are jittered blocks, the flying chunks irregular, many-faced rocks (a block tumbling through the air reads
+ * as a cube). Pieces shrink into the ground at the end instead of popping out.
  */
 public class EarthChunkVfx extends Vfx {
     private static final Vec3 LIGHT = new Vec3(0.35, 0.9, 0.25).normalize();
@@ -31,12 +32,22 @@ public class EarthChunkVfx extends Vfx {
             {0, 1, 3, 2}, // -Z
     };
 
+    /** A rock: an icosahedron's twelve corners pushed in and out at random, and its twenty faces. */
+    private static final float PHI = 1.618034f;
+    private static final float[][] ICO = {{-1, PHI, 0}, {1, PHI, 0}, {-1, -PHI, 0}, {1, -PHI, 0}, {0, -1, PHI}, {0, 1, PHI}, {0, -1, -PHI},
+            {0, 1, -PHI}, {PHI, 0, -1}, {PHI, 0, 1}, {-PHI, 0, -1}, {-PHI, 0, 1}};
+    private static final int[][] ICO_FACES = {{0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11}, {1, 5, 9}, {5, 11, 4}, {11, 10, 2},
+            {10, 7, 6}, {7, 1, 8}, {3, 9, 4}, {3, 4, 2}, {3, 2, 6}, {3, 6, 8}, {3, 8, 9}, {4, 9, 5}, {2, 4, 11}, {6, 2, 10}, {8, 6, 7},
+            {9, 8, 1}};
+
     private final GroundMaterial mat;
     private final List<Piece> pieces = new ArrayList<>();
 
     private static final class Piece {
         final boolean slab;
         final Vector3f[] corners = new Vector3f[8];
+        /** Set for a rock (flying chunks): its twelve corners, used instead of the block's eight. */
+        Vector3f[] rock;
         final float[] uvOff = new float[2];
         final int delay;
         final int life;
@@ -75,7 +86,7 @@ public class EarthChunkVfx extends Vfx {
         RandomSource r = RandomSource.create(seed);
         Piece p = new Piece(false, 0, lifetime - r.nextInt(Math.max(1, lifetime / 4)),
                 new Vector3f((r.nextFloat() - 0.5f) * 0.7f, (r.nextFloat() - 0.5f) * 0.5f, (r.nextFloat() - 0.5f) * 0.7f), floorY);
-        box(p, size * (0.8f + 0.4f * r.nextFloat()), size * (0.6f + 0.5f * r.nextFloat()), size * (0.8f + 0.4f * r.nextFloat()), 0.28f, r);
+        rock(p, size * (0.8f + 0.4f * r.nextFloat()), size * (0.6f + 0.5f * r.nextFloat()), size * (0.8f + 0.4f * r.nextFloat()), r);
         p.pos = p.prev = pos;
         p.vel = vel;
         p.rot.rotationXYZ(r.nextFloat() * 6.28f, r.nextFloat() * 6.28f, r.nextFloat() * 6.28f);
@@ -92,7 +103,7 @@ public class EarthChunkVfx extends Vfx {
         RandomSource r = RandomSource.create(seed);
         Piece p = new Piece(false, 0, lifetime, new Vector3f((r.nextFloat() - 0.5f) * 0.12f, (r.nextFloat() - 0.5f) * 0.1f, (r.nextFloat() - 0.5f) * 0.12f),
                 base.y);
-        box(p, size * (0.8f + 0.4f * r.nextFloat()), size * (0.6f + 0.5f * r.nextFloat()), size * (0.8f + 0.4f * r.nextFloat()), 0.3f, r);
+        rock(p, size * (0.8f + 0.4f * r.nextFloat()), size * (0.6f + 0.5f * r.nextFloat()), size * (0.8f + 0.4f * r.nextFloat()), r);
         p.pos = p.prev = base;
         p.vel = Vec3.ZERO;
         p.hoverBase = base;
@@ -133,6 +144,18 @@ public class EarthChunkVfx extends Vfx {
             float y = ((i & 2) != 0 ? 0.5f : -0.5f) * h * (1 + (r.nextFloat() - 0.5f) * 2 * jitter);
             float z = ((i & 4) != 0 ? 0.5f : -0.5f) * d * (1 + (r.nextFloat() - 0.5f) * 2 * jitter);
             p.corners[i] = new Vector3f(x, y, z);
+        }
+        p.uvOff[0] = r.nextFloat() * 0.5f;
+        p.uvOff[1] = r.nextFloat() * 0.5f;
+    }
+
+    /** A lumpy rock about w by h by d: every corner of the icosahedron pushed in or out by up to a third. */
+    private static void rock(Piece p, float w, float h, float d, RandomSource r) {
+        p.rock = new Vector3f[ICO.length];
+        float n = (float) Math.sqrt(1 + PHI * PHI);
+        for (int i = 0; i < ICO.length; i++) {
+            float k = (0.72f + 0.5f * r.nextFloat()) * 0.5f / n;
+            p.rock[i] = new Vector3f(ICO[i][0] * w * k, ICO[i][1] * h * k, ICO[i][2] * d * k);
         }
         p.uvOff[0] = r.nextFloat() * 0.5f;
         p.uvOff[1] = r.nextFloat() * 0.5f;
@@ -197,12 +220,13 @@ public class EarthChunkVfx extends Vfx {
                 q = new Quaternionf(p.prevRot).slerp(p.rot, ctx.partial);
                 at = p.prev.lerp(p.pos, ctx.partial).subtract(0, 0.3 * easeIn(end), 0);
             }
-            Vec3[] w = new Vec3[9];
-            for (int i = 0; i < 8; i++) {
-                q.transform(tmp.set(p.corners[i]).mul(scale));
+            Vector3f[] src = p.rock != null ? p.rock : p.corners;
+            Vec3[] w = new Vec3[src.length + 1];
+            for (int i = 0; i < src.length; i++) {
+                q.transform(tmp.set(src[i]).mul(scale));
                 w[i] = at.add(tmp.x, tmp.y, tmp.z);
             }
-            w[8] = at;
+            w[src.length] = at;
             shapes.add(w);
             shown.add(p);
         }
@@ -210,11 +234,21 @@ public class EarthChunkVfx extends Vfx {
         // smooth earth on every face (and on top unless the ground is turf), then the turf tops in their own pass
         VertexConsumer soil = ctx.solid(com.fantasyweapons.client.vfx.VfxTextures.SOIL);
         for (int k = 0; k < shapes.size(); k++) {
-            for (int f = 0; f < 6; f++) if (f != 0 || !mat.turf()) face(ctx, soil, shown.get(k), shapes.get(k), f);
+            Piece piece = shown.get(k);
+            if (piece.rock != null) {
+                for (int f = 0; f < ICO_FACES.length; f++) if (!mat.turf() || !turfFace(piece, f)) rockFace(ctx, soil, piece, shapes.get(k), f, false);
+            } else {
+                for (int f = 0; f < 6; f++) if (f != 0 || !mat.turf()) face(ctx, soil, piece, shapes.get(k), f);
+            }
         }
         if (mat.turf()) {
             VertexConsumer turf = ctx.solid(com.fantasyweapons.client.vfx.VfxTextures.TURF);
-            for (int k = 0; k < shapes.size(); k++) face(ctx, turf, shown.get(k), shapes.get(k), 0);
+            for (int k = 0; k < shapes.size(); k++) {
+                Piece piece = shown.get(k);
+                if (piece.rock != null) {
+                    for (int f = 0; f < ICO_FACES.length; f++) if (turfFace(piece, f)) rockFace(ctx, turf, piece, shapes.get(k), f, true);
+                } else face(ctx, turf, piece, shapes.get(k), 0);
+            }
         }
     }
 
@@ -244,5 +278,32 @@ public class EarthChunkVfx extends Vfx {
             ctx.vertex(vc, w[k[2]], u0 + fu, v0 + fv, c0);
             ctx.vertex(vc, w[k[3]], u0, v0 + fv, c0);
         }
+    }
+
+    /** Whether a rock's face looked up before it was thrown (a sod keeps its grass on top). */
+    private static boolean turfFace(Piece p, int f) {
+        int[] t = ICO_FACES[f];
+        Vector3f a = p.rock[t[0]], b = p.rock[t[1]], c = p.rock[t[2]];
+        Vector3f n = new Vector3f(b).sub(a).cross(new Vector3f(c).sub(a));
+        Vector3f mid = new Vector3f(a).add(b).add(c);
+        if (n.dot(mid) < 0) n.negate();
+        return n.y > 0.55f * n.length();
+    }
+
+    /** One triangle of a rock, lit by its facing, the texture laid on at world scale from the piece's random offset. */
+    private void rockFace(VfxContext ctx, VertexConsumer vc, Piece p, Vec3[] w, int f, boolean top) {
+        int[] t = ICO_FACES[f];
+        Vec3 a = w[t[0]], b = w[t[1]], c = w[t[2]];
+        Vec3 n = b.subtract(a).cross(c.subtract(a));
+        n = n.lengthSqr() < 1e-12 ? new Vec3(0, 1, 0) : n.normalize();
+        if (n.dot(a.add(b).add(c).scale(1 / 3.0).subtract(w[w.length - 1])) < 0) n = n.scale(-1);
+        float shade = 0.45f + 0.55f * (float) Math.max(0, n.dot(LIGHT));
+        int col = Colors.argb(255, mat.lit(top ? mat.topColor() : mat.sideColor(), shade));
+        float ab = (float) a.distanceTo(b) * 0.55f, ac = (float) a.distanceTo(c) * 0.55f;
+        float u0 = p.uvOff[0] * 4 + f * 0.37f, v0 = p.uvOff[1] * 4 + f * 0.21f;
+        ctx.vertex(vc, a, u0, v0, col);
+        ctx.vertex(vc, b, u0 + ab, v0, col);
+        ctx.vertex(vc, c, u0 + ac * 0.5f, v0 + ac * 0.87f, col);
+        ctx.vertex(vc, c, u0 + ac * 0.5f, v0 + ac * 0.87f, col);
     }
 }

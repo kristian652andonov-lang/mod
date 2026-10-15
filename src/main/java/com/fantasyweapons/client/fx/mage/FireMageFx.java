@@ -71,7 +71,7 @@ final class FireMageFx {
             Vec3 p = base.add(Math.cos(a) * spread, y, Math.sin(a) * spread);
             float s = width * (1.1f - cyc * 0.7f) * (0.8f + 0.4f * ph);
             int col = Colors.lerpRgb(FIRE.core(), cyc < 0.4f ? FIRE.main() : FIRE.deep(), Math.min(1, cyc * 1.4f));
-            ctx.stretched(flame, p, UP, s * 1.9f, s, Colors.alpha(k * (1 - cyc) * 0.9f, col));
+            ctx.flame(flame, p.subtract(0, s * 0.6, 0), UP, s * 1.9f, s * 1.1f, Colors.alpha(k * (1 - cyc) * 0.9f, col));
         }
         ctx.billboard(ctx.additive(VfxTextures.GLOW), base.add(0, height * 0.25, 0), width * 2.2f, 0, Colors.alpha(k * 0.45f, FIRE.main()));
     }
@@ -89,12 +89,12 @@ final class FireMageFx {
         VfxManager.add(new DecalVfx(g.add(0, 0.05, 0), UP, r * 0.85f, Colors.argb(230, FIRE.main()), VfxTextures.RUNE_CIRCLE, delay + 12)
                 .spin(0.09f).energy().timing(0.25f, 0.2f));
         VfxManager.add(new DecalVfx(g.add(0, 0.06, 0), UP, r * 0.45f, Colors.argb(230, FIRE.core()), VfxTextures.HEX, delay + 12)
-                .spin(-0.14f).energy().timing(0.3f, 0.2f));
+                .round().spin(-0.14f).energy().timing(0.3f, 0.2f));
         VfxManager.add(new DecalVfx(g.add(0, 0.04, 0), UP, r * 1.1f, Colors.argb(150, MOLTEN), VfxTextures.GLOW, delay + 12).timing(0.4f, 0.2f));
         // a thin thread of light marks where it will fall
         VfxManager.add(new SpellVfx(delay, (ctx, t, ticks) -> {
             float a = 0.25f + 0.35f * t;
-            ctx.beam(ctx.additive(VfxTextures.STREAK), sky, g, 0.12f + 0.2f * t, Colors.alpha(a, FIRE.main()), -ticks * 0.3f, -ticks * 0.3f + 4);
+            ctx.softBeam(ctx.additive(VfxTextures.STREAK), sky, g, 0.12f + 0.2f * t, Colors.alpha(a, FIRE.main()), -ticks * 0.3f, -ticks * 0.3f + 4, 0.35f, 0.04f);
         }));
         // the meteor: a burning star accelerating down its slant, wrapped in fire and dragging smoke
         int fall = Math.min(delay, 16), wait = delay - fall;
@@ -127,7 +127,7 @@ final class FireMageFx {
             }
         }));
         VfxManager.add(new ShardBurstVfx(g.add(0, 0.6, 0), UP, 0.8f, 0.55f, 20, 0.35f, Colors.argb(255, FIRE.core()), Colors.argb(0, MOLTEN), 30, p.seed() * 3)
-                .texture(VfxTextures.ROCK, false).physics(0.04f, 0.97f));
+                .texture(VfxTextures.ROCK_CHIP, false).physics(0.04f, 0.97f));
         CameraShake.add(g, 1.1f, r * 4 + 10);
         MageFx.hit(p, FIRE.main());
     }
@@ -152,7 +152,7 @@ final class FireMageFx {
             float rise = Math.min(1, ticks / 3f);
             float k = SpellVfx.envelope(t, 0.05f, 0.5f);
             flameColumn(ctx, g, 5.5f * rise * (0.6f + 0.4f * k), r * 0.9f, ticks, seed, k);
-            ctx.beam(ctx.additive(VfxTextures.STREAK), g, g.add(0, 5.5 * rise, 0), r * 0.7f * k, Colors.alpha(0.6f * k, FIRE.core()), -ticks * 0.5f, -ticks * 0.5f + 2);
+            ctx.softBeam(ctx.additive(VfxTextures.STREAK), g, g.add(0, 5.5 * rise, 0), r * 0.7f * k, Colors.alpha(0.6f * k, FIRE.core()), -ticks * 0.5f, -ticks * 0.5f + 2, 0.06f, 0.5f);
         }));
         VfxManager.add(new ShockwaveVfx(g.add(0, 0.06, 0), UP, 0.2f, r * 1.8f, 0.4f, Colors.argb(220, FIRE.main()), 12).energy());
         VfxManager.add(new DecalVfx(g.add(0, 0.04, 0), UP, r * 1.2f, Colors.argb(200, MOLTEN), VfxTextures.GLOW, 40).timing(0.02f, 0.7f));
@@ -185,7 +185,7 @@ final class FireMageFx {
                 Vec3 q = g.add(Math.cos(a) * rr, 0.1, Math.sin(a) * rr);
                 float pulse = 0.5f + 0.5f * (float) Math.sin(ticks * 0.15 + ph * 20);
                 ctx.billboard(glow, q, 0.8f + pulse * 1.2f, 0, Colors.alpha(k * 0.5f * pulse, FIRE.main()));
-                ctx.stretched(flame, q.add(0, 0.4 * pulse, 0), UP, 0.9f * pulse, 0.5f * pulse, Colors.alpha(k * 0.7f * pulse, EMBER));
+                ctx.flame(flame, q, UP, 1.1f * pulse, 0.6f * pulse, Colors.alpha(k * 0.7f * pulse, EMBER));
             }
             // the mountain's heart glows in the middle
             flameColumn(ctx, g, 3f, 1.6f, ticks, seed, k * 0.8f);
@@ -219,7 +219,7 @@ final class FireMageFx {
             float u = Math.min(1, t / flight);
             return from.lerp(land, u).add(0, Math.sin(u * Math.PI) * peak, 0);
         };
-        OrbVfx orb = VfxManager.add(new OrbVfx(path, 0.55f, MOLTEN, FIRE.core(), flight + 1).sprite(VfxTextures.ROCK, 0x3A1A0A, 0.5f));
+        OrbVfx orb = VfxManager.add(new OrbVfx(path, 0.55f, MOLTEN, FIRE.core(), flight + 1).sprite(VfxTextures.ROCK_CHIP, 0x3A1A0A, 0.5f));
         VfxManager.add(new FollowTrailVfx(orb::now, 0.8f, Colors.argb(230, FIRE.main()), Colors.argb(0, FIRE.deep()), 12, flight + 14).texture(VfxTextures.FLAME, false));
         VfxManager.add(new FollowTrailVfx(orb::now, 1.1f, Colors.argb(140, SMOKE), Colors.argb(0, SMOKE), 16, flight + 26).texture(VfxTextures.MIST, false));
         FxScheduler.after(flight, () -> {
@@ -239,14 +239,14 @@ final class FireMageFx {
             float k = SpellVfx.envelope(t, 0.02f, 0.6f);
             flameColumn(ctx, g, 18 * rise, 4.5f, ticks, seed, k);
             flameColumn(ctx, g, 11 * rise, 2.5f, ticks * 1.3f, seed * 3, k);
-            ctx.beam(ctx.energy(VfxTextures.STREAK), g, g.add(0, 18 * rise, 0), 5f * k, Colors.alpha(0.55f * k, FIRE.main()), -ticks * 0.4f, -ticks * 0.4f + 3);
+            ctx.softBeam(ctx.energy(VfxTextures.STREAK), g, g.add(0, 18 * rise, 0), 5f * k, Colors.alpha(0.55f * k, FIRE.main()), -ticks * 0.4f, -ticks * 0.4f + 3, 0.05f, 0.5f);
         }));
         for (int i = 0; i < 3; i++) {
             int d = i * 4;
             FxScheduler.after(d, () -> VfxManager.add(new ShockwaveVfx(g.add(0, 0.08, 0), UP, 0.5f, r * 1.4f, 0.6f, Colors.argb(220, d == 4 ? FIRE.core() : FIRE.main()), 16).energy()));
         }
         VfxManager.add(new ShardBurstVfx(g.add(0, 1, 0), UP, 0.7f, 0.9f, 36, 0.5f, Colors.argb(255, FIRE.core()), Colors.argb(0, MOLTEN), 40, seed)
-                .texture(VfxTextures.ROCK, false).physics(0.045f, 0.98f));
+                .texture(VfxTextures.ROCK_CHIP, false).physics(0.045f, 0.98f));
         GroundShatter.impact(g, r, 1.6f, seed * 11);
         CameraShake.add(g, 1.6f, r * 4);
         var mc = Minecraft.getInstance();
@@ -345,14 +345,14 @@ final class FireMageFx {
                     Vec3 q = b.add(side.scale(s * out)).add(UP.scale(flap * u * 2.1 * grow + u * 0.4)).subtract(fwd.scale(u * u * 1.8));
                     spine[i] = q;
                     ws[i] = 2.2f * (1 - u * 0.7f) * grow;
-                    cs[i] = Colors.alpha(k * 0.9f, Colors.lerpRgb(FIRE.core(), FIRE.main(), u));
-                    if (i > 0) ctx.stretched(flame, q.subtract(fwd.scale(0.8)), fwd.scale(-1), 2.5f * grow, 1.1f * grow, Colors.alpha(k * 0.8f, Colors.lerpRgb(FIRE.main(), FIRE.deep(), u)));
+                    cs[i] = Colors.alpha(k * 0.9f * (1 - u * u), Colors.lerpRgb(FIRE.core(), FIRE.main(), u));
+                    if (i > 0) ctx.flame(flame, q, fwd.scale(-1), 2.5f * grow, 1.1f * grow, Colors.alpha(k * 0.8f, Colors.lerpRgb(FIRE.main(), FIRE.deep(), u)));
                 }
                 ctx.ribbon(streak, spine, ws, cs, -ticks * 0.2f, 0.3f);
             }
             // head and crest
             ctx.billboard(ctx.additive(VfxTextures.GLOW), b, 4.8f * grow, 0, Colors.alpha(k * 0.5f, FIRE.main()));
-            ctx.stretched(flame, b.add(fwd.scale(0.9)).add(0, 0.4, 0), fwd, 1.9f * grow, 0.9f * grow, Colors.alpha(k, FIRE.core()));
+            ctx.flame(flame, b.add(0, 0.4, 0), fwd, 1.9f * grow, 0.9f * grow, Colors.alpha(k, FIRE.core()));
             // its glow on the ground beneath
             Vec3 g = MageFx.ground(b.subtract(0, 0.5, 0));
             ctx.disc(ctx.additive(VfxTextures.GLOW), g.add(0, 0.05, 0), new Vec3(1, 0, 0), new Vec3(0, 0, 1), 2.5f, 0, Colors.alpha(k * 0.35f, FIRE.main()));

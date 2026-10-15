@@ -23,6 +23,9 @@ public class TetherVfx extends Vfx {
     private boolean translucent;
     private float sag = 0.6f, writhe = 0.25f, flow = 1;
     private int motes = 6;
+    /** -1: motes glow in the core colour; otherwise drawn alpha-blended in this colour. */
+    private int moteColor = -1;
+    private float moteSize = 2.4f;
     private int grow = 6;
 
     public TetherVfx(Supplier<Vec3> from, Supplier<Vec3> to, float width, int color, int core, int lifetime) {
@@ -45,6 +48,16 @@ public class TetherVfx extends Vfx {
         this.mote = tex;
         this.motes = count;
         this.flow = flow;
+        return this;
+    }
+
+    /**
+     * Motes drawn alpha-blended in their own colour and size (times the thread's width) instead of glowing in the core
+     * colour: for solid things carried along the thread, like leaves on a vine.
+     */
+    public TetherVfx moteLook(int color, float size) {
+        this.moteColor = color;
+        this.moteSize = size;
         return this;
     }
 
@@ -94,14 +107,14 @@ public class TetherVfx extends Vfx {
             ctx.ribbon(ctx.additive(VfxTextures.LIGHTNING), pts, cw, cc, 0, 1f / n);
         }
         // motes flowing along the thread
-        var glow = ctx.additive(mote);
+        var glow = moteColor == -1 ? ctx.additive(mote) : ctx.translucent(mote);
         for (int k = 0; k < motes; k++) {
             float u = ((ticks * 0.04f * flow + k / (float) motes) % 1f + 1f) % 1f;
             if (u > reach) continue;
             float f = u * n;
             int i = Math.min(n - 1, (int) f);
             Vec3 p = pts[i].lerp(pts[i + 1], f - i);
-            ctx.billboard(glow, p, width * 2.4f, ticks * 0.1f + k, Colors.alpha(0.85f * (float) Math.sin(u * Math.PI), core));
+            ctx.billboard(glow, p, width * moteSize, ticks * 0.1f + k, Colors.alpha(0.85f * (float) Math.sin(u * Math.PI), moteColor == -1 ? core : moteColor));
         }
         ctx.billboard(ctx.additive(VfxTextures.GLOW), pts[n], width * 4f, 0, Colors.alpha(0.5f, color));
     }

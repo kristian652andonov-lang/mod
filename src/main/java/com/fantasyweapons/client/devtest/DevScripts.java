@@ -311,7 +311,7 @@ final class DevScripts {
         java.util.List<String> ids = weapons.length == 1 && weapons[0].equals("all")
                 ? com.fantasyweapons.weapon.Weapons.focuses().stream().map(com.fantasyweapons.weapon.WeaponDefinition::id).toList()
                 : java.util.List.of(weapons);
-        b.cmd("/gamemode creative").cmd("/fw class set mage").wait(5);
+        b.cmd("/gamemode creative").cmd("/fw class set mage").cmd("/time set midnight").wait(5);
         for (String w : ids) {
             var def = com.fantasyweapons.weapon.Weapons.get(w);
             b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/tp @s 0 -60 0 0 0").cmd("/fw give " + w + " 100").wait(130).slot(0)
@@ -326,7 +326,10 @@ final class DevScripts {
                 b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
                 boolean ult = a.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE;
                 String n = "mage_" + w + "_" + a.id();
-                b.wait(3).screenshot(n + "_a").wait(7).screenshot(n + "_b").wait(12).screenshot(n + "_c").wait(23).screenshot(n + "_d");
+                b.wait(3).screenshot(n + "_a").wait(7).screenshot(n + "_b");
+                // through the caster's own eyes too, where hard edges and cut-off columns show most
+                b.playerView().hud(false).wait(4).screenshot(n + "_fp").viewAt(8, 4.5, -3, -1, 0.5, 7);
+                b.wait(8).screenshot(n + "_c").wait(23).screenshot(n + "_d");
                 if (ult) b.wait(35).screenshot(n + "_e").wait(50).screenshot(n + "_f");
                 b.wait(ult ? 60 : 20);
             }
@@ -1219,7 +1222,7 @@ final class DevScripts {
     /** The class menu a page at a time; then the HUD, a toast and the menus at GUI scales 2, 3 and 4. */
     /** Impact frames: an ultimate's four stills and its snap back, then an ordinary ability's flash, each pinned in place. */
     private static void impact(ScreenshotDirector.Builder b) {
-        String[][] casts = {{"solaris", "celestial_inferno", "10,100,170,240,300,420"}, {"voidfang", "rift_tear", "10,70,150"}};
+        String[][] casts = {{"solaris", "celestial_inferno", "50,170,290,420,560,700,900,1100,1250,1450"}, {"voidfang", "rift_tear", "10,70,150"}};
         for (String[] c : casts) {
             var a = com.fantasyweapons.weapon.Weapons.get(c[0]).ability(c[1]);
             b.cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/fw give " + c[0] + " 100").wait(130).slot(0).cmd("/fw points 200").cmd("/fw cooldowns").hud(true);

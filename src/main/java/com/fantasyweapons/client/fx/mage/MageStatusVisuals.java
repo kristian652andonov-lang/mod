@@ -29,7 +29,7 @@ public final class MageStatusVisuals {
                 for (int i = 0; i < inst.stacks; i++) {
                     double a = t * 0.08 + i * 6.283 / inst.stacks;
                     Vec3 p = top.add(Math.cos(a) * 0.4, 0.35 + 0.05 * Math.sin(t * 0.3 + i), Math.sin(a) * 0.4);
-                    ctx.stretched(flame, p, MageFx.UP, 0.35f, 0.2f, Colors.alpha(fade, i == inst.stacks - 1 ? 0xFFF0B0 : 0xFF6A1F));
+                    ctx.flame(flame, p.subtract(0, 0.15, 0), MageFx.UP, 0.4f, 0.22f, Colors.alpha(fade, i == inst.stacks - 1 ? 0xFFF0B0 : 0xFF6A1F));
                 }
             }
             case SOAKED -> {
@@ -91,7 +91,7 @@ public final class MageStatusVisuals {
             }
             case RIME_ARMOR -> {
                 if (self) return;
-                var shard = ctx.translucent(VfxTextures.ICE);
+                var shard = ctx.translucent(VfxTextures.SHARD);
                 for (int i = 0; i < inst.stacks; i++) {
                     double a = i * 2.094 + 0.6;
                     Vec3 p = new Vec3(c.x + Math.cos(a) * w * 0.55, box.minY + h * (0.45 + 0.12 * i), c.z + Math.sin(a) * w * 0.55);
@@ -143,7 +143,7 @@ public final class MageStatusVisuals {
                     double a = t * 0.35 + i * 2.094;
                     double rr = self ? 0.8 : w * 0.7;
                     Vec3 p = new Vec3(feet.x + Math.cos(a) * rr, feet.y + 0.2 + i * 0.15, feet.z + Math.sin(a) * rr);
-                    ctx.stretched(streak, p, new Vec3(-Math.sin(a), 0.1, Math.cos(a)), 0.8f, 0.06f, Colors.alpha(fade * 0.6f, 0xFFF6D8));
+                    ctx.streak(streak, p, new Vec3(-Math.sin(a), 0.1, Math.cos(a)), 0.8f, 0.06f, Colors.alpha(fade * 0.6f, 0xFFF6D8));
                 }
             }
             case CHOIR -> {
@@ -178,7 +178,7 @@ public final class MageStatusVisuals {
                         float u = i / (float) (n - 1);
                         pts[i] = back.add(side.scale(s * u * 1.5)).add(0, (flap + 0.6) * u - u * u * 0.4, 0).subtract(fwd.scale(u * 0.4));
                         ws[i] = 0.9f * (1 - u * 0.6f);
-                        cs[i] = Colors.alpha(fade * 0.7f, Colors.lerpRgb(0xFFFFFF, 0xFFE58A, u));
+                        cs[i] = Colors.alpha(fade * 0.7f * (1 - u * u), Colors.lerpRgb(0xFFFFFF, 0xFFE58A, u));
                     }
                     ctx.ribbon(streak, pts, ws, cs, -t * 0.05f, 0.25f);
                 }

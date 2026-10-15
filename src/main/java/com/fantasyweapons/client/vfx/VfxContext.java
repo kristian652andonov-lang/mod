@@ -122,6 +122,57 @@ public final class VfxContext {
         quad(vc, p.subtract(half).subtract(side), p.add(half).subtract(side), p.add(half).add(side), p.subtract(half).add(side), argb);
     }
 
+    /**
+     * An upright flame sprite: rooted at {@code base}, licking {@code length} along {@code dir}, turned to the camera.
+     * Unlike {@link #stretched}, the texture's height runs along the flame (a flame texture drawn by {@code stretched}
+     * lies on its side, its base a hard edge down one flank).
+     */
+    public void flame(VertexConsumer vc, Vec3 base, Vec3 dir, float length, float width, int argb) {
+        Vec3 d = dir.normalize();
+        Vec3 tip = base.add(d.scale(length));
+        Vec3 side = d.cross(cam.subtract(base.add(tip).scale(0.5)));
+        if (side.lengthSqr() < 1e-8) side = camUp;
+        side = side.normalize().scale(width * 0.5);
+        vertex(vc, base.subtract(side), 0, 1, argb);
+        vertex(vc, base.add(side), 1, 1, argb);
+        vertex(vc, tip.add(side), 1, 0, argb);
+        vertex(vc, tip.subtract(side), 0, 0, argb);
+    }
+
+    /**
+     * {@link #stretched}, its two ends fading out: for textures that run edge to edge along their length (streak,
+     * lightning), which would otherwise stop in a hard, square cut.
+     */
+    public void streak(VertexConsumer vc, Vec3 p, Vec3 dir, float length, float width, int argb) {
+        Vec3 d = dir.normalize();
+        Vec3 half = d.scale(length * 0.5);
+        softBeam(vc, p.subtract(half), p.add(half), width, argb, 0, 1, 0.3f, 0.3f);
+    }
+
+    /**
+     * {@link #beam} that fades in over the first {@code fadeFrom} of its length and out over the last {@code fadeTo}, so
+     * neither end is a hard cut (a column of light melting into the air at its top, a ray fading at its far end).
+     */
+    public void softBeam(VertexConsumer vc, Vec3 from, Vec3 to, float width, int argb, float u0, float u1, float fadeFrom, float fadeTo) {
+        Vec3 d = to.subtract(from);
+        Vec3 side = d.cross(cam.subtract(from.add(to).scale(0.5)));
+        if (side.lengthSqr() < 1e-10) side = camUp;
+        side = side.normalize().scale(width * 0.5);
+        int clear = argb & 0x00FFFFFF;
+        float a = Math.max(0, Math.min(0.5f, fadeFrom)), b = 1 - Math.max(0, Math.min(0.5f, fadeTo));
+        float[] s = {0, a, b, 1};
+        int[] c = {fadeFrom > 0 ? clear : argb, argb, argb, fadeTo > 0 ? clear : argb};
+        for (int i = 0; i < 3; i++) {
+            if (s[i + 1] - s[i] < 1e-4f) continue;
+            Vec3 p0 = from.add(d.scale(s[i])), p1 = from.add(d.scale(s[i + 1]));
+            float ua = u0 + (u1 - u0) * s[i], ub = u0 + (u1 - u0) * s[i + 1];
+            vertex(vc, p0.subtract(side), ua, 1, c[i]);
+            vertex(vc, p1.subtract(side), ub, 1, c[i + 1]);
+            vertex(vc, p1.add(side), ub, 0, c[i + 1]);
+            vertex(vc, p0.add(side), ua, 0, c[i]);
+        }
+    }
+
     /** Flat quad in an arbitrary plane given two half-axis vectors. */
     public void plane(VertexConsumer vc, Vec3 center, Vec3 halfX, Vec3 halfY, int argb) {
         quad(vc, center.subtract(halfX).subtract(halfY), center.add(halfX).subtract(halfY), center.add(halfX).add(halfY),

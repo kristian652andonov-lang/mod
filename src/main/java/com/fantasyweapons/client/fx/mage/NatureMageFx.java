@@ -206,7 +206,7 @@ final class NatureMageFx {
         int life = Math.max(10, Math.round(p.power()));
         java.util.function.Supplier<Vec3> from = caster == null || caster == ally ? () -> ally.position().add(0, ally.getBbHeight() + 1.2, 0) : MageFx.focus(caster);
         java.util.function.Supplier<Vec3> to = MageFx.chest(ally);
-        VfxManager.add(new TetherVfx(from, to, 0.22f, 0x6A8A3A, NATURE.core(), life).texture(VfxTextures.BARK, true).motes(VfxTextures.LEAF, 7, 1.2f).shape(0.8f, 0.35f).grow(8));
+        VfxManager.add(new TetherVfx(from, to, 0.22f, 0x6A8A3A, NATURE.core(), life).texture(VfxTextures.BARK, true).motes(VfxTextures.LEAF_SOFT, 7, 1.2f).moteLook(0x6FC24A, 1.5f).shape(0.8f, 0.35f).grow(8));
         VfxManager.add(new TetherVfx(from, to, 0.12f, NATURE.main(), NATURE.core(), life).motes(VfxTextures.GLOW, 5, 1.6f).shape(0.8f, 0.35f).grow(8));
         VfxManager.add(new FlashVfx(Vec3.ZERO, 0.3f, ally.getBbHeight() * 1.4f, Colors.argb(180, NATURE.main()), 10).follow(ally, new Vec3(0, ally.getBbHeight() * 0.5, 0)).energy());
     }

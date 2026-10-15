@@ -48,7 +48,7 @@ final class LightMageFx {
         int life = Math.round(p.power()) + 10;
         long seed = p.seed();
         VfxManager.add(new DecalVfx(g.add(0, 0.05, 0), UP, r, Colors.argb(230, GOLD), VfxTextures.RUNE_CIRCLE, life).spin(0.01f).energy().timing(0.06f, 0.1f).satellites(6));
-        VfxManager.add(new DecalVfx(g.add(0, 0.06, 0), UP, r * 0.55f, Colors.argb(230, WHITE_GOLD), VfxTextures.HEX, life).spin(-0.02f).energy().timing(0.08f, 0.1f));
+        VfxManager.add(new DecalVfx(g.add(0, 0.06, 0), UP, r * 0.55f, Colors.argb(230, WHITE_GOLD), VfxTextures.HEX, life).round().spin(-0.02f).energy().timing(0.08f, 0.1f));
         VfxManager.add(new DecalVfx(g.add(0, 0.04, 0), UP, r * 1.1f, Colors.argb(130, GOLD), VfxTextures.GLOW, life).timing(0.08f, 0.12f));
         for (int i = 0; i < 6; i++) {
             double a = i * Math.PI / 3;
@@ -90,14 +90,14 @@ final class LightMageFx {
         for (int i = 0; i < 16; i++) {
             double a = i * Math.PI * 2 / 16;
             Vec3 d = new Vec3(Math.cos(a), 0.08, Math.sin(a)).normalize();
-            VfxManager.add(new BeamVfx(g.add(0, 1, 0), g.add(0, 1, 0).add(d.scale(r * 1.1)), 0.5f, Colors.argb(220, i % 2 == 0 ? GOLD : WHITE_GOLD), 12 + i % 4));
+            VfxManager.add(new BeamVfx(g.add(0, 1, 0), g.add(0, 1, 0).add(d.scale(r * 1.1)), 0.5f, Colors.argb(220, i % 2 == 0 ? GOLD : WHITE_GOLD), 12 + i % 4).fade(0.05f, 0.45f));
         }
         VfxManager.add(new ShardBurstVfx(g.add(0, 1, 0), UP, 1.4f, 0.3f, 40, 0.18f, Colors.argb(255, WHITE_GOLD), Colors.argb(0, GOLD), 40, seed)
                 .texture(VfxTextures.STAR, false).physics(-0.004f, 0.94f));
         for (int id : p.entities()) {
             Entity e = MageFx.entity(id);
             if (e == null) continue;
-            VfxManager.add(new BeamVfx(e.position().add(0, 12, 0), e.position(), 0.8f, Colors.argb(230, WHITE_GOLD), 14));
+            VfxManager.add(new BeamVfx(e.position().add(0, 12, 0), e.position(), 0.8f, Colors.argb(230, WHITE_GOLD), 14).fade(0.45f, 0.04f));
             VfxManager.add(new FlashVfx(Vec3.ZERO, 0.3f, e.getBbHeight() * 1.8f, Colors.argb(220, GOLD), 14).follow(e, new Vec3(0, e.getBbHeight() * 0.5, 0)).energy());
         }
         var mc = Minecraft.getInstance();
@@ -138,7 +138,7 @@ final class LightMageFx {
                     for (int i = 0; i < 6; i++) {
                         double a = i * Math.PI / 3 + ticks * 0.4;
                         Vec3 q = c.add(Math.cos(a) * 0.7, -0.6 + i * 0.2, Math.sin(a) * 0.7);
-                        ctx.stretched(streak, q, new Vec3(-Math.sin(a), 0.2, Math.cos(a)), 1f, 0.07f, Colors.alpha(SpellVfx.envelope(t, 0.1f, 0.5f) * 0.8f, WHITE_GOLD));
+                        ctx.streak(streak, q, new Vec3(-Math.sin(a), 0.2, Math.cos(a)), 1f, 0.07f, Colors.alpha(SpellVfx.envelope(t, 0.1f, 0.5f) * 0.8f, WHITE_GOLD));
                     }
                 }));
             }
@@ -169,7 +169,7 @@ final class LightMageFx {
         for (int id : p.entities()) {
             Entity e = MageFx.entity(id);
             if (e == null) continue;
-            VfxManager.add(new BeamVfx(e.position().add(0, 16, 0), e.position(), 1.2f, Colors.argb(220, WHITE_GOLD), 18));
+            VfxManager.add(new BeamVfx(e.position().add(0, 16, 0), e.position(), 1.2f, Colors.argb(220, WHITE_GOLD), 18).fade(0.45f, 0.04f));
             VfxManager.add(new ShockwaveVfx(e.position().add(0, 0.06, 0), UP, 0.2f, 2f, 0.3f, Colors.argb(200, LIGHT.main()), 12).energy());
         }
         VfxManager.add(new FlashVfx(g.add(0, 1, 0), 0.5f, 4f, Colors.argb(200, WHITE_GOLD), 14).energy());

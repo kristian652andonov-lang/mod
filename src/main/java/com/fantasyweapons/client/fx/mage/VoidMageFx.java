@@ -108,7 +108,7 @@ final class VoidMageFx {
         float r = p.scale();
         long seed = p.seed();
         VfxManager.add(new DecalVfx(g.add(0, 0.05, 0), UP, r, Colors.argb(230, VOID.main()), VfxTextures.RUNE_CIRCLE, 80).spin(-0.012f).energy().timing(0.1f, 0.4f).satellites(9));
-        VfxManager.add(new DecalVfx(g.add(0, 0.06, 0), UP, r * 0.5f, Colors.argb(230, VOID.core()), VfxTextures.HEX, 80).spin(0.03f).energy().timing(0.12f, 0.4f));
+        VfxManager.add(new DecalVfx(g.add(0, 0.06, 0), UP, r * 0.5f, Colors.argb(230, VOID.core()), VfxTextures.HEX, 80).round().spin(0.03f).energy().timing(0.12f, 0.4f));
         VfxManager.add(new DecalVfx(g.add(0, 0.04, 0), UP, r * 1.15f, Colors.argb(200, SHADOW), VfxTextures.GLOW, 80).translucent().timing(0.1f, 0.4f));
         for (int i = 0; i < 3; i++) {
             int d = i * 10;
@@ -121,7 +121,7 @@ final class VoidMageFx {
             Entity e = MageFx.entity(id);
             if (e == null) continue;
             float h = e.getBbHeight();
-            VfxManager.add(new BeamVfx(e.position().add(0, 10, 0), e.position(), 0.7f, Colors.argb(220, VOID.main()), 14));
+            VfxManager.add(new BeamVfx(e.position().add(0, 10, 0), e.position(), 0.7f, Colors.argb(220, VOID.main()), 14).fade(0.45f, 0.04f));
             VfxManager.add(new FlashVfx(Vec3.ZERO, 0.3f, h * 1.6f, Colors.argb(220, SHADOW), 14).follow(e, new Vec3(0, h * 0.5, 0)));
         }
         GroundShatter.cracks(g, r * 0.8f, 0x0A0410, 80, VOID.main(), VOID.core(), seed);

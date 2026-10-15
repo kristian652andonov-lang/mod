@@ -15,6 +15,9 @@ uniform float TintB;
 uniform float CenterX;
 uniform float CenterY;
 uniform float Seed;
+uniform float Zoom;      // the still pushed in about the burst (1 = as captured)
+uniform float ShiftX;    // and nudged, a jolt between stills
+uniform float ShiftY;
 
 in vec2 texCoord;
 in vec2 oneTexel;
@@ -48,6 +51,10 @@ void main() {
         return;
     }
 
+    // the still itself: the held frame pushed in about the burst and nudged a little, as each new still lands
+    vec2 suv = clamp(center + (uv - center) / Zoom + vec2(ShiftX, ShiftY), oneTexel, 1.0 - oneTexel);
+    src = texture(DiffuseSampler, suv).rgb;
+
     // radial speed lines: thin wedges at scattered angles, each starting at its own distance from the centre
     vec2 d = uv - center;
     d.x *= InSize.x / InSize.y;
@@ -62,8 +69,8 @@ void main() {
             * smoothstep(start, start + 0.15, r) * Lines;
 
     // ink outlines from the edges of the picture
-    float gx = lumaAt(uv + vec2(oneTexel.x, 0.0)) - lumaAt(uv - vec2(oneTexel.x, 0.0));
-    float gy = lumaAt(uv + vec2(0.0, oneTexel.y)) - lumaAt(uv - vec2(0.0, oneTexel.y));
+    float gx = lumaAt(suv + vec2(oneTexel.x, 0.0)) - lumaAt(suv - vec2(oneTexel.x, 0.0));
+    float gy = lumaAt(suv + vec2(0.0, oneTexel.y)) - lumaAt(suv - vec2(0.0, oneTexel.y));
     float edge = smoothstep(0.08, 0.3, length(vec2(gx, gy)));
     float l = luma(src);
     float lit = smoothstep(0.26, 0.36, l);
@@ -90,5 +97,5 @@ void main() {
         still = mix(still, vec3(1.0), line);
         still *= 1.0 - 0.6 * vig;
     }
-    fragColor = vec4(mix(src, clamp(still, 0.0, 1.0), Strength), 1.0);
+    fragColor = vec4(mix(texture(DiffuseSampler, uv).rgb, clamp(still, 0.0, 1.0), Strength), 1.0);
 }

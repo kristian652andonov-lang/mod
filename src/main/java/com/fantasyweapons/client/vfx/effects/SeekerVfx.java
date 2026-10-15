@@ -74,7 +74,9 @@ public class SeekerVfx extends Vfx {
         ctx.billboard(ctx.additive(VfxTextures.FLASH), p, size * 0.8f, 0, Colors.alpha(a, core));
         if (sprite != null) {
             Vec3 d = vel.lengthSqr() < 1e-6 ? ctx.camUp : vel.normalize();
-            ctx.stretched(ctx.additive(sprite), p.subtract(d.scale(size * 0.3)), d.scale(-1), size * 2.2f, size * 1.4f, Colors.alpha(a, color));
+            // a flame trails behind, tip last (drawn upright along its path, not on its side)
+            if (sprite.equals(VfxTextures.FLAME)) ctx.flame(ctx.additive(sprite), p.add(d.scale(size * 0.8)), d.scale(-1), size * 2.2f, size * 1.4f, Colors.alpha(a, color));
+            else ctx.stretched(ctx.additive(sprite), p.subtract(d.scale(size * 0.3)), d.scale(-1), size * 2.2f, size * 1.4f, Colors.alpha(a, color));
         }
     }
 }
