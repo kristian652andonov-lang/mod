@@ -94,7 +94,10 @@ public final class FWDamage {
             recordHit(attacker, weapon, target);
         }
         if (kind != Kind.DOT) com.fantasyweapons.armor.ArmorEffects.afterDamage(attacker, target, dealt, element);
-        if (kind == Kind.ABILITY) com.fantasyweapons.armor.SetAbilities.onAbilityHit(attacker, weapon, target);
+        if (kind == Kind.ABILITY) {
+            ImpactHits.onHit(attacker, target);
+            com.fantasyweapons.armor.SetAbilities.onAbilityHit(attacker, weapon, target);
+        }
         Fx.only(attacker, FxPayload.of(FxIds.DAMAGE_NUMBER).caster(attacker.getId()).pos(target.position().add(0, target.getBbHeight(), 0))
                 .power(dealt > 0 ? dealt : scaled).level(flags | (kind == Kind.ABILITY ? FLAG_ABILITY : 0) | (kind == Kind.DOT ? FLAG_DOT : 0))
                 .entities(target.getId()).build());

@@ -289,6 +289,8 @@ public final class AbilityService {
         boolean ok;
         String failReason = "No valid target";
         com.fantasyweapons.armor.SetAbilities.beforeCast(player);
+        // the impact frame waits for the ability's first hit (inside the cast for an instant blow, or later)
+        com.fantasyweapons.combat.ImpactHits.arm(player, ability);
         try {
             ok = ability.executor().execute(ctx);
         } catch (AbilityFailedException e) {
@@ -308,9 +310,8 @@ public final class AbilityService {
             com.fantasyweapons.quest.QuestService.event(player, "ability");
             if (ability.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE) com.fantasyweapons.quest.QuestService.event(player, "ultimate");
             WeaponAnimations.trigger(player, stack, FantasyWeaponItem.castTrigger(ability, def.form(data)));
-            Fx.near(player.serverLevel(), FxPayload.of(FxIds.IMPACT_FRAME).caster(player.getId()).pos(player.getEyePosition())
-                    .level(ability.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE ? 1 : 0).seed(def.themePrimary(data)).build());
         } else {
+            com.fantasyweapons.combat.ImpactHits.disarm(player);
             rt.setCooldown(data.idOrNil(), ability.id(), now, ServerConfig.FIZZLE_COOLDOWN_TICKS.getOrDefault());
             WeaponAnimations.stop(player, stack, FantasyWeaponItem.chargeTrigger(ability));
             deny(player, def, failReason);

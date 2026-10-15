@@ -59,16 +59,19 @@ public final class GenericFx {
     // swing trails (client-side, from every observed swing)
     // ------------------------------------------------------------------------------------------------------------
 
+    /** How close to a blow other players must be to see its impact frames too (blocks). */
+    private static final double IMPACT_FRAME_RADIUS = 16;
+
     /**
-     * Impact frames for the caster; an ultimate cast nearby gets a softer, quick flash on everyone else's screen too (the
-     * long sequence is the caster's alone, so nobody else's view is frozen mid-fight).
+     * Impact frames when an ability's blow lands: for the caster, and for every other player close to where it lands -
+     * the same frames (an ultimate's full sequence, any other ability's flash), the speed lines bursting from the hit.
      */
     private static void impactFrame(FxPayload p) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         boolean ultimate = p.level() == 1;
-        if (p.caster() == mc.player.getId()) ImpactFrames.play(ultimate, 1f, null);
-        else if (ultimate && mc.player.position().distanceTo(p.pos()) < 40) ImpactFrames.play(false, 0.65f, p.pos());
+        if (p.caster() == mc.player.getId()) ImpactFrames.play(ultimate, 1f, p.pos());
+        else if (mc.player.position().distanceTo(p.pos()) < IMPACT_FRAME_RADIUS) ImpactFrames.play(ultimate, 0.9f, p.pos());
     }
 
     public static void onSwing(LivingEntity entity, ItemStack stack) {

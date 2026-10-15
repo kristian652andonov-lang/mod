@@ -50,6 +50,34 @@ public final class MageGameTests {
         p.teleportTo(h.getLevel(), p.getX(), p.getY(), p.getZ(), yaw, pitch);
     }
 
+    /**
+     * Impact frames wait for the blow: a damaging ability arms one when cast and its first ability hit fires it; swings,
+     * bolts and damage over time leave it armed, a fizzled cast disarms it, and a heal never arms one at all.
+     */
+    @GameTest(template = ARENA)
+    public static void impactFramesFireOnTheHit(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        ItemStack staff = FWGameTests.giveWeapon(p, "cinderspire");
+        Husk husk = h.spawnWithNoFreeWill(EntityType.HUSK, new BlockPos(2, 2, 5));
+        var meteor = com.fantasyweapons.weapon.Weapons.get("cinderspire").ability("meteor_brand");
+        var heal = com.fantasyweapons.weapon.Weapons.get("codex_of_tides").ability("bubble_aegis");
+        com.fantasyweapons.combat.ImpactHits.arm(p, meteor);
+        if (!com.fantasyweapons.combat.ImpactHits.armed(p)) h.fail("a damaging ability did not arm its impact frame");
+        com.fantasyweapons.combat.FWDamage.deal(p, staff, husk, 1, com.fantasyweapons.combat.FWDamage.Kind.MELEE, null, 0);
+        com.fantasyweapons.combat.FWDamage.deal(p, staff, husk, 1, com.fantasyweapons.combat.FWDamage.Kind.DOT, null, 0);
+        if (!com.fantasyweapons.combat.ImpactHits.armed(p)) h.fail("a swing or damage over time fired the impact frame");
+        husk.invulnerableTime = 0;
+        com.fantasyweapons.combat.FWDamage.deal(p, staff, husk, 1, com.fantasyweapons.combat.FWDamage.Kind.ABILITY, null, 0);
+        if (com.fantasyweapons.combat.ImpactHits.armed(p)) h.fail("the ability's hit did not fire its impact frame");
+        com.fantasyweapons.combat.ImpactHits.arm(p, meteor);
+        com.fantasyweapons.combat.ImpactHits.disarm(p);
+        if (com.fantasyweapons.combat.ImpactHits.armed(p)) h.fail("a fizzled cast left its impact frame armed");
+        com.fantasyweapons.combat.ImpactHits.arm(p, heal);
+        if (com.fantasyweapons.combat.ImpactHits.armed(p)) h.fail("a heal armed an impact frame");
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
     /** Healing restores a share of the target's health, never more than it lacks, and the healer's weapon grows by it. */
     @GameTest(template = ARENA)
     public static void healingRestoresAndRewards(GameTestHelper h) {

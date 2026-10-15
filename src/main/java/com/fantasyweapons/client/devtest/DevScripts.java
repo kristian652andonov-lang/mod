@@ -101,6 +101,7 @@ final class DevScripts {
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.equals("magehud")) mageHud(b);
+                else if (name.equals("impacthit")) impactHit(b);
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
                 else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
                 else if (name.startsWith("holds:")) holds(b, java.util.Arrays.stream(name.substring(6).split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
@@ -275,6 +276,17 @@ final class DevScripts {
     /** Every weapon held: third person from the player's right side and from the front, and first person. */
     private static void holds(ScreenshotDirector.Builder b) {
         holds(b, com.fantasyweapons.weapon.Weapons.all());
+    }
+
+    /** Impact frames fire on the hit, not the cast: Meteor Brand's meteor falls a moment after casting; every 2 ticks. */
+    private static void impactHit(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/fw class set mage").cmd("/time set noon").cmd("/clear @s").cmd("/kill @e[type=!player]")
+                .cmd("/tp @s 0 -60 0 0 0").cmd("/fw give cinderspire 100").wait(130).slot(0).cmd("/fw points 300").hud(true);
+        summonDummies(b);
+        var a = com.fantasyweapons.weapon.Weapons.get("cinderspire").ability("meteor_brand");
+        b.playerView().camera(CameraType.FIRST_PERSON).look(0, 6).cmd("/fw cooldowns").select(a.id()).wait(6);
+        b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+        for (int i = 0; i < 24; i++) b.wait(2).screenshot("ihit_" + String.format("%02d", i * 2));
     }
 
     /** Buffs and curses on the player: the status icons in the HUD and their visuals, in first and third person. */
