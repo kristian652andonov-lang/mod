@@ -5,8 +5,6 @@ import com.fantasyweapons.client.fx.FxDispatcher;
 import com.fantasyweapons.client.fx.FxScheduler;
 import com.fantasyweapons.client.fx.ImpactFrames;
 import com.fantasyweapons.client.fx.ScreenFx;
-import com.fantasyweapons.client.hud.CinematicHud;
-import com.fantasyweapons.client.hud.CinematicHud.Cue;
 import com.fantasyweapons.client.vfx.VfxManager;
 import com.fantasyweapons.network.FxIds;
 import com.fantasyweapons.network.FxPayload;
@@ -19,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
-/** Client side of the two ultimate weapons' abilities: their effects, cinematic overlays, sounds and impact frames. */
+/** Client side of the two ultimate weapons' abilities: their effects, sounds and impact frames. */
 public final class UltimateFx {
     private UltimateFx() {
     }
@@ -37,6 +35,7 @@ public final class UltimateFx {
         FxDispatcher.register(FxIds.GRAND_EARTHQUAKE, UltimateFx::grandEarthquake);
         FxDispatcher.register(FxIds.ICE_RAIN, UltimateFx::iceRain);
         FxDispatcher.register(FxIds.THORNSPIRE, UltimateFx::thornspire);
+        FxDispatcher.register(FxIds.ARCH_DRAGON, UltimateFx::archDragon);
         FxDispatcher.register(FxIds.GREAT_SLASH_CUT, p -> VfxManager.add(new GreatSlashVfx.Cut(p.pos(), p.dir(), p.scale())));
     }
 
@@ -81,17 +80,6 @@ public final class UltimateFx {
         double d = distance(at);
         boolean near = isCaster(p) || d < radius * 3.5;
         long ms = delay * 50L;
-        if (near) {
-            CinematicHud.play("UPLINK // DOMINION-01 > THE BEAM OF GRANT EXECUTION", at, 0xFFE58A, (delay + beam + 50) * 50L, List.of(
-                    Cue.status(0, "ALIGNING THE CIRCLE", 0xFFE58A),
-                    Cue.card(400, 2300, "Something is coming", "altitude " + (int) Math.max(220, radius * 2.3f) + " m  ·  32 satellite circles", 0xFFFFFF),
-                    Cue.status(ms / 2, "CHARGING", 0xFFD970),
-                    Cue.status(ms * 6 / 10, "TARGET LOCKED", 0xFF5A5A),
-                    Cue.card(ms * 62 / 100, 1500, "Grant Execution", "radius " + (int) radius + " m  ·  down to bedrock", 0xFFE58A),
-                    Cue.status(ms, "FIRING", 0xFFFFFF),
-                    Cue.card(ms + 1500, 2600, "[ Impact confirmed ]", "ΔE 4.75 × 10^56 joules  ·  nothing within " + (int) radius + " m remains", 0xFFFFFF),
-                    Cue.status((delay + beam) * 50L, "TARGET ERASED", 0x9CD67A)));
-        }
         // the charge
         sound(SoundEvents.BEACON_ACTIVATE, 0.7f, 0.5f);
         FxScheduler.after(delay / 3, () -> sound(SoundEvents.BEACON_POWER_SELECT, 0.8f, 0.5f));
@@ -130,15 +118,6 @@ public final class UltimateFx {
         BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
         VfxManager.add(new UltramassiveBlackholeVfx(hole, 28, reach, form, collapse, p.seed()).feeding(debris));
         long ms = collapse * 50L;
-        if (isCaster(p) || distance(hole) < reach * 2.5) {
-            CinematicHud.play("UPLINK // DOMINION-01 > THE ULTRAMASSIVE BLACKHOLE", p.dir(), 0xB070FF, (collapse + 50) * 50L, List.of(
-                    Cue.status(0, "SINGULARITY OPENING", 0xB070FF),
-                    Cue.card(form * 50L, 2200, "Absorbing", "mass 4.3 \u00D7 10^36 kg  ·  reach " + (int) reach + " m", 0xFFFFFF),
-                    Cue.status(form * 50L + 400, "FEEDING", 0xFF5AE0),
-                    Cue.card(ms / 2, 2000, "Nothing escapes", "event horizon 28 m  ·  everything within " + (int) reach + " m is falling", 0xD8B8FF),
-                    Cue.status(ms - 1500, "COLLAPSE IMMINENT", 0xFF5A5A),
-                    Cue.card(ms, 2600, "Returned to nothing", "\u0394M = all of it", 0xFFFFFF)));
-        }
         sound(SoundEvents.WARDEN_EMERGE, 1f, 0.5f);
         sound(SoundEvents.END_PORTAL_SPAWN, 0.8f, 0.5f);
         FxScheduler.after(form, () -> {
@@ -174,14 +153,6 @@ public final class UltimateFx {
                 com.fantasyweapons.world.wreck.WorldWreck.radius(radius));
         VfxManager.add(new EruptionVfx(at, radius, delay, cracks, p.seed()));
         long ms = delay * 50L;
-        if (isCaster(p) || distance(at) < radius * 4) {
-            CinematicHud.play("UPLINK // DOMINION-01 > THE EARTHSPLITTING ERUPTION", at, 0xFF6A2A, (delay + 160) * 50L, List.of(
-                    Cue.status(0, "MANTLE BREACHED", 0xFF6A2A),
-                    Cue.card(300, 2000, "The ground splits", "11 fault lines  ·  magma rising at 900 m/s", 0xFFFFFF),
-                    Cue.status(ms * 6 / 10, "PRESSURE CRITICAL", 0xFF4040),
-                    Cue.status(ms, "ERUPTION", 0xFFD050),
-                    Cue.card(ms + 300, 2400, "Ignition", "radius " + (int) radius + " m  ·  only ash remains", 0xFFB040)));
-        }
         sound(SoundEvents.WARDEN_DIG, 1f, 0.5f);
         for (int k = 0; k < delay; k += 15) {
             int when = k;
@@ -230,14 +201,6 @@ public final class UltimateFx {
         BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
         VfxManager.add(new TectonicVfx(at, p.dir(), length, width, duration, p.seed()).shedding(debris));
         long ms = duration * 50L;
-        if (isCaster(p) || distance(at) < length * 2) {
-            CinematicHud.play("UPLINK // DOMINION-01 > TECTONIC BREAKAGE", at, 0xD8A868, (duration + 60) * 50L, List.of(
-                    Cue.status(0, "FAULT LINE FOUND", 0xD8A868),
-                    Cue.card(500, 2200, "The plates split", (int) length + " m of fault  ·  drift 4 m/s", 0xFFFFFF),
-                    Cue.status(1500, "PLATES SEPARATING", 0xFFB040),
-                    Cue.card(ms / 2, 2200, "Down to bedrock", "canyon " + (int) width + " m wide  ·  the mantle rises", 0xFFB040),
-                    Cue.status(ms, "RIFT COMPLETE", 0x9CD67A)));
-        }
         sound(SoundEvents.WARDEN_DIG, 1f, 0.4f);
         FxScheduler.after(10, () -> {
             sound(SoundEvents.GENERIC_EXPLODE, 1f, 0.35f);
@@ -268,15 +231,6 @@ public final class UltimateFx {
         }
         lastTree = VfxManager.add(new GreatTreeVfx(at, radius, duration, roots));
         long ms = duration * 50L;
-        if (isCaster(p) || distance(at) < radius * 3) {
-            CinematicHud.play("UPLINK // DOMINION-01 > THE ROOTS OF THE GREAT TREE", at, 0x6BE873, (duration + 50) * 50L, List.of(
-                    Cue.status(0, "THE WORLD TREE STIRS", 0x6BE873),
-                    Cue.card(700, 2200, "Something is coming", "from beneath  ·  " + roots.size() + " roots rising", 0xFFFFFF),
-                    Cue.status(2000, "SEIZING", 0x9CFF6A),
-                    Cue.card(2100, 2200, "Held fast", "nothing within " + (int) radius + " m can move", 0xB8FF9A),
-                    Cue.status(ms, "THE ROOTS REMAIN", 0x9CD67A),
-                    Cue.card(ms, 2600, "Returned to the earth", "the roots will stand forever", 0xFFFFFF)));
-        }
         sound(SoundEvents.WARDEN_EMERGE, 1f, 0.6f);
         for (int k = 14; k < 70; k += 7) {
             int when = k;
@@ -303,14 +257,6 @@ public final class UltimateFx {
         float radius = p.scale(), height = p.power(), speed = Math.max(0.3f, p.level() / 100f);
         int surge = 24, run = (int) (radius / speed);
         VfxManager.add(new IceAgeVfx(at, radius, height, speed, surge));
-        if (isCaster(p) || distance(at) < radius * 2.5) {
-            CinematicHud.play("UPLINK // DOMINION-01 > THE ICE AGE", at, 0x8FE4FF, (surge + run + 80) * 50L, List.of(
-                    Cue.status(0, "SEA RISING", 0x8FE4FF),
-                    Cue.card(300, 2000, "Something is coming", "wave height " + (int) height + " m  ·  -89 \u00B0C", 0xFFFFFF),
-                    Cue.status(surge * 50L, "TSUNAMI", 0xCFF4FF),
-                    Cue.card(surge * 50L + 1200, 2400, "The Ice Age", "everything within " + (int) radius + " m is frozen", 0xBFEFFF),
-                    Cue.status((surge + run) * 50L, "ALL IS ICE", 0x9CD67A)));
-        }
         sound(SoundEvents.ELDER_GUARDIAN_CURSE, 0.8f, 0.5f);
         sound(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1f, 0.5f);
         FxScheduler.after(surge, () -> {
@@ -338,11 +284,6 @@ public final class UltimateFx {
         float length = p.scale(), half = p.power(), speed = Math.max(1, p.level() / 100f);
         BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
         VfxManager.add(new GreatSlashVfx(eye, look, blade, length, half, speed, p.seed()).shattering(debris));
-        if (isCaster(p)) {
-            CinematicHud.play("UPLINK // OBLITERATION-01 > THE GREAT SLASH", eye.add(look.scale(length)), 0xFFE58A, 3200, List.of(
-                    Cue.status(0, "CUTTING", 0xFFE58A),
-                    Cue.card(200, 2200, "Cut", (int) length + " m  ·  nothing in its path remains whole", 0xFFFFFF)));
-        }
         sound(SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.5f);
         sound(SoundEvents.TRIDENT_RIPTIDE_3.value(), 1f, 0.6f);
         sound(SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 1.4f);
@@ -358,14 +299,6 @@ public final class UltimateFx {
         var cracks = com.fantasyweapons.weapons.obliteration.ObliterationAbilities.quakeCracks(p.seed(), com.fantasyweapons.world.wreck.WorldWreck.radius(radius));
         BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
         VfxManager.add(new GrandEarthquakeVfx(at, radius, safe, duration, cracks, p.seed()).tearing(debris));
-        if (isCaster(p) || distance(at) < radius * 1.5) {
-            CinematicHud.play("UPLINK // OBLITERATION-01 > THE GRAND EARTHQUAKE", at, 0xD8A868, (duration + 50) * 50L, List.of(
-                    Cue.status(0, "MAGNITUDE 12.4", 0xD8A868),
-                    Cue.card(150, 2200, "Fury", "the earth breaks for " + (int) radius + " m  ·  only you stand", 0xFF8A4A),
-                    Cue.status(1500, "PLATES BREAKING", 0xFFB040),
-                    Cue.card(duration * 50L - 1500, 2400, "Nothing stands", "\u0394E 2.1 \u00D7 10^22 joules", 0xFFFFFF),
-                    Cue.status(duration * 50L, "SILENCE", 0x9CD67A)));
-        }
         sound(SoundEvents.GENERIC_EXPLODE, 1f, 0.35f);
         sound(SoundEvents.ANVIL_LAND, 1f, 0.4f);
         sound(SoundEvents.WARDEN_SONIC_BOOM, 0.8f, 0.5f);
@@ -386,13 +319,6 @@ public final class UltimateFx {
         int duration = Math.max(60, (int) p.power());
         int[] times = p.entities();
         VfxManager.add(new IceRainVfx(at, radius, duration, p.points(), times, p.seed()));
-        if (isCaster(p) || distance(at) < radius * 2) {
-            CinematicHud.play("UPLINK // OBLITERATION-01 > ICE RAIN", at, 0x8FE4FF, (duration + 40) * 50L, List.of(
-                    Cue.status(0, "STORM GATHERING", 0x8FE4FF),
-                    Cue.card(400, 2000, "Something is coming", "from above  ·  " + times.length + " spikes of ice", 0xFFFFFF),
-                    Cue.status(1500, "IMPACTS", 0xCFF4FF),
-                    Cue.card(duration * 50L - 1800, 2400, "Carnage", "everything within " + (int) radius + " m is frozen", 0xBFEFFF)));
-        }
         sound(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.8f, 0.6f);
         sound(SoundEvents.ELDER_GUARDIAN_CURSE, 0.6f, 0.6f);
         for (int i = 0; i < times.length && i < p.points().size(); i++) {
@@ -421,14 +347,6 @@ public final class UltimateFx {
         for (int c : codes) last = Math.max(last, c / 1000);
         BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
         VfxManager.add(new ThornspireVfx(at, radius, safe, p.points(), codes, p.seed()).bursting(debris));
-        if (isCaster(p) || distance(at) < radius * 2) {
-            CinematicHud.play("UPLINK // OBLITERATION-01 > THORNSPIRE CATACLYSM", at, 0x7BE86B, (last + 50) * 50L, List.of(
-                    Cue.status(0, "THE OLD FOREST WAKES", 0x7BE86B),
-                    Cue.card(300, 2000, "Something is coming", "from beneath  \u00B7  " + codes.length + " thorns rising", 0xFFFFFF),
-                    Cue.status(1200, "IMPALING", 0x9CFF6A),
-                    Cue.card(last * 50L - 600, 2600, "The Thornwood", "it will stand forever  \u00B7  " + (int) radius + " m", 0xC8FFA8),
-                    Cue.status(last * 50L + 400, "OVERGROWN", 0x9CD67A)));
-        }
         sound(SoundEvents.WARDEN_EMERGE, 1f, 0.7f);
         sound(SoundEvents.GENERIC_EXPLODE, 0.7f, 0.5f);
         java.util.Set<Integer> loud = new java.util.HashSet<>();
@@ -445,6 +363,46 @@ public final class UltimateFx {
                 }
             });
             if (loud.add(when / 8)) FxScheduler.after(when, () -> sound(SoundEvents.GENERIC_EXPLODE, 0.35f, 0.5f));
+        }
+    }
+
+    private static void archDragon(FxPayload p) {
+        Vec3 target = p.pos();
+        var pts = p.points();
+        if (pts.size() < 2) return;
+        Vec3 caster = pts.get(0), rift = pts.get(1);
+        float length = p.scale(), radius = p.power();
+        int flight = Math.max(40, p.level());
+        var path = new com.fantasyweapons.weapons.ultimate.DragonPath(caster, rift, target, flight, p.seed());
+        var cracks = com.fantasyweapons.weapons.obliteration.ObliterationAbilities.dragonCracks(p.seed(), com.fantasyweapons.world.wreck.WorldWreck.radius(radius));
+        BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
+        VfxManager.add(new ArchDragonVfx(path, length, radius, cracks, p.seed()).tearing(debris));
+        long strike = flight * 50L;
+        sound(SoundEvents.ENDER_DRAGON_GROWL, 1f, 0.45f);
+        sound(SoundEvents.WITHER_SPAWN, 0.6f, 0.4f);
+        CameraShake.add(rift, 2.2f, 200);
+        for (int k = 8; k < flight; k += 12) {
+            int when = k;
+            FxScheduler.after(when, () -> sound(SoundEvents.ENDER_DRAGON_FLAP, 1f, 0.45f + 0.1f * (when % 3)));
+        }
+        FxScheduler.after((int) (flight * 0.72), () -> {
+            sound(SoundEvents.ENDER_DRAGON_GROWL, 1f, 0.6f);
+            sound(SoundEvents.BLAZE_SHOOT, 1f, 0.4f);
+        });
+        FxScheduler.after(flight, () -> {
+            ScreenFx.flash(0xFFD8A0, 0.75f, 12);
+            CameraShake.add(target, 3f, radius * 3);
+            sound(SoundEvents.GENERIC_EXPLODE, 1f, 0.3f);
+            sound(SoundEvents.DRAGON_FIREBALL_EXPLODE, 1f, 0.4f);
+            sound(SoundEvents.WARDEN_SONIC_BOOM, 0.8f, 0.4f);
+        });
+        for (int k = 6; k < 50; k += 6) {
+            int when = flight + k;
+            FxScheduler.after(when, () -> {
+                CameraShake.add(target, 1.6f, radius * 2);
+                if (when % 12 == 0) sound(SoundEvents.LAVA_POP, 1f, 0.5f);
+                if (when % 18 == 0) sound(SoundEvents.GENERIC_EXPLODE, 0.45f, 0.4f);
+            });
         }
     }
 }

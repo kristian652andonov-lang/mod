@@ -424,7 +424,16 @@ final class DevScripts {
         if (parts.length > 4 && parts[4].startsWith("view=")) {
             // film it from a free camera at an offset from the player, looking at another offset
             double[] v = java.util.Arrays.stream(parts[4].substring(5).split(",")).mapToDouble(Double::parseDouble).toArray();
-            b.viewAt(v[0], v[1], v[2], v[3], v[4], v[5]);
+            b.viewAt(v[0], v[1], v[2], v[3], v[4], v[5]).camera(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+        }
+        if (parts.length > 4 && parts[4].startsWith("tp=")) {
+            // watch it from somewhere else (the player is moved, so the terrain there is loaded and drawn)
+            String[] v = parts[4].substring(3).split(",");
+            String tp2 = "/tp @s " + v[0] + " " + v[1] + " " + v[2] + " " + v[3] + " " + v[4];
+            b.wait(2).cmd(tp2).wait(4).run(mc -> {
+                mc.player.getAbilities().flying = true;
+                mc.player.onUpdateAbilities();
+            }).cmd(tp2);
         }
         int prev = 0;
         for (String t : times) {

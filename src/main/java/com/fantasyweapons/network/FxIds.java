@@ -249,4 +249,6 @@ public final class FxIds {
     public static final ResourceLocation ICE_RAIN = FantasyWeapons.id("obliteration/ice_rain");
     /** Thornspire Cataclysm: pos = ground under the caster, scale = radius, points = (foot, tip) per thorn, entities = tick x1000 + radius x10. */
     public static final ResourceLocation THORNSPIRE = FantasyWeapons.id("obliteration/thornspire");
+    /** The Arch Dragon of Hell: pos = target, points = (caster, rift), scale = length, power = radius, level = flight ticks. */
+    public static final ResourceLocation ARCH_DRAGON = FantasyWeapons.id("obliteration/arch_dragon");
 }

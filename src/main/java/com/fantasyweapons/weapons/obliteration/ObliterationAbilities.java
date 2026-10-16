@@ -105,8 +105,114 @@ public final class ObliterationAbilities {
         throw AbilityContext.fail("4th Dimension Ascension is still being forged");
     }
 
+    // ------------------------------------------------------------------------------------------------------------
+    // The Arch Dragon of Hell
+    // ------------------------------------------------------------------------------------------------------------
+
+    /** Ticks from the strike until the split ground has run out to its edge. */
+    private static final int SPLIT = 40;
+
+    /** The cracks the dragon's strike splits the ground with (the client draws the same ones). */
+    public static com.fantasyweapons.weapons.ultimate.CrackNetwork dragonCracks(long seed, double radius) {
+        return com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xD4A60L, 14, radius, 4.5, 22);
+    }
+
+    /** Where the Arch Dragon bursts out of the ground: behind the caster. */
+    public static Vec3 dragonRift(net.minecraft.server.level.ServerLevel level, ServerPlayer p, Vec3 target) {
+        Vec3 f = new Vec3(target.x - p.getX(), 0, target.z - p.getZ());
+        if (f.lengthSqr() < 1) f = new Vec3(p.getLookAngle().x, 0, p.getLookAngle().z);
+        if (f.lengthSqr() < 1e-4) f = new Vec3(0, 0, 1);
+        Vec3 at = Kit.feet(p).subtract(f.normalize().scale(48));
+        return Cataclysm.surface(level, at);
+    }
+
     public static boolean archDragon(AbilityContext ctx) {
-        throw AbilityContext.fail("The Arch Dragon of Hell is still being forged");
+        Vec3 target = Cataclysm.landing(ctx, ctx.param("range"));
+        double radius = ctx.param("radius"), length = ctx.param("length");
+        int flight = Math.max(40, (int) Math.round(ctx.param("flight") * 20));
+        long seed = Kit.seed(ctx.level());
+        Vec3 caster = Kit.feet(ctx.player());
+        Vec3 rift = dragonRift(ctx.level(), ctx.player(), target);
+        Cataclysm.fx(ctx.level(), ctx.player(), FxPayload.of(FxIds.ARCH_DRAGON).caster(ctx.player().getId()).pos(target)
+                .points(java.util.List.of(caster, rift)).scale((float) length).power((float) radius).level(flight).seed(seed).build());
+        AreaEffectManager.add(new ArchDragon(ctx, caster, rift, target, radius, length, flight, seed));
+        Kit.active(ctx, flight + SPLIT + 20);
+        return true;
+    }
+
+    /**
+     * The dragon flies its path, burning and devouring what it passes; it dives into the target, the ground there
+     * explodes into a crater and splits open for the whole radius, and everything on it burns to coal, magma and lava.
+     */
+    private static final class ArchDragon extends AreaEffect {
+        private final com.fantasyweapons.weapons.ultimate.DragonPath path;
+        private final double radius, length;
+        private final int flight;
+        private final long seed;
+        private final float damage;
+
+        ArchDragon(AbilityContext ctx, Vec3 caster, Vec3 rift, Vec3 target, double radius, double length, int flight, long seed) {
+            super(ctx.level(), ctx.player(), ctx.data().idOrNil(), target, flight + SPLIT + 30);
+            this.path = new com.fantasyweapons.weapons.ultimate.DragonPath(caster, rift, target, flight, seed);
+            this.radius = radius;
+            this.length = length;
+            this.flight = flight;
+            this.seed = seed;
+            this.damage = ctx.damage();
+        }
+
+        @Override
+        protected void tick(ServerPlayer owner) {
+            Vec3 rift = path.rift();
+            if (age == 2) {
+                // the hole it came out of goes down to the bottom of the world
+                WorldWreck.disc(level, rift, 14, seed, d -> 0, WreckShapes.shaft(rift, 10, 4));
+                Cataclysm.frames(level, owner, rift, 160, false);
+                level.playSound(null, rift.x, rift.y, rift.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.PLAYERS, 30f, 0.5f);
+            }
+            if (age <= flight) devour(owner);
+            if (age == flight) strike(owner);
+            if (age > flight && age % 10 == 0) {
+                for (LivingEntity e : Cataclysm.victims(level, owner, pos, radius)) e.igniteForSeconds(10);
+            }
+            if (age == flight + SPLIT + 5) {
+                // nothing on the split ground lives
+                for (LivingEntity e : Cataclysm.victims(level, owner, pos, radius)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.FIRE);
+            }
+        }
+
+        /** What the head and the body pass through dies; what is near them catches fire. */
+        private void devour(ServerPlayer owner) {
+            double head = path.head(age);
+            Vec3 h = path.at(head);
+            for (LivingEntity e : Cataclysm.victims(level, owner, h, 30)) {
+                if (e.distanceToSqr(h) < 16 * 16) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.FIRE);
+                else e.igniteForSeconds(8);
+            }
+            for (double s = head - 20; s > head - length && s > 0; s -= 20) {
+                for (LivingEntity e : Cataclysm.victims(level, owner, path.at(s), 10)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.FIRE);
+            }
+        }
+
+        private void strike(ServerPlayer owner) {
+            double r = WorldWreck.radius(radius);
+            double crater = r * 0.3;
+            var cracks = dragonCracks(seed, r);
+            WorldWreck.disc(level, pos, crater + 10, seed, d -> (int) (d / 9), WreckShapes.eruption(pos, crater, 20, cracks));
+            WorldWreck.disc(level, pos, r + 4, seed + 1, d -> 2 + (int) (d / r * SPLIT), WreckShapes.all(WreckShapes.scorch(pos, r), WreckShapes.hellSplit(pos, cracks)));
+            for (LivingEntity e : Cataclysm.victims(level, owner, pos.add(0, crater * 0.3, 0), crater * 1.3)) {
+                e.push(0, 2.4, 0);
+                e.hurtMarked = true;
+                Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.FIRE);
+            }
+            for (LivingEntity e : Cataclysm.victims(level, owner, pos, radius * 1.4)) {
+                if (e.distanceToSqr(pos) < crater * crater) continue;
+                Kit.knock(e, pos, 3, 1.2);
+                e.igniteForSeconds(12);
+            }
+            Cataclysm.frames(level, owner, pos, radius * 2.5, true);
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 40f, 0.35f);
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------

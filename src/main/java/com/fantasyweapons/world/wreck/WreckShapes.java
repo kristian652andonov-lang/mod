@@ -535,4 +535,73 @@ public final class WreckShapes {
         Vec3 u = n.cross(a).normalize();
         return new Vec3[]{u, n.cross(u).normalize()};
     }
+
+    /**
+     * Ground split open by hellfire along a {@link com.fantasyweapons.weapons.ultimate.CrackNetwork}: trenches with lava in
+     * their bottoms and walls seared to magma, coal and blackstone, their lips burnt to coal and magma.
+     */
+    public static ChunkShaper hellSplit(Vec3 center, com.fantasyweapons.weapons.ultimate.CrackNetwork network) {
+        return c -> {
+            double[] k = new double[1];
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    var seg = network.at(x + 0.5 - center.x, z + 0.5 - center.z, Double.MAX_VALUE, k);
+                    if (seg == null) continue;
+                    int ground = c.ground(x, z);
+                    if (ground <= c.minY()) continue;
+                    int bottom = Math.max(c.minY() + 1, ground - (int) Math.round(seg.depth() * (0.35 + 0.65 * k[0])));
+                    for (int y = c.top(x, z); y > bottom + 2; y--) c.clear(x, y, z);
+                    for (int y = bottom; y <= bottom + 2; y++) c.set(x, y, z, LAVA);
+                    for (int y = Math.max(c.minY(), bottom - 2); y < bottom; y++) c.set(x, y, z, seared(c.random().nextFloat()));
+                    if (k[0] > 0.3) continue;
+                    // the lips: the ground beside the crack burnt
+                    for (int dx = -2; dx <= 2; dx++) {
+                        for (int dz = -2; dz <= 2; dz++) {
+                            int nx = x + dx, nz = z + dz;
+                            if (nx < c.minX() || nx > c.minX() + 15 || nz < c.minZ() || nz > c.minZ() + 15) continue;
+                            if (network.at(nx + 0.5 - center.x, nz + 0.5 - center.z, Double.MAX_VALUE, null) != null) continue;
+                            int g = c.ground(nx, nz);
+                            if (g <= c.minY() || !c.get(nx, g + 1, nz).getFluidState().isEmpty()) continue;
+                            for (int y = c.top(nx, nz); y > g; y--) c.clear(nx, y, nz);
+                            c.set(nx, g, nz, seared(c.random().nextFloat()));
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private static BlockState seared(float roll) {
+        return roll < 0.4f ? MAGMA : roll < 0.7f ? COAL : roll < 0.9f ? BLACKSTONE : BASALT;
+    }
+
+    /**
+     * Land burnt to ruin: within {@code radius} of {@code center} what grew or was built on the ground is gone (more
+     * surely nearer the middle), and the ground itself is scorched into coal, magma, blackstone and basalt. Water stays.
+     */
+    public static ChunkShaper scorch(Vec3 center, double radius) {
+        return c -> {
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    double d = Math.hypot(x + 0.5 - center.x, z + 0.5 - center.z);
+                    if (d > radius) continue;
+                    double heat = 1 - d / radius;
+                    if (c.random().nextFloat() > 0.35 + 0.65 * Math.sqrt(heat)) continue;
+                    int g = c.ground(x, z);
+                    if (g <= c.minY() || !c.get(x, g + 1, z).getFluidState().isEmpty()) continue;
+                    for (int y = c.top(x, z); y > g; y--) if (c.get(x, y, z).getFluidState().isEmpty()) c.clear(x, y, z);
+                    float roll = c.random().nextFloat();
+                    if (roll < 0.15f) continue;
+                    c.set(x, g, z, roll < 0.32f ? COAL : roll < 0.47f ? MAGMA : roll < 0.85f ? BLACKSTONE : BASALT);
+                }
+            }
+        };
+    }
+
+    /** Several shapers applied to a chunk one after another. */
+    public static ChunkShaper all(ChunkShaper... shapers) {
+        return c -> {
+            for (ChunkShaper s : shapers) s.shape(c);
+        };
+    }
 }
