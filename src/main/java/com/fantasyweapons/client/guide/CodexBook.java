@@ -718,7 +718,7 @@ public final class CodexBook {
         ORDER.addAll(List.of("root", "open_the_codex", "glimmer"));
         for (Material m : Material.values()) ORDER.add("ore_" + m.rawId());
         ORDER.addAll(List.of("every_ore", "arcane_refinery", "first_core", "every_core", "legendary_table", "first_forging", "legend_reborn"));
-        for (WeaponDefinition def : Weapons.all()) ORDER.add("weapon_" + def.id());
+        for (WeaponDefinition def : Weapons.legendaries()) ORDER.add("weapon_" + def.id());
         ORDER.addAll(List.of("the_thirteen", "archmage", "first_blood", "centurion", "thousand_souls", "giant_slayer", "level_10", "level_30", "level_50",
                 "level_100", "first_ability", "ultimate", "infused", "legendary_armor", "full_set", "every_set"));
     }

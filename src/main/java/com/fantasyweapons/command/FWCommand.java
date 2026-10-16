@@ -97,6 +97,15 @@ public final class FWCommand {
                         .then(Commands.argument("biome", net.minecraft.commands.arguments.ResourceLocationArgument.id())
                                 .executes(c -> oreScanBiome(c.getSource(), net.minecraft.commands.arguments.ResourceLocationArgument.getId(c, "biome"),
                                         IntegerArgumentType.getInteger(c, "radius"))))))
+                .then(Commands.literal("wreck").then(Commands.literal("shaft").then(Commands.argument("radius", IntegerArgumentType.integer(1, 256))
+                        .executes(c -> {
+                            var pos = c.getSource().getPosition();
+                            int r = IntegerArgumentType.getInteger(c, "radius");
+                            int n = com.fantasyweapons.world.wreck.WorldWreck.disc(c.getSource().getLevel(), pos, r + 3, 1L,
+                                    d -> (int) (d / 8), com.fantasyweapons.world.wreck.WreckShapes.shaft(pos, r, 4));
+                            c.getSource().sendSuccess(() -> Component.literal("Wrecking " + n + " chunks"), false);
+                            return n;
+                        }))))
                 .then(Commands.literal("quest")
                         .then(Commands.literal("complete").then(Commands.argument("quest", StringArgumentType.word())
                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(com.fantasyweapons.quest.Quests.all().stream().map(com.fantasyweapons.quest.Quest::id), b))

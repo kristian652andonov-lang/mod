@@ -122,7 +122,7 @@ public final class Quests {
     }
 
     private static void weapons(List<Quest> list) {
-        for (WeaponDefinition def : Weapons.all()) {
+        for (WeaponDefinition def : Weapons.legendaries()) {
             String id = def.id(), name = def.displayName();
             Material m = Material.ofWeapon(id);
             Supplier<ItemStack> icon = () -> stack(ModItems.WEAPONS.get(id).get(), 1);

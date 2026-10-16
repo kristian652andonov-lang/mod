@@ -66,16 +66,29 @@ public final class Weapons {
         add(LumenPsalter.create());
         add(Gloamreach.create());
         add(UmbralCodex.create());
+        // the two ultimate weapons, forged from all twenty-five on the Altar of Annihilation
+        add(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.create());
+        add(com.fantasyweapons.weapons.domination.SpellBookOfDomination.create());
     }
 
     /** The 13 legendary blades, without the mage's focuses. */
     public static List<WeaponDefinition> blades() {
-        return all().stream().filter(d -> !d.weaponClass().magic()).toList();
+        return legendaries().stream().filter(d -> !d.weaponClass().magic()).toList();
     }
 
     /** The mage's staffs and spellbooks. */
     public static List<WeaponDefinition> focuses() {
-        return all().stream().filter(d -> d.weaponClass().magic()).toList();
+        return legendaries().stream().filter(d -> d.weaponClass().magic()).toList();
+    }
+
+    /** The 25 legendary weapons: everything but the two ultimate weapons. */
+    public static List<WeaponDefinition> legendaries() {
+        return all().stream().filter(d -> !d.rarity().ultimate()).toList();
+    }
+
+    /** The Great Sword of Obliteration and the Spell Book of Absolute Domination. */
+    public static List<WeaponDefinition> ultimates() {
+        return all().stream().filter(d -> d.rarity().ultimate()).toList();
     }
 
     private Weapons() {

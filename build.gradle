@@ -34,7 +34,7 @@ neoForge {
             // Dev-only scripted screenshot run: ./gradlew runClient -PfwDevtest=voidfang
             if (project.hasProperty('fwDevtest')) {
                 systemProperty 'fantasyweapons.devtest', project.property('fwDevtest')
-                programArguments.addAll '--quickPlaySingleplayer', 'fwtest', '--width', '1280', '--height', '720', '--username', 'Tester'
+                programArguments.addAll '--quickPlaySingleplayer', (project.findProperty('fwWorld') ?: 'fwtest'), '--width', '1280', '--height', '720', '--username', 'Tester'
             }
         }
         server {

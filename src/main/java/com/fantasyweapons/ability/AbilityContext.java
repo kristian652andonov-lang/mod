@@ -15,9 +15,16 @@ import net.minecraft.world.phys.Vec3;
  *
  * @param charge       charge fraction in [0, 1] measured by the server
  * @param weaponDamage current weapon damage (level + mastery applied)
+ * @param target       where a remote ability was cast on the targeting map, or null for a normal cast
  */
 public record AbilityContext(ServerPlayer player, ServerLevel level, ItemStack stack, FantasyWeaponItem item, WeaponDefinition weapon,
-                             WeaponData data, AbilityDefinition ability, int abilityLevel, float charge, float weaponDamage, float mastery) {
+                             WeaponData data, AbilityDefinition ability, int abilityLevel, float charge, float weaponDamage, float mastery,
+                             @org.jetbrains.annotations.Nullable Vec3 target) {
+
+    public AbilityContext(ServerPlayer player, ServerLevel level, ItemStack stack, FantasyWeaponItem item, WeaponDefinition weapon,
+                          WeaponData data, AbilityDefinition ability, int abilityLevel, float charge, float weaponDamage, float mastery) {
+        this(player, level, stack, item, weapon, data, ability, abilityLevel, charge, weaponDamage, mastery, null);
+    }
 
     /** Full ability damage for this cast (weapon damage × ability multiplier × level × charge × armor bonuses). */
     public float damage() {

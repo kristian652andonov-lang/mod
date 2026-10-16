@@ -68,6 +68,7 @@ public final class AbilityDefinition {
     private final String chargeAnimation;
     @Nullable
     private final String requiredForm;
+    private final boolean remote;
     private WeaponDefinition weapon;
 
     private AbilityDefinition(Builder b) {
@@ -91,6 +92,15 @@ public final class AbilityDefinition {
         this.formCastAnimations = Map.copyOf(b.formCastAnimations);
         this.chargeAnimation = b.chargeAnimation;
         this.requiredForm = b.requiredForm;
+        this.remote = b.remote;
+    }
+
+    /**
+     * Cast far away: the ability key opens the targeting map instead of charging, and the ability lands where the
+     * player picks on it (see {@code remote_range}).
+     */
+    public boolean remote() {
+        return remote;
     }
 
     public static Builder builder(String id, AbilityKind kind) {
@@ -265,6 +275,7 @@ public final class AbilityDefinition {
         private final Map<String, List<String>> formCastAnimations = new LinkedHashMap<>();
         private String chargeAnimation;
         private String requiredForm;
+        private boolean remote;
 
         private Builder(String id, AbilityKind kind) {
             this.id = id;
@@ -355,6 +366,12 @@ public final class AbilityDefinition {
             this.castAnimations.clear();
             this.castAnimations.addAll(List.of(castAnimations));
             return this;
+        }
+
+        /** Cast through the targeting map, up to {@code chunks} chunks away (adds the {@code remote_range} param). */
+        public Builder remote(int chunks) {
+            this.remote = true;
+            return param("remote_range", chunks, "How far away it can be cast through the targeting map, in chunks");
         }
 
         public Builder requiresForm(String formId) {

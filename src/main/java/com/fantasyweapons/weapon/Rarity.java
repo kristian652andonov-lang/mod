@@ -9,7 +9,9 @@ public enum Rarity {
     EPIC("Epic", 0xB45CFF, 0.95f),
     LEGENDARY("Legendary", 0xFFA41C, 1.00f),
     MYTHIC("Mythic", 0xFF3B5C, 1.05f),
-    ANCIENT("Ancient", 0x3DFFD0, 1.10f);
+    ANCIENT("Ancient", 0x3DFFD0, 1.10f),
+    /** The two ultimate weapons, forged from all the others: they break the world itself. */
+    APOCALYPTIC("Apocalyptic", 0xFF2436, 1.25f);
 
     private final String displayName;
     private final int color;
@@ -31,5 +33,10 @@ public enum Rarity {
 
     public float damageFactor() {
         return damageFactor;
+    }
+
+    /** One of the two ultimate weapons rather than one of the legendary twenty-five. */
+    public boolean ultimate() {
+        return this == APOCALYPTIC;
     }
 }

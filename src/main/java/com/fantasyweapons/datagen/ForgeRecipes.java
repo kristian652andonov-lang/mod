@@ -229,7 +229,7 @@ final class ForgeRecipes {
     }
 
     static void build(RecipeOutput out) {
-        for (var def : Weapons.all()) {
+        for (var def : Weapons.legendaries()) {
             Theme t = WEAPONS.get(def.id());
             Item refined = ModItems.REFINED.get(Material.ofWeapon(def.id())).get();
             String[] rows = t.split() ? split(shape(def.weaponClass())) : shape(def.weaponClass());

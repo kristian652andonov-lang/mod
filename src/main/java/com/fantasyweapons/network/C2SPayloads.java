@@ -49,6 +49,22 @@ public final class C2SPayloads {
         }
     }
 
+    /** A remote ability cast on the targeting map, at a point in the world (the server checks the range). */
+    public record CastAt(String ability, double x, double y, double z) implements CustomPacketPayload {
+        public static final Type<CastAt> TYPE = new Type<>(FantasyWeapons.id("cast_at"));
+        public static final StreamCodec<ByteBuf, CastAt> CODEC = StreamCodec.composite(
+                ByteBufCodecs.STRING_UTF8, CastAt::ability,
+                ByteBufCodecs.DOUBLE, CastAt::x,
+                ByteBufCodecs.DOUBLE, CastAt::y,
+                ByteBufCodecs.DOUBLE, CastAt::z,
+                CastAt::new);
+
+        @Override
+        public Type<CastAt> type() {
+            return TYPE;
+        }
+    }
+
     /** Switch weapon form / mode (Infernochain, Eclipse Reaper). */
     public record SwitchForm() implements CustomPacketPayload {
         public static final Type<SwitchForm> TYPE = new Type<>(FantasyWeapons.id("switch_form"));

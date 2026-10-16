@@ -93,7 +93,14 @@ public final class ClassGameTests {
     @GameTest(template = ARENA)
     public static void gearHasAClass(GameTestHelper h) {
         java.util.Set<PlayerClass> seen = java.util.EnumSet.noneOf(PlayerClass.class);
-        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+        for (var def : com.fantasyweapons.weapon.Weapons.ultimates()) {
+            boolean book = def.weaponClass().magic();
+            for (PlayerClass c : PlayerClass.values()) {
+                boolean want = book ? c == PlayerClass.MAGE : com.fantasyweapons.playerclass.ClassGear.isWarrior(c);
+                if (com.fantasyweapons.playerclass.ClassGear.answersTo(def.id(), c) != want) h.fail(def.id() + " wrong for " + c);
+            }
+        }
+        for (var def : com.fantasyweapons.weapon.Weapons.legendaries()) {
             PlayerClass c = com.fantasyweapons.playerclass.ClassGear.ofWeapon(def.id());
             if (c == PlayerClass.NONE || !c.available()) h.fail(def.id() + " answers to " + c);
             seen.add(c);

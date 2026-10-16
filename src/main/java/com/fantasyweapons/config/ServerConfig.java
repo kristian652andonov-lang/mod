@@ -101,6 +101,12 @@ public final class ServerConfig {
     // ---- abilities ----
     public static final Int MAX_HOLD_AT_FULL_CHARGE_TICKS;
     public static final Int FIZZLE_COOLDOWN_TICKS;
+
+    // ---- world destruction (the ultimate weapons) ----
+    public static final Bool DESTRUCTION;
+    public static final Bool DESTRUCTION_LOADS_CHUNKS;
+    public static final Int DESTRUCTION_MS_PER_TICK;
+    public static final Dbl DESTRUCTION_RADIUS_SCALE;
     private static final Map<AbilityDefinition, Map<String, Dbl>> ABILITY_PARAMS = new IdentityHashMap<>();
 
     public static final ModConfigSpec SPEC;
@@ -151,6 +157,13 @@ public final class ServerConfig {
             BASE_DAMAGE.put(w.id(), d(w.id(), w.baseDamage(), 0, 1e9, w.displayName() + " level-1 melee damage"));
         }
         B.pop();
+        B.pop();
+
+        B.comment("World destruction by the two ultimate weapons (the Great Sword of Obliteration and the Spell Book of Absolute Domination)").push("destruction");
+        DESTRUCTION = bool("enabled", true, "Whether their abilities really destroy the world: break, melt, freeze and rebuild blocks and whole chunks. When off, only the effects and the damage remain");
+        DESTRUCTION_LOADS_CHUNKS = bool("load_chunks", true, "Load (and if needed generate) chunks out of view so the destruction is complete everywhere it reaches");
+        DESTRUCTION_MS_PER_TICK = i("ms_per_tick", 18, 1, 200, "Milliseconds of each server tick spent rewriting chunks. Lower keeps the server smoother, the destruction then spreads more slowly");
+        DESTRUCTION_RADIUS_SCALE = d("radius_scale", 1.0, 0.05, 1.0, "Scales the destroyed area of every ability (1 = the full 64 to 256 blocks)");
         B.pop();
 
         B.comment("Ability system").push("abilities");

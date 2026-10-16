@@ -21,6 +21,8 @@ public final class FWNetwork {
                 ctx.enqueueWork(() -> com.fantasyweapons.magic.MageBolts.cast((ServerPlayer) ctx.player())));
         r.playToServer(C2SPayloads.CycleAbility.TYPE, C2SPayloads.CycleAbility.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> AbilityService.handleCycle((ServerPlayer) ctx.player(), p.direction())));
+        r.playToServer(C2SPayloads.CastAt.TYPE, C2SPayloads.CastAt.CODEC, (p, ctx) ->
+                ctx.enqueueWork(() -> AbilityService.handleCastAt((ServerPlayer) ctx.player(), p.ability(), new net.minecraft.world.phys.Vec3(p.x(), p.y(), p.z()))));
         r.playToServer(C2SPayloads.SwitchForm.TYPE, C2SPayloads.SwitchForm.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> AbilityService.handleSwitchForm((ServerPlayer) ctx.player())));
         r.playToServer(C2SPayloads.UpgradeAbility.TYPE, C2SPayloads.UpgradeAbility.CODEC, (p, ctx) ->

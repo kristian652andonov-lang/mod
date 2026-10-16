@@ -137,7 +137,7 @@ public final class ClassScreen extends Screen {
     private static List<ItemStack> weapons(PlayerClass c) {
         List<ItemStack> out = new ArrayList<>();
         for (WeaponDefinition def : Weapons.all()) {
-            if (ClassGear.ofWeapon(def.id()) == c) out.add(new ItemStack(ModItems.WEAPONS.get(def.id()).get()));
+            if (ClassGear.answersTo(def.id(), c)) out.add(new ItemStack(ModItems.WEAPONS.get(def.id()).get()));
         }
         return out;
     }

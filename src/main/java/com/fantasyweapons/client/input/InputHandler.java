@@ -76,7 +76,10 @@ public final class InputHandler {
         }
         ItemStack held = ClientState.heldWeapon(mc.player);
         boolean down = KeyBindings.ABILITY.isDown() && mc.screen == null && !held.isEmpty();
-        if (down && !abilityWasDown) {
+        if (down && !abilityWasDown && com.fantasyweapons.client.gui.TargetMapScreen.openFor(held)) {
+            // a remote ability: it is cast on the targeting map instead (the key is not held down meanwhile)
+            down = false;
+        } else if (down && !abilityWasDown) {
             PacketDistributor.sendToServer(new C2SPayloads.AbilityKey(true));
             FantasyWeaponItem item = (FantasyWeaponItem) held.getItem();
             ClientState.predictCharge(item.definition(), FantasyWeaponItem.data(held));

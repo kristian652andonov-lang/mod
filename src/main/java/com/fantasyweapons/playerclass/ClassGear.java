@@ -53,12 +53,41 @@ public final class ClassGear {
     }
 
     public static boolean canUse(Player player, ItemStack stack) {
+        if (warriors(stack)) {
+            PlayerClass c = ClassService.of(player);
+            return player.isCreative() || player.getTags().contains(ANY_CLASS) || isWarrior(c);
+        }
         PlayerClass need = of(stack);
         return need == PlayerClass.NONE || player.isCreative() || player.getTags().contains(ANY_CLASS) || ClassService.of(player) == need;
     }
 
+    /** The Great Sword of Obliteration answers to every warrior class (assassin, berserker and paladin), not to one. */
+    public static boolean warriors(ItemStack stack) {
+        return stack.getItem() instanceof FantasyWeaponItem w && warriors(w.definition().id());
+    }
+
+    public static boolean warriors(String weaponId) {
+        var def = com.fantasyweapons.weapon.Weapons.get(weaponId);
+        return def != null && def.rarity().ultimate() && !def.weaponClass().magic();
+    }
+
+    public static boolean isWarrior(PlayerClass c) {
+        return c == PlayerClass.ASSASSIN || c == PlayerClass.BERSERKER || c == PlayerClass.PALADIN;
+    }
+
+    /** Whether a weapon is gear of class {@code c} (the warriors' sword belongs to all three of them). */
+    public static boolean answersTo(String weaponId, PlayerClass c) {
+        return warriors(weaponId) ? isWarrior(c) : ofWeapon(weaponId) == c;
+    }
+
     /** What the player is told when they try (in the gear's class colour). */
     public static Component refusal(Player player, ItemStack stack) {
+        if (warriors(stack)) {
+            return Component.literal("The " + stack.getHoverName().getString() + " answers only to a warrior: an ").withColor(0xFF8A6A)
+                    .append(Component.literal("Assassin").withColor(PlayerClass.ASSASSIN.color())).append(Component.literal(", ").withColor(0xFF8A6A))
+                    .append(Component.literal("Berserker").withColor(PlayerClass.BERSERKER.color())).append(Component.literal(" or ").withColor(0xFF8A6A))
+                    .append(Component.literal("Paladin").withColor(PlayerClass.PALADIN.color())).append(Component.literal(".").withColor(0xFF8A6A));
+        }
         PlayerClass need = of(stack);
         String article = need == PlayerClass.ASSASSIN ? "an " : "a ";
         Component name = Component.literal(need.displayName()).withColor(need.color());
@@ -93,6 +122,15 @@ public final class ClassGear {
 
     /** The tooltip's lines: the gear's class, and whether the player reading it can use it. */
     public static void tooltip(@org.jetbrains.annotations.Nullable Player player, ItemStack stack, java.util.List<Component> tooltip) {
+        if (warriors(stack)) {
+            tooltip.add(Component.literal("Class: ").withColor(0xB9AC92).append(Component.literal("Assassin").withColor(PlayerClass.ASSASSIN.color()))
+                    .append(Component.literal(" · ").withColor(0xB9AC92)).append(Component.literal("Berserker").withColor(PlayerClass.BERSERKER.color()))
+                    .append(Component.literal(" · ").withColor(0xB9AC92)).append(Component.literal("Paladin").withColor(PlayerClass.PALADIN.color())));
+            if (player == null) return;
+            tooltip.add(canUse(player, stack) ? Component.literal("✔ You can use this").withColor(0x8FE08A)
+                    : Component.literal("✖ Only a warrior class can use this").withColor(0xF07A62));
+            return;
+        }
         PlayerClass need = of(stack);
         if (need == PlayerClass.NONE) return;
         tooltip.add(Component.literal("Class: ").withColor(0xB9AC92).append(Component.literal(need.displayName()).withColor(need.color())));

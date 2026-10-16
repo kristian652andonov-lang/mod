@@ -58,6 +58,46 @@ public final class AbilityService {
         }
     }
 
+    /**
+     * A remote ability cast through the targeting map: validated like a key press (class, unlock, cooldown, flight), then
+     * cast at once at {@code target}, which must lie within the ability's {@code remote_range} (chunks, horizontally).
+     */
+    public static void handleCastAt(ServerPlayer player, String abilityId, net.minecraft.world.phys.Vec3 target) {
+        if (!rateLimit(player)) return;
+        ItemStack stack = player.getMainHandItem();
+        if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
+        if (!com.fantasyweapons.playerclass.ClassGear.canUse(player, stack)) {
+            com.fantasyweapons.playerclass.ClassGear.refuse(player, stack);
+            return;
+        }
+        AbilityRuntime rt = runtime(player);
+        if (rt.isCharging() || !player.isAlive() || player.isSpectator()) return;
+        WeaponDefinition def = item.definition();
+        WeaponData data = FantasyWeaponItem.data(stack);
+        AbilityDefinition ability = def.ability(abilityId);
+        if (ability == null || !ability.remote() || ability.executor() == null || !data.isUnlocked(ability)) return;
+        if (!Double.isFinite(target.x) || !Double.isFinite(target.y) || !Double.isFinite(target.z)) return;
+        double range = ability.param("remote_range") * 16 + 8;
+        double dx = target.x - player.getX(), dz = target.z - player.getZ();
+        if (dx * dx + dz * dz > range * range) {
+            deny(player, def, "Too far away");
+            return;
+        }
+        if (rt.isThrown(data.idOrNil())) {
+            deny(player, def, "Weapon is in flight");
+            return;
+        }
+        if (rt.cooldownRemaining(data.idOrNil(), ability.id(), now(player)) > 0) {
+            deny(player, def, ability.name() + " is on cooldown");
+            player.syncData(ModAttachments.ABILITY_RUNTIME);
+            return;
+        }
+        if (!data.selected().equals(ability.id())) stack.set(ModComponents.WEAPON_DATA.get(), data.withSelected(ability.id()));
+        double y = Math.max(player.serverLevel().getMinBuildHeight(), Math.min(player.serverLevel().getMaxBuildHeight(), target.y));
+        boolean ok = execute(player, stack, def, FantasyWeaponItem.data(stack), ability, 1f, new net.minecraft.world.phys.Vec3(target.x, y, target.z));
+        com.fantasyweapons.armor.SetAbilities.afterCast(player, ok, true);
+    }
+
     public static void handleCycle(ServerPlayer player, int direction) {
         if (!rateLimit(player)) return;
         ItemStack stack = player.getMainHandItem();
@@ -280,12 +320,17 @@ public final class AbilityService {
 
     /** @return whether the ability was cast */
     private static boolean execute(ServerPlayer player, ItemStack stack, WeaponDefinition def, WeaponData data, AbilityDefinition ability, float charge) {
+        return execute(player, stack, def, data, ability, charge, null);
+    }
+
+    private static boolean execute(ServerPlayer player, ItemStack stack, WeaponDefinition def, WeaponData data, AbilityDefinition ability, float charge,
+                                   @Nullable net.minecraft.world.phys.Vec3 target) {
         AbilityRuntime rt = runtime(player);
         rt.clearCharge();
         int level = data.abilityLevel(ability);
         float mastery = ProgressionMath.mastery(def, data);
         AbilityContext ctx = new AbilityContext(player, player.serverLevel(), stack, (FantasyWeaponItem) stack.getItem(), def, data,
-                ability, level, charge, ProgressionMath.weaponDamage(def, data), mastery);
+                ability, level, charge, ProgressionMath.weaponDamage(def, data), mastery, target);
         boolean ok;
         String failReason = "No valid target";
         com.fantasyweapons.armor.SetAbilities.beforeCast(player);

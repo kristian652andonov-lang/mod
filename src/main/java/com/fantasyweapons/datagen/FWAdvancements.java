@@ -108,7 +108,7 @@ final class FWAdvancements implements AdvancementProvider.AdvancementGenerator {
         // ---- the weapons ----
         AdvancementHolder reborn = deed("legend_reborn", hammer, ModItems.WEAPONS.get("solaris").get(), "Legend Reborn", ARCANE,
                 "Forge a legendary weapon", AdvancementType.GOAL, b -> {
-                    for (WeaponDefinition def : Weapons.all()) b.addCriterion(def.id(), has(ModItems.WEAPONS.get(def.id()).get()));
+                    for (WeaponDefinition def : Weapons.legendaries()) b.addCriterion(def.id(), has(ModItems.WEAPONS.get(def.id()).get()));
                     b.requirements(AdvancementRequirements.Strategy.OR);
                 });
         String[][] weapons = {

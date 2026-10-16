@@ -228,5 +228,7 @@
   "subtitles.fantasyweapons.deed.challenge": "Legend forged",
   "subtitles.fantasyweapons.deed.type": "A deed is written",
   "key.fantasyweapons.quests": "Quest Journal",
-  "key.fantasyweapons.classes": "Choose Class"
+  "key.fantasyweapons.classes": "Choose Class",
+  "item.fantasyweapons.great_sword_of_obliteration": "The Great Sword of Obliteration",
+  "item.fantasyweapons.spell_book_of_absolute_domination": "The Spell Book of Absolute Domination"
 }

@@ -18,7 +18,10 @@ public enum Element {
     EARTH("Earth", 0xB08A5A, 0x1E1812, 0xE8D9C0),
     FIRE("Fire", 0xFF5A1F, 0x1A0500, 0xFFD38A),
     WATER("Water", 0x3FA8FF, 0x041C3A, 0xCDEFFF),
-    LIGHT("Light", 0xFFE58A, 0x3A2A08, 0xFFFDF0);
+    LIGHT("Light", 0xFFE58A, 0x3A2A08, 0xFFFDF0),
+    // the ultimate weapons: every power at once
+    OBLITERATION("Obliteration", 0xFF2B3A, 0x140004, 0xFFF0F0),
+    DOMINION("Dominion", 0xF5C542, 0x0A0612, 0xFFFFFF);
 
     private final String displayName;
     private final int primary;

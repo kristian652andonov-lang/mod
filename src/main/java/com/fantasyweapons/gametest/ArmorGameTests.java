@@ -98,7 +98,7 @@ public final class ArmorGameTests {
                 if (r.get().value().getResultItem(h.getLevel().registryAccess()).getItem() != item) h.fail(set.itemId(t) + " makes the wrong item");
             }
         }
-        for (var def : com.fantasyweapons.weapon.Weapons.all()) {
+        for (var def : com.fantasyweapons.weapon.Weapons.legendaries()) {
             var r = recipes.byKey(FantasyWeapons.id("forging/" + def.id()));
             if (r.isEmpty()) h.fail("no forge recipe for " + def.id());
             else if (r.get().value().getResultItem(h.getLevel().registryAccess()).getItem() != ModItems.WEAPONS.get(def.id()).get()) {

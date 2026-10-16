@@ -115,9 +115,11 @@ public final class WeaponHud {
         if (full || castFlash > 0) UiDraw.glow(g, 26, 66, 70, Colors.alpha(a * Math.max(fullPulse * 0.5f, castFlash * 0.6f), themeLight));
 
         // ---- header: name, rarity and element, level plaque ----
-        UiDraw.text(g, def.displayName(), 9, 6, Colors.alpha(a, UiDraw.GOLD_LIGHT), 0.95f, true);
         String lv = "Lv " + data.level();
         float lvW = UiDraw.font().width(lv) * 0.7f + 10;
+        // long names (the ultimate weapons') shrink to fit beside the level plaque
+        float nameScale = Math.min(0.95f, (W - 22 - lvW) / Math.max(1f, UiDraw.font().width(def.displayName())));
+        UiDraw.text(g, def.displayName(), 9, 6 + (0.95f - nameScale) * 4.5f, Colors.alpha(a, UiDraw.GOLD_LIGHT), nameScale, true);
         UiDraw.button(g, W - 8 - lvW, 4, lvW, 12, 0, a);
         UiDraw.title(g, lv, W - 8 - lvW / 2, 6.5f, Colors.alpha(a, UiDraw.GOLD_LIGHT), 0.7f);
         String sub = def.rarity().displayName() + " · " + def.element().displayName();

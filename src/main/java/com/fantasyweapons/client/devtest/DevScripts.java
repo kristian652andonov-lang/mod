@@ -103,6 +103,8 @@ final class DevScripts {
                 else if (name.equals("magehud")) mageHud(b);
                 else if (name.equals("impacthit")) impactHit(b);
                 else if (name.equals("oregen")) oreGen(b);
+                else if (name.startsWith("wreck:")) wreck(b, name.substring(6));
+                else if (name.equals("targetmap")) targetMap(b);
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
                 else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
                 else if (name.startsWith("holds:")) holds(b, java.util.Arrays.stream(name.substring(6).split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
@@ -331,6 +333,37 @@ final class DevScripts {
         });
         b.wait(400).hud(false).screenshot("oregen_a").wait(40).screenshot("oregen_b");
         b.cmd("/gamemode creative");
+    }
+
+    /** The remote-cast targeting map, opened by the ability key with the Spell Book of Absolute Domination (fwterrain world). */
+    private static void targetMap(ScreenshotDirector.Builder b) {
+        b.wait(40).cmd("/fw class set mage").closeScreen().wait(5).closeScreen()
+                .cmd("/gamemode creative").cmd("/time set noon").cmd("/tp @s 0 120 0 0 30").cmd("/clear @s")
+                .cmd("/fw give spell_book_of_absolute_domination 1").wait(260).slot(0).closeScreen().hud(true).wait(10).screenshot("tmap_hud");
+        b.run(mc -> com.fantasyweapons.client.gui.TargetMapScreen.openFor(mc.player.getMainHandItem())).wait(20);
+        b.run(mc -> org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), mc.getWindow().getScreenWidth() * 0.62, mc.getWindow().getScreenHeight() * 0.4))
+                .wait(10).screenshot("tmap_open");
+        b.run(mc -> {
+            double gx = mc.getWindow().getGuiScaledWidth() * 0.62, gy = mc.getWindow().getGuiScaledHeight() * 0.4;
+            mc.screen.mouseScrolled(gx, gy, 0, 1);
+            mc.screen.mouseScrolled(gx, gy, 0, 1);
+        }).wait(10).screenshot("tmap_zoom");
+        b.run(mc -> mc.screen.mouseClicked(mc.getWindow().getGuiScaledWidth() * 0.62, mc.getWindow().getGuiScaledHeight() * 0.4, 0)).wait(20).screenshot("tmap_cast");
+        b.cmd("/clear @s").cmd("/fw give great_sword_of_obliteration 1").wait(20).slot(0).cmd("/fw class set berserker").wait(10)
+                .camera(net.minecraft.client.CameraType.THIRD_PERSON_FRONT).wait(10).screenshot("tmap_sword_3p")
+                .camera(net.minecraft.client.CameraType.FIRST_PERSON).wait(10).screenshot("tmap_sword_1p");
+    }
+
+    /** World destruction: a shaft through real terrain, seen from above before, during and after (fwterrain world). */
+    private static void wreck(ScreenshotDirector.Builder b, String radius) {
+        b.wait(40).cmd("/fw class set mage").closeScreen().wait(5).closeScreen()
+                .cmd("/gamemode spectator").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/tp @s 0 170 -70 0 40").wait(300)
+                .closeScreen().hud(false).screenshot("wreck_before")
+                .cmd("/execute positioned 0 100 40 run fw wreck shaft " + radius);
+        for (int i = 0; i < 6; i++) b.wait(30).screenshot("wreck_" + i);
+        b.cmd("/tp @s 0 120 40 0 90").wait(60).screenshot("wreck_down");
+        b.cmd("/tp @s 0 20 40 0 30").wait(60).screenshot("wreck_inside");
+        b.cmd("/time set midnight").wait(30).screenshot("wreck_night");
     }
 
     /** Impact frames fire on the hit, not the cast: Meteor Brand's meteor falls a moment after casting; every 2 ticks. */

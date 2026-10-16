@@ -58,7 +58,7 @@ public final class QuestGameTests {
                 if (Quests.get(id) == null) h.fail("no quest " + id);
             }
         }
-        for (WeaponDefinition def : Weapons.all()) {
+        for (WeaponDefinition def : Weapons.legendaries()) {
             for (String id : new String[] {"forge_" + def.id(), "blooded_" + def.id(), "champion_" + def.id()}) {
                 if (Quests.get(id) == null) h.fail("no quest " + id);
             }

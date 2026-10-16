@@ -35,6 +35,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onPlayerTick);
         bus.addListener(ModEvents::onEntityTick);
         bus.addListener(ModEvents::onLevelTick);
+        bus.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post e) -> com.fantasyweapons.world.wreck.WorldWreck.tick(e.getServer()));
         bus.addListener(ModEvents::onLogout);
         bus.addListener(ModEvents::onServerStopped);
         bus.addListener(ModEvents::onCommands);
@@ -116,6 +117,7 @@ public final class ModEvents {
 
     private static void onServerStopped(ServerStoppedEvent event) {
         AreaEffectManager.clear();
+        com.fantasyweapons.world.wreck.WorldWreck.clear();
     }
 
     /** Frozen creatures cannot deal damage. */
