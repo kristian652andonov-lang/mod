@@ -123,6 +123,8 @@ public class FantasyArmorItem extends ArmorItem implements GeoItem {
         tooltip.add(Component.literal(String.format(Locale.ROOT, "⛨ %d Armor   %s Toughness", c.defense(getType()), trim(c.toughness())))
                 .withStyle(s -> s.withColor(0xC8D2DC)));
         for (ArmorSet.Bonus b : set.bonuses(getType())) tooltip.add(Component.literal("◆ " + b.text()).withStyle(s -> s.withColor(light)));
+        tooltip.add(Component.literal(String.format(Locale.ROOT, "◆ Legendary Ward: legendary blows -%d%%, never more than %d%% of your health with all four",
+                Math.round(ArmorEffects.WARD_PER_PIECE * 100), Math.round((1 - ArmorEffects.WARD_CAP_PER_PIECE * 4) * 100))).withStyle(s -> s.withColor(0xC8D2DC)));
         tooltip.add(Component.empty());
         Player player = SidedHooks.get().clientPlayer();
         int worn = player == null ? 0 : worn(player, set);

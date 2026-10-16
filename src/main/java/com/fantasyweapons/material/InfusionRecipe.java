@@ -65,7 +65,7 @@ public class InfusionRecipe extends CustomRecipe {
         Found f = find(input);
         if (f == null) return ItemStack.EMPTY;
         ItemStack out = f.weapon().copyWithCount(1);
-        out.set(ModComponents.WEAPON_DATA.get(), ExpService.withLevels(FantasyWeaponItem.data(f.weapon()), f.cores()));
+        out.set(ModComponents.WEAPON_DATA.get(), ExpService.withLevels(((FantasyWeaponItem) f.weapon().getItem()).definition(), FantasyWeaponItem.data(f.weapon()), f.cores()));
         return out;
     }
 

@@ -85,6 +85,8 @@ public final class FWDamage {
         float scaled = amount * StatusService.incomingMultiplier(target, element)
                 * com.fantasyweapons.armor.ArmorEffects.elementDamage(attacker, element) * com.fantasyweapons.armor.ArmorEffects.incomingElement(target, element)
                 * com.fantasyweapons.armor.ArmorEffects.spellDamage(attacker, weapon);
+        // the mod's armor holds against the mod's weapons
+        scaled = com.fantasyweapons.armor.ArmorEffects.ward(target, scaled);
         float before = target.getHealth() + target.getAbsorptionAmount();
         boolean hurt = rawTarget.hurt(source(level, kind, attacker), scaled);
         if (!hurt) return 0;

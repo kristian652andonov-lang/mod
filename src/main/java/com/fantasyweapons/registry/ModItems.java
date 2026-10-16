@@ -44,7 +44,8 @@ public final class ModItems {
         REGISTER.addAlias(FantasyWeapons.id("legendary_forge"), FantasyWeapons.id("legendary_crafting_table"));
         for (WeaponDefinition def : Weapons.all()) {
             WEAPONS.put(def.id(), REGISTER.register(def.id(),
-                    () -> new FantasyWeaponItem(def, new Item.Properties().stacksTo(1).fireResistant())));
+                    () -> new FantasyWeaponItem(def, new Item.Properties().stacksTo(1).fireResistant()
+                            .component(net.minecraft.core.component.DataComponents.UNBREAKABLE, new net.minecraft.world.item.component.Unbreakable(true)))));
         }
         // legendary materials never burn, not even the ones dug out of the Nether
         for (Material m : Material.values()) {
@@ -58,8 +59,8 @@ public final class ModItems {
                     new EnumMap<>(net.minecraft.world.item.ArmorItem.Type.class);
             for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) {
                 pieces.put(type, REGISTER.register(set.itemId(type), () -> new com.fantasyweapons.armor.FantasyArmorItem(set,
-                        ModArmorMaterials.MATERIALS.get(set), type, new Item.Properties().rarity(Rarity.EPIC).fireResistant()
-                        .durability(type.getDurability(com.fantasyweapons.armor.ArmorClass.DURABILITY)))));
+                        ModArmorMaterials.MATERIALS.get(set), type, new Item.Properties().rarity(Rarity.EPIC).fireResistant().stacksTo(1)
+                        .component(net.minecraft.core.component.DataComponents.UNBREAKABLE, new net.minecraft.world.item.component.Unbreakable(true)))));
             }
             ARMOR.put(set, pieces);
         }

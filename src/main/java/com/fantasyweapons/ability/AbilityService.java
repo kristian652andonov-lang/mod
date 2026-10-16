@@ -338,10 +338,15 @@ public final class AbilityService {
         boolean ok;
         String failReason = "No valid target";
         com.fantasyweapons.armor.SetAbilities.beforeCast(player);
-        // the impact frame waits for the ability's first hit (inside the cast for an instant blow, or later)
-        com.fantasyweapons.combat.ImpactHits.arm(player, ability);
+        // the impact frame waits for the ability's first hit (inside the cast for an instant blow, or later); the
+        // ultimate weapons' powers play their own, at the moment each one lands
+        if (def.rarity().ultimate()) com.fantasyweapons.combat.ImpactHits.disarm(player);
+        else com.fantasyweapons.combat.ImpactHits.arm(player, ability);
         try {
-            ok = ability.executor().execute(ctx);
+            // the ultimate weapons' powers gather first, then strike
+            if (def.rarity().ultimate() && com.fantasyweapons.weapons.ultimate.Cataclysm.gathers(ability.id()))
+                ok = com.fantasyweapons.weapons.ultimate.Cataclysm.windup(ctx, ability.executor());
+            else ok = ability.executor().execute(ctx);
         } catch (AbilityFailedException e) {
             ok = false;
             failReason = e.getMessage();

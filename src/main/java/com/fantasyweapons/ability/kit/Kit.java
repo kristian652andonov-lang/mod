@@ -89,18 +89,22 @@ public final class Kit {
      * player, and at worst the ground under the player. Abilities are never placed in mid-air.
      */
     public static Vec3 aimGround(ServerPlayer p, double range) {
+        return aimGround(p, p.getEyePosition(), p.getLookAngle(), feet(p), range);
+    }
+
+    /** {@link #aimGround(ServerPlayer, double)} for a line of sight held from earlier ({@code feet}: where the player stood). */
+    public static Vec3 aimGround(ServerPlayer p, Vec3 eye, Vec3 look, Vec3 feet, double range) {
         ServerLevel level = p.serverLevel();
-        Vec3 aim = Targeting.aimPoint(p, range);
-        Vec3 back = aim.subtract(p.getLookAngle().scale(0.3));
+        Vec3 aim = Targeting.aimPoint(p, eye, look, range);
+        Vec3 back = aim.subtract(look.scale(0.3));
         Vec3 g = groundOrNull(level, back, 48);
         if (g != null) return g;
-        Vec3 eye = p.getEyePosition();
         for (int i = 1; i <= 12; i++) {
             Vec3 at = back.lerp(eye, i / 12.0);
             g = groundOrNull(level, at, 48);
             if (g != null) return g;
         }
-        return feet(p);
+        return feet;
     }
 
     /** Aim point preferring the entity under the crosshair (the ground under it), else the ground at the aim point. */

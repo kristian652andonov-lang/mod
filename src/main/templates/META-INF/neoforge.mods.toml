@@ -11,6 +11,10 @@ description = '''${mod_description}'''
 # custom third-person arm poses (HumanoidModel.ArmPose) for weapon stances and swings
 enumExtensions = "META-INF/enumextensions.json"
 
+# keeps the server from hanging on shutdown while chunks are still loading (see ChunkMapMixin)
+[[mixins]]
+config = "${mod_id}.mixins.json"
+
 [[dependencies.${mod_id}]]
 modId = "neoforge"
 type = "required"

@@ -141,6 +141,11 @@ public class FantasyWeaponItem extends Item implements GeoItem {
             if (d.weaponId().isEmpty()) {
                 stack.set(ModComponents.WEAPON_DATA.get(), d.withId(UUID.randomUUID()));
             }
+            // a weapon at its last level is owed any points its levels now give that it never got
+            if (serverLevel.getGameTime() % 40 == 0) {
+                WeaponData owed = com.fantasyweapons.progression.ExpService.owed(def, data(stack));
+                if (owed != null) stack.set(ModComponents.WEAPON_DATA.get(), owed);
+            }
             GeoItem.getOrAssignId(stack, serverLevel);
         }
     }

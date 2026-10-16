@@ -47,6 +47,12 @@ public final class FantasyWeapons {
 
         container.registerConfig(ModConfig.Type.SERVER, ServerConfig.SPEC);
         container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
+        modBus.addListener((net.neoforged.fml.event.config.ModConfigEvent.Loading e) -> {
+            if (e.getConfig().getSpec() == ServerConfig.SPEC) ServerConfig.migrate();
+        });
+        modBus.addListener((net.neoforged.fml.event.config.ModConfigEvent.Reloading e) -> {
+            if (e.getConfig().getSpec() == ServerConfig.SPEC) ServerConfig.migrate();
+        });
 
         modBus.addListener(FWNetwork::register);
         modBus.addListener(com.fantasyweapons.datagen.FWDataGen::gather);

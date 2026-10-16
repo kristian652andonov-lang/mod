@@ -25,6 +25,11 @@ public final class UltimateFx {
     public static void register() {
         FxDispatcher.register(FxIds.GRANT_EXECUTION, UltimateFx::grantExecution);
         FxDispatcher.register(FxIds.CATACLYSM_FRAME, UltimateFx::cataclysmFrame);
+        FxDispatcher.register(FxIds.ULTIMATE_WINDUP, p -> {
+            if (distance(p.pos()) > com.fantasyweapons.weapons.ultimate.Cataclysm.SEEN && !isCaster(p)) return;
+            Vec3 caster = p.points().isEmpty() ? null : p.points().get(0);
+            VfxManager.add(new UltimateWindupVfx(p.pos(), caster, p.scale(), Math.max(10, (int) p.power()), p.level(), p.pos().hashCode()));
+        });
         FxDispatcher.register(FxIds.BLACKHOLE, UltimateFx::blackhole);
         FxDispatcher.register(FxIds.ERUPTION, UltimateFx::eruption);
         FxDispatcher.register(FxIds.TECTONIC, UltimateFx::tectonic);
@@ -117,7 +122,7 @@ public final class UltimateFx {
         float reach = p.scale();
         int collapse = Math.max(60, (int) p.power()), form = Math.max(10, p.level());
         BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
-        VfxManager.add(new UltramassiveBlackholeVfx(hole, 28, reach, form, collapse, p.seed()).feeding(debris));
+        VfxManager.add(new UltramassiveBlackholeVfx(hole, com.fantasyweapons.weapons.domination.DominationAbilities.HORIZON, reach, form, collapse, p.seed()).feeding(debris));
         long ms = collapse * 50L;
         sound(SoundEvents.WARDEN_EMERGE, 1f, 0.5f);
         sound(SoundEvents.END_PORTAL_SPAWN, 0.8f, 0.5f);
@@ -256,7 +261,7 @@ public final class UltimateFx {
     private static void iceAge(FxPayload p) {
         Vec3 at = p.pos();
         float radius = p.scale(), height = p.power(), speed = Math.max(0.3f, p.level() / 100f);
-        int surge = 24, run = (int) (radius / speed);
+        int surge = com.fantasyweapons.weapons.domination.DominationAbilities.SURGE, run = (int) (radius / speed);
         VfxManager.add(new IceAgeVfx(at, radius, height, speed, surge));
         sound(SoundEvents.ELDER_GUARDIAN_CURSE, 0.8f, 0.5f);
         sound(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1f, 0.5f);
@@ -285,12 +290,20 @@ public final class UltimateFx {
         float length = p.scale(), half = p.power(), speed = Math.max(1, p.level() / 100f);
         BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
         VfxManager.add(new GreatSlashVfx(eye, look, blade, length, half, speed, p.seed()).shattering(debris));
-        sound(SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.5f);
-        sound(SoundEvents.TRIDENT_RIPTIDE_3.value(), 1f, 0.6f);
-        sound(SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 1.4f);
-        CameraShake.add(eye, 1.6f, 60);
-        ScreenFx.flash(0xFFFFFF, isCaster(p) ? 0.5f : 0.3f, 8);
-        FxScheduler.after(4, () -> sound(SoundEvents.GLASS_BREAK, 1f, 0.5f));
+        int hold = com.fantasyweapons.weapons.obliteration.ObliterationAbilities.SLASH_HOLD;
+        // the slash gathers itself before the blade
+        sound(SoundEvents.BEACON_POWER_SELECT, 0.9f, 1.6f);
+        sound(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.7f, 1.4f);
+        FxScheduler.after(hold / 2, () -> sound(SoundEvents.WARDEN_SONIC_CHARGE, 0.8f, 1.5f));
+        // and flies
+        FxScheduler.after(hold, () -> {
+            sound(SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.5f);
+            sound(SoundEvents.TRIDENT_RIPTIDE_3.value(), 1f, 0.5f);
+            sound(SoundEvents.WARDEN_SONIC_BOOM, 0.9f, 1.1f);
+            CameraShake.add(eye, 2.4f, 90);
+            ScreenFx.flash(0xFFFFFF, isCaster(p) ? 0.55f : 0.35f, 10);
+        });
+        FxScheduler.after(hold + 4, () -> sound(SoundEvents.GLASS_BREAK, 1f, 0.5f));
     }
 
     private static void grandEarthquake(FxPayload p) {

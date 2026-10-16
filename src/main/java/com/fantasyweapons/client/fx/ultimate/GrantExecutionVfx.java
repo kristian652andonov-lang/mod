@@ -16,7 +16,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public class GrantExecutionVfx extends Vfx {
     private static final Vec3 X = new Vec3(1, 0, 0), Z = new Vec3(0, 0, 1), UP = new Vec3(0, 1, 0);
-    private static final int WHITE = 0xFFFFFF, PALE = 0xFFF6D6, GOLD = 0xFFD970, AMBER = 0xFFB43A;
+    private static final int WHITE = 0xFFFFFF, PALE = 0xFFF6D6, GOLD = 0xFFD970, AMBER = 0xFFB43A, YELLOW = 0xFFC72E;
     private static final int SATELLITES = 32, TIERS = 4;
     /** Ticks the circle lingers and dissolves after the beam. */
     private static final int AFTER = 60;
@@ -56,6 +56,7 @@ public class GrantExecutionVfx extends Vfx {
         ctx.squash = 1;
         ctx.farClamp = reach * 0.86;
         drawCharge(ctx, t);
+        drawClouds(ctx, t);
         if (t >= delay) drawBeam(ctx, t - delay);
         ctx.farClamp = 0;
         drawGround(ctx, t);
@@ -191,10 +192,8 @@ public class GrantExecutionVfx extends Vfx {
         float mark = clamp01((t - delay * 0.6f) / (delay * 0.4f));
         if (mark > 0) {
             boolean flicker = ((int) (t * 1.7f)) % 5 == 0;
-            float w = 1.5f + 6 * mark * mark;
-            var soft = ctx.additive(VfxTextures.BEAM_SOFT);
-            ctx.softBeam(soft, sky, new Vec3(ground.x, bottom, ground.z), w * 3, Colors.alpha(mark * (flicker ? 0.4f : 0.75f), GOLD), 0, 1, 0.05f, 0.02f);
-            ctx.softBeam(soft, sky, new Vec3(ground.x, bottom, ground.z), w, Colors.alpha(mark * (flicker ? 0.5f : 1f), WHITE), 0, 1, 0.05f, 0.02f);
+            float w = 0.6f + 2.2f * mark * mark;
+            shaded(ctx, ctx.translucent(VfxTextures.WHITE), sky, new Vec3(ground.x, bottom, ground.z), w, 12, mark * (flicker ? 0.6f : 1f));
         }
     }
 
@@ -208,45 +207,79 @@ public class GrantExecutionVfx extends Vfx {
         float narrow = clamp01((f - beam) / 14f);
         float out = clamp01((f - beam - 14) / 10f);
         if (out >= 1) return;
-        float width = (1 - easeInOut(narrow)) * (1 + 0.035f * (float) Math.sin(f * 0.9f)) + 0.012f;
+        float width = (1 - easeInOut(narrow)) * (1 + 0.01f * (float) Math.sin(f * 0.9f)) + 0.006f;
         double front = sky.y - (sky.y - bottom) * fall;
         Vec3 top = sky.add(0, -2, 0), foot = new Vec3(ground.x, front, ground.z);
         float a = 1 - out;
-        var white = ctx.additive(VfxTextures.WHITE);
-        var energy = ctx.energy(VfxTextures.BEAM_SOFT);
-        int segs = ctx.segments(48);
-        // a solid white heart, so the column has a hard edge even against a bright sky
-        var solid = ctx.translucent(VfxTextures.WHITE);
-        cylinder(ctx, solid, top, foot, radius * 0.22f * width, segs, Colors.alpha(a * 0.9f, WHITE), Colors.alpha(a * 0.92f, WHITE));
-        cylinder(ctx, solid, top, foot, radius * 0.4f * width, segs, Colors.alpha(a * 0.35f, PALE), Colors.alpha(a * 0.45f, PALE));
-        cylinder(ctx, white, top, foot, radius * 0.3f * width, segs, Colors.alpha(a * 0.95f, WHITE), Colors.alpha(a * 0.95f, WHITE));
-        cylinder(ctx, white, top, foot, radius * 0.62f * width, segs, Colors.alpha(a * 0.42f, PALE), Colors.alpha(a * 0.5f, PALE));
-        cylinder(ctx, white, top, foot, radius * 1.0f * width, segs, Colors.alpha(a * 0.24f, GOLD), Colors.alpha(a * 0.3f, GOLD));
-        cylinder(ctx, white, top, foot, radius * 1.14f * width, segs, Colors.alpha(a * 0.1f, AMBER), Colors.alpha(a * 0.14f, AMBER));
-        // the light it pours out, turned to the eye
-        var soft = ctx.additive(VfxTextures.BEAM_SOFT);
-        ctx.softBeam(soft, top, foot, radius * 2.9f * width, Colors.alpha(a * 0.5f, GOLD), 0, 1, 0.04f, 0f);
-        ctx.softBeam(energy, top, foot, radius * 1.7f * width, Colors.alpha(a * 0.7f, PALE), f * 0.05f, f * 0.05f + 4, 0.04f, 0f);
-        // rings racing down the column
+        float r = radius * 0.9f * width;
+        // one pure column of light, nothing see-through about it
+        shaded(ctx, ctx.translucent(VfxTextures.WHITE), top, foot, r, ctx.segments(64), a);
+        // the air it throws off: rings born at its surface all up its height, racing outward and fading as they spread
+        if (narrow >= 1) return;
         var ring = ctx.additive(VfxTextures.RING);
-        if (narrow < 1) {
-            for (int k = 0; k < 6; k++) {
-                float cyc = ((f * 0.11f) + k / 6f) % 1f;
-                double y = sky.y - (sky.y - ground.y) * cyc * cyc;
-                if (y < front) continue;
-                float rr = radius * width * (1.12f + 0.25f * cyc);
-                ctx.ring(ring, new Vec3(ground.x, y, ground.z), X, Z, rr * 0.92f, rr * 1.08f, segs, Colors.alpha(a * (0.75f - 0.4f * cyc), WHITE));
+        int rings = ctx.segments(28), segs = ctx.segments(72);
+        double span = Math.min(sky.y, ground.y + radius * 1.6) - ground.y;
+        for (int k = 0; k < rings; k++) {
+            float s = ((f * 0.028f) + k * 0.6180339f) % 1f;
+            double y = ground.y + 4 + span * ((k * 0.3819660f) % 1f);
+            if (y < front) continue;
+            float rr = r + radius * 1.4f * easeOut(s);
+            float fadeIn = Math.min(1, s * 8);
+            ctx.ring(ring, new Vec3(ground.x, y + s * 6, ground.z), X, Z, rr - 1.5f - 6 * s, rr, segs,
+                    Colors.alpha(a * fadeIn * (1 - s) * (1 - s) * 0.55f * (1 - narrow), k % 3 == 0 ? PALE : WHITE));
+        }
+    }
+
+    /**
+     * The clouds the beam drags round itself: rings of billowing cumulus all up its height, a tunnel of cloud round the
+     * light, glowing gold where they face it and browner low down. They gather and spiral in as the circle charges,
+     * churn and turn slowly while the beam burns, then spread out and thin away.
+     */
+    private void drawClouds(VfxContext ctx, float t) {
+        float gather = easeOut(clamp01((t - delay * 0.35f) / (delay * 0.65f)));
+        float spread = clamp01((t - delay - beam) / 50f);
+        float a = gather * (1 - spread);
+        if (a <= 0.01f) return;
+        var cloud = ctx.translucent(VfxTextures.CLOUD);
+        float core = radius * 0.9f;
+        int rings = ctx.segments(16);
+        double span = Math.min(sky.y - 20, ground.y + radius * 2.2) - ground.y;
+        for (int k = 0; k < rings; k++) {
+            float h = (k + 0.5f) / rings;
+            double y = ground.y + 6 + span * h;
+            // the tunnel narrows a little upward, and breathes in and out
+            float ringR = core * (1.08f + 0.22f * (1 - h)) + radius * 0.5f * (1 - gather) + radius * 0.9f * spread
+                    + (float) Math.sin(t * 0.04f + k * 1.7f) * radius * 0.03f;
+            float size = radius * (0.22f + 0.12f * (1 - h));
+            int puffs = Math.max(10, (int) (ringR * Math.PI * 2 / (size * 0.55f)));
+            float turn = t * 0.004f * (k % 2 == 0 ? 1 : -0.7f) + k * 0.61f + (1 - gather) * 2.5f;
+            int lit = Colors.lerpRgb(0x9A7048, 0xFFE4AE, 0.35f + 0.65f * h);
+            for (int i = 0; i < puffs; i++) {
+                double ang = turn + i * Math.PI * 2 / puffs;
+                float wob = (float) Math.sin(i * 2.3 + k * 1.1 + t * 0.05) * size * 0.18f;
+                Vec3 p = new Vec3(ground.x + Math.cos(ang) * (ringR + wob), y + Math.sin(i * 1.7 + k) * size * 0.25f, ground.z + Math.sin(ang) * (ringR + wob));
+                int c = Colors.alpha(a * 0.9f, Colors.scale(lit, 0.85f + 0.15f * (float) Math.sin(i * 3.1 + k)));
+                ctx.billboard(cloud, p, size * (0.85f + 0.3f * (float) ((i * 0.618 + k * 0.37) % 1.0)), i * 1.3f + k, c);
             }
         }
     }
 
-    /** An open cylinder of light along {@code from}-{@code to}. */
-    private static void cylinder(VfxContext ctx, VertexConsumer vc, Vec3 from, Vec3 to, float r, int segs, int topColor, int footColor) {
-        if (r <= 0.01f) return;
+    /**
+     * A solid column of light from {@code from} to {@code to}: a pure white middle (where it faces the eye) fading out
+     * into deep yellow over the rest of its width, so it reads as a white-hot core inside a great yellow beam.
+     */
+    private static void shaded(VfxContext ctx, VertexConsumer vc, Vec3 from, Vec3 to, float r, int segs, float alpha) {
+        if (r <= 0.01f || alpha <= 0) return;
+        Vec3 mid = from.add(to).scale(0.5);
+        Vec3 view = new Vec3(ctx.cam.x - mid.x, 0, ctx.cam.z - mid.z);
+        view = view.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : view.normalize();
         for (int i = 0; i < segs; i++) {
             double a0 = i * Math.PI * 2 / segs, a1 = (i + 1) * Math.PI * 2 / segs;
-            Vec3 o0 = new Vec3(Math.cos(a0) * r, 0, Math.sin(a0) * r), o1 = new Vec3(Math.cos(a1) * r, 0, Math.sin(a1) * r);
-            ctx.quad(vc, to.add(o0), to.add(o1), from.add(o1), from.add(o0), 0, 0, 1, 1, footColor, footColor, topColor, topColor);
+            Vec3 o0 = new Vec3(Math.cos(a0), 0, Math.sin(a0)), o1 = new Vec3(Math.cos(a1), 0, Math.sin(a1));
+            float face = (float) Math.max(0, (o0.dot(view) + o1.dot(view)) * 0.5);
+            float core = clamp01((face - 0.5f) / 0.42f);
+            int col = Colors.alpha(alpha, Colors.lerpRgb(YELLOW, WHITE, core * core * (3 - 2 * core)));
+            ctx.quad(vc, to.add(o0.scale(r)), to.add(o1.scale(r)), from.add(o1.scale(r)), from.add(o0.scale(r)), 0, 0, 1, 1, col, col, col, col);
         }
     }
 

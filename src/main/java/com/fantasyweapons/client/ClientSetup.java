@@ -68,7 +68,10 @@ public final class ClientSetup {
         modBus.addListener(com.fantasyweapons.client.particle.ForgeParticles::register);
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent e) -> {
             e.registerReloadListener(new com.fantasyweapons.client.render.FrameStripTextures());
-            e.registerReloadListener((net.minecraft.server.packs.resources.ResourceManagerReloadListener) rm -> com.fantasyweapons.client.fx.ImpactFrames.reset());
+            e.registerReloadListener((net.minecraft.server.packs.resources.ResourceManagerReloadListener) rm -> {
+                com.fantasyweapons.client.fx.ImpactFrames.reset();
+                com.fantasyweapons.client.fx.BlockVoxels.reset();
+            });
         });
         modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) -> {
             e.registerEntityRenderer(com.fantasyweapons.registry.ModEntities.THROWN_WEAPON.get(),

@@ -2,6 +2,7 @@ package com.fantasyweapons.world.wreck;
 
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.config.ServerConfig;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.ResourceKey;
@@ -37,7 +38,11 @@ public final class WorldWreck {
     /** Give up on a chunk that will not load (in ticks of retries). */
     private static final int MAX_WAIT = 600;
 
-    private record Task(ResourceKey<Level> dimension, int x, int z, long due, long order, long seed, ChunkShaper shaper, int waited) {
+    /**
+     * @param partial one band of a chunk swept in several: its changed blocks are sent as they are, and only the chunk's
+     *                last band relights and resends it whole
+     */
+    private record Task(ResourceKey<Level> dimension, int x, int z, long due, long order, long seed, ChunkShaper shaper, int waited, boolean partial) {
     }
 
     private static final PriorityQueue<Task> QUEUE = new PriorityQueue<>(Comparator.comparingLong(Task::due).thenComparingLong(Task::order));
@@ -74,7 +79,12 @@ public final class WorldWreck {
     /** Rewrites the chunk at chunk coordinates {@code (cx, cz)} after {@code delay} ticks. Does nothing when destruction is off. */
     public static void submit(ServerLevel level, int cx, int cz, int delay, long seed, ChunkShaper shaper) {
         if (!enabled() || testServer(level)) return;
-        QUEUE.add(new Task(level.dimension(), cx, cz, clock + Math.max(0, delay), order++, seed, shaper, 0));
+        submit(level, cx, cz, delay, seed, shaper, false);
+    }
+
+    private static void submit(ServerLevel level, int cx, int cz, int delay, long seed, ChunkShaper shaper, boolean partial) {
+        if (!enabled() || testServer(level)) return;
+        QUEUE.add(new Task(level.dimension(), cx, cz, clock + Math.max(0, delay), order++, seed, shaper, 0, partial));
     }
 
     /** Keeps a chunk loaded (and loads it) for the next 20 seconds, so a job due later finds it ready. */
@@ -101,16 +111,50 @@ public final class WorldWreck {
         int c0x = SectionPos.blockToSectionCoord(center.x - radius), c1x = SectionPos.blockToSectionCoord(center.x + radius);
         int c0z = SectionPos.blockToSectionCoord(center.z - radius), c1z = SectionPos.blockToSectionCoord(center.z + radius);
         int n = 0;
+        // the front sweeps block by block: a chunk it takes a while to cross is rewritten in rings, each when the front
+        // reaches it, about one tick's travel wide (2 to 8 blocks)
+        double slope = (delay.ticks(radius) - delay.ticks(0)) / Math.max(1, radius);
+        double band = slope <= 1e-6 ? Double.MAX_VALUE : Math.max(2, Math.min(8, 1 / slope));
         for (int cx = c0x; cx <= c1x; cx++) {
             for (int cz = c0z; cz <= c1z; cz++) {
-                // nearest point of the chunk to the centre
+                // nearest and farthest point of the chunk to the centre
                 double nx = Math.max(cx * 16, Math.min(center.x, cx * 16 + 16)) - center.x;
                 double nz = Math.max(cz * 16, Math.min(center.z, cz * 16 + 16)) - center.z;
                 double near = Math.sqrt(nx * nx + nz * nz);
                 if (near > radius) continue;
-                double mid = Math.hypot(cx * 16 + 8 - center.x, cz * 16 + 8 - center.z);
-                submit(level, cx, cz, delay.ticks(mid), seed, shaper);
+                double fx = Math.max(Math.abs(cx * 16 - center.x), Math.abs(cx * 16 + 16 - center.x));
+                double fz = Math.max(Math.abs(cz * 16 - center.z), Math.abs(cz * 16 + 16 - center.z));
+                double far = Math.sqrt(fx * fx + fz * fz);
                 n++;
+                if (far - near <= band || delay.ticks(far) == delay.ticks(near)) {
+                    submit(level, cx, cz, delay.ticks(Math.hypot(cx * 16 + 8 - center.x, cz * 16 + 8 - center.z)), seed, shaper);
+                    continue;
+                }
+                int bands = (int) Math.ceil((far - near) / band);
+                for (int b = 0; b < bands; b++) {
+                    double from = near + b * band, to = b == bands - 1 ? Double.MAX_VALUE : from + band;
+                    boolean[] columns = new boolean[256];
+                    boolean any = false;
+                    for (int x = 0; x < 16; x++) {
+                        for (int z = 0; z < 16; z++) {
+                            double d = Math.hypot(cx * 16 + x + 0.5 - center.x, cz * 16 + z + 0.5 - center.z);
+                            if (d >= from && d < to) {
+                                columns[x | z << 4] = true;
+                                any = true;
+                            }
+                        }
+                    }
+                    if (!any) continue;
+                    ChunkShaper part = c -> {
+                        c.mask(columns);
+                        try {
+                            shaper.shape(c);
+                        } finally {
+                            c.mask(null);
+                        }
+                    };
+                    submit(level, cx, cz, delay.ticks(Math.min(from + band * 0.5, far)), seed, part, b < bands - 1);
+                }
             }
         }
         return n;
@@ -146,10 +190,11 @@ public final class WorldWreck {
                 if (!load || t.waited() >= MAX_WAIT) continue;
                 ChunkPos pos = new ChunkPos(t.x(), t.z());
                 if (t.waited() % 200 == 0) level.getChunkSource().addRegionTicket(TICKET, pos, 0, pos);
-                retry.add(new Task(t.dimension(), t.x(), t.z(), clock + 10, t.order(), t.seed(), t.shaper(), t.waited() + 10));
+                retry.add(new Task(t.dimension(), t.x(), t.z(), clock + 10, t.order(), t.seed(), t.shaper(), t.waited() + 10, t.partial()));
                 continue;
             }
-            rewrite(level, chunk, t.seed(), t.shaper());
+            if (t.partial()) rewritePart(level, chunk, t.seed(), t.shaper());
+            else rewrite(level, chunk, t.seed(), t.shaper());
         }
         QUEUE.addAll(retry);
     }
@@ -169,6 +214,27 @@ public final class WorldWreck {
         chunk.setUnsaved(true);
         relight(level, chunk);
         return edit.changed();
+    }
+
+    /**
+     * Runs one band of a chunk swept in several: its blocks change now and are sent to the players who see them as
+     * ordinary block changes (their own light follows); the chunk's last band relights it and resends it whole.
+     */
+    private static void rewritePart(ServerLevel level, LevelChunk chunk, long seed, ChunkShaper shaper) {
+        WreckChunk edit = new WreckChunk(level, chunk, seed);
+        edit.trackChanges();
+        try {
+            shaper.shape(edit);
+        } catch (RuntimeException e) {
+            FantasyWeapons.LOGGER.error("World destruction failed in chunk {}", chunk.getPos(), e);
+        }
+        if (edit.changed() == 0) return;
+        rewritten++;
+        Heightmap.primeHeightmaps(chunk, HEIGHTMAPS);
+        chunk.setUnsaved(true);
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        var changes = edit.changes();
+        for (int i = 0; i < changes.size(); i++) level.getChunkSource().blockChanged(at.set(changes.getLong(i)));
     }
 
     /**

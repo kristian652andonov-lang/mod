@@ -62,14 +62,20 @@ public final class DominationAbilities {
             if (age == delay) {
                 double r = WorldWreck.radius(radius);
                 // the land is erased from the middle out as the beam bites
-                WorldWreck.disc(level, pos, r + 3, seed, d -> (int) (d / 6), WreckShapes.shaft(pos, r, 4));
+                WorldWreck.disc(level, pos, r + Math.min(8, r * 0.06) + 12, seed, d -> (int) (d / 6), WreckShapes.shaft(pos, r));
                 Cataclysm.frames(level, owner, pos, radius * 3, true);
                 level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 30f, 0.5f);
             }
             if (age >= delay && age <= delay + beam && (age - delay) % 4 == 0) {
                 Cataclysm.eraseColumn(owner, weapon(owner), level, pos, radius, damage, Element.LIGHT);
             }
-            if (age == delay + beam / 2) Cataclysm.frames(level, owner, pos, radius * 3, false);
+            if (age == delay + beam / 2) {
+                Cataclysm.frames(level, owner, pos, radius * 3, false);
+                // the land round the hole splits open: deep cracks running out from its rim
+                double r = WorldWreck.radius(radius);
+                var ring = com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xBEA4L, 12, r + 2, r * 2.2, 6, 120);
+                WorldWreck.disc(level, pos, r * 2.2 + 12, seed + 3, d -> (int) (Math.max(0, d - r) / 4), WreckShapes.cracks(pos, ring));
+            }
         }
     }
 
@@ -82,8 +88,8 @@ public final class DominationAbilities {
     // ------------------------------------------------------------------------------------------------------------
 
     /** Radius of the black sphere itself, and how high above the ground it opens. */
-    private static final float HORIZON = 28, HOLE_HEIGHT = 95;
-    private static final int FORM = 40;
+    public static final float HORIZON = 40, HOLE_HEIGHT = 110;
+    private static final int FORM = 70;
 
     public static boolean blackhole(AbilityContext ctx) {
         Vec3 ground = Cataclysm.landing(ctx, LOOK_RANGE);
@@ -123,7 +129,7 @@ public final class DominationAbilities {
             if (age == FORM) {
                 double r = WorldWreck.radius(reach);
                 int span = collapse - FORM - 10;
-                WorldWreck.disc(level, pos, r + 3, seed, d -> FORM + (int) (Math.min(1, d / r) * span), WreckShapes.sphere(pos, r));
+                WorldWreck.disc(level, pos, r + WreckShapes.ragReach(r) + 14, seed, d -> FORM + (int) (Math.min(1, d / r) * span), WreckShapes.sphere(pos, r));
                 level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 30f, 0.4f);
             }
             if (age >= FORM && age < collapse) feed(owner, (age - FORM) / (float) (collapse - FORM));
@@ -131,6 +137,10 @@ public final class DominationAbilities {
                 // the collapse takes everything still in reach
                 for (net.minecraft.world.entity.Entity e : inReach()) swallow(owner, e);
                 Cataclysm.frames(level, owner, pos, reach * 2, true);
+                // the land round the bowl splits open as it collapses: deep cracks running out from its rim
+                double r = WorldWreck.radius(reach);
+                var ring = com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xB1AC4L, 14, r * 0.97, r * 1.7, 7, 120);
+                WorldWreck.disc(level, pos, r * 1.7 + 12, seed + 5, d -> (int) (Math.max(0, d - r) / 5), WreckShapes.cracks(pos, ring));
             }
         }
 
@@ -192,7 +202,7 @@ public final class DominationAbilities {
 
     /** The eruption's crack network (the client builds the same one from the seed). */
     public static com.fantasyweapons.weapons.ultimate.CrackNetwork eruptionCracks(long seed, double radius) {
-        return com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed, 11, radius * 1.1, 4.5, 16);
+        return com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed, 11, radius * 1.1, 5.5, 120);
     }
 
     public static boolean eruption(AbilityContext ctx) {
@@ -521,7 +531,7 @@ public final class DominationAbilities {
     // ------------------------------------------------------------------------------------------------------------
 
     /** Ticks the sea takes to rise at the target before the wave rolls out. */
-    private static final int SURGE = 24;
+    public static final int SURGE = 40;
 
     public static boolean iceAge(AbilityContext ctx) {
         Vec3 at = Cataclysm.landing(ctx, LOOK_RANGE);

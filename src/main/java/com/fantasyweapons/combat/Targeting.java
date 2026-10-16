@@ -99,8 +99,12 @@ public final class Targeting {
 
     /** Where the player is looking: first block hit or max range. */
     public static Vec3 aimPoint(Player player, double range) {
-        Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(player.getLookAngle().scale(range));
+        return aimPoint(player, player.getEyePosition(), player.getLookAngle(), range);
+    }
+
+    /** Where a line of sight from {@code eye} along {@code look} first meets a block, or its end at {@code range}. */
+    public static Vec3 aimPoint(Player player, Vec3 eye, Vec3 look, double range) {
+        Vec3 end = eye.add(look.scale(range));
         HitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         return hit.getType() == HitResult.Type.MISS ? end : hit.getLocation();
     }

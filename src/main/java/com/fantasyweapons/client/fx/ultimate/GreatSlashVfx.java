@@ -17,6 +17,8 @@ import net.minecraft.world.phys.Vec3;
 public class GreatSlashVfx extends Vfx {
     private static final int WHITE = 0xFFFFFF, PALE = 0xFFF6D6, GOLD = 0xFFD970;
     private static final int POINTS = 33;
+    /** Ticks the slash hangs before the blade first (the server waits as long). */
+    private static final int HOLD = com.fantasyweapons.weapons.obliteration.ObliterationAbilities.SLASH_HOLD;
 
     private final Vec3 eye, look, blade, normal;
     private final float length, half, speed;
@@ -24,7 +26,7 @@ public class GreatSlashVfx extends Vfx {
     private BlockDebrisVfx debris;
 
     public GreatSlashVfx(Vec3 eye, Vec3 look, Vec3 blade, float length, float half, float speed, long seed) {
-        super((int) (length / speed) + 45);
+        super(HOLD + (int) (length / speed) + 45);
         this.eye = eye;
         this.look = look.normalize();
         this.blade = blade.normalize();
@@ -54,8 +56,11 @@ public class GreatSlashVfx extends Vfx {
     @Override
     public void tick() {
         super.tick();
+        if (age < HOLD) return;
+        float f = (age - HOLD) * speed;
+        // the ground shakes under it as it passes
+        if (age % 3 == 0 && f <= length) com.fantasyweapons.client.fx.CameraShake.add(crescent(Math.max(2, f), 0), 1.5f, 110);
         if (debris == null) return;
-        float f = age * speed;
         if (f > length + speed) {
             debris.close();
             return;
@@ -64,7 +69,7 @@ public class GreatSlashVfx extends Vfx {
         if (level == null) return;
         // blocks along the cut are split away from it, to either side
         BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
-        int n = Math.round(14 * com.fantasyweapons.config.ClientConfig.quality().density());
+        int n = Math.round(36 * com.fantasyweapons.config.ClientConfig.quality().density());
         for (int i = 0; i < n; i++) {
             float u = rng.nextFloat() * 2 - 1;
             Vec3 p = crescent(Math.max(2, f - rng.nextFloat() * speed), u);
@@ -78,7 +83,11 @@ public class GreatSlashVfx extends Vfx {
 
     @Override
     public void render(VfxContext ctx) {
-        float t = age + ctx.partial;
+        float t = age + ctx.partial - HOLD;
+        if (t < 0) {
+            drawHold(ctx, (t + HOLD) / HOLD);
+            return;
+        }
         float f = t * speed;
         float flying = f <= length ? 1 : 1 - clamp01((f - length) / (speed * 4));
         var slash = ctx.additive(VfxTextures.SLASH);
@@ -127,6 +136,39 @@ public class GreatSlashVfx extends Vfx {
                     ctx.quad(white, crescent(f0, u0), crescent(f1, u0), crescent(f1, u1), crescent(f0, u1), 0, 0, 1, 1, c0, c1, c2, c3);
                 }
             }
+        }
+    }
+
+    /**
+     * The slash forming before the blade ({@code k} from 0 to 1): a crescent of light swelling and flickering brighter,
+     * motes of light drawn in to it from all around, the air round it glowing.
+     */
+    private void drawHold(VfxContext ctx, float k) {
+        var slash = ctx.additive(VfxTextures.SLASH);
+        var glow = ctx.additive(VfxTextures.GLOW);
+        var spark = ctx.additive(VfxTextures.SPARK);
+        float grow = easeOut(k), flick = 0.75f + 0.25f * (float) Math.sin(age * 2.3f);
+        float fk = 3 + 3 * grow;
+        Vec3[] pts = new Vec3[POINTS];
+        float[] widths = new float[POINTS];
+        int[] cols = new int[POINTS];
+        float h = (1.5f + 8.5f * grow);
+        for (int i = 0; i < POINTS; i++) {
+            float u = i / (float) (POINTS - 1) * 2 - 1, edge = 1 - u * u;
+            pts[i] = eye.add(look.scale(fk + h * 0.35f * edge)).add(blade.scale(u * h));
+            widths[i] = (0.5f + 2.5f * grow) * (0.25f + 0.75f * edge);
+            cols[i] = Colors.alpha((0.3f + 0.7f * grow) * flick * (0.2f + 0.8f * edge), WHITE);
+        }
+        ctx.ribbon(slash, pts, widths, cols, 0, 1f / (POINTS - 1));
+        ctx.billboard(glow, eye.add(look.scale(fk)), 6 + 14 * grow, 0, Colors.alpha(0.5f * grow * flick, GOLD));
+        // motes drawn in from all around
+        for (int i = 0; i < 24; i++) {
+            float c = ((i * 0.618f) + age * 0.09f) % 1f;
+            double a = i * 2.39996, b = i * 1.17;
+            Vec3 from = new Vec3(Math.cos(a) * Math.cos(b), Math.sin(b), Math.sin(a) * Math.cos(b)).scale(14);
+            Vec3 to = pts[(i * 7) % POINTS];
+            Vec3 p = to.add(from.scale(1 - c));
+            ctx.stretched(spark, p, from.scale(-1).normalize(), 1.6f, 0.2f, Colors.alpha(grow * c, i % 3 == 0 ? GOLD : PALE));
         }
     }
 

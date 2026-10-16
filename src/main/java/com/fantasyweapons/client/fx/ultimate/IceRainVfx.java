@@ -17,7 +17,8 @@ import java.util.List;
  */
 public class IceRainVfx extends Vfx {
     private static final int CLOUD = 0x2A3440, CLOUD_LIT = 0x8FB8D8, ICE = 0xBFEFFF, CORE = 0xEAF9FF, FROST = 0xDDF4FF;
-    private static final int FALL = 16, GATHER = 30;
+    private static final int FALL = com.fantasyweapons.weapons.obliteration.ObliterationAbilities.ICE_FALL,
+            GATHER = com.fantasyweapons.weapons.obliteration.ObliterationAbilities.ICE_GATHER;
     private static final float CLOUD_HEIGHT = 85;
 
     private final Vec3 center;
@@ -25,7 +26,8 @@ public class IceRainVfx extends Vfx {
     private final int duration;
     private final List<Vec3> strikes;
     private final int[] times;
-    private final float[][] tilt;
+    /** Per spike: its lean (x, z), its length and its width at the base (blocks), as the server builds it. */
+    private final float[][] shape;
 
     public IceRainVfx(Vec3 center, float radius, int duration, List<Vec3> strikes, int[] times, long seed) {
         super(duration + 40);
@@ -34,14 +36,16 @@ public class IceRainVfx extends Vfx {
         this.duration = duration;
         this.strikes = strikes;
         this.times = times;
-        tilt = new float[strikes.size()][3];
+        shape = new float[strikes.size()][4];
         for (int i = 0; i < strikes.size(); i++) {
+            // the same draws, in the same order, as the spike the server drives into the ground
             RandomSource r = RandomSource.create(seed + i * 31L);
             double length = 12 + r.nextDouble() * 14, base = 2.2 + r.nextDouble() * 1.6;
             r.nextDouble();
-            tilt[i][0] = (float) ((r.nextDouble() - 0.5) * 0.5);
-            tilt[i][1] = (float) ((r.nextDouble() - 0.5) * 0.5);
-            tilt[i][2] = (float) (length * 100 + base);
+            shape[i][0] = (float) ((r.nextDouble() - 0.5) * 0.5);
+            shape[i][1] = (float) ((r.nextDouble() - 0.5) * 0.5);
+            shape[i][2] = (float) length;
+            shape[i][3] = (float) base;
         }
     }
 
@@ -63,13 +67,13 @@ public class IceRainVfx extends Vfx {
             float k = (t - (times[i] - FALL)) / FALL;
             if (k < 0) continue;
             Vec3 hit = strikes.get(i);
-            Vec3 dir = new Vec3(tilt[i][0], -1, tilt[i][1]).normalize();
-            float length = (int) tilt[i][2] / 100f, base = tilt[i][2] % 100;
+            Vec3 dir = new Vec3(shape[i][0], -1, shape[i][1]).normalize();
+            float length = shape[i][2], base = shape[i][3];
             if (k <= 1) {
                 // falling out of the cloud, faster and faster
                 Vec3 from = hit.subtract(dir.scale(CLOUD_HEIGHT));
                 Vec3 tipPos = from.lerp(hit, k * k);
-                crystal(ctx, ice, glow, tipPos, dir, length, base);
+                crystal(ctx, ice, glow, tipPos, dir, length, base, i);
                 ctx.streak(streak, tipPos.subtract(dir.scale(length + 8)), dir, length * 1.6f, base * 1.4f, Colors.alpha(0.6f, FROST));
             } else {
                 // the burst where it struck
@@ -87,24 +91,47 @@ public class IceRainVfx extends Vfx {
         ctx.farClamp = 0;
     }
 
-    /** A spike of ice: a long six-sided point with a glow down its heart. The tip leads. */
-    private static void crystal(VfxContext ctx, VertexConsumer ice, VertexConsumer glow, Vec3 tip, Vec3 dir, float length, float base) {
+    /**
+     * A spike of ice, falling point first like a huge icicle: six-sided, thickest near its top, which is cut off in a
+     * low faceted cap, and tapering the rest of its length to a needle point; a glow runs down its heart, and two
+     * smaller shards grow out of its shoulders.
+     */
+    private static void crystal(VfxContext ctx, VertexConsumer ice, VertexConsumer glow, Vec3 tip, Vec3 dir, float length, float base, int seed) {
         Vec3[] b = VfxContext.basis(dir);
-        Vec3 heel = tip.subtract(dir.scale(length));
-        Vec3 belly = tip.subtract(dir.scale(length * 0.25));
+        shard(ctx, ice, tip, dir, b[0], b[1], length, base, seed * 0.7);
+        // the shoulder shards, splayed out a little from the main spike
+        for (int k = 0; k < 2; k++) {
+            double a = seed * 1.3 + k * Math.PI;
+            Vec3 side = b[0].scale(Math.cos(a)).add(b[1].scale(Math.sin(a)));
+            Vec3 d = dir.add(side.scale(-0.22)).normalize();
+            Vec3 at = tip.subtract(dir.scale(length * 0.62)).add(side.scale(base * 0.7));
+            Vec3[] bb = VfxContext.basis(d);
+            shard(ctx, ice, at, d, bb[0], bb[1], length * 0.38f, base * 0.42f, seed + k);
+        }
+        ctx.softBeam(glow, tip.subtract(dir.scale(length * 0.9)), tip.subtract(dir.scale(length * 0.08)), base * 1.1f, Colors.alpha(0.5f, CORE), 0, 1, 0.2f, 0.2f);
+    }
+
+    /** One six-sided shard: the point at {@code tip}, widest {@code length * 0.82} back from it, capped beyond. */
+    private static void shard(VfxContext ctx, VertexConsumer ice, Vec3 tip, Vec3 dir, Vec3 u, Vec3 v, float length, float base, double turn) {
         int sides = 6;
-        Vec3[] ring = new Vec3[sides];
+        Vec3 shoulder = tip.subtract(dir.scale(length * 0.82)), crown = tip.subtract(dir.scale(length));
+        Vec3[] ring = new Vec3[sides], cap = new Vec3[sides];
         for (int s = 0; s < sides; s++) {
-            double a = s * Math.PI * 2 / sides;
-            ring[s] = belly.add(b[0].scale(Math.cos(a) * base)).add(b[1].scale(Math.sin(a) * base));
+            double a = turn + s * Math.PI * 2 / sides;
+            Vec3 off = u.scale(Math.cos(a)).add(v.scale(Math.sin(a)));
+            ring[s] = shoulder.add(off.scale(base));
+            cap[s] = crown.add(off.scale(base * 0.55));
         }
         for (int s = 0; s < sides; s++) {
-            Vec3 p = ring[s], q = ring[(s + 1) % sides];
-            int lit = Colors.alpha(0.82f, Colors.scale(ICE, 0.75f + 0.25f * (s % 3)));
-            ctx.quad(ice, tip, tip, q, p, 0, 0, 1, 1, lit, lit, lit, lit);
-            ctx.quad(ice, p, q, heel, heel, 0, 0, 1, 1, lit, lit, lit, lit);
+            int n = (s + 1) % sides;
+            int face = Colors.alpha(0.86f, Colors.scale(ICE, 0.7f + 0.3f * ((s * 2) % 3) / 2f));
+            int edge = Colors.alpha(0.92f, CORE);
+            // the long taper to the point, lighter along its edges
+            ctx.quad(ice, tip, tip, ring[n], ring[s], 0, 0, 1, 1, face, face, edge, edge);
+            // the short slope up to the cap, and the cap
+            ctx.quad(ice, ring[s], ring[n], cap[n], cap[s], 0, 0, 1, 1, edge, edge, face, face);
+            ctx.quad(ice, cap[s], cap[n], crown, crown, 0, 0, 1, 1, face, face, face, face);
         }
-        ctx.softBeam(glow, heel, tip, base * 1.6f, Colors.alpha(0.6f, CORE), 0, 1, 0.2f, 0.2f);
     }
 
     private void drawCloud(VfxContext ctx, float t, float a) {

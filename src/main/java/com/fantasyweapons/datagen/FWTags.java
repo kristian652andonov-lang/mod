@@ -81,7 +81,6 @@ public final class FWTags {
                     for (var t : slotTags) tag(t).add(item);
                     tag(net.minecraft.tags.ItemTags.ARMOR_ENCHANTABLE).add(item);
                     tag(net.minecraft.tags.ItemTags.EQUIPPABLE_ENCHANTABLE).add(item);
-                    tag(net.minecraft.tags.ItemTags.DURABILITY_ENCHANTABLE).add(item);
                 }
             }
         }

@@ -10,14 +10,11 @@ import net.minecraft.world.item.ArmorItem;
  * heaviest, and the Mage's regalia enchanted robes; all are tougher than netherite.
  */
 public enum ArmorClass {
-    ASSASSIN("Assassin", new int[]{3, 7, 5, 3}, 2f, 0f, 18, SoundEvents.ARMOR_EQUIP_CHAIN),
-    PALADIN("Paladin", new int[]{4, 9, 7, 4}, 3f, 0.05f, 15, SoundEvents.ARMOR_EQUIP_DIAMOND),
-    BERSERKER("Berserker", new int[]{4, 10, 8, 4}, 4f, 0.1f, 12, SoundEvents.ARMOR_EQUIP_NETHERITE),
+    ASSASSIN("Assassin", new int[]{5, 9, 7, 4}, 5f, 0.05f, 18, SoundEvents.ARMOR_EQUIP_CHAIN),
+    PALADIN("Paladin", new int[]{6, 10, 8, 6}, 7f, 0.15f, 15, SoundEvents.ARMOR_EQUIP_DIAMOND),
+    BERSERKER("Berserker", new int[]{6, 11, 8, 5}, 8f, 0.2f, 12, SoundEvents.ARMOR_EQUIP_NETHERITE),
     /** The mage regalia: enchanted robes, lighter than any plate, the easiest to enchant. */
-    MAGE("Mage", new int[]{3, 6, 5, 2}, 2f, 0f, 22, SoundEvents.ARMOR_EQUIP_LEATHER);
-
-    /** Durability multiplier (netherite is 37). */
-    public static final int DURABILITY = 40;
+    MAGE("Mage", new int[]{4, 8, 7, 4}, 5f, 0.05f, 22, SoundEvents.ARMOR_EQUIP_LEATHER);
 
     private final String displayName;
     private final int[] defense;

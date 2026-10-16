@@ -63,6 +63,13 @@ public final class ServerConfig {
 
     private static final ModConfigSpec.Builder B = new ModConfigSpec.Builder();
 
+    /**
+     * The version of the ability settings this mod ships. A config file written by an older version has its ability
+     * settings reset to the new defaults once when it loads (a balance overhaul would otherwise never reach it).
+     */
+    public static final int CURRENT_VERSION = 3;
+    public static final Int CONFIG_VERSION;
+
     // ---- progression ----
     public static final Int MAX_LEVEL;
     public static final Dbl EXP_BASE;
@@ -166,6 +173,8 @@ public final class ServerConfig {
         DESTRUCTION_RADIUS_SCALE = d("radius_scale", 1.0, 0.05, 1.0, "Scales the destroyed area of every ability (1 = the full 64 to 256 blocks)");
         B.pop();
 
+        CONFIG_VERSION = i("config_version", 0, 0, 1000,
+                "Kept by the mod: when it is older than the mod's own, the ability settings below are reset to the mod's new defaults once");
         B.comment("Ability system").push("abilities");
         MAX_HOLD_AT_FULL_CHARGE_TICKS = i("max_hold_at_full_charge_ticks", 100, 0, 72000,
                 "Abilities auto-release after being held at full charge this long (0 = never)");
@@ -213,6 +222,20 @@ public final class ServerConfig {
         if (values == null) return param.defaultValue();
         Dbl v = values.get(param.name());
         return v == null ? param.defaultValue() : v.getOrDefault();
+    }
+
+    /** Resets the ability settings of a config file written by an older version of the mod to its new defaults. */
+    public static void migrate() {
+        if (!SPEC.isLoaded() || CONFIG_VERSION.value.get() >= CURRENT_VERSION) return;
+        for (var e : ABILITY_PARAMS.entrySet()) {
+            for (AbilityParam p : e.getKey().params().values()) {
+                Dbl v = e.getValue().get(p.name());
+                if (v != null) v.value.set(p.defaultValue());
+            }
+        }
+        CONFIG_VERSION.value.set(CURRENT_VERSION);
+        SPEC.save();
+        com.fantasyweapons.FantasyWeapons.LOGGER.info("Ability settings reset to the defaults of config version {}", CURRENT_VERSION);
     }
 
     /** Forces class init so the spec exists before registration. */

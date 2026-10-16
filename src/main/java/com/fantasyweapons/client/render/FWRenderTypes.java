@@ -144,14 +144,28 @@ public final class FWRenderTypes extends RenderType {
         return ADDITIVE.apply(texture);
     }
 
+    /** The render types that draw opaque, depth-writing geometry (drawn before the glows, so these hide what they cover). */
+    private static final java.util.Set<RenderType> OPAQUE = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+
     /** Opaque-looking textured geometry that writes depth (vines, thorns, petals, chain links) so it occludes itself. */
     public static RenderType solid(ResourceLocation texture) {
-        return SOLID.apply(texture);
+        RenderType t = SOLID.apply(texture);
+        OPAQUE.add(t);
+        return t;
     }
 
     /** Opaque geometry whose outline is cut out by its texture's alpha (petals, leaves). */
     public static RenderType cutout(ResourceLocation texture) {
-        return CUTOUT.apply(texture);
+        RenderType t = CUTOUT.apply(texture);
+        OPAQUE.add(t);
+        return t;
+    }
+
+    /** Whether a render type draws opaque, depth-writing geometry: the mod's solid and cutout ones, and vanilla's block and entity cutouts. */
+    public static boolean opaque(RenderType t) {
+        if (OPAQUE.contains(t)) return true;
+        String name = t.toString();
+        return !name.contains("translucent") && (name.contains("cutout") || name.contains("entity_solid") || name.contains("solid"));
     }
 
     public static RenderType translucent(ResourceLocation texture) {

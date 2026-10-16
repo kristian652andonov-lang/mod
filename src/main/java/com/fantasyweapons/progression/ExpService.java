@@ -121,7 +121,7 @@ public final class ExpService {
             if (exp < need) break;
             exp -= need;
             level++;
-            points += ProgressionMath.masteryPointsForLevel(level);
+            points += ProgressionMath.masteryPointsForLevel(def, level);
         }
         if (level >= max) exp = 0;
         int kills = d.kills() + (countKill ? 1 : 0);
@@ -162,7 +162,7 @@ public final class ExpService {
      * {@code d} raised {@code levels} whole levels (no further than the maximum), keeping its progress towards the
      * next one: the experience those levels are worth and the mastery points they grant are added.
      */
-    public static WeaponData withLevels(WeaponData d, int levels) {
+    public static WeaponData withLevels(WeaponDefinition def, WeaponData d, int levels) {
         int max = ProgressionMath.maxLevel();
         int level = d.level();
         long total = d.totalExp();
@@ -170,10 +170,23 @@ public final class ExpService {
         for (int i = 0; i < levels && level < max; i++) {
             total += ProgressionMath.expToNext(level);
             level++;
-            points += ProgressionMath.masteryPointsForLevel(level);
+            points += ProgressionMath.masteryPointsForLevel(def, level);
         }
         long exp = level >= max ? 0 : Math.min(d.exp(), ProgressionMath.expToNext(level) - 1);
         return d.withProgress(level, exp, total, points);
+    }
+
+    /**
+     * A weapon at its last level that has fewer points (spent and unspent) than its levels now give - one levelled up
+     * before the ultimate weapons' ranks were made affordable - is given the difference. Null if nothing is owed.
+     */
+    @org.jetbrains.annotations.Nullable
+    public static WeaponData owed(WeaponDefinition def, WeaponData d) {
+        if (d.level() < ProgressionMath.maxLevel()) return null;
+        int have = d.masteryPoints() + ProgressionMath.spent(def, d);
+        int earned = ProgressionMath.pointsUpTo(def, d.level()) + d.bossKills() * ServerConfig.MASTERY_POINTS_PER_BOSS.getOrDefault();
+        if (have >= earned) return null;
+        return d.withProgress(d.level(), d.exp(), d.totalExp(), d.masteryPoints() + earned - have);
     }
 
     /** Sets a weapon to an exact level (commands / testing). Grants the mastery points those levels would have. */

@@ -77,6 +77,82 @@ public final class Cataclysm {
         return hit;
     }
 
+    /** Ticks an ultimate power gathers - the sky darkening, the ground shaking, its might drawing in - before it strikes. */
+    public static final int WINDUP = 44;
+
+    /** Where a power gathers: where it will land, round the caster, or behind them (where the Arch Dragon breaks out). */
+    private enum Focus { AIM, SELF, BEHIND }
+
+    private record Gathering(Focus focus, int color) {
+    }
+
+    /** The powers that gather before they strike (the Great Slash holds before the blade instead). */
+    private static final java.util.Map<String, Gathering> GATHERINGS = java.util.Map.ofEntries(
+            java.util.Map.entry("fourth_dimension_ascension", new Gathering(Focus.AIM, 0xB57CFF)),
+            java.util.Map.entry("arch_dragon_of_hell", new Gathering(Focus.BEHIND, 0xFF5A1E)),
+            java.util.Map.entry("the_grand_earthquake", new Gathering(Focus.SELF, 0xD49A52)),
+            java.util.Map.entry("thornspire_cataclysm", new Gathering(Focus.SELF, 0x8BE05A)),
+            java.util.Map.entry("ice_rain", new Gathering(Focus.SELF, 0xA8ECFF)),
+            java.util.Map.entry("beam_of_grant_execution", new Gathering(Focus.AIM, 0xFFD84A)),
+            java.util.Map.entry("ultramassive_blackhole", new Gathering(Focus.AIM, 0xA066FF)),
+            java.util.Map.entry("earthsplitting_eruption", new Gathering(Focus.AIM, 0xFF6A1A)),
+            java.util.Map.entry("tectonic_breakage", new Gathering(Focus.AIM, 0xE09A48)),
+            java.util.Map.entry("roots_of_the_great_tree", new Gathering(Focus.AIM, 0x7BDA62)),
+            java.util.Map.entry("the_ice_age", new Gathering(Focus.AIM, 0x9EE6FF)));
+
+    /** Whether this power gathers before it strikes. */
+    public static boolean gathers(String abilityId) {
+        return GATHERINGS.containsKey(abilityId);
+    }
+
+    /**
+     * Casts a power after its wind-up: the caster's aim is held as it is now, everyone near sees the power gather where
+     * it will strike, and after {@link #WINDUP} ticks it takes effect just as if it had been cast then.
+     *
+     * @return true: the power is under way (it goes on cooldown now)
+     */
+    public static boolean windup(AbilityContext ctx, com.fantasyweapons.ability.AbilityExecutor power) {
+        Gathering g = GATHERINGS.get(ctx.ability().id());
+        AbilityContext held = ctx.frozen();
+        double size = ctx.ability().hasParam("radius") ? held.param("radius") : ctx.ability().hasParam("length") ? held.param("length") * 0.4 : 80;
+        size = Math.max(30, Math.min(260, size));
+        Vec3 at = switch (g.focus()) {
+            case SELF -> held.feet();
+            case AIM -> landing(held, 512);
+            case BEHIND -> com.fantasyweapons.weapons.obliteration.ObliterationAbilities.dragonRift(held,
+                    landing(held, ctx.ability().hasParam("range") ? held.param("range") : 512));
+        };
+        if (g.focus() == Focus.BEHIND) size = 48;
+        fx(ctx.level(), ctx.player(), FxPayload.of(com.fantasyweapons.network.FxIds.ULTIMATE_WINDUP).caster(ctx.player().getId()).pos(at)
+                .scale((float) size).power(WINDUP).level(g.color()).point(held.feet()).build());
+        com.fantasyweapons.ability.kit.Kit.active(held, WINDUP);
+        com.fantasyweapons.world.AreaEffectManager.add(new Windup(held, at, power));
+        return true;
+    }
+
+    /** Waits out a power's wind-up, then casts it. */
+    private static final class Windup extends com.fantasyweapons.world.AreaEffect {
+        private final AbilityContext ctx;
+        private final com.fantasyweapons.ability.AbilityExecutor power;
+
+        Windup(AbilityContext ctx, Vec3 at, com.fantasyweapons.ability.AbilityExecutor power) {
+            super(ctx.level(), ctx.player(), ctx.data().idOrNil(), at, WINDUP + 1);
+            this.ctx = ctx;
+            this.power = power;
+        }
+
+        @Override
+        protected void tick(ServerPlayer owner) {
+            if (age != WINDUP) return;
+            try {
+                power.execute(ctx);
+            } catch (RuntimeException e) {
+                com.fantasyweapons.FantasyWeapons.LOGGER.error("Power {} failed after gathering", ctx.ability().key(), e);
+            }
+            finished = true;
+        }
+    }
+
     /**
      * Impact frames for the blow landing at {@code at}, for the caster and everyone within {@code seen} blocks of it.
      *
@@ -100,7 +176,7 @@ public final class Cataclysm {
      */
     public static Vec3 landing(AbilityContext ctx, double range) {
         Vec3 t = ctx.target();
-        if (t == null) return Kit.aimGround(ctx.player(), range);
+        if (t == null) return Kit.aimGround(ctx.player(), ctx.eye(), ctx.look(), ctx.feet(), range);
         return surface(ctx.level(), t);
     }
 

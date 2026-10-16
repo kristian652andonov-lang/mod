@@ -17,6 +17,8 @@ public final class VfxTextures {
     public static final ResourceLocation RING = t("ring");
     public static final ResourceLocation SHOCKWAVE = t("shockwave");
     public static final ResourceLocation NOISE = t("noise");
+    /** A puffy cumulus cloud, lit from above. */
+    public static final ResourceLocation CLOUD = t("cloud_puff");
     public static final ResourceLocation SLASH = t("slash");
     public static final ResourceLocation STREAK = t("streak");
     public static final ResourceLocation LIGHTNING = t("lightning");

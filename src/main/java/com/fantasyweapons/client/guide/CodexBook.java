@@ -96,7 +96,8 @@ public final class CodexBook {
      */
     private void tabs(PageCanvas c, int page) {
         String here = page < chapter.size() ? chapter.get(page) : "";
-        float h = 10, y = 8, z = 0.02f;
+        // the nine tabs end where the hand holding the book begins
+        float h = 9.2f, gap = 0.6f, y = 8, z = 0.02f;
         // out in front of the gilded rail and the cover's edge
         c.lift = 0.6f;
         for (Tab tab : TABS) {
@@ -111,8 +112,8 @@ public final class CodexBook {
             notched(c, x0, y, x1, y + h, NOTCH, 0xFF2A1A0C, z);
             notched(c, x0, y + 0.6f, x1 - 0.8f, y + h - 0.6f, NOTCH - 0.5f, body, z + 0.01f);
             c.quad(x0, y + 0.6f, x0, y + 1.4f, x1 - 0.7f - NOTCH * 0.8f / (h / 2), y + 1.4f, x1 - 0.7f, y + 0.6f, 0x55FFFFFF, z + 0.02f);
-            c.icon(TAB_ICONS, tab.icon(), 9, x0 + 2.2f, y + 1.3f, 7.4f);
-            y += h + 1;
+            c.icon(TAB_ICONS, tab.icon(), 9, x0 + 2.2f, y + 1.1f, h - 2.2f);
+            y += h + gap;
         }
         c.lift = 0;
     }

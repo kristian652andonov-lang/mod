@@ -58,7 +58,8 @@ public final class InfusionGameTests {
         h.assertTrue(d.level() == 7, "two cores, two levels: " + d.level());
         h.assertTrue(d.weaponId().orElse(null) == null || d.weaponId().get().equals(id), "it is the same weapon");
         h.assertTrue(d.exp() == 40, "progress towards the next level is kept: " + d.exp());
-        int points = 3 + ProgressionMath.masteryPointsForLevel(6) + ProgressionMath.masteryPointsForLevel(7);
+        var voidfang = com.fantasyweapons.weapon.Weapons.get("voidfang");
+        int points = 3 + ProgressionMath.masteryPointsForLevel(voidfang, 6) + ProgressionMath.masteryPointsForLevel(voidfang, 7);
         h.assertTrue(d.masteryPoints() == points, "the levels' mastery points are granted: " + d.masteryPoints() + ", expected " + points);
         long total = 1000 + ProgressionMath.expToNext(5) + ProgressionMath.expToNext(6);
         h.assertTrue(d.totalExp() == total, "the levels' experience counts: " + d.totalExp());

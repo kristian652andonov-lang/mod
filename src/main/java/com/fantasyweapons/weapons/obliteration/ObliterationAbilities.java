@@ -30,6 +30,9 @@ public final class ObliterationAbilities {
     // The Great Slash
     // ------------------------------------------------------------------------------------------------------------
 
+    /** Ticks the slash hangs before the blade, gathering its light, before it flies. */
+    public static final int SLASH_HOLD = 34;
+
     public static boolean greatSlash(AbilityContext ctx) {
         Vec3 eye = ctx.eye(), look = ctx.look().normalize();
         Vec3 right = look.cross(UP);
@@ -41,34 +44,60 @@ public final class ObliterationAbilities {
         Vec3 blade = right.scale(Math.cos(tilt)).add(up.scale(Math.sin(tilt))).normalize();
         double length = ctx.param("length"), half = ctx.param("width") / 2, thickness = ctx.param("thickness"), speed = Math.max(1, ctx.param("speed"));
         long seed = Kit.seed(ctx.level());
-        Cataclysm.fx(ctx.level(), ctx.player(), FxPayload.of(FxIds.GREAT_SLASH).caster(ctx.player().getId()).pos(eye).dir(look).point(blade)
+        var level = ctx.level();
+        Cataclysm.fx(level, ctx.player(), FxPayload.of(FxIds.GREAT_SLASH).caster(ctx.player().getId()).pos(eye).dir(look).point(blade)
                 .scale((float) length).power((float) half).level((int) Math.round(speed * 100)).seed(seed).build());
-        // the cut runs out through the world as the slash flies
-        double r = WorldWreck.radius(length);
-        var shaper = WreckShapes.slab(eye, look, blade, r, WorldWreck.radius(half), thickness);
+        // the cut runs out through the world as the slash flies: a slab through everything it passes, and where it meets
+        // the ground a canyon torn along its whole length
+        double r = WorldWreck.radius(length), scar = 10 + thickness;
+        var shaper = WreckShapes.all(WreckShapes.slab(eye, look, blade, r, WorldWreck.radius(half), thickness),
+                WreckShapes.slashScar(eye, look, blade, r, scar, 34, seed));
+        Vec3 normal = look.cross(blade).normalize();
+        // the plane only crosses the world within this far of its trace at the caster's height
+        double drift = Math.abs(normal.y) * Math.max(Math.abs(level.getMinBuildHeight() - eye.y), Math.abs(level.getMaxBuildHeight() - eye.y)) + 24 + scar;
         int reach = (int) Math.ceil(r + half);
         for (int cx = (int) Math.floor(eye.x - reach) >> 4; cx <= (int) Math.floor(eye.x + reach) >> 4; cx++) {
             for (int cz = (int) Math.floor(eye.z - reach) >> 4; cz <= (int) Math.floor(eye.z + reach) >> 4; cz++) {
                 Vec3 mid = new Vec3(cx * 16 + 8, eye.y, cz * 16 + 8).subtract(eye);
                 double f = mid.x * look.x + mid.z * look.z;
                 if (f < -16 || f > r + 16 || mid.horizontalDistance() > r + half + 16) continue;
-                WorldWreck.submit(ctx.level(), cx, cz, (int) Math.max(0, f / speed), seed, shaper);
+                if (Math.abs(mid.x * normal.x + mid.z * normal.z) > drift) continue;
+                WorldWreck.submit(level, cx, cz, SLASH_HOLD + (int) Math.max(0, f / speed), seed, shaper);
             }
         }
-        AreaEffectManager.add(new GreatSlash(ctx, eye, look, blade, length, half, thickness, speed));
-        ctx.level().playSound(null, eye.x, eye.y, eye.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 6f, 0.5f);
+        AreaEffectManager.add(new GreatSlash(ctx, eye, look, blade, length, half, thickness, speed, firstBite(level, eye, look, blade, length, half)));
+        level.playSound(null, eye.x, eye.y, eye.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 6f, 0.5f);
         return true;
     }
 
-    /** The slash flies out, cutting in two everything it passes through. */
+    /** How far out the slash first bites into the ground (blocks), or a third of its length if nothing is near. */
+    private static double firstBite(net.minecraft.server.level.ServerLevel level, Vec3 eye, Vec3 look, Vec3 blade, double length, double half) {
+        net.minecraft.core.BlockPos.MutableBlockPos m = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (double f = 3; f < length; f += 2) {
+            double h = half * Math.sqrt(Math.min(1, f / (length * 0.35)));
+            for (double u = -1; u <= 1; u += 0.25) {
+                Vec3 p = eye.add(look.scale(f + h * 0.35 * (1 - u * u))).add(blade.scale(u * h));
+                m.set(p.x, p.y, p.z);
+                if (level.getChunkSource().getChunkNow(m.getX() >> 4, m.getZ() >> 4) == null) continue;
+                if (level.getBlockState(m).blocksMotion()) return f;
+            }
+        }
+        return length / 3;
+    }
+
+    /**
+     * The slash forms before the blade and hangs there, then flies out, cutting in two everything it passes through and
+     * hurling away what stands beside the cut.
+     */
     private static final class GreatSlash extends AreaEffect {
         private final Vec3 look, blade, normal;
-        private final double length, half, thickness, speed;
+        private final double length, half, thickness, speed, bite;
         private final float damage;
-        private final Set<Integer> cut = new HashSet<>();
+        private final Set<Integer> cut = new HashSet<>(), thrown = new HashSet<>();
+        private boolean struck;
 
-        GreatSlash(AbilityContext ctx, Vec3 eye, Vec3 look, Vec3 blade, double length, double half, double thickness, double speed) {
-            super(ctx.level(), ctx.player(), ctx.data().idOrNil(), eye, (int) (length / speed) + 2);
+        GreatSlash(AbilityContext ctx, Vec3 eye, Vec3 look, Vec3 blade, double length, double half, double thickness, double speed, double bite) {
+            super(ctx.level(), ctx.player(), ctx.data().idOrNil(), eye, SLASH_HOLD + (int) (length / speed) + 2);
             this.look = look;
             this.blade = blade;
             this.normal = look.cross(blade).normalize();
@@ -76,24 +105,46 @@ public final class ObliterationAbilities {
             this.half = half;
             this.thickness = thickness;
             this.speed = speed;
+            this.bite = bite;
             this.damage = ctx.damage();
         }
 
         @Override
         protected void tick(ServerPlayer owner) {
-            double front = age * speed;
-            if (age == lifetime - 1) Cataclysm.frames(level, owner, pos.add(look.scale(length * 0.5)), length, true);
-            for (LivingEntity e : Cataclysm.victims(level, owner, pos.add(look.scale(front)), half + speed + 4)) {
+            if (age < SLASH_HOLD) return;
+            double front = (age - SLASH_HOLD) * speed;
+            // the impact frames: the moment it first bites into the land
+            if (!struck && front >= bite) strike(owner, pos.add(look.scale(bite)));
+            for (LivingEntity e : Cataclysm.victims(level, owner, pos.add(look.scale(front)), half + speed + 18)) {
                 if (cut.contains(e.getId())) continue;
                 Vec3 d = e.getBoundingBox().getCenter().subtract(pos);
                 double f = d.dot(look), l = Math.abs(d.dot(blade)), n = Math.abs(d.dot(normal));
                 double size = Math.max(e.getBbWidth(), e.getBbHeight()) / 2;
-                if (f < 1 || f > front + 2 || f > length || n > thickness + size || l > half * Math.sqrt(Math.min(1, f / (length * 0.35))) + size) continue;
+                if (f < 1 || f > front + 2 || f > length) continue;
+                double reachHere = half * Math.sqrt(Math.min(1, f / (length * 0.35))) + size;
+                if (l > reachHere) continue;
+                if (n > thickness + size) {
+                    // beside the cut: the blast of its passing throws it away from the cut and hurts it
+                    if (n < thickness + size + 16 && thrown.add(e.getId())) {
+                        Vec3 away = normal.scale(Math.signum(d.dot(normal)));
+                        e.push(away.x * 3.2, 1.1, away.z * 3.2);
+                        e.hurtMarked = true;
+                        com.fantasyweapons.combat.FWDamage.deal(owner, weapon(owner), e, damage * 0.25f, com.fantasyweapons.combat.FWDamage.Kind.ABILITY, Element.LIGHT, 0);
+                    }
+                    continue;
+                }
                 cut.add(e.getId());
+                if (!struck) strike(owner, e.getBoundingBox().getCenter());
                 Cataclysm.fx(level, owner, FxPayload.of(FxIds.GREAT_SLASH_CUT).caster(owner.getId()).pos(e.getBoundingBox().getCenter()).dir(normal)
                         .scale((float) Math.max(e.getBbWidth(), e.getBbHeight())).build());
                 Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.LIGHT);
             }
+        }
+
+        private void strike(ServerPlayer owner, Vec3 at) {
+            struck = true;
+            Cataclysm.frames(level, owner, at, length, true);
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 30f, 0.4f);
         }
     }
 
@@ -179,16 +230,17 @@ public final class ObliterationAbilities {
 
     /** The cracks the dragon's strike splits the ground with (the client draws the same ones). */
     public static com.fantasyweapons.weapons.ultimate.CrackNetwork dragonCracks(long seed, double radius) {
-        return com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xD4A60L, 14, radius, 4.5, 22);
+        return com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xD4A60L, 14, radius, 5.5, 120);
     }
 
     /** Where the Arch Dragon bursts out of the ground: behind the caster. */
-    public static Vec3 dragonRift(net.minecraft.server.level.ServerLevel level, ServerPlayer p, Vec3 target) {
-        Vec3 f = new Vec3(target.x - p.getX(), 0, target.z - p.getZ());
-        if (f.lengthSqr() < 1) f = new Vec3(p.getLookAngle().x, 0, p.getLookAngle().z);
+    public static Vec3 dragonRift(AbilityContext ctx, Vec3 target) {
+        Vec3 feet = ctx.feet(), look = ctx.look();
+        Vec3 f = new Vec3(target.x - feet.x, 0, target.z - feet.z);
+        if (f.lengthSqr() < 1) f = new Vec3(look.x, 0, look.z);
         if (f.lengthSqr() < 1e-4) f = new Vec3(0, 0, 1);
-        Vec3 at = Kit.feet(p).subtract(f.normalize().scale(48));
-        return Cataclysm.surface(level, at);
+        Vec3 at = feet.subtract(f.normalize().scale(48));
+        return Cataclysm.surface(ctx.level(), at);
     }
 
     public static boolean archDragon(AbilityContext ctx) {
@@ -196,8 +248,8 @@ public final class ObliterationAbilities {
         double radius = ctx.param("radius"), length = ctx.param("length");
         int flight = Math.max(40, (int) Math.round(ctx.param("flight") * 20));
         long seed = Kit.seed(ctx.level());
-        Vec3 caster = Kit.feet(ctx.player());
-        Vec3 rift = dragonRift(ctx.level(), ctx.player(), target);
+        Vec3 caster = ctx.feet();
+        Vec3 rift = dragonRift(ctx, target);
         Cataclysm.fx(ctx.level(), ctx.player(), FxPayload.of(FxIds.ARCH_DRAGON).caster(ctx.player().getId()).pos(target)
                 .points(java.util.List.of(caster, rift)).scale((float) length).power((float) radius).level(flight).seed(seed).build());
         AreaEffectManager.add(new ArchDragon(ctx, caster, rift, target, radius, length, flight, seed));
@@ -231,8 +283,7 @@ public final class ObliterationAbilities {
             Vec3 rift = path.rift();
             if (age == 2) {
                 // the hole it came out of goes down to the bottom of the world
-                WorldWreck.disc(level, rift, 14, seed, d -> 0, WreckShapes.shaft(rift, 10, 4));
-                Cataclysm.frames(level, owner, rift, 160, false);
+                WorldWreck.disc(level, rift, 22, seed, d -> 0, WreckShapes.shaft(rift, 10));
                 level.playSound(null, rift.x, rift.y, rift.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.PLAYERS, 30f, 0.5f);
             }
             if (age <= flight) devour(owner);
@@ -286,11 +337,11 @@ public final class ObliterationAbilities {
 
     /** The earthquake's radial cracks (the client builds the same ones from the seed). */
     public static com.fantasyweapons.weapons.ultimate.CrackNetwork quakeCracks(long seed, double radius) {
-        return com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0x51AB, 16, radius, 4, 26);
+        return com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0x51AB, 16, radius, 5, 120);
     }
 
     public static boolean grandEarthquake(AbilityContext ctx) {
-        Vec3 at = Kit.feet(ctx.player());
+        Vec3 at = ctx.feet();
         double radius = ctx.param("radius"), safe = ctx.param("safe_radius");
         int duration = Math.max(60, (int) Math.round(ctx.param("duration") * 20));
         long seed = Kit.seed(ctx.level());
@@ -364,10 +415,10 @@ public final class ObliterationAbilities {
     // ------------------------------------------------------------------------------------------------------------
 
     /** Ticks the spiral of thorns takes to run out to its end. */
-    private static final int SPIRAL = 90;
+    private static final int SPIRAL = 130;
 
     public static boolean thornspire(AbilityContext ctx) {
-        Vec3 at = Kit.feet(ctx.player());
+        Vec3 at = ctx.feet();
         double radius = WorldWreck.radius(ctx.param("radius")), safe = ctx.param("safe_radius");
         int count = Math.max(6, Math.min(160, (int) Math.round(ctx.param("spires"))));
         long seed = Kit.seed(ctx.level());
@@ -452,13 +503,13 @@ public final class ObliterationAbilities {
     // Ice Rain
     // ------------------------------------------------------------------------------------------------------------
 
-    /** Ticks the cloud gathers before the first spike falls, and ticks a spike falls for. */
-    private static final int GATHER = 30, FALL = 16;
+    /** Ticks the cloud gathers before the first spike falls, and ticks a spike falls for (the client draws the same). */
+    public static final int ICE_GATHER = 50, ICE_FALL = 22;
 
     public static boolean iceRain(AbilityContext ctx) {
-        Vec3 at = Kit.feet(ctx.player());
+        Vec3 at = ctx.feet();
         double radius = ctx.param("radius"), safe = ctx.param("safe_radius");
-        int duration = Math.max(GATHER + 40, (int) Math.round(ctx.param("duration") * 20));
+        int duration = Math.max(ICE_GATHER + 40, (int) Math.round(ctx.param("duration") * 20));
         int count = Math.max(4, Math.min(250, (int) Math.round(ctx.param("spikes"))));
         long seed = Kit.seed(ctx.level());
         net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(seed);
@@ -468,7 +519,7 @@ public final class ObliterationAbilities {
             double a = r.nextDouble() * Math.PI * 2, d = safe + 4 + Math.sqrt(r.nextDouble()) * (radius - safe - 4);
             double x = at.x + Math.cos(a) * d, z = at.z + Math.sin(a) * d;
             strikes.add(new Vec3(x, groundY(ctx.level(), x, z, at.y), z));
-            times.add(GATHER + FALL + (int) (r.nextDouble() * (duration - GATHER - FALL - 10)));
+            times.add(ICE_GATHER + ICE_FALL + (int) (r.nextDouble() * (duration - ICE_GATHER - ICE_FALL - 10)));
         }
         Cataclysm.fx(ctx.level(), ctx.player(), FxPayload.of(FxIds.ICE_RAIN).caster(ctx.player().getId()).pos(at).scale((float) radius)
                 .power(duration).points(strikes).entities(times).seed(seed).build());
@@ -489,6 +540,8 @@ public final class ObliterationAbilities {
         private final int duration;
         private final java.util.List<Vec3> strikes;
         private final java.util.List<Integer> times;
+        /** When the first spike strikes. */
+        private final int first;
         private final long seed;
         private final float damage;
 
@@ -499,6 +552,7 @@ public final class ObliterationAbilities {
             this.duration = duration;
             this.strikes = strikes;
             this.times = times;
+            this.first = times.stream().mapToInt(Integer::intValue).min().orElse(ICE_GATHER + ICE_FALL);
             this.seed = seed;
             this.damage = ctx.damage();
         }
@@ -521,7 +575,8 @@ public final class ObliterationAbilities {
                 for (LivingEntity e : Cataclysm.victims(level, owner, p, 7)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.ICE);
                 for (LivingEntity e : Cataclysm.victims(level, owner, p, 16)) Kit.knock(e, p, 1.2, 0.5);
             }
-            if (age == GATHER + FALL) Cataclysm.frames(level, owner, pos, radius, true);
+            // the impact frames: the moment the first spike strikes, where it strikes
+            if (age == first) Cataclysm.frames(level, owner, strikes.get(times.indexOf(first)), radius * 1.5, true);
             if (age == duration - 10) {
                 // what the ice did not strike, the cold takes
                 double r = WorldWreck.radius(radius);

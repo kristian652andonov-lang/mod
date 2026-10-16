@@ -49,12 +49,60 @@ public final class ProgressionMath {
         return (float) (weaponDamage * multiplier * (1.0 + perLevel * Math.max(0, abilityLevel - 1)) * chargeMultiplier);
     }
 
-    /** Mastery points granted for reaching {@code newLevel}. */
+    /** The mastery points every weapon gets for reaching {@code newLevel} (see {@link #masteryPointsForLevel(WeaponDefinition, int)}). */
     public static int masteryPointsForLevel(int newLevel) {
         int pts = ServerConfig.MASTERY_POINTS_PER_LEVEL.getOrDefault();
         int milestone = ServerConfig.MASTERY_MILESTONE_INTERVAL.getOrDefault();
         if (milestone > 0 && newLevel % milestone == 0) pts += ServerConfig.MASTERY_MILESTONE_BONUS.getOrDefault();
         return pts;
+    }
+
+    /**
+     * Mastery points {@code def} gets for reaching {@code newLevel}: the points every weapon gets, plus, for a weapon whose
+     * ranks cost more than those add up to by the last level, an even share of the difference - so at its last level
+     * any weapon can buy every rank of every ability.
+     */
+    public static int masteryPointsForLevel(WeaponDefinition def, int newLevel) {
+        int pts = masteryPointsForLevel(newLevel);
+        int max = maxLevel();
+        if (newLevel < 2 || newLevel > max) return pts;
+        int deficit = Math.max(0, upgradeCost(def) - basePointsUpTo(max));
+        return pts + extraUpTo(deficit, newLevel, max) - extraUpTo(deficit, newLevel - 1, max);
+    }
+
+    /** All the mastery points {@code def} has been given for reaching {@code level} (from level 1). */
+    public static int pointsUpTo(WeaponDefinition def, int level) {
+        int max = maxLevel();
+        int capped = Math.min(level, max);
+        int deficit = Math.max(0, upgradeCost(def) - basePointsUpTo(max));
+        return basePointsUpTo(capped) + extraUpTo(deficit, capped, max);
+    }
+
+    /** What it costs to buy every rank of every ability of {@code def}. */
+    public static int upgradeCost(WeaponDefinition def) {
+        int total = 0;
+        for (AbilityDefinition a : def.abilities()) for (int l = 2; l <= a.maxLevel(); l++) total += a.costFor(l);
+        return total;
+    }
+
+    /** What {@code def} has spent on the ranks it has bought. */
+    public static int spent(WeaponDefinition def, WeaponData data) {
+        int total = 0;
+        for (AbilityDefinition a : def.abilities()) {
+            int bought = Math.min(data.upgrades().getOrDefault(a.id(), 0), a.maxLevel() - 1);
+            for (int k = 0; k < bought; k++) total += a.costFor(k + 2);
+        }
+        return total;
+    }
+
+    private static int basePointsUpTo(int level) {
+        int total = 0;
+        for (int l = 2; l <= level; l++) total += masteryPointsForLevel(l);
+        return total;
+    }
+
+    private static int extraUpTo(int deficit, int level, int max) {
+        return (int) ((long) deficit * Math.max(0, level - 1) / Math.max(1, max - 1));
     }
 
     /** Total purchasable ability upgrades on this weapon (used for mastery %). */

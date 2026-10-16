@@ -52,17 +52,32 @@ public final class CrackNetwork {
      * @param mains  how many cracks run out of the middle
      * @param reach  how far they run (blocks)
      * @param width  half-width of a main crack where it starts
-     * @param depth  how deep a main crack is carved
+     * @param depth  how deep a crack is carved at the middle; it grows shallower outward, to a quarter of that at the edge
      */
     public static CrackNetwork radial(long seed, int mains, double reach, double width, double depth) {
+        return radial(seed, mains, 0, reach, width, depth);
+    }
+
+    /** {@link #radial(long, int, double, double, double)}, the cracks starting {@code inner} out (round a hole). */
+    public static CrackNetwork radial(long seed, int mains, double inner, double reach, double width, double depth) {
         CrackNetwork n = new CrackNetwork(reach);
+        n.deepest = depth;
         RandomSource r = RandomSource.create(seed);
         for (int i = 0; i < mains; i++) {
             double ang = (i + r.nextDouble() * 0.6) * Math.PI * 2 / mains;
-            n.grow(r, 0, 0, ang, 0, reach * (0.8 + r.nextDouble() * 0.35), width, depth, 0);
+            double x = Math.cos(ang) * inner, z = Math.sin(ang) * inner;
+            n.grow(r, x, z, ang, inner, (reach - inner) * (0.8 + r.nextDouble() * 0.35), width, depth, 0);
         }
         return n;
     }
+
+    /** How deep a crack is at a distance from the middle: the full depth there, a quarter of it at the edge. */
+    private double depthAt(double x, double z) {
+        double k = Math.min(1, Math.hypot(x, z) / Math.max(1, reach));
+        return deepest * (1 - 0.75 * k);
+    }
+
+    private double deepest;
 
     /** A crack wandering from (x, z) at heading {@code ang}, forking as it goes. */
     private void grow(RandomSource r, double x, double z, double ang, double from, double length, double width, double depth, int generation) {
@@ -73,7 +88,9 @@ public final class CrackNetwork {
             double s = Math.min(step * (0.7 + r.nextDouble() * 0.6), length - walked);
             double nx = x + Math.cos(ang) * s, nz = z + Math.sin(ang) * s;
             double k = 1 - walked / length;
-            segments.add(new Segment(x, z, nx, nz, from + walked, Math.max(1, width * (0.35 + 0.65 * k)), Math.max(3, depth * (0.4 + 0.6 * k))));
+            // deepest nearest the middle (a fork no deeper than the crack it left), shallowest at the edge
+            double deep = Math.min(depthAt((x + nx) / 2, (z + nz) / 2) * (depth / Math.max(1, deepest)), depthAt((x + nx) / 2, (z + nz) / 2));
+            segments.add(new Segment(x, z, nx, nz, from + walked, Math.max(1, width * (0.35 + 0.65 * k)), Math.max(3, deep)));
             x = nx;
             z = nz;
             walked += s;
@@ -90,6 +107,36 @@ public final class CrackNetwork {
      * crack): its segment, or null if the point is in none. {@code out[0]} gets how far inside the crack the point is
      * (1 at its middle, 0 at its edge).
      */
+    /**
+     * The crack nearest a point, measured in its own widths, counting cracks up to {@code margin} widths away (so the
+     * ground beside a crack can be seared by it): {@code out} gets the distance to its centre line, its half-width and
+     * its depth. Null if none is that near.
+     */
+    public Segment near(double x, double z, double grownTo, double margin, double[] out) {
+        Segment best = null;
+        double bestRatio = Double.MAX_VALUE;
+        double[] along = new double[1];
+        for (Segment s : segments) {
+            double m = s.width * (1 + margin);
+            double minx = Math.min(s.x0, s.x1) - m, maxx = Math.max(s.x0, s.x1) + m;
+            double minz = Math.min(s.z0, s.z1) - m, maxz = Math.max(s.z0, s.z1) + m;
+            if (x < minx || x > maxx || z < minz || z > maxz) continue;
+            double d = s.distance(x, z, along);
+            if (along[0] > grownTo) continue;
+            double ratio = d / s.width;
+            if (ratio <= 1 + margin && ratio < bestRatio) {
+                bestRatio = ratio;
+                best = s;
+                if (out != null) {
+                    out[0] = d;
+                    out[1] = s.width;
+                    out[2] = s.depth;
+                }
+            }
+        }
+        return best;
+    }
+
     public Segment at(double x, double z, double grownTo, double[] out) {
         Segment best = null;
         double bestK = 0;

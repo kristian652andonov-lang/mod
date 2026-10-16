@@ -16,14 +16,32 @@ import net.minecraft.world.phys.Vec3;
  * @param charge       charge fraction in [0, 1] measured by the server
  * @param weaponDamage current weapon damage (level + mastery applied)
  * @param target       where a remote ability was cast on the targeting map, or null for a normal cast
+ * @param aim          where the caster stood and looked when the ability was cast, for one that takes effect later
+ *                     (null: wherever the caster is now)
  */
 public record AbilityContext(ServerPlayer player, ServerLevel level, ItemStack stack, FantasyWeaponItem item, WeaponDefinition weapon,
                              WeaponData data, AbilityDefinition ability, int abilityLevel, float charge, float weaponDamage, float mastery,
-                             @org.jetbrains.annotations.Nullable Vec3 target) {
+                             @org.jetbrains.annotations.Nullable Vec3 target, @org.jetbrains.annotations.Nullable Aim aim) {
+
+    /** The caster's eyes, the way they looked, and the ground under their feet, at one moment. */
+    public record Aim(Vec3 eye, Vec3 look, Vec3 feet) {
+    }
 
     public AbilityContext(ServerPlayer player, ServerLevel level, ItemStack stack, FantasyWeaponItem item, WeaponDefinition weapon,
                           WeaponData data, AbilityDefinition ability, int abilityLevel, float charge, float weaponDamage, float mastery) {
-        this(player, level, stack, item, weapon, data, ability, abilityLevel, charge, weaponDamage, mastery, null);
+        this(player, level, stack, item, weapon, data, ability, abilityLevel, charge, weaponDamage, mastery, null, null);
+    }
+
+    public AbilityContext(ServerPlayer player, ServerLevel level, ItemStack stack, FantasyWeaponItem item, WeaponDefinition weapon,
+                          WeaponData data, AbilityDefinition ability, int abilityLevel, float charge, float weaponDamage, float mastery,
+                          @org.jetbrains.annotations.Nullable Vec3 target) {
+        this(player, level, stack, item, weapon, data, ability, abilityLevel, charge, weaponDamage, mastery, target, null);
+    }
+
+    /** This cast with the caster's aim held as it is now, so the ability lands there even if it takes effect later. */
+    public AbilityContext frozen() {
+        return new AbilityContext(player, level, stack, item, weapon, data, ability, abilityLevel, charge, weaponDamage, mastery, target,
+                new Aim(player.getEyePosition(), player.getLookAngle(), com.fantasyweapons.ability.kit.Kit.feet(player)));
     }
 
     /** Full ability damage for this cast (weapon damage × ability multiplier × level × charge × armor bonuses). */
@@ -47,11 +65,16 @@ public record AbilityContext(ServerPlayer player, ServerLevel level, ItemStack s
     }
 
     public Vec3 eye() {
-        return player.getEyePosition();
+        return aim != null ? aim.eye() : player.getEyePosition();
     }
 
     public Vec3 look() {
-        return player.getLookAngle();
+        return aim != null ? aim.look() : player.getLookAngle();
+    }
+
+    /** The ground under the caster's feet. */
+    public Vec3 feet() {
+        return aim != null ? aim.feet() : com.fantasyweapons.ability.kit.Kit.feet(player);
     }
 
     public float deal(Entity target, float amount, int flags) {

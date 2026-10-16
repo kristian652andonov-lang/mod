@@ -101,8 +101,8 @@ public final class FWCommand {
                         .executes(c -> {
                             var pos = c.getSource().getPosition();
                             int r = IntegerArgumentType.getInteger(c, "radius");
-                            int n = com.fantasyweapons.world.wreck.WorldWreck.disc(c.getSource().getLevel(), pos, r + 3, 1L,
-                                    d -> (int) (d / 8), com.fantasyweapons.world.wreck.WreckShapes.shaft(pos, r, 4));
+                            int n = com.fantasyweapons.world.wreck.WorldWreck.disc(c.getSource().getLevel(), pos, r + Math.min(8, r * 0.06) + 12, 1L,
+                                    d -> (int) (d / 8), com.fantasyweapons.world.wreck.WreckShapes.shaft(pos, r));
                             c.getSource().sendSuccess(() -> Component.literal("Wrecking " + n + " chunks"), false);
                             return n;
                         }))))

@@ -131,7 +131,7 @@ public final class FWGameTests {
         ExpService.addExp(p, stack, 100 + 150 + 225 + 325 + 7, false, true);
         WeaponData d = FantasyWeaponItem.data(stack);
         int expectedPoints = 0;
-        for (int l = 2; l <= 5; l++) expectedPoints += ProgressionMath.masteryPointsForLevel(l);
+        for (int l = 2; l <= 5; l++) expectedPoints += ProgressionMath.masteryPointsForLevel(def, l);
         h.assertTrue(d.level() == 5, "level should be 5, was " + d.level());
         h.assertTrue(d.exp() == 7, "leftover EXP should be 7, was " + d.exp());
         h.assertTrue(d.totalExp() == 807, "total EXP should be 807, was " + d.totalExp());

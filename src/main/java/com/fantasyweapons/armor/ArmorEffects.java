@@ -247,6 +247,25 @@ public final class ArmorEffects {
         return (float) mult;
     }
 
+    /** What each piece of the mod's armor takes off a hit from the mod's weapons, and how much of a hit's cap it removes. */
+    public static final float WARD_PER_PIECE = 0.12f, WARD_CAP_PER_PIECE = 0.17f;
+
+    /**
+     * Legendary Ward: the mod's armor holds against the mod's weapons, whose blows would otherwise go straight through any
+     * armor. Each piece worn takes 12% off the hit, and no single hit takes more than what the pieces leave of the
+     * wearer's health: a full set, about a third of it. (Vanilla armor then works on what is left.)
+     */
+    public static float ward(LivingEntity victim, float amount) {
+        int pieces = 0;
+        for (net.minecraft.world.entity.EquipmentSlot slot : new net.minecraft.world.entity.EquipmentSlot[]{net.minecraft.world.entity.EquipmentSlot.HEAD,
+                net.minecraft.world.entity.EquipmentSlot.CHEST, net.minecraft.world.entity.EquipmentSlot.LEGS, net.minecraft.world.entity.EquipmentSlot.FEET}) {
+            if (victim.getItemBySlot(slot).getItem() instanceof FantasyArmorItem) pieces++;
+        }
+        if (pieces == 0) return amount;
+        float cap = victim.getMaxHealth() * (1 - WARD_CAP_PER_PIECE * pieces);
+        return Math.min(amount * (1 - WARD_PER_PIECE * pieces), cap);
+    }
+
     /** Multiplier on a weapon's element damage {@code victim} takes (frost and fire resistance against ice and fire weapons). */
     public static float incomingElement(LivingEntity victim, @Nullable Element element) {
         if (element == Element.ICE) return (float) (1 - Math.min(0.9, ArmorStat.FROST_RESISTANCE.get(victim)));

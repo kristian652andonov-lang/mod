@@ -517,8 +517,8 @@ public class ProgressionScreen extends Screen {
             y += 14;
         }
 
-        // cost
-        float cy = PANEL_Y + PANEL_H - 70;
+        // cost (clear of the reason a rank can't be bought, written just above the buttons)
+        float cy = PANEL_Y + PANEL_H - 82;
         if (!maxed && unlocked) {
             int cost = ab.costFor(lvl + 1);
             boolean afford = data.masteryPoints() >= cost;

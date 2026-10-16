@@ -103,6 +103,7 @@ final class DevScripts {
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.equals("magehud")) mageHud(b);
+                else if (name.startsWith("empower:")) empower(b, name.substring(8));
                 else if (name.equals("impacthit")) impactHit(b);
                 else if (name.equals("oregen")) oreGen(b);
                 else if (name.startsWith("wreck:")) wreck(b, name.substring(6));
@@ -401,6 +402,19 @@ final class DevScripts {
                     mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, 0, 0),
                     mc.level.getBlockState(new net.minecraft.core.BlockPos(0, mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, 0, 0) - 1, 0)));
         });
+        if (parts.length > 5) {
+            // views of the aftermath: x,y,z,yaw,pitch;... (no HUD, no hand)
+            b.hud(false);
+            String[] views = parts[5].split(";");
+            for (int i = 0; i < views.length; i++) {
+                String[] v = views[i].split(",");
+                b.cmd("/tp @s " + v[0] + " " + v[1] + " " + v[2] + " " + v[3] + " " + v[4]).run(mc -> {
+                    mc.player.getAbilities().flying = true;
+                    mc.player.onUpdateAbilities();
+                }).wait(70).screenshot("remote_" + ability + "_view" + i);
+            }
+            return;
+        }
         b.cmd("/tp @s 0 215 -10 0 90").wait(80).screenshot("remote_" + ability + "_after_top")
                 .cmd("/tp @s 0 140 -200 0 25").wait(60).screenshot("remote_" + ability + "_after_a")
                 .cmd("/tp @s 190 120 0 90 15").wait(60).screenshot("remote_" + ability + "_after_b");
@@ -558,6 +572,46 @@ final class DevScripts {
     }
 
     /** Buffs and curses on the player: the status icons in the HUD and their visuals, in first and third person. */
+    /**
+     * The Empower panel of a weapon's menu: {@code weapon/ability}, at level 60 with its points spent elsewhere (a rank
+     * that needs a higher level and more points), then at its last level with nothing spent, then fully empowered.
+     */
+    private static void empower(ScreenshotDirector.Builder b, String spec) {
+        String[] parts = spec.split("/");
+        String weapon = parts[0], ability = parts[1];
+        b.wait(40).cmd("/fw class set " + (weapon.contains("book") || weapon.contains("staff") ? "mage" : "berserker")).closeScreen().wait(5).closeScreen()
+                .cmd("/clear @s").cmd("/fw give " + weapon + " 1").wait(10).slot(0)
+                .cmd("/fantasyweapons level 60").wait(10)
+                .run(mc -> {
+                    // spend the points so the next rank cannot be afforded
+                    var srv = mc.getSingleplayerServer();
+                    srv.execute(() -> {
+                        var sp = srv.getPlayerList().getPlayer(mc.player.getUUID());
+                        var st = sp.getMainHandItem();
+                        var d = com.fantasyweapons.weapon.FantasyWeaponItem.data(st);
+                        st.set(com.fantasyweapons.registry.ModComponents.WEAPON_DATA.get(), d.withProgress(d.level(), d.exp(), d.totalExp(), 0));
+                    });
+                }).wait(10)
+                .menu(ability).wait(30).screenshot("empower_" + ability + "_lv60").closeScreen()
+                .cmd("/fantasyweapons level 100").wait(60)
+                .menu(ability).wait(30).screenshot("empower_" + ability + "_lv100")
+                .run(mc -> {
+                    var srv = mc.getSingleplayerServer();
+                    srv.execute(() -> {
+                        var sp = srv.getPlayerList().getPlayer(mc.player.getUUID());
+                        var st = sp.getMainHandItem();
+                        var def = ((com.fantasyweapons.weapon.FantasyWeaponItem) st.getItem()).definition();
+                        var d = com.fantasyweapons.weapon.FantasyWeaponItem.data(st);
+                        com.fantasyweapons.FantasyWeapons.LOGGER.warn("empower: level {} points {} cost of every rank {}", d.level(), d.masteryPoints(),
+                                com.fantasyweapons.progression.ProgressionMath.upgradeCost(def));
+                        for (var a : def.abilities()) {
+                            int[] plan = com.fantasyweapons.ability.AbilityService.maxUpgrade(com.fantasyweapons.weapon.FantasyWeaponItem.data(st), a);
+                            com.fantasyweapons.FantasyWeapons.LOGGER.warn("empower: {} can go {} ranks for {} points", a.id(), plan[0], plan[1]);
+                        }
+                    });
+                }).wait(10);
+    }
+
     private static void mageHud(ScreenshotDirector.Builder b) {
         b.cmd("/gamemode survival").cmd("/clear @s").cmd("/kill @e[type=!player]").cmd("/tp @s 0 -60 0 0 0").wait(10);
         b.run(mc -> {

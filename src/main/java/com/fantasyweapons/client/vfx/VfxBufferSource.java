@@ -21,6 +21,14 @@ final class VfxBufferSource extends MultiBufferSource.BufferSource {
         super(new ByteBufferBuilder(1 << 20), new LinkedHashMap<>());
     }
 
+    /** Draws the opaque, depth-writing geometry first, so the glows and see-through layers drawn after it are hidden where it covers them. */
+    @Override
+    public void endBatch() {
+        endLastBatch();
+        for (RenderType type : fixedBuffers.keySet()) if (com.fantasyweapons.client.render.FWRenderTypes.opaque(type)) endBatch(type);
+        super.endBatch();
+    }
+
     @Override
     public VertexConsumer getBuffer(RenderType type) {
         if (!fixedBuffers.containsKey(type) && fixedBuffers.size() < MAX_POOLED) fixedBuffers.put(type, new ByteBufferBuilder(1 << 14));

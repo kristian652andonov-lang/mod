@@ -5,26 +5,32 @@ import com.fantasyweapons.client.vfx.Vfx;
 import com.fantasyweapons.client.vfx.VfxContext;
 import com.fantasyweapons.client.vfx.VfxTextures;
 import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * THE ICE AGE. The sea heaves up at the target in a great dome, collapses, and rolls out as a tsunami in every
- * direction: a curling wall of dark water crested in foam and spray, riding over the land. Behind it everything is
- * frozen: an icy fog lies over the new ice and snow drifts down.
+ * THE ICE AGE. The sea heaves up at the target in a great dome of water, collapses, and rolls out as a tsunami in every
+ * direction - all of it built of blocks: a wall of water blocks riding over the land, its crest of white foam curling
+ * forward and hanging over its front, and behind the crest the water turning to ice as you watch, clear ice and then
+ * packed and blue ice down its long back. Behind it the land freezes for real (the server builds it), an icy fog lies
+ * over it and snow drifts down.
  */
 public class IceAgeVfx extends Vfx {
-    private static final int DEEP = 0x0E3A5A, WATER = 0x2A78A8, CREST = 0x9FE6FF, FOAM = 0xF4FCFF, FROST = 0xDDF4FF;
-    private static final int ANGLES = 96;
-    /** Wave rows from the front at its foot, up over the curling crest, down its long back: radial offset and height. */
-    private static final float[][] PROFILE = {{0f, 0.02f}, {-0.05f, 0.45f}, {0.15f, 0.9f}, {0.25f, 1.0f}, {0.05f, 0.92f}, {-0.35f, 0.7f},
-            {-0.8f, 0.42f}, {-1.4f, 0.18f}, {-2.1f, 0.02f}};
+    private static final int FOAM = 0xF4FCFF, FROST = 0xDDF4FF, WATER_TINT = 0x3F76E4;
+    /** How far the wave reaches ahead of its centre line (its overhanging lip) and behind it (its back), in blocks. */
+    private static final int LIP = 4, BACK = 14;
 
     private final Vec3 center;
     private final float radius, height, speed;
     private final int surge;
-    private final float[] base = new float[ANGLES];
-    private boolean based;
 
     public IceAgeVfx(Vec3 center, float radius, float height, float speed, int surge) {
         super(surge + (int) (radius / speed) + 120);
@@ -40,100 +46,191 @@ public class IceAgeVfx extends Vfx {
     }
 
     @Override
-    public void tick() {
-        super.tick();
-        // the wave rides over the land: its foot follows the ground (never below the sea) where it is now
-        var level = Minecraft.getInstance().level;
-        if (level == null) return;
-        float rw = wave(age);
-        for (int i = 0; i < ANGLES; i++) {
-            double a = i * Math.PI * 2 / ANGLES;
-            int x = (int) Math.floor(center.x + Math.cos(a) * rw), z = (int) Math.floor(center.z + Math.sin(a) * rw);
-            float g = level.hasChunk(x >> 4, z >> 4) ? Math.max(level.getSeaLevel(), level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z)) : (float) center.y;
-            base[i] = based ? base[i] + (g - base[i]) * 0.25f : g;
-        }
-        based = true;
-    }
-
-    @Override
     public void render(VfxContext ctx) {
         float t = age + ctx.partial;
-        ctx.farClamp = VfxContext.viewReach() * 0.86;
-        if (t < surge + 10) drawSurge(ctx, t);
+        var level = Minecraft.getInstance().level;
+        if (level == null) return;
+        Blocks b = new Blocks(ctx);
+        if (t < surge + 10) drawSurge(ctx, b, level, t);
         float rw = wave(t);
         float alive = 1 - clamp01((rw - radius) / 30f);
-        if (t >= surge && alive > 0) drawWave(ctx, t, rw, alive);
+        if (t >= surge && alive > 0) drawWave(ctx, b, level, t, rw, alive);
+        ctx.farClamp = VfxContext.viewReach() * 0.86;
         drawFrost(ctx, t, rw);
         ctx.farClamp = 0;
     }
 
-    /** The sea heaving up into a dome at the target, then falling outward into the wave. */
-    private void drawSurge(VfxContext ctx, float t) {
+    /** The ground (never below the sea) a column of the wave stands on. */
+    private static int ground(net.minecraft.world.level.Level level, int x, int z, int fallback) {
+        if (!level.hasChunk(x >> 4, z >> 4)) return fallback;
+        return Math.max(level.getSeaLevel() - 1, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1);
+    }
+
+    /** The sea heaving up into a dome of water at the target, then falling outward into the wave. */
+    private void drawSurge(VfxContext ctx, Blocks b, net.minecraft.world.level.Level level, float t) {
         float rise = t < surge ? easeOut(t / surge) : 1 - clamp01((t - surge) / 10f);
-        float h = height * 1.4f * rise, r = height * (0.6f + 0.8f * (t / (surge + 10)));
-        var water = ctx.translucent(VfxTextures.NOISE);
-        var mist = ctx.translucent(VfxTextures.MIST);
-        int segs = ctx.segments(32), rows = 6;
-        for (int k = 0; k < rows; k++) {
-            float u0 = k / (float) rows, u1 = (k + 1) / (float) rows;
-            float r0 = r * (float) Math.cos(u0 * Math.PI / 2), r1 = r * (float) Math.cos(u1 * Math.PI / 2);
-            float y0 = h * (float) Math.sin(u0 * Math.PI / 2), y1 = h * (float) Math.sin(u1 * Math.PI / 2);
-            for (int i = 0; i < segs; i++) {
-                double a0 = i * Math.PI * 2 / segs, a1 = (i + 1) * Math.PI * 2 / segs;
-                Vec3 p00 = center.add(Math.cos(a0) * r0, y0, Math.sin(a0) * r0), p01 = center.add(Math.cos(a1) * r0, y0, Math.sin(a1) * r0);
-                Vec3 p11 = center.add(Math.cos(a1) * r1, y1, Math.sin(a1) * r1), p10 = center.add(Math.cos(a0) * r1, y1, Math.sin(a0) * r1);
-                int c0 = Colors.alpha(0.8f, Colors.lerpRgb(DEEP, WATER, u0)), c1 = Colors.alpha(0.8f, Colors.lerpRgb(DEEP, CREST, u1));
-                ctx.quad(water, p00, p01, p11, p10, i * 0.2f + t * 0.02f, u0, i * 0.2f + 0.2f + t * 0.02f, u1, c0, c0, c1, c1);
+        float h = height * 1.3f * rise, r = height * (0.7f + 0.7f * (t / (surge + 10)));
+        if (h < 1) return;
+        int cx = (int) Math.floor(center.x), cz = (int) Math.floor(center.z), base = (int) Math.floor(center.y) - 1;
+        int ri = (int) Math.ceil(r);
+        Blocks.Range dome = (x, z) -> {
+            double d = Math.hypot(x + 0.5 - center.x, z + 0.5 - center.z);
+            if (d > r) return null;
+            int top = base + (int) Math.round(h * Math.sqrt(1 - (d / r) * (d / r)));
+            return top <= base ? null : new int[]{base + 1, top};
+        };
+        for (int x = cx - ri; x <= cx + ri; x++) {
+            for (int z = cz - ri; z <= cz + ri; z++) {
+                b.column(level, x, z, dome, (y, top) -> top ? Blocks.FOAM_BLOCK : Blocks.WATER_BLOCK);
             }
-        }
-        for (int i = 0; i < 16; i++) {
-            double a = i * Math.PI * 2 / 16 + t * 0.03;
-            ctx.billboard(mist, center.add(Math.cos(a) * r * 0.6, h * 0.9, Math.sin(a) * r * 0.6), r * 0.7f, i, Colors.alpha(0.6f * rise, FOAM));
         }
     }
 
-    private void drawWave(VfxContext ctx, float t, float rw, float alive) {
-        var water = ctx.translucent(VfxTextures.NOISE);
-        var glint = ctx.additive(VfxTextures.NOISE);
-        var mist = ctx.translucent(VfxTextures.MIST);
-        var streak = ctx.additive(VfxTextures.STREAK);
+    private void drawWave(VfxContext ctx, Blocks b, net.minecraft.world.level.Level level, float t, float rw, float alive) {
         // the wave grows to full height as it leaves, and wears down near the end of its run
-        float h = height * Math.min(1, 0.4f + (t - surge) / 30f) * (0.55f + 0.45f * (1 - clamp01((rw - radius * 0.7f) / (radius * 0.3f))));
-        float depth = h * 1.5f;
-        int n = PROFILE.length;
-        Vec3[][] grid = new Vec3[ANGLES + 1][n];
-        for (int i = 0; i <= ANGLES; i++) {
-            double a = i * Math.PI * 2 / ANGLES;
-            double cos = Math.cos(a), sin = Math.sin(a);
-            float g = base[i % ANGLES];
-            float wobble = 1 + 0.08f * (float) Math.sin(a * 7 + t * 0.15) + 0.05f * (float) Math.sin(a * 13 - t * 0.2);
-            for (int k = 0; k < n; k++) {
-                float rr = Math.max(0, rw + PROFILE[k][0] * depth);
-                grid[i][k] = new Vec3(center.x + cos * rr, g + PROFILE[k][1] * h * wobble, center.z + sin * rr);
+        float h = height * Math.min(1, 0.4f + (t - surge) / 30f) * (0.55f + 0.45f * (1 - clamp01((rw - radius * 0.7f) / (radius * 0.3f)))) * alive;
+        if (h < 2) return;
+        int cx = (int) Math.floor(center.x), cz = (int) Math.floor(center.z);
+        int outer = (int) Math.ceil(rw + LIP + 1), inner = (int) Math.max(0, Math.floor(rw - BACK - 1));
+        Vec3 look = new Vec3(Minecraft.getInstance().gameRenderer.getMainCamera().getLookVector());
+        int fallback = (int) Math.floor(center.y) - 1;
+        // where the wave stands in a column: from lo to hi, or nowhere
+        Blocks.Range wave = (x, z) -> {
+            double dx = x + 0.5 - center.x, dz = z + 0.5 - center.z, d = Math.sqrt(dx * dx + dz * dz);
+            if (d > rw + LIP || d < rw - BACK) return null;
+            double s = d - rw, a = Math.atan2(dz, dx);
+            float hh = h * (1 + 0.1f * (float) Math.sin(a * 7 + t * 0.15) + 0.06f * (float) Math.sin(a * 17 - t * 0.21));
+            int g = ground(level, x, z, fallback);
+            int lo, hi;
+            if (s > 0) {
+                // the lip, curling forward over the front
+                double k = s / LIP;
+                lo = g + (int) Math.round(hh * (0.5 + 0.38 * k));
+                hi = g + (int) Math.round(hh * (1 - 0.18 * k * k));
+            } else {
+                double shape = s > -2 ? 1 : Math.pow(Math.max(0, (s + BACK) / (BACK - 2)), 1.5);
+                lo = g + 1;
+                hi = g + (int) Math.round(hh * shape);
             }
-        }
-        for (int i = 0; i < ANGLES; i++) {
-            for (int k = 0; k < n - 1; k++) {
-                float u0 = k / (float) (n - 1), u1 = (k + 1) / (float) (n - 1);
-                int c0 = Colors.alpha(alive * (k >= 5 ? 0.55f : 0.88f), k <= 1 ? DEEP : k <= 3 ? Colors.lerpRgb(WATER, CREST, 0.5f) : WATER);
-                int c1 = Colors.alpha(alive * (k + 1 >= 5 ? 0.45f : 0.88f), k + 1 <= 1 ? DEEP : k + 1 <= 3 ? CREST : WATER);
-                float s0 = i * 0.35f + t * 0.03f, s1 = s0 + 0.35f;
-                ctx.quad(water, grid[i][k], grid[i + 1][k], grid[i + 1][k + 1], grid[i][k + 1], s0, u0, s1, u1, c0, c0, c1, c1);
-                if (k == 2 || k == 3) {
-                    int gc = Colors.alpha(alive * 0.25f, CREST);
-                    ctx.quad(glint, grid[i][k], grid[i + 1][k], grid[i + 1][k + 1], grid[i][k + 1], s0 * 2, u0 - t * 0.05f, s1 * 2, u1 - t * 0.05f, gc, gc, gc, gc);
+            return hi < lo ? null : new int[]{lo, hi};
+        };
+        var mist = ctx.translucent(VfxTextures.MIST);
+        for (int x = cx - outer; x <= cx + outer; x++) {
+            for (int z = cz - outer; z <= cz + outer; z++) {
+                double dx = x + 0.5 - center.x, dz = z + 0.5 - center.z, d = Math.sqrt(dx * dx + dz * dz);
+                if (d > rw + LIP || d < inner) continue;
+                // behind the eye: not drawn
+                double ex = x + 0.5 - ctx.cam.x, ez = z + 0.5 - ctx.cam.z;
+                if (ex * look.x + ez * look.z < -12 && ex * ex + ez * ez > 400) continue;
+                double s = d - rw;
+                int[] here = wave.at(x, z);
+                if (here == null) continue;
+                final int bx = x, bz = z, crest = here[1];
+                int[] col = b.column(level, x, z, wave, (y, top) -> {
+                    // foam on the crest; water at the front; behind the crest it freezes: clear ice, then packed and blue
+                    if (s > -3.5) return top || s > 0.5 && y >= crest - 1 ? Blocks.FOAM_BLOCK : Blocks.WATER_BLOCK;
+                    if (s > -7) return Blocks.ICE_BLOCK;
+                    return hash(bx, y, bz) < 0.5 ? Blocks.PACKED_BLOCK : Blocks.BLUE_BLOCK;
+                });
+                // spray thrown off the crest
+                if (col != null && s > -1 && s <= 0 && ((x * 31 + z * 17) & 7) == 0) {
+                    float cyc = ((x * 0.37f + z * 0.61f) + t * 0.05f) % 1f;
+                    Vec3 out = new Vec3(dx / d, 0, dz / d);
+                    Vec3 at = new Vec3(x + 0.5, col[1] + 1.2, z + 0.5).add(out.scale(cyc * 4)).add(0, -cyc * cyc * 5, 0);
+                    ctx.billboard(mist, at, 2.4f + cyc * 3, x + z, Colors.alpha((1 - cyc) * 0.6f * alive, FOAM));
                 }
             }
-            // foam boiling along the crest, spray thrown off its front
-            if (i % 2 == 0) {
-                Vec3 crest = grid[i][3];
-                ctx.billboard(mist, crest.add(0, h * 0.06, 0), h * 0.55f, i + t * 0.02f, Colors.alpha(alive * 0.75f, FOAM));
-                Vec3 out = grid[i][3].subtract(center).multiply(1, 0, 1).normalize();
-                float cyc = ((i * 0.37f) + t * 0.05f) % 1f;
-                ctx.streak(streak, crest.add(out.scale(cyc * h * 0.5)).add(0, -cyc * h * 0.3, 0), out.add(0, -0.4, 0), h * 0.4f, h * 0.06f,
-                        Colors.alpha(alive * (1 - cyc) * 0.7f, FOAM));
+        }
+    }
+
+    private static double hash(int x, int y, int z) {
+        long h = x * 73856093L ^ y * 19349663L ^ z * 83492791L;
+        h = (h ^ (h >>> 13)) * 0x5DEECE66DL;
+        return ((h >>> 20) & 0xFFFF) / 65535.0;
+    }
+
+    /**
+     * Columns of blocks drawn from block textures: each column a run of blocks from {@code lo} to {@code hi}, its top,
+     * bottom and the sides no neighbouring column hides.
+     */
+    private static final class Blocks {
+        static final int WATER_BLOCK = 0, FOAM_BLOCK = 1, ICE_BLOCK = 2, PACKED_BLOCK = 3, BLUE_BLOCK = 4;
+        private final VfxContext ctx;
+        private final TextureAtlasSprite[] sprites = new TextureAtlasSprite[5];
+        private final VertexConsumer clear, solid;
+        private final PoseStack.Pose pose = new PoseStack().last();
+
+        Blocks(VfxContext ctx) {
+            this.ctx = ctx;
+            var atlas = Minecraft.getInstance().getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS);
+            sprites[WATER_BLOCK] = atlas.getSprite(ResourceLocation.withDefaultNamespace("block/water_still"));
+            sprites[FOAM_BLOCK] = atlas.getSprite(ResourceLocation.withDefaultNamespace("block/snow"));
+            sprites[ICE_BLOCK] = atlas.getSprite(ResourceLocation.withDefaultNamespace("block/ice"));
+            sprites[PACKED_BLOCK] = atlas.getSprite(ResourceLocation.withDefaultNamespace("block/packed_ice"));
+            sprites[BLUE_BLOCK] = atlas.getSprite(ResourceLocation.withDefaultNamespace("block/blue_ice"));
+            clear = ctx.buffers().getBuffer(RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS));
+            solid = ctx.buffers().getBuffer(RenderType.entityCutoutNoCull(InventoryMenu.BLOCK_ATLAS));
+        }
+
+        interface Kind {
+            int at(int y, boolean top);
+        }
+
+        /** Where a shape stands in a column: {lo, hi}, or null if not there. */
+        interface Range {
+            int[] at(int x, int z);
+        }
+
+        private static final int[][] SIDES = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+
+        /**
+         * Draws the column at (x, z) of a shape: its top, its bottom, and each side where the neighbouring column has no
+         * block of the shape at that height. Returns its range (null if it has none).
+         */
+        int[] column(net.minecraft.world.level.Level level, int x, int z, Range range, Kind kind) {
+            int[] r = range.at(x, z);
+            if (r == null) return null;
+            int[][] nb = new int[4][];
+            for (int i = 0; i < 4; i++) nb[i] = range.at(x + SIDES[i][0], z + SIDES[i][1]);
+            int light = LevelRenderer.getLightColor(level, new net.minecraft.core.BlockPos(x, r[1] + 1, z));
+            float fx = (float) (x - ctx.cam.x), fz = (float) (z - ctx.cam.z);
+            for (int y = r[0]; y <= r[1]; y++) {
+                int k = kind.at(y, y == r[1]);
+                boolean water = k == WATER_BLOCK, see = water || k == ICE_BLOCK;
+                VertexConsumer vc = see ? clear : solid;
+                int argb = water ? 0xD0000000 | WATER_TINT : see ? 0xC8FFFFFF : 0xFFFFFFFF;
+                TextureAtlasSprite sp = sprites[k];
+                float fy = (float) (y - ctx.cam.y);
+                if (y == r[1]) face(vc, sp, fx, fy, fz, 0, argb, light);
+                if (y == r[0]) face(vc, sp, fx, fy, fz, 1, argb, light);
+                for (int i = 0; i < 4; i++) {
+                    if (nb[i] != null && y >= nb[i][0] && y <= nb[i][1]) continue;
+                    face(vc, sp, fx, fy, fz, 2 + i, argb, light);
+                }
+            }
+            return r;
+        }
+
+        /** One face of the unit block at (x, y, z) relative to the eye: 0 up, 1 down, 2 north, 3 south, 4 west, 5 east. */
+        private void face(VertexConsumer vc, TextureAtlasSprite sp, float x, float y, float z, int f, int argb, int light) {
+            float[][] c = CORNERS[f];
+            float u0 = sp.getU0(), u1 = sp.getU1(), v0 = sp.getV0(), v1 = sp.getV1();
+            float[][] uv = {{u0, v0}, {u0, v1}, {u1, v1}, {u1, v0}};
+            float[] n = NORMALS[f];
+            for (int i = 0; i < 4; i++) {
+                vc.addVertex(pose, x + c[i][0], y + c[i][1], z + c[i][2]).setColor(argb).setUv(uv[i][0], uv[i][1])
+                        .setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(pose, n[0], n[1], n[2]);
             }
         }
+
+        private static final float[][][] CORNERS = {
+                {{0, 1, 0}, {0, 1, 1}, {1, 1, 1}, {1, 1, 0}},
+                {{0, 0, 1}, {0, 0, 0}, {1, 0, 0}, {1, 0, 1}},
+                {{1, 1, 0}, {1, 0, 0}, {0, 0, 0}, {0, 1, 0}},
+                {{0, 1, 1}, {0, 0, 1}, {1, 0, 1}, {1, 1, 1}},
+                {{0, 1, 0}, {0, 0, 0}, {0, 0, 1}, {0, 1, 1}},
+                {{1, 1, 1}, {1, 0, 1}, {1, 0, 0}, {1, 1, 0}}};
+        private static final float[][] NORMALS = {{0, 1, 0}, {0, -1, 0}, {0, 0, -1}, {0, 0, 1}, {-1, 0, 0}, {1, 0, 0}};
     }
 
     /** Icy fog over the frozen land behind the wave, and snow drifting down. */
