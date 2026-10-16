@@ -26,6 +26,7 @@ public final class ModTabs {
                 output.accept(ModItems.CODEX.get());
                 output.accept(ModItems.ARCANE_REFINERY.get());
                 output.accept(ModItems.LEGENDARY_CRAFTING_TABLE.get());
+                output.accept(ModItems.WORLDFORGE.get());
                 for (var m : com.fantasyweapons.material.Material.values()) {
                     output.accept(ModItems.ORES.get(m).get());
                     output.accept(ModItems.RAW.get(m).get());

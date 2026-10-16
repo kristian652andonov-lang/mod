@@ -17,6 +17,9 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<com.fantasyweapons.forge.LegendaryCraftingMenu>> LEGENDARY_CRAFTING = REGISTER.register("legendary_crafting_table",
             () -> new MenuType<>(com.fantasyweapons.forge.LegendaryCraftingMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<com.fantasyweapons.forge.WorldforgeMenu>> WORLDFORGE = REGISTER.register("worldforge",
+            () -> new MenuType<>(com.fantasyweapons.forge.WorldforgeMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
+
     private ModMenus() {
     }
 }

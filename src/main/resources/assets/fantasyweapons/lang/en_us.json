@@ -230,5 +230,7 @@
   "key.fantasyweapons.quests": "Quest Journal",
   "key.fantasyweapons.classes": "Choose Class",
   "item.fantasyweapons.great_sword_of_obliteration": "The Great Sword of Obliteration",
-  "item.fantasyweapons.spell_book_of_absolute_domination": "The Spell Book of Absolute Domination"
+  "item.fantasyweapons.spell_book_of_absolute_domination": "The Spell Book of Absolute Domination",
+  "block.fantasyweapons.worldforge": "The Worldforge",
+  "block.fantasyweapons.worldforge_part": "The Worldforge"
 }

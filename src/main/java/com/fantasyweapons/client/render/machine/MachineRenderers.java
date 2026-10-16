@@ -96,6 +96,48 @@ public final class MachineRenderers {
         }
     }
 
+    /**
+     * The Worldforge: seven blocks every way, seen from far off; while it forges, the weapon lies over the anvil under the
+     * heart's beam, turning, rising and growing as the forging goes on, at full light.
+     */
+    public static final class Worldforge extends Block<com.fantasyweapons.forge.WorldforgeBlockEntity> {
+        public Worldforge() {
+            super("worldforge");
+        }
+
+        @Override
+        public void render(com.fantasyweapons.forge.WorldforgeBlockEntity be, float partialTick, PoseStack poseStack, MultiBufferSource buffers,
+                           int light, int overlay) {
+            super.render(be, partialTick, poseStack, buffers, light, overlay);
+            net.minecraft.world.item.ItemStack made = be.forging().getItem(0);
+            if (made.isEmpty()) made = be.output().getItem(0);
+            Level level = be.getLevel();
+            if (made.isEmpty() || level == null) return;
+            float time = level.getGameTime() + partialTick;
+            float done = be.total() <= 0 ? 1 : Math.min(1, be.progress() / (float) be.total());
+            var at = be.forgePoint();
+            BlockPos pos = be.getBlockPos();
+            poseStack.pushPose();
+            poseStack.translate(at.x - pos.getX(), at.y - pos.getY() + 0.1 * done + 0.05 * Math.sin(time * 0.06), at.z - pos.getZ());
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(time * 0.6f));
+            float size = 0.7f + 0.6f * done;
+            poseStack.scale(size, size, size);
+            net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(made, net.minecraft.world.item.ItemDisplayContext.FIXED,
+                    LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, poseStack, buffers, level, (int) pos.asLong());
+            poseStack.popPose();
+        }
+
+        @Override
+        public AABB getRenderBoundingBox(com.fantasyweapons.forge.WorldforgeBlockEntity be) {
+            return be.renderBox();
+        }
+
+        @Override
+        public int getViewDistance() {
+            return 160;
+        }
+    }
+
     public static <T extends Item & GeoAnimatable> GeoItemRenderer<T> item(String model) {
         GeoItemRenderer<T> r = new GeoItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(model)));
         r.addRenderLayer(new AutoGlowingGeoLayer<>(r));

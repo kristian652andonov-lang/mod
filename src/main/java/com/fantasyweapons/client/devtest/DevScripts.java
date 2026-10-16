@@ -105,6 +105,7 @@ final class DevScripts {
                 else if (name.equals("oregen")) oreGen(b);
                 else if (name.startsWith("wreck:")) wreck(b, name.substring(6));
                 else if (name.equals("targetmap")) targetMap(b);
+                else if (name.equals("worldforge")) worldforge(b);
                 else if (name.startsWith("remote:")) remote(b, name.substring(7));
                 else if (name.startsWith("local:")) local(b, name.substring(6));
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
@@ -453,6 +454,63 @@ final class DevScripts {
             var pos = mc.player.blockPosition();
             srv.execute(() -> DevMaps.dump(srv.overworld(), pos.getX(), pos.getZ(), 300, new java.io.File(mc.gameDirectory, "screenshots/fw_local_" + ability + "_map.png")));
         }).wait(10).playerView().camera(net.minecraft.client.CameraType.FIRST_PERSON);
+    }
+
+    /**
+     * The Worldforge (fwterrain world): built on a platform in the air, filmed unfolding, its menu opened empty, with the
+     * sword's rite chosen (ghosts), with the rite laid on the grid, and forging; then the forge at work.
+     */
+    private static void worldforge(ScreenshotDirector.Builder b) {
+        // placed on the floor (y 126): the core is the bottom middle block
+        net.minecraft.core.BlockPos core = new net.minecraft.core.BlockPos(0, 127, -150);
+        b.wait(40).cmd("/fw class set berserker").closeScreen().wait(5).closeScreen().cmd("/gamemode creative").cmd("/time set 18000")
+                .cmd("/gamerule doDaylightCycle false").cmd("/clear @s")
+                .cmd("/tp @s 0.5 131 -137.5 180 8").wait(200)
+                .cmd("/fill -12 127 -164 12 142 -136 air").cmd("/fill -12 126 -164 12 126 -136 polished_blackstone_bricks")
+                .cmd("/tp @s 0.5 127 -137.5 180 6").wait(40).run(mc -> {
+                    mc.player.getAbilities().flying = false;
+                    mc.player.onUpdateAbilities();
+                }).wait(20).hud(false);
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            java.util.UUID id = mc.player.getUUID();
+            srv.execute(() -> {
+                var sp = srv.getPlayerList().getPlayer(id);
+                var stack = new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.WORLDFORGE.get());
+                var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(core), net.minecraft.core.Direction.UP, core, false);
+                var res = com.fantasyweapons.registry.ModItems.WORLDFORGE.get().place(new net.minecraft.world.item.context.BlockPlaceContext(sp.serverLevel(), sp,
+                        net.minecraft.world.InteractionHand.MAIN_HAND, stack, hit));
+                com.fantasyweapons.FantasyWeapons.LOGGER.warn("worldforge: placed {} -> {}", res, sp.serverLevel().getBlockState(core));
+            });
+        });
+        int prev = 0;
+        for (int t : new int[]{4, 30, 60, 90, 120, 170}) {
+            b.wait(t - prev).screenshot("worldforge_unfold_" + String.format("%03d", t));
+            prev = t;
+        }
+        b.hud(true);
+        java.util.function.Consumer<net.minecraft.client.Minecraft> open = mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
+                new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(core.offset(0, 0, 3)), net.minecraft.core.Direction.SOUTH, core.offset(0, 0, 3), false));
+        // the forge is opened from its front step
+        b.cmd("/tp @s 0.5 127 -145.3 180 30").wait(10).run(open).wait(20).screenshot("worldforge_gui_empty");
+        b.run(mc -> mc.gameMode.handleInventoryButtonClick(mc.player.containerMenu.containerId, com.fantasyweapons.forge.WorldforgeMenu.CHOOSE)).wait(20)
+                .screenshot("worldforge_gui_ghost");
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> {
+                var level = srv.overworld();
+                if (!(level.getBlockEntity(core) instanceof com.fantasyweapons.forge.WorldforgeBlockEntity forge)) return;
+                var recipe = com.fantasyweapons.forge.WorldforgeRecipe.ordered(level).get(0).value();
+                var at = com.fantasyweapons.forge.WorldforgeMenu.layout(recipe);
+                for (int i = 0; i < at.length; i++) if (at[i] != null) forge.grid().setItem(i, at[i].getItems()[0].copy());
+            });
+        }).wait(20).screenshot("worldforge_gui_ready");
+        b.run(mc -> mc.gameMode.handleInventoryButtonClick(mc.player.containerMenu.containerId, com.fantasyweapons.forge.WorldforgeMenu.FORGE_BUTTON)).wait(60)
+                .screenshot("worldforge_gui_forging").closeScreen().cmd("/tp @s 0.5 127 -137.5 180 6").wait(10).hud(false);
+        for (int t : new int[]{0, 40, 80}) b.wait(t == 0 ? 2 : 40).screenshot("worldforge_crafting_" + t);
+        b.cmd("/tp @s 9.5 133 -140.5 140 25").wait(30).screenshot("worldforge_crafting_side");
+        b.cmd("/tp @s 0.5 127 -143.5 180 -30").wait(30).screenshot("worldforge_crafting_under");
+        b.hud(true);
     }
 
     /** The remote-cast targeting map, opened by the ability key with the Spell Book of Absolute Domination (fwterrain world). */

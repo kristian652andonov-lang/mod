@@ -12,6 +12,8 @@
     "fantasyweapons:astralite_ore",
     "fantasyweapons:aetherite_ore",
     "fantasyweapons:titanstone_ore",
-    "fantasyweapons:infernite_ore"
+    "fantasyweapons:infernite_ore",
+    "fantasyweapons:worldforge",
+    "fantasyweapons:worldforge_part"
   ]
 }

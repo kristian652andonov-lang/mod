@@ -26,7 +26,7 @@ public final class FantasyWeapons {
 
     public FantasyWeapons(IEventBus modBus, ModContainer container) {
         // the Legendary Crafting Table's recipes are shaped patterns up to 9x9
-        net.minecraft.world.item.crafting.ShapedRecipePattern.setCraftingSize(com.fantasyweapons.forge.ForgeRecipe.SIZE, com.fantasyweapons.forge.ForgeRecipe.SIZE);
+        net.minecraft.world.item.crafting.ShapedRecipePattern.setCraftingSize(com.fantasyweapons.forge.WorldforgeRecipe.SIZE, com.fantasyweapons.forge.WorldforgeRecipe.SIZE);
         ModComponents.REGISTER.register(modBus);
         ModAttachments.REGISTER.register(modBus);
         ModSounds.REGISTER.register(modBus);

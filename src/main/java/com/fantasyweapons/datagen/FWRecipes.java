@@ -46,8 +46,18 @@ public class FWRecipes extends RecipeProvider {
                 .requires(Items.BOOK).requires(Items.GOLD_INGOT).requires(Items.AMETHYST_SHARD)
                 .unlockedBy("has_book", has(Items.BOOK))
                 .save(out);
+        // the Worldforge: the Legendary Crafting Table raised up on the netherite of a fortress' worth of debris, a heavy core
+        // on either side, the Wither's star over it and the dragon's egg under it (the artist's suggested recipe)
+        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.WORLDFORGE.get())
+                .pattern("NSN").pattern("HTH").pattern("NEN")
+                .define('N', Items.NETHERITE_BLOCK).define('S', Items.NETHER_STAR).define('H', Items.HEAVY_CORE)
+                .define('T', ModItems.LEGENDARY_CRAFTING_TABLE.get()).define('E', Items.DRAGON_EGG)
+                .unlockedBy("has_legendary_crafting_table", has(ModItems.LEGENDARY_CRAFTING_TABLE.get()))
+                .save(out);
         // the legendary weapons and armor are forged on its 9x9 grid
         ForgeRecipes.build(out);
+        // and the two ultimate weapons on the Worldforge's 11x11
+        WorldforgeRecipes.build(out);
         // infusion: a weapon and refined cores of its material, one level per core
         net.minecraft.data.recipes.SpecialRecipeBuilder.special(com.fantasyweapons.material.InfusionRecipe::new)
                 .save(out, FantasyWeapons.id("weapon_infusion"));

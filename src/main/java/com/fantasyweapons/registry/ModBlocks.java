@@ -44,6 +44,15 @@ public final class ModBlocks {
     public static final DeferredBlock<MachinePartBlock> LEGENDARY_CRAFTING_TABLE_PART = REGISTER.register("legendary_crafting_table_part",
             () -> new MachinePartBlock(tableProperties().noLootTable().lightLevel(s -> 3), ModBlocks.LEGENDARY_CRAFTING_TABLE));
 
+    /**
+     * The Worldforge, seven blocks every way, where the ultimate weapons are forged: as hard to break as obsidian and nearly
+     * as blast-proof, lit by its own pylons (blazing while it forges).
+     */
+    public static final DeferredBlock<com.fantasyweapons.forge.WorldforgeBlock> WORLDFORGE = REGISTER.register("worldforge",
+            () -> new com.fantasyweapons.forge.WorldforgeBlock(worldforgeProperties().lightLevel(s -> s.getValue(com.fantasyweapons.forge.WorldforgeBlock.CRAFTING) ? 15 : 9)));
+    public static final DeferredBlock<com.fantasyweapons.forge.WorldforgePartBlock> WORLDFORGE_PART = REGISTER.register("worldforge_part",
+            () -> new com.fantasyweapons.forge.WorldforgePartBlock(worldforgeProperties().noLootTable().lightLevel(s -> 4)));
+
     static {
         // it was a plain block called the Legendary Forge before it had its model
         REGISTER.addAlias(FantasyWeapons.id("legendary_forge"), FantasyWeapons.id("legendary_crafting_table"));
@@ -56,6 +65,11 @@ public final class ModBlocks {
 
     private static BlockBehaviour.Properties tableProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(3.5f, 6f).requiresCorrectToolForDrops().sound(SoundType.ANVIL)
+                .noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK);
+    }
+
+    private static BlockBehaviour.Properties worldforgeProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK).strength(40f, 1200f).requiresCorrectToolForDrops().sound(SoundType.NETHERITE_BLOCK)
                 .noOcclusion().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK);
     }
 

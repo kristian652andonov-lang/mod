@@ -26,6 +26,11 @@ public final class ModBlockEntities {
             REGISTER.register("legendary_crafting_table", () -> BlockEntityType.Builder.of(com.fantasyweapons.forge.LegendaryCraftingTableBlockEntity::new,
                     ModBlocks.LEGENDARY_CRAFTING_TABLE.get()).build(null));
 
+    @SuppressWarnings("DataFlowIssue")
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.fantasyweapons.forge.WorldforgeBlockEntity>> WORLDFORGE =
+            REGISTER.register("worldforge", () -> BlockEntityType.Builder.of(com.fantasyweapons.forge.WorldforgeBlockEntity::new,
+                    ModBlocks.WORLDFORGE.get()).build(null));
+
     private ModBlockEntities() {
     }
 }

@@ -62,6 +62,7 @@ public final class ClientSetup {
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterMenuScreensEvent e) -> {
             e.register(com.fantasyweapons.registry.ModMenus.REFINERY.get(), com.fantasyweapons.client.gui.RefineryScreen::new);
             e.register(com.fantasyweapons.registry.ModMenus.LEGENDARY_CRAFTING.get(), com.fantasyweapons.client.gui.LegendaryCraftingScreen::new);
+            e.register(com.fantasyweapons.registry.ModMenus.WORLDFORGE.get(), com.fantasyweapons.client.gui.WorldforgeScreen::new);
         });
         modBus.addListener(ClientSetup::registerExtensions);
         modBus.addListener(com.fantasyweapons.client.particle.ForgeParticles::register);
@@ -77,6 +78,8 @@ public final class ClientSetup {
                     ctx -> new com.fantasyweapons.client.render.machine.MachineRenderers.Block<>("arcane_refinery"));
             e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.LEGENDARY_CRAFTING_TABLE.get(),
                     ctx -> new com.fantasyweapons.client.render.machine.MachineRenderers.Table());
+            e.registerBlockEntityRenderer(com.fantasyweapons.registry.ModBlockEntities.WORLDFORGE.get(),
+                    ctx -> new com.fantasyweapons.client.render.machine.MachineRenderers.Worldforge());
         });
 
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.input.InputHandler::onInteractionKey);
@@ -139,7 +142,8 @@ public final class ClientSetup {
         event.registerItem(new WeaponClientExtensions(), items);
         event.registerBlock(new com.fantasyweapons.client.particle.MachineBreakParticles(), com.fantasyweapons.registry.ModBlocks.ARCANE_REFINERY.get(),
                 com.fantasyweapons.registry.ModBlocks.REFINERY_PART.get(), com.fantasyweapons.registry.ModBlocks.LEGENDARY_CRAFTING_TABLE.get(),
-                com.fantasyweapons.registry.ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get());
+                com.fantasyweapons.registry.ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get(), com.fantasyweapons.registry.ModBlocks.WORLDFORGE.get(),
+                com.fantasyweapons.registry.ModBlocks.WORLDFORGE_PART.get());
     }
 
     /** Whether each in-flight living-entity render pushed a spin rotation (popped again in Post). */
@@ -229,6 +233,8 @@ public final class ClientSetup {
                             renderer = com.fantasyweapons.client.render.machine.MachineRenderers.item("arcane_refinery");
                         } else if (item instanceof com.fantasyweapons.forge.LegendaryCraftingTableItem) {
                             renderer = com.fantasyweapons.client.render.machine.MachineRenderers.item("legendary_crafting_table");
+                        } else if (item instanceof com.fantasyweapons.forge.WorldforgeItem) {
+                            renderer = com.fantasyweapons.client.render.machine.MachineRenderers.item("worldforge_core");
                         } else if (item instanceof com.fantasyweapons.guide.WayfarersCodexItem) {
                             renderer = new com.fantasyweapons.client.guide.CodexRenderer();
                         }

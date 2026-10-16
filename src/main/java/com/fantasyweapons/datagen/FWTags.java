@@ -47,6 +47,10 @@ public final class FWTags {
             tag(BlockTags.NEEDS_STONE_TOOL).add(ModBlocks.ARCANE_REFINERY.get(), ModBlocks.REFINERY_PART.get());
             tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get());
             tag(BlockTags.NEEDS_STONE_TOOL).add(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get());
+            tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get());
+            tag(BlockTags.NEEDS_DIAMOND_TOOL).add(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get());
+            tag(BlockTags.WITHER_IMMUNE).add(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get());
+            tag(BlockTags.DRAGON_IMMUNE).add(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get());
         }
     }
 

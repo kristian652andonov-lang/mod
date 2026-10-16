@@ -23,6 +23,12 @@ public final class ModRecipes {
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<com.fantasyweapons.forge.ForgeRecipe>> FORGING_SERIALIZER =
             SERIALIZERS.register("forging", com.fantasyweapons.forge.ForgeRecipe.Serializer::new);
 
+    /** The Worldforge's shaped 11x11 recipes: the two ultimate weapons. */
+    public static final DeferredHolder<RecipeType<?>, RecipeType<com.fantasyweapons.forge.WorldforgeRecipe>> WORLDFORGING = TYPES.register("worldforging",
+            () -> RecipeType.simple(FantasyWeapons.id("worldforging")));
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<com.fantasyweapons.forge.WorldforgeRecipe>> WORLDFORGING_SERIALIZER =
+            SERIALIZERS.register("worldforging", com.fantasyweapons.forge.WorldforgeRecipe.Serializer::new);
+
     /** A weapon crafted with refined cores of its material: one level higher for each. */
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<com.fantasyweapons.material.InfusionRecipe>> INFUSION_SERIALIZER =
             SERIALIZERS.register("weapon_infusion",
