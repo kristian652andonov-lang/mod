@@ -1670,7 +1670,7 @@ final class DevScripts {
             String n = names[k];
             b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = 10L)
                     .run(mc -> com.fantasyweapons.client.fx.ImpactFrames.cataclysm(1f, null, tint[0], tint[1])).wait(4);
-            for (long ms : new long[]{60, 300, 400, 560, 720, 880, 1000, 1150, 1550}) {
+            for (long ms : new long[]{40, 200, 270, 370, 480, 590, 670, 770, 1030}) {
                 b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = ms).wait(6).screenshot("tinted_" + n + "_" + ms);
             }
             b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = null).wait(60);

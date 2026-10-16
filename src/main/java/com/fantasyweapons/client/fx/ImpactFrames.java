@@ -38,17 +38,19 @@ public final class ImpactFrames {
             new Still(150, INK)};
     private static final Still[] ACTIVE = {new Still(55, INK), new Still(50, NEGATIVE)};
     /**
-     * The ultimate weapons' world-breaking blows, played once, the moment each lands: nearly two seconds of stills, the
-     * picture frozen afresh every few so the destruction is seen moving between them, pushing in harder, the last held
-     * longest.
+     * The ultimate weapons' world-breaking blows, played once, the moment each lands: a little over a second of stills,
+     * the picture frozen afresh every few so the destruction is seen moving between them, pushing in harder, the last
+     * held longest.
      */
-    private static final Still[] CATACLYSM = {new Still(120, NEGATIVE), new Still(110, INK), new Still(110, LIGHT), new Still(140, NEGATIVE, true),
-            new Still(140, INK), new Still(130, LIGHT), new Still(150, NEGATIVE, true), new Still(160, INK), new Still(150, LIGHT, true),
-            new Still(160, NEGATIVE), new Still(380, INK)};
+    private static final Still[] CATACLYSM = {new Still(80, NEGATIVE), new Still(73, INK), new Still(73, LIGHT), new Still(93, NEGATIVE, true),
+            new Still(93, INK), new Still(87, LIGHT), new Still(100, NEGATIVE, true), new Still(107, INK), new Still(100, LIGHT, true),
+            new Still(107, NEGATIVE), new Still(253, INK)};
     /** The same for a power made of light (a beam, a black hole's fire, the void): its middle stills in its own colours. */
-    private static final Still[] CATACLYSM_TINTED = {new Still(120, NEGATIVE), new Still(110, INK), new Still(110, LIGHT),
-            new Still(150, TINT_LIGHT, true), new Still(150, TINT_INK), new Still(160, TINT_LIGHT), new Still(160, TINT_INK, true),
-            new Still(140, NEGATIVE), new Still(150, INK), new Still(140, LIGHT, true), new Still(380, INK)};
+    private static final Still[] CATACLYSM_TINTED = {new Still(80, NEGATIVE), new Still(73, INK), new Still(73, LIGHT),
+            new Still(100, TINT_LIGHT, true), new Still(100, TINT_INK), new Still(107, TINT_LIGHT), new Still(107, TINT_INK, true),
+            new Still(93, NEGATIVE), new Still(100, INK), new Still(93, LIGHT, true), new Still(253, INK)};
+    /** How long a cataclysm's picture takes to snap back (ms). */
+    private static final int CATACLYSM_SNAP = 280;
     private static final int ULTIMATE_SNAP = 260, ACTIVE_SNAP = 180;
     /** How far an ultimate's stills push in over the sequence, and how often their speed lines flicker (ms). */
     private static final float ULTIMATE_ZOOM = 0.07f;
@@ -105,7 +107,7 @@ public final class ImpactFrames {
         if (!ClientConfig.get(ClientConfig.IMPACT_FRAMES, true)) return;
         rgb(tint == 0 ? 0xFFFFFF : tint, ImpactFrames.tint);
         rgb(light == 0 ? 0xFFFFFF : light, glow);
-        begin(tint == 0 ? CATACLYSM : CATACLYSM_TINTED, 420, strength, at, 0.18f);
+        begin(tint == 0 ? CATACLYSM : CATACLYSM_TINTED, CATACLYSM_SNAP, strength, at, 0.18f);
     }
 
     private static boolean cataclysmic() {
