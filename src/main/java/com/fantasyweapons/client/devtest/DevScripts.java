@@ -56,6 +56,7 @@ final class DevScripts {
                 else if (name.equals("materials")) materials(b);
                 else if (name.equals("refinery")) refinery(b);
                 else if (name.equals("armor")) armor(b);
+                else if (name.equals("regalia")) regalia(b);
                 else if (name.startsWith("setfx")) setFx(b, name.length() > 6 ? java.util.List.of(name.substring(6).split(",")) : null);
                 else if (name.equals("infuse")) infuse(b);
                 else if (name.equals("fit")) fit(b);
@@ -1109,6 +1110,42 @@ final class DevScripts {
         b.wait(5).quit();
     }
 
+    /** The Mage's six regalia on armor stands, front and back, then worn by the player, struck, and holding a staff. */
+    private static void regalia(ScreenshotDirector.Builder b) {
+        var sets = java.util.Arrays.stream(com.fantasyweapons.armor.ArmorSet.values()).filter(com.fantasyweapons.armor.ArmorSet::regalia).toList();
+        b.run(mc -> {
+            if (mc.player.isDeadOrDying()) mc.player.respawn();
+        }).wait(40).cmd("/gamemode creative").cmd("/execute in minecraft:overworld run tp @s 0 -60 0 0 0").wait(40).cmd("/gamemode creative").cmd("/time set noon").hud(false).cmd("/kill @e[type=!player]")
+                .cmd("/fill -16 -60 2 16 -56 10 minecraft:air").cmd("/clear @s").cmd("/fw class set mage");
+        for (int i = 0; i < sets.size(); i++) {
+            String id = "fantasyweapons:" + sets.get(i).id();
+            b.cmd("/summon armor_stand " + (i * 2 - 5) + " -60 6 {Rotation:[180f,0f],ShowArms:1b,NoBasePlate:1b,ArmorItems:[{id:\"" + id + "_boots\",count:1},{id:\""
+                    + id + "_leggings\",count:1},{id:\"" + id + "_chestplate\",count:1},{id:\"" + id + "_helmet\",count:1}]}");
+        }
+        b.wait(30).closeScreen();
+        b.viewAt(0.5, 2.0, -1.5, 0.5, 1.0, 6).wait(15).screenshot("reg_all");
+        for (int g = 0; g < 3; g++) {
+            double cx = -5 + g * 4 + 1;
+            b.viewAt(cx + 0.5, 1.5, 2.6, cx + 0.5, 1.1, 6).wait(15).screenshot("reg_front_" + g);
+            b.viewAt(cx + 0.5, 1.5, 9.4, cx + 0.5, 1.1, 6).wait(10).screenshot("reg_back_" + g);
+        }
+        b.cmd("/kill @e[type=armor_stand]").playerView().cmd("/tp @s 0 -60 2 0 0").cmd("/gamemode survival");
+        String[] focus = {"cinderspire", "rimeheart", "codex_of_tides", "thornwake", "lumen_psalter", "umbral_codex"};
+        for (int i = 0; i < sets.size(); i++) {
+            String id = "fantasyweapons:" + sets.get(i).id();
+            b.cmd("/clear @s").cmd("/item replace entity @s armor.head with " + id + "_helmet").cmd("/item replace entity @s armor.chest with " + id + "_chestplate")
+                    .cmd("/item replace entity @s armor.legs with " + id + "_leggings").cmd("/item replace entity @s armor.feet with " + id + "_boots")
+                    .cmd("/fw give " + focus[i] + " 1").wait(10).slot(0).wait(10).camera(CameraType.THIRD_PERSON_FRONT).wait(10)
+                    .screenshot("reg_worn_" + sets.get(i).id()).camera(CameraType.THIRD_PERSON_BACK).wait(6).screenshot("reg_worn_back_" + sets.get(i).id());
+            if (i == 0) b.camera(CameraType.THIRD_PERSON_FRONT).cmd("/damage @s 1 minecraft:generic").wait(4).screenshot("reg_hit");
+        }
+        b.camera(CameraType.FIRST_PERSON).cmd("/clear @s");
+        for (var set : sets) for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) b.cmd("/give @s fantasyweapons:" + set.itemId(type));
+        b.wait(20).run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(20).hud(true)
+                .screenshot("reg_icons").closeScreen().hud(false);
+        b.wait(5).quit();
+    }
+
     /**
      * Every full-set ability set off (with {@code /fw setfx}) against a group of husks, seen from the side as it plays,
      * with the set plaque on the HUD.
@@ -1121,7 +1158,10 @@ final class DevScripts {
                 java.util.Map.entry("gravebite", new int[]{8, 24}), java.util.Map.entry("soulreaper", new int[]{2, 8}),
                 java.util.Map.entry("bloomfall", new int[]{3, 16}), java.util.Map.entry("eclipse_reaper", new int[]{3, 8}),
                 java.util.Map.entry("starforge", new int[]{3, 5}), java.util.Map.entry("aetherlance", new int[]{1, 2}),
-                java.util.Map.entry("monolith", new int[]{2, 5}), java.util.Map.entry("infernochain", new int[]{4, 16}));
+                java.util.Map.entry("monolith", new int[]{2, 5}), java.util.Map.entry("infernochain", new int[]{4, 16}),
+                java.util.Map.entry("pyromancer", new int[]{2, 6}), java.util.Map.entry("cryomancer", new int[]{2, 10}),
+                java.util.Map.entry("tidemancer", new int[]{3, 10}), java.util.Map.entry("archdruid", new int[]{3, 14}),
+                java.util.Map.entry("luminarch", new int[]{2, 5}), java.util.Map.entry("umbramancer", new int[]{3, 12}));
         String[] spots = {"~ ~ ~3.5", "~2.2 ~ ~4.6", "~-2 ~ ~5.4"};
         b.cmd("/gamemode survival").cmd("/time set noon").cmd("/weather clear").cmd("/fill -8 -60 -6 8 -55 12 minecraft:air").look(0, 0);
         for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
