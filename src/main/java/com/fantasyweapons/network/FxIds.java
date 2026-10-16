@@ -237,4 +237,6 @@ public final class FxIds {
     public static final ResourceLocation GREAT_TREE = FantasyWeapons.id("domination/great_tree");
     /** The roots seize these creatures (entities), until power ticks have passed. */
     public static final ResourceLocation GREAT_TREE_GRAB = FantasyWeapons.id("domination/great_tree_grab");
+    /** The Ice Age: pos = ground at the target, scale = radius, power = wave height, level = speed x100 (blocks per tick). */
+    public static final ResourceLocation ICE_AGE = FantasyWeapons.id("domination/ice_age");
 }

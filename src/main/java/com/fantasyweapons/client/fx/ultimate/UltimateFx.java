@@ -32,6 +32,7 @@ public final class UltimateFx {
         FxDispatcher.register(FxIds.TECTONIC, UltimateFx::tectonic);
         FxDispatcher.register(FxIds.GREAT_TREE, UltimateFx::greatTree);
         FxDispatcher.register(FxIds.GREAT_TREE_GRAB, UltimateFx::greatTreeGrab);
+        FxDispatcher.register(FxIds.ICE_AGE, UltimateFx::iceAge);
     }
 
     /** How far the viewer is from a point (blocks), or a long way if there is no player. */
@@ -290,5 +291,35 @@ public final class UltimateFx {
     private static void greatTreeGrab(FxPayload p) {
         if (lastTree != null && !lastTree.isDead()) lastTree.seize(p.entities());
         sound(SoundEvents.CHAIN_PLACE, 1f, 0.4f);
+    }
+
+    private static void iceAge(FxPayload p) {
+        Vec3 at = p.pos();
+        float radius = p.scale(), height = p.power(), speed = Math.max(0.3f, p.level() / 100f);
+        int surge = 24, run = (int) (radius / speed);
+        VfxManager.add(new IceAgeVfx(at, radius, height, speed, surge));
+        if (isCaster(p) || distance(at) < radius * 2.5) {
+            CinematicHud.play("UPLINK // DOMINION-01 > THE ICE AGE", at, 0x8FE4FF, (surge + run + 80) * 50L, List.of(
+                    Cue.status(0, "SEA RISING", 0x8FE4FF),
+                    Cue.card(300, 2000, "Something is coming", "wave height " + (int) height + " m  ·  -89 \u00B0C", 0xFFFFFF),
+                    Cue.status(surge * 50L, "TSUNAMI", 0xCFF4FF),
+                    Cue.card(surge * 50L + 1200, 2400, "The Ice Age", "everything within " + (int) radius + " m is frozen", 0xBFEFFF),
+                    Cue.status((surge + run) * 50L, "ALL IS ICE", 0x9CD67A)));
+        }
+        sound(SoundEvents.ELDER_GUARDIAN_CURSE, 0.8f, 0.5f);
+        sound(SoundEvents.AMBIENT_UNDERWATER_ENTER, 1f, 0.5f);
+        FxScheduler.after(surge, () -> {
+            CameraShake.add(at, 2.6f, radius * 3);
+            sound(SoundEvents.GENERIC_SPLASH, 1f, 0.4f);
+            sound(SoundEvents.GENERIC_EXPLODE, 0.8f, 0.4f);
+        });
+        for (int k = surge + 10; k < surge + run; k += 14) {
+            FxScheduler.after(k, () -> {
+                double d = distance(at);
+                CameraShake.add(at, 1.2f, radius * 2);
+                sound(SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 1f, 0.4f);
+                sound(SoundEvents.GLASS_BREAK, 0.6f, 0.4f);
+            });
+        }
     }
 }

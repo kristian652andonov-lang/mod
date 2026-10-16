@@ -291,4 +291,52 @@ public final class WreckShapes {
             }
         };
     }
+
+    static final BlockState ICE = Blocks.ICE.defaultBlockState();
+    static final BlockState PACKED_ICE = Blocks.PACKED_ICE.defaultBlockState();
+    static final BlockState BLUE_ICE = Blocks.BLUE_ICE.defaultBlockState();
+    static final BlockState SNOW = Blocks.SNOW_BLOCK.defaultBlockState();
+
+    /**
+     * Everything frozen where the Ice Age's wave has passed: water and the sea become ice (blue ice at the surface), lava
+     * obsidian; trees are frozen into ice where they stood, their leaves shattered; plants are swept away; the ground is
+     * glazed in snow and ice, and jagged spikes of ice stand here and there.
+     */
+    public static ChunkShaper freeze(Vec3 center, double radius) {
+        return c -> {
+            net.minecraft.util.RandomSource r = c.random();
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    double dx = x + 0.5 - center.x, dz = z + 0.5 - center.z;
+                    if (dx * dx + dz * dz > radius * radius) continue;
+                    int top = c.top(x, z), ground = c.ground(x, z);
+                    if (ground <= c.minY()) continue;
+                    boolean surface = true;
+                    for (int y = top; y > ground; y--) {
+                        BlockState old = c.get(x, y, z);
+                        if (old.isAir()) continue;
+                        if (old.is(Blocks.LAVA)) c.set(x, y, z, OBSIDIAN);
+                        else if (!old.getFluidState().isEmpty()) {
+                            c.set(x, y, z, surface ? BLUE_ICE : y > ground + 3 ? ICE : PACKED_ICE);
+                            surface = false;
+                        } else if (old.is(net.minecraft.tags.BlockTags.LOGS)) c.set(x, y, z, PACKED_ICE);
+                        else if (old.is(net.minecraft.tags.BlockTags.LEAVES)) c.set(x, y, z, r.nextFloat() < 0.45f ? ICE : AIR);
+                        else if (old.canBeReplaced() || !old.blocksMotion()) c.clear(x, y, z);
+                        else c.set(x, y, z, r.nextFloat() < 0.5f ? PACKED_ICE : ICE);
+                    }
+                    // the ground glazed in snow and ice
+                    float roll = r.nextFloat();
+                    if (WreckChunk.terrain(c.get(x, ground, z))) {
+                        c.set(x, ground, z, roll < 0.45f ? SNOW : roll < 0.8f ? PACKED_ICE : BLUE_ICE);
+                        if (r.nextFloat() < 0.6f) c.set(x, ground - 1, z, PACKED_ICE);
+                    }
+                    // jagged spikes of ice
+                    if (r.nextFloat() < 0.004f) {
+                        int h = 5 + r.nextInt(14);
+                        for (int y = ground + 1; y <= ground + h; y++) c.set(x, y, z, PACKED_ICE);
+                    }
+                }
+            }
+        };
+    }
 }

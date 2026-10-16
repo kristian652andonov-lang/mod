@@ -516,7 +516,56 @@ public final class DominationAbilities {
         }
     }
 
+    // ------------------------------------------------------------------------------------------------------------
+    // The Ice Age
+    // ------------------------------------------------------------------------------------------------------------
+
+    /** Ticks the sea takes to rise at the target before the wave rolls out. */
+    private static final int SURGE = 24;
+
     public static boolean iceAge(AbilityContext ctx) {
-        throw AbilityContext.fail("The Ice Age is still being written");
+        Vec3 at = Cataclysm.landing(ctx, LOOK_RANGE);
+        double radius = ctx.param("radius"), height = ctx.param("height"), speed = Math.max(0.3, ctx.param("speed"));
+        long seed = Kit.seed(ctx.level());
+        Cataclysm.fx(ctx.level(), ctx.player(), FxPayload.of(FxIds.ICE_AGE).caster(ctx.player().getId()).pos(at)
+                .scale((float) radius).power((float) height).level((int) Math.round(speed * 100)).seed(seed).build());
+        AreaEffectManager.add(new IceAge(ctx, at, radius, speed, seed));
+        Kit.active(ctx, SURGE + (int) (radius / speed));
+        return true;
+    }
+
+    /** A tsunami rolls out in every direction, destroying and killing what it hits; behind it everything is ice. */
+    private static final class IceAge extends AreaEffect {
+        private final double radius, speed;
+        private final long seed;
+        private final float damage;
+
+        IceAge(AbilityContext ctx, Vec3 at, double radius, double speed, long seed) {
+            super(ctx.level(), ctx.player(), ctx.data().idOrNil(), at, SURGE + (int) (radius / speed) + 30);
+            this.radius = radius;
+            this.speed = speed;
+            this.seed = seed;
+            this.damage = ctx.damage();
+        }
+
+        @Override
+        protected void tick(ServerPlayer owner) {
+            if (age == SURGE) {
+                double r = WorldWreck.radius(radius);
+                // the land freezes right behind the wave
+                WorldWreck.disc(level, pos, r, seed, d -> SURGE + 4 + (int) (d / speed), WreckShapes.freeze(pos, r));
+                Cataclysm.frames(level, owner, pos, radius * 1.5, true);
+            }
+            if (age < SURGE) return;
+            double wave = (age - SURGE) * speed;
+            if (wave > radius + 8) return;
+            for (var e : Cataclysm.victims(level, owner, pos, Math.min(radius, wave + 6))) {
+                double d = Math.hypot(e.getX() - pos.x, e.getZ() - pos.z);
+                if (d < wave - 10) continue;
+                // swept up by the wave and frozen
+                Kit.knock(e, pos, 2.4, 0.9);
+                Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.ICE);
+            }
+        }
     }
 }
