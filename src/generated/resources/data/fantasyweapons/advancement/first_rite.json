@@ -1,0 +1,42 @@
+{
+  "parent": "fantasyweapons:worldforge",
+  "criteria": {
+    "book": {
+      "conditions": {
+        "name": "spell_book_of_absolute_domination"
+      },
+      "trigger": "fantasyweapons:forge_started"
+    },
+    "sword": {
+      "conditions": {
+        "name": "great_sword_of_obliteration"
+      },
+      "trigger": "fantasyweapons:forge_started"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Lay a rite on the Worldforge and begin it",
+      "translate": "advancements.fantasyweapons.first_rite.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:fire_charge"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF8A3D",
+      "fallback": "The Rite Begins",
+      "translate": "advancements.fantasyweapons.first_rite.title"
+    }
+  },
+  "requirements": [
+    [
+      "sword",
+      "book"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

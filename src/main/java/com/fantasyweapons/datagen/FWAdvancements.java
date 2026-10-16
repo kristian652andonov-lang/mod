@@ -187,6 +187,30 @@ final class FWAdvancements implements AdvancementProvider.AdvancementGenerator {
                 "Wear every one of the thirteen warriors' legendary armor sets", AdvancementType.CHALLENGE, b -> {
                     for (ArmorSet set : ArmorSet.values()) if (!set.regalia()) b.addCriterion(set.id(), ModTriggers.FULL_SET.get().named(set.id()));
                 });
+        // ---- the ultimate weapons ----
+        Item sword = ModItems.WEAPONS.get(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID).get();
+        Item book = ModItems.WEAPONS.get(com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID).get();
+        AdvancementHolder worldforge = deed("worldforge", table, ModItems.WORLDFORGE.get(), "The Worldforge", CRIMSON,
+                "Raise the Worldforge, the altar the world is broken on", AdvancementType.GOAL, b -> b.addCriterion("has", has(ModItems.WORLDFORGE.get())));
+        AdvancementHolder rite = deed("first_rite", worldforge, Items.FIRE_CHARGE, "The Rite Begins", EMBER,
+                "Lay a rite on the Worldforge and begin it", AdvancementType.GOAL, b -> {
+                    b.addCriterion("sword", ModTriggers.FORGE_STARTED.get().named(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID));
+                    b.addCriterion("book", ModTriggers.FORGE_STARTED.get().named(com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID));
+                    b.requirements(AdvancementRequirements.Strategy.OR);
+                });
+        deed("obliteration", rite, sword, "The End of All Things", CRIMSON, "Forge the Great Sword of Obliteration", AdvancementType.CHALLENGE,
+                b -> b.addCriterion("has", has(sword)));
+        deed("domination", rite, book, "The Last Word", VIOLET, "Bind the Spell Book of Absolute Domination", AdvancementType.CHALLENGE,
+                b -> b.addCriterion("has", has(book)));
+        AdvancementHolder ender = deed("world_ender", rite, Items.TNT, "World Ender", CRIMSON,
+                "Unleash a power of an ultimate weapon", AdvancementType.CHALLENGE, b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named("apocalyptic")));
+        deed("from_afar", ender, Items.FILLED_MAP, "Dominion Sight", GOLD,
+                "Bring a power down on a far place through the targeting map", AdvancementType.GOAL,
+                b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named("from_afar")));
+        deed("absolute", ender, Items.NETHER_STAR, "Absolute", VIOLET, "Hold both ultimate weapons", AdvancementType.CHALLENGE, b -> {
+            b.addCriterion("sword", has(sword));
+            b.addCriterion("book", has(book));
+        });
         deed("every_regalia", regalia, ModItems.ARMOR.get(ArmorSet.LUMINARCH).get(ArmorItem.Type.CHESTPLATE).get(), "Robes of Every Element", VIOLET,
                 "Wear every one of the Mage's six regalia", AdvancementType.CHALLENGE, b -> {
                     for (ArmorSet set : ArmorSet.values()) if (set.regalia()) b.addCriterion(set.id(), ModTriggers.FULL_SET.get().named(set.id()));

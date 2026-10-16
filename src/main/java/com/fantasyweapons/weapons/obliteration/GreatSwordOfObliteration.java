@@ -11,7 +11,7 @@ import com.fantasyweapons.weapon.WeaponDefinition;
 import static com.fantasyweapons.ability.AbilityText.Upgrades;
 
 /**
- * THE GREAT SWORD OF OBLITERATION — one of the two ultimate weapons, forged on the Altar of Annihilation from every
+ * THE GREAT SWORD OF OBLITERATION — one of the two ultimate weapons, forged on the Worldforge from every
  * legendary blade. Six abilities of six powers, each one breaking the world: the blocks are really cut, shattered,
  * melted, frozen and rebuilt (see {@link com.fantasyweapons.world.wreck.WorldWreck}).
  * <pre>

@@ -64,6 +64,15 @@ public final class QuestGameTests {
             }
         }
         for (ArmorSet set : ArmorSet.values()) if (Quests.get("wear_" + set.id()) == null) h.fail("no quest wear_" + set.id());
+        // the Worldforge's road: raise it, begin a rite, then each ultimate weapon and its powers
+        for (String id : new String[] {"raise_worldforge", "first_rite", "world_ender", "dominion_sight", "end_of_days"}) {
+            if (Quests.get(id) == null) h.fail("no quest " + id);
+        }
+        for (WeaponDefinition def : Weapons.ultimates()) {
+            Quest q = Quests.get("forge_" + def.id());
+            if (q == null) h.fail("no quest forge_" + def.id());
+            else if (!"first_rite".equals(q.requires())) h.fail("forge_" + def.id() + " opens after " + q.requires());
+        }
         h.succeed();
     }
 

@@ -85,6 +85,37 @@ public final class DeedGameTests {
         h.succeed();
     }
 
+    /**
+     * The ultimate weapons' deeds: only a rite begun on the Worldforge begins the rite, only a power of an ultimate weapon
+     * ends the world, a cast through the targeting map earns Dominion Sight, and Absolute wants both weapons held.
+     */
+    @GameTest(template = ARENA)
+    public static void theUltimateDeeds(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        AdvancementHolder rite = deed(h, "first_rite"), ender = deed(h, "world_ender"), afar = deed(h, "from_afar"), absolute = deed(h, "absolute"),
+                sword = deed(h, "obliteration"), book = deed(h, "domination");
+        String swordId = com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID, bookId = com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID;
+        ModTriggers.FORGE_STARTED.get().trigger(p, "voidfang");
+        if (done(p, rite)) h.fail("a forging on the table began the rite");
+        ModTriggers.FORGE_STARTED.get().trigger(p, swordId);
+        if (!done(p, rite)) h.fail("the sword's rite did not begin the rite");
+        ModTriggers.ABILITY_CAST.get().trigger(p, "ultimate");
+        if (done(p, ender)) h.fail("a legendary weapon's ultimate earned World Ender");
+        ModTriggers.ABILITY_CAST.get().trigger(p, "apocalyptic");
+        if (!done(p, ender)) h.fail("a power of an ultimate weapon did not earn World Ender");
+        if (done(p, afar)) h.fail("Dominion Sight without the map");
+        ModTriggers.ABILITY_CAST.get().trigger(p, "from_afar");
+        if (!done(p, afar)) h.fail("a cast from afar did not earn Dominion Sight");
+        p.getInventory().add(new ItemStack(ModItems.WEAPONS.get(swordId).get()));
+        p.inventoryMenu.broadcastChanges();
+        if (!done(p, sword) || done(p, absolute)) h.fail("the sword alone: " + done(p, sword) + " / absolute " + done(p, absolute));
+        p.getInventory().add(new ItemStack(ModItems.WEAPONS.get(bookId).get()));
+        p.inventoryMenu.broadcastChanges();
+        if (!done(p, book) || !done(p, absolute)) h.fail("both: " + done(p, book) + " / absolute " + done(p, absolute));
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
     /** Holding a weapon earns its deed; the announcement names the player and the deed in its colour. */
     @GameTest(template = ARENA)
     public static void forgingAWeaponIsAnnounced(GameTestHelper h) {

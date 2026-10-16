@@ -57,6 +57,7 @@ final class DevScripts {
                 else if (name.equals("refinery")) refinery(b);
                 else if (name.equals("armor")) armor(b);
                 else if (name.equals("regalia")) regalia(b);
+                else if (name.equals("ultcodex")) ultCodex(b);
                 else if (name.startsWith("setfx")) setFx(b, name.length() > 6 ? java.util.List.of(name.substring(6).split(",")) : null);
                 else if (name.equals("infuse")) infuse(b);
                 else if (name.equals("fit")) fit(b);
@@ -1108,6 +1109,41 @@ final class DevScripts {
         b.wait(20).run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(20).hud(true)
                 .screenshot("arm_icons").closeScreen().hud(false);
         b.wait(5).quit();
+    }
+
+    /**
+     * The Codex's chapter on the ultimate weapons (contents, the Worldforge, the rites, each weapon's pages), its deeds and
+     * the quest journal's group for them.
+     */
+    private static void ultCodex(ScreenshotDirector.Builder b) {
+        b.run(mc -> {
+            if (mc.player.isDeadOrDying()) mc.player.respawn();
+        }).wait(40).cmd("/gamemode creative").cmd("/execute in minecraft:overworld run tp @s 0 -60 0 0 0").cmd("/time set noon").cmd("/clear @s")
+                .cmd("/fw quest reset").cmd("/fw class set mage").cmd("/give @s fantasyweapons:wayfarers_codex").wait(20)
+                .cmd("/advancement grant @s only fantasyweapons:worldforge").cmd("/advancement grant @s only fantasyweapons:first_rite")
+                .cmd("/advancement grant @s only fantasyweapons:world_ender").wait(10).slot(0).hud(true).wait(10)
+                .run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(110);
+        b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(0, false)).wait(16).screenshot("ult_codex_contents");
+        for (int i = 0; i < 10; i++) {
+            int n = i;
+            b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("ultimates") + n, false))
+                    .wait(16).screenshot("ult_codex_" + n);
+        }
+        b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreads() - 1, false)).wait(16)
+                .screenshot("ult_codex_deeds_last");
+        b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreads() - 2, false)).wait(16)
+                .screenshot("ult_codex_deeds_prev");
+        b.closeScreen().wait(10);
+        b.cmd("/fw quest complete trophy_table").cmd("/fw quest claim trophy_table").cmd("/give @s fantasyweapons:worldforge").wait(40)
+                .cmd("/fw quest claim raise_worldforge").wait(200);
+        b.run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.QuestScreen())).wait(10);
+        journal(b, q -> q.devChapter(com.fantasyweapons.quest.Chapter.WEAPONS));
+        b.wait(8).screenshot("ult_quests");
+        journal(b, q -> q.devExpand("ultimate_weapons"));
+        b.wait(14).screenshot("ult_quests_open");
+        journal(b, q -> q.devSelect("first_rite"));
+        b.wait(14).screenshot("ult_quests_rite");
+        b.closeScreen().wait(5).quit();
     }
 
     /** The Mage's six regalia on armor stands, front and back, then worn by the player, struck, and holding a staff. */

@@ -1,0 +1,52 @@
+{
+  "parent": "fantasyweapons:world_ender",
+  "criteria": {
+    "book": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:spell_book_of_absolute_domination"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "sword": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:great_sword_of_obliteration"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Hold both ultimate weapons",
+      "translate": "advancements.fantasyweapons.absolute.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:nether_star"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Absolute",
+      "translate": "advancements.fantasyweapons.absolute.title"
+    }
+  },
+  "requirements": [
+    [
+      "sword"
+    ],
+    [
+      "book"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

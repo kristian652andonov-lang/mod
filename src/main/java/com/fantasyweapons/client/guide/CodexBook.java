@@ -53,6 +53,7 @@ public final class CodexBook {
         refinery();
         table();
         weapons();
+        ultimates();
         mastery();
         deeds();
         if (pages.size() % 2 == 1) page(c -> ornament(c, "Fin"));
@@ -110,7 +111,7 @@ public final class CodexBook {
             notched(c, x0, y, x1, y + h, NOTCH, 0xFF2A1A0C, z);
             notched(c, x0, y + 0.6f, x1 - 0.8f, y + h - 0.6f, NOTCH - 0.5f, body, z + 0.01f);
             c.quad(x0, y + 0.6f, x0, y + 1.4f, x1 - 0.7f - NOTCH * 0.8f / (h / 2), y + 1.4f, x1 - 0.7f, y + 0.6f, 0x55FFFFFF, z + 0.02f);
-            c.icon(TAB_ICONS, tab.icon(), 8, x0 + 2.2f, y + 1.3f, 7.4f);
+            c.icon(TAB_ICONS, tab.icon(), 9, x0 + 2.2f, y + 1.3f, 7.4f);
             y += h + 1;
         }
         c.lift = 0;
@@ -130,7 +131,7 @@ public final class CodexBook {
     private record Tab(String anchor, String name, int color, int icon) {
     }
 
-    /** The tabs' pixel icons: the book, an ore, the furnace, the anvil, a sword, a chestplate, a flask, a star compass. */
+    /** The tabs' pixel icons: the book, an ore, the furnace, the anvil, a sword, a chestplate, a flask, a star compass, a shattered world. */
     private static final net.minecraft.resources.ResourceLocation TAB_ICONS = FantasyWeapons.id("textures/gui/codex/tabs.png");
 
     private static final Tab[] TABS = {
@@ -140,6 +141,7 @@ public final class CodexBook {
             new Tab("table", "The Legendary Crafting Table", 0xB08A2E, 3),
             new Tab("weapons", "The Thirteen Weapons", 0x5E3A8C, 4),
             new Tab("armor", "Armor of Legend", 0x5A6470, 5),
+            new Tab("ultimates", "The Ultimate Weapons", 0x8C1E12, 8),
             new Tab("mastery", "Mastery", 0x3C7A3A, 6),
             new Tab("deeds", "Deeds", 0x7A3FA8, 7)};
 
@@ -203,7 +205,7 @@ public final class CodexBook {
         c.gap(2);
         String[][] entries = {{"The Path of Legends", "path"}, {"Legendary Ores", "ores"}, {"The Arcane Refinery", "refinery"},
                 {"The Crafting Table", "table"}, {"The Thirteen Weapons", "weapons"}, {"Armor of Legend", "armor"},
-                {"The Mage's Arts", "mage"}, {"Mastery", "mastery"}, {"Deeds", "deeds"}};
+                {"The Mage's Arts", "mage"}, {"The Ultimate Weapons", "ultimates"}, {"Mastery", "mastery"}, {"Deeds", "deeds"}};
         for (String[] e : entries) {
             int page = anchors.getOrDefault(e[1], 0) + 1;
             float s = 0.68f;
@@ -213,10 +215,10 @@ public final class CodexBook {
             // dotted leader
             float from = PageCanvas.MARGIN + c.width(e[0], s) + 2, to = PageCanvas.W - PageCanvas.MARGIN - c.width(n, s) - 2;
             for (float x = from; x < to; x += 2.5f) c.fill(x, c.y + 5, x + 0.7f, c.y + 5.7f, 0x883A2614);
-            c.y += 12;
+            c.y += 9.6f;
         }
-        c.gap(4);
-        c.para("Click a chapter to turn to it. Turn the pages with the corners, the arrow keys or the mouse wheel.", PageCanvas.FADED, 0.5f);
+        c.gap(2);
+        c.para("Click a chapter to turn to it.", PageCanvas.FADED, 0.5f);
     }
 
     private void ornament(PageCanvas c, @Nullable String word) {
@@ -519,6 +521,36 @@ public final class CodexBook {
         for (WeaponDefinition def : focuses) weapon(def, null);
     }
 
+    /** The two ultimate weapons, and the Worldforge they are forged on. */
+    private void ultimates() {
+        chapter("The Ultimate Weapons", "ultimates");
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("The Worldforge");
+            craftingGrid(c, FantasyWeapons.id("worldforge"), new ItemStack(ModItems.WORLDFORGE.get()));
+            c.para("A Legendary Crafting Table raised on netherite, with two nether stars, two heavy cores and the Dragon's egg. "
+                    + "It needs a clear space seven blocks wide, deep and high; set down, it unfolds.", PageCanvas.INK, 0.5f);
+        });
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("The Rites");
+            c.para("Its grid is eleven by eleven, and it forges only the two ultimate weapons. Each rite takes all twenty-five "
+                    + "legendary weapons, a core of every material and the rarest treasures of the world.", PageCanvas.INK, 0.5f);
+            c.para("Lay the rite as on the table, then press Forge. It works for " + com.fantasyweapons.forge.WorldforgeRecipe.DEFAULT_TIME / 20 / 60
+                    + " minutes; when it is done, lightning falls and the whole world hears.", PageCanvas.INK, 0.5f);
+            c.gap(2);
+            for (WeaponDefinition def : Weapons.ultimates()) {
+                float y = c.y;
+                c.item(weapon(def), PageCanvas.MARGIN, y, 13);
+                float s = Math.min(0.5f, (c.inner() - 17) / c.width(def.displayName(), 1f));
+                c.link(def.displayName(), PageCanvas.MARGIN + 16, y + 0.5f, s, go("weapon_" + def.id()));
+                c.text(def.title(), PageCanvas.MARGIN + 16, y + 7f, PageCanvas.FADED, 0.45f);
+                c.y = y + 16;
+            }
+        });
+        for (WeaponDefinition def : Weapons.ultimates()) weapon(def, null);
+    }
+
     /** What a focus's bolt leaves on the foes it strikes. */
     private static String boltMark(WeaponDefinition def) {
         return switch (def.element()) {
@@ -537,8 +569,21 @@ public final class CodexBook {
         int ink = deep(def.themePrimary());
         page(c -> {
             c.y = PageCanvas.TOP - 2;
-            c.centered(def.displayName(), c.y, ink, 1.1f);
-            c.y += 11;
+            String name = def.displayName();
+            if (c.width(name, 1.1f) <= c.inner()) {
+                c.centered(name, c.y, ink, 1.1f);
+                c.y += 11;
+            } else {
+                // a long name goes on two lines, broken at the space nearest its middle
+                int mid = name.length() / 2, cut = name.lastIndexOf(' ', mid);
+                int after = name.indexOf(' ', mid);
+                if (cut < 0 || (after >= 0 && after - mid < mid - cut)) cut = after;
+                String a = name.substring(0, cut), b = name.substring(cut + 1);
+                float s = Math.min(1.1f, c.inner() / Math.max(c.width(a, 1f), c.width(b, 1f)));
+                c.centered(a, c.y, ink, s);
+                c.centered(b, c.y + 9.5f * s, ink, s);
+                c.y += 9.5f * s * 2 + 1;
+            }
             c.centered(def.title(), c.y, PageCanvas.FADED, 0.55f);
             c.y += 7;
             c.rule();
@@ -588,14 +633,46 @@ public final class CodexBook {
                 }
             });
         }
-        page(c -> {
-            c.y = PageCanvas.TOP;
-            c.heading("Forging");
-            forge(c, FantasyWeapons.id("forging/" + def.id()), 9.4f);
-        });
+        if (def.rarity().ultimate()) {
+            var rite = FantasyWeapons.id("worldforging/" + def.id());
+            page(c -> {
+                c.y = PageCanvas.TOP;
+                c.heading("The Rite");
+                forge(c, rite, 7.6f, false);
+                c.para("Forged on the Worldforge.", PageCanvas.FADED, 0.48f);
+            });
+            page(c -> {
+                c.y = PageCanvas.TOP;
+                c.heading("What It Takes");
+                needs(c, rite, 8.5f, 9.6f);
+            });
+        } else {
+            page(c -> {
+                c.y = PageCanvas.TOP;
+                c.heading("Forging");
+                forge(c, FantasyWeapons.id("forging/" + def.id()), 9.4f, true);
+            });
+        }
         if (set != null) anchors.put("armor_" + set.name(), pages.size());
         page(c -> {
             c.y = PageCanvas.TOP;
+            if (set == null && def.rarity().ultimate()) {
+                c.heading("From Afar");
+                c.para("Its far-reaching powers are not cast where you stand. Press cast and Dominion Sight opens: a map of the land "
+                        + "around you. The ring shows the spell's true size; click, and it falls there.", PageCanvas.INK, 0.5f);
+                for (AbilityDefinition a : def.abilities()) {
+                    if (!a.remote() || !c.fits(7)) continue;
+                    String far = (int) a.param("remote_range") + " chunks";
+                    c.text(a.name(), PageCanvas.MARGIN, c.y, PageCanvas.GOLD, 0.48f);
+                    c.text(far, PageCanvas.W - PageCanvas.MARGIN - c.width(far, 0.42f), c.y + 0.5f, PageCanvas.FADED, 0.42f);
+                    c.y += 6.5f;
+                }
+                c.gap(2);
+                c.para(def.weaponClass().magic() ? "Only a Mage can wield it." : "Any warrior can wield it: an Assassin, a Berserker or a Paladin.",
+                        PageCanvas.FADED, 0.48f);
+                c.para("What it destroys stays destroyed.", PageCanvas.RED, 0.5f);
+                return;
+            }
             if (set == null) {
                 if (!def.weaponClass().magic()) return;
                 // a staff or spellbook has no armor: its page tells of its bolt instead
@@ -714,7 +791,8 @@ public final class CodexBook {
     }
 
     /** The Deeds tab's sections, in the order of the road, and the order of the deeds within them. */
-    private static final String[] SECTIONS = {"The Road", "Ores", "Refining", "The Table", "Weapons", "Mastery", "Armor", "Other"};
+    private static final String[] SECTIONS = {"The Road", "Ores", "Refining", "The Table", "Weapons", "Mastery", "Armor", "The Ultimates", "Other"};
+    private static final List<String> ULTIMATE = List.of("worldforge", "first_rite", "obliteration", "domination", "world_ender", "from_afar", "absolute");
     private static final List<String> ORDER = new ArrayList<>();
 
     static {
@@ -723,7 +801,8 @@ public final class CodexBook {
         ORDER.addAll(List.of("every_ore", "arcane_refinery", "first_core", "every_core", "legendary_table", "first_forging", "legend_reborn"));
         for (WeaponDefinition def : Weapons.legendaries()) ORDER.add("weapon_" + def.id());
         ORDER.addAll(List.of("the_thirteen", "archmage", "first_blood", "centurion", "thousand_souls", "giant_slayer", "level_10", "level_30", "level_50",
-                "level_100", "first_ability", "ultimate", "infused", "legendary_armor", "full_set", "every_set"));
+                "level_100", "first_ability", "ultimate", "infused", "legendary_armor", "full_set", "every_set", "every_regalia"));
+        ORDER.addAll(ULTIMATE);
     }
 
     private static int section(String id) {
@@ -732,8 +811,9 @@ public final class CodexBook {
         if (id.equals("arcane_refinery") || id.endsWith("_core")) return 2;
         if (id.equals("legendary_table") || id.equals("first_forging")) return 3;
         if (id.equals("legend_reborn") || id.startsWith("weapon_") || id.equals("the_thirteen") || id.equals("archmage")) return 4;
-        if (id.equals("legendary_armor") || id.endsWith("_set")) return 6;
-        return ORDER.contains(id) ? 5 : 7;
+        if (id.equals("legendary_armor") || id.endsWith("_set") || id.equals("every_regalia")) return 6;
+        if (ULTIMATE.contains(id)) return 7;
+        return ORDER.contains(id) ? 5 : 8;
     }
 
     private void deeds() {
@@ -898,16 +978,50 @@ public final class CodexBook {
         c.y = y + 3 * cell + 5;
     }
 
-    /** A forging pattern on the 9x9 grid, centred, and the items it takes. */
-    private void forge(PageCanvas c, net.minecraft.resources.ResourceLocation id, float cell) {
+    /** A forging pattern recipe's shape: the table's (9x9) or the Worldforge's (11x11), or null. */
+    @Nullable
+    private net.minecraft.world.item.crafting.ShapedRecipePattern pattern(net.minecraft.resources.ResourceLocation id) {
         var holder = mc.level == null ? null : mc.level.getRecipeManager().byKey(id).orElse(null);
-        float x = (PageCanvas.W - 9 * cell) / 2, y = c.y;
-        c.fill(x - 1, y - 1, x + 9 * cell + 1, y + 9 * cell + 1, 0x18000000);
-        c.grid(x, y, 9, 9, cell, 0.5f, 0x663A2614, 0);
+        if (holder == null) return null;
+        if (holder.value() instanceof ForgeRecipe recipe) return recipe.pattern();
+        if (holder.value() instanceof com.fantasyweapons.forge.WorldforgeRecipe recipe) return recipe.pattern();
+        return null;
+    }
+
+    /** Every item a pattern takes, and how many of each, in the order they first appear. */
+    private static Map<Item, Integer> needs(@Nullable net.minecraft.world.item.crafting.ShapedRecipePattern pattern) {
         Map<Item, Integer> needs = new LinkedHashMap<>();
-        if (holder != null && holder.value() instanceof ForgeRecipe recipe) {
-            var pattern = recipe.pattern();
-            int ox = (9 - pattern.width()) / 2, oy = (9 - pattern.height()) / 2;
+        if (pattern != null) {
+            for (Ingredient ing : pattern.ingredients()) if (!ing.isEmpty()) needs.merge(ing.getItems()[0].getItem(), 1, Integer::sum);
+        }
+        return needs;
+    }
+
+    /** The items a pattern takes, in rows of {@code size}-sized icons {@code step} apart, with their counts. */
+    private void needs(PageCanvas c, net.minecraft.resources.ResourceLocation id, float size, float step) {
+        float x0 = PageCanvas.MARGIN + 1, px = x0;
+        for (var e : needs(pattern(id)).entrySet()) {
+            if (px + size > PageCanvas.W - PageCanvas.MARGIN) {
+                px = x0;
+                c.y += step + 0.5f;
+            }
+            c.item(new ItemStack(e.getKey(), e.getValue()), px, c.y, size);
+            px += step;
+        }
+        c.y += step + 3;
+    }
+
+    /** A forging pattern on its grid (9x9 or 11x11), centred, and, if {@code withNeeds}, the items it takes. */
+    private void forge(PageCanvas c, net.minecraft.resources.ResourceLocation id, float cell, boolean withNeeds) {
+        var found = pattern(id);
+        int n = found != null && (found.width() > 9 || found.height() > 9) ? 11 : 9;
+        float x = (PageCanvas.W - n * cell) / 2, y = c.y;
+        c.fill(x - 1, y - 1, x + n * cell + 1, y + n * cell + 1, 0x18000000);
+        c.grid(x, y, n, n, cell, 0.5f, 0x663A2614, 0);
+        Map<Item, Integer> needs = new LinkedHashMap<>();
+        if (found != null) {
+            var pattern = found;
+            int ox = (n - pattern.width()) / 2, oy = (n - pattern.height()) / 2;
             for (int r = 0; r < pattern.height(); r++) {
                 for (int col = 0; col < pattern.width(); col++) {
                     Ingredient ing = pattern.ingredients().get(col + r * pattern.width());
@@ -918,7 +1032,8 @@ public final class CodexBook {
                 }
             }
         }
-        c.y = y + 9 * cell + 3;
+        c.y = y + n * cell + 3;
+        if (!withNeeds) return;
         c.text("Takes", PageCanvas.MARGIN, c.y + 2.5f, PageCanvas.FADED, 0.48f);
         float px = PageCanvas.MARGIN + 14;
         for (var e : needs.entrySet()) {

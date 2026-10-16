@@ -11,7 +11,7 @@ import com.fantasyweapons.weapon.WeaponDefinition;
 import static com.fantasyweapons.ability.AbilityText.Upgrades;
 
 /**
- * THE SPELL BOOK OF ABSOLUTE DOMINATION — the mage's ultimate weapon, bound on the Altar of Annihilation from every
+ * THE SPELL BOOK OF ABSOLUTE DOMINATION — the mage's ultimate weapon, bound on the Worldforge from every
  * staff and spellbook. Its six spells of six powers are all cast from afar, through the targeting map, and each one
  * remakes the world where it falls (see {@link com.fantasyweapons.world.wreck.WorldWreck}).
  * <pre>

@@ -66,7 +66,7 @@ public final class Weapons {
         add(LumenPsalter.create());
         add(Gloamreach.create());
         add(UmbralCodex.create());
-        // the two ultimate weapons, forged from all twenty-five on the Altar of Annihilation
+        // the two ultimate weapons, forged from all twenty-five on the Worldforge
         add(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.create());
         add(com.fantasyweapons.weapons.domination.SpellBookOfDomination.create());
     }

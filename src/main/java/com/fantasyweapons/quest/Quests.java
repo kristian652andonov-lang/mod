@@ -147,6 +147,42 @@ public final class Quests {
                 () -> stack(ModItems.WEAPONS.get("lumen_psalter").get(), 1));
         for (WeaponDefinition def : Weapons.focuses()) mage.collect(() -> ModItems.WEAPONS.get(def.id()).get(), 1, def.displayName());
         list.add(mage.reward(Items.NETHER_STAR, 1).reward(Items.ENCHANTED_GOLDEN_APPLE, 3).reward(Items.EXPERIENCE_BOTTLE, 64).xp(3000).build());
+        ultimates(list);
+    }
+
+    /** The Worldforge and the two ultimate weapons forged on it, and what they do to the world. */
+    private static void ultimates(List<Quest> list) {
+        String sword = com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID, book = com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID;
+        Supplier<ItemStack> forge = () -> stack(ModItems.WORLDFORGE.get(), 1);
+        QuestGroup group = new QuestGroup("ultimate_weapons", "The Ultimate Weapons", () -> stack(ModItems.WEAPONS.get(sword).get(), 1));
+        list.add(quest("raise_worldforge", Chapter.WEAPONS, "The Worldforge", "Raise the Worldforge: a Legendary Crafting Table on netherite, "
+                + "with nether stars, heavy cores and the Dragon's egg. It needs a clear space seven blocks every way.", forge)
+                .collect(() -> ModItems.WORLDFORGE.get(), 1, "Hold the Worldforge")
+                .reward(Items.NETHERITE_INGOT, 2).reward(Items.DIAMOND, 8).xp(2000).requires("trophy_table").group(group).build());
+        list.add(quest("first_rite", Chapter.WEAPONS, "The Rite Begins", "Lay a whole rite on the Worldforge's eleven-by-eleven grid, "
+                + "every legendary weapon among it, and begin the forging.", () -> stack(Items.NETHER_STAR, 1))
+                .count("worldforge", 1, "Begin a rite on the Worldforge", () -> stack(Items.NETHER_STAR, 1))
+                .reward(Items.ENCHANTED_GOLDEN_APPLE, 2).reward(Items.EXPERIENCE_BOTTLE, 32).xp(3000).requires("raise_worldforge").group(group).build());
+        list.add(quest("forge_" + sword, Chapter.WEAPONS, "Obliteration", "Forge the Great Sword of Obliteration, the end of all things.",
+                () -> stack(ModItems.WEAPONS.get(sword).get(), 1))
+                .collect(() -> ModItems.WEAPONS.get(sword).get(), 1, "Hold the Great Sword of Obliteration")
+                .reward(Items.NETHER_STAR, 2).reward(Items.ENCHANTED_GOLDEN_APPLE, 4).xp(10000).requires("first_rite").group(group).build());
+        list.add(quest("forge_" + book, Chapter.WEAPONS, "Absolute Domination", "Bind the Spell Book of Absolute Domination, the last word.",
+                () -> stack(ModItems.WEAPONS.get(book).get(), 1))
+                .collect(() -> ModItems.WEAPONS.get(book).get(), 1, "Hold the Spell Book of Absolute Domination")
+                .reward(Items.NETHER_STAR, 2).reward(Items.ENCHANTED_GOLDEN_APPLE, 4).xp(10000).requires("first_rite").group(group).build());
+        list.add(quest("world_ender", Chapter.WEAPONS, "World Ender", "Unleash one of the powers of an ultimate weapon, and watch the land break.",
+                () -> stack(Items.TNT, 1))
+                .count("apocalyptic", 1, "Unleash a power of an ultimate weapon", () -> stack(Items.TNT, 1))
+                .reward(Items.TOTEM_OF_UNDYING, 2).reward(Items.NETHERITE_INGOT, 2).xp(4000).requires("first_rite").group(group).build());
+        list.add(quest("dominion_sight", Chapter.WEAPONS, "Dominion Sight", "Open the targeting map and bring a power down on a place far from where you stand.",
+                () -> stack(Items.FILLED_MAP, 1))
+                .count("from_afar", 1, "Cast a power through the targeting map", () -> stack(Items.FILLED_MAP, 1))
+                .reward(Items.ENDER_EYE, 8).reward(Items.DIAMOND, 6).xp(3000).requires("world_ender").group(group).build());
+        list.add(quest("end_of_days", Chapter.WEAPONS, "The End of Days", "Unleash the powers of the ultimate weapons twelve times.",
+                () -> stack(Items.WITHER_SKELETON_SKULL, 1))
+                .count("apocalyptic", 12, "Unleash 12 powers of the ultimate weapons", () -> stack(Items.TNT, 1))
+                .reward(Items.NETHER_STAR, 3).reward(Items.NETHERITE_BLOCK, 1).xp(15000).requires("world_ender").group(group).build());
     }
 
     private static void armor(List<Quest> list) {

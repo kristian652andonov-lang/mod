@@ -12,7 +12,10 @@ public final class ModTriggers {
 
     /** A legendary weapon's level, kills or boss kills changed (by weapon id). */
     public static final DeferredHolder<CriterionTrigger<?>, WeaponMilestoneTrigger> WEAPON_MILESTONE = REGISTER.register("weapon_milestone", WeaponMilestoneTrigger::new);
-    /** An ability was cast (by kind: "active" or "ultimate"). */
+    /**
+     * An ability was cast (by kind: "active" or "ultimate"; also "apocalyptic" for a power of an ultimate weapon, and
+     * "from_afar" for one cast through the targeting map).
+     */
     public static final DeferredHolder<CriterionTrigger<?>, NamedTrigger> ABILITY_CAST = REGISTER.register("ability_cast", NamedTrigger::new);
     /** A full armor set is worn (by set id). */
     public static final DeferredHolder<CriterionTrigger<?>, NamedTrigger> FULL_SET = REGISTER.register("full_set", NamedTrigger::new);

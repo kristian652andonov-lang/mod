@@ -96,6 +96,10 @@ public final class AbilityService {
         double y = Math.max(player.serverLevel().getMinBuildHeight(), Math.min(player.serverLevel().getMaxBuildHeight(), target.y));
         boolean ok = execute(player, stack, def, FantasyWeaponItem.data(stack), ability, 1f, new net.minecraft.world.phys.Vec3(target.x, y, target.z));
         com.fantasyweapons.armor.SetAbilities.afterCast(player, ok, true);
+        if (ok) {
+            com.fantasyweapons.advancement.ModTriggers.ABILITY_CAST.get().trigger(player, "from_afar");
+            com.fantasyweapons.quest.QuestService.event(player, "from_afar");
+        }
     }
 
     public static void handleCycle(ServerPlayer player, int direction) {
@@ -354,6 +358,11 @@ public final class AbilityService {
                     ability.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE ? "ultimate" : "active");
             com.fantasyweapons.quest.QuestService.event(player, "ability");
             if (ability.kind() == com.fantasyweapons.ability.AbilityKind.ULTIMATE) com.fantasyweapons.quest.QuestService.event(player, "ultimate");
+            if (def.rarity().ultimate()) {
+                // a power of one of the two ultimate weapons
+                com.fantasyweapons.advancement.ModTriggers.ABILITY_CAST.get().trigger(player, "apocalyptic");
+                com.fantasyweapons.quest.QuestService.event(player, "apocalyptic");
+            }
             WeaponAnimations.trigger(player, stack, FantasyWeaponItem.castTrigger(ability, def.form(data)));
         } else {
             com.fantasyweapons.combat.ImpactHits.disarm(player);
