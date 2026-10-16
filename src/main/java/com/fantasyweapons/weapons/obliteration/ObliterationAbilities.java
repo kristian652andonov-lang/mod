@@ -102,7 +102,72 @@ public final class ObliterationAbilities {
     // ------------------------------------------------------------------------------------------------------------
 
     public static boolean fourthDimension(AbilityContext ctx) {
-        throw AbilityContext.fail("4th Dimension Ascension is still being forged");
+        Vec3 at = Cataclysm.landing(ctx, 512);
+        double radius = WorldWreck.radius(ctx.param("radius"));
+        int delay = Math.max(20, (int) Math.round(ctx.param("delay") * 20));
+        long seed = Kit.seed(ctx.level());
+        var level = ctx.level();
+        int minY = level.getMinBuildHeight(), height = level.getHeight();
+        var plan = new com.fantasyweapons.weapons.ultimate.ShufflePlan(at, radius, seed, minY, height);
+        // the region is loaded now so every chunk can be read at the same instant when space breaks
+        for (var m : plan.moves()) WorldWreck.hold(level, m.dest().x, m.dest().z);
+        Cataclysm.fx(level, ctx.player(), FxPayload.of(FxIds.FOURTH_DIMENSION).caster(ctx.player().getId()).pos(at).scale((float) radius)
+                .power(delay).level(minY).entities(java.util.List.of(height)).seed(seed).build());
+        AreaEffectManager.add(new FourthDimension(ctx, at, radius, delay, plan, seed));
+        Kit.active(ctx, 30);
+        return true;
+    }
+
+    /**
+     * Space over the region is lifted out of its three dimensions: everything in it floats as the tesseract forms, then
+     * every chunk is read at once and rewritten from another, shuffled, turned and tipped, and what was inside dies.
+     */
+    private static final class FourthDimension extends AreaEffect {
+        private final double radius;
+        private final int delay;
+        private final com.fantasyweapons.weapons.ultimate.ShufflePlan plan;
+        private final java.util.List<net.minecraft.world.level.ChunkPos> region;
+        private final long seed;
+        private final float damage;
+
+        FourthDimension(AbilityContext ctx, Vec3 at, double radius, int delay, com.fantasyweapons.weapons.ultimate.ShufflePlan plan, long seed) {
+            super(ctx.level(), ctx.player(), ctx.data().idOrNil(), at, delay + 40);
+            this.radius = radius;
+            this.delay = delay;
+            this.plan = plan;
+            this.region = plan.moves().stream().map(com.fantasyweapons.weapons.ultimate.ShufflePlan.Move::dest).toList();
+            this.seed = seed;
+            this.damage = ctx.damage();
+        }
+
+        private java.util.List<LivingEntity> inside(ServerPlayer owner) {
+            return Cataclysm.victims(level, owner, pos, radius * 1.3).stream()
+                    .filter(e -> com.fantasyweapons.weapons.ultimate.ShufflePlan.inside(region, e.getX(), e.getZ())).toList();
+        }
+
+        @Override
+        protected void tick(ServerPlayer owner) {
+            if (age < delay && age % 10 == 0) {
+                for (LivingEntity e : inside(owner)) e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.LEVITATION, 14, 0, false, false));
+            }
+            if (age == delay) shatter(owner);
+            if (age == delay + 14) {
+                for (LivingEntity e : inside(owner)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.VOID);
+            }
+        }
+
+        private void shatter(ServerPlayer owner) {
+            // every chunk is read before any is written, so each can be refilled from any other
+            java.util.Map<Long, net.minecraft.world.level.chunk.PalettedContainer<net.minecraft.world.level.block.state.BlockState>[]> snaps = new java.util.HashMap<>();
+            for (var m : plan.moves()) {
+                var chunk = level.getChunkSource().getChunkNow(m.dest().x, m.dest().z);
+                if (chunk != null) snaps.put(m.dest().toLong(), com.fantasyweapons.world.wreck.WreckChunk.snapshot(chunk));
+            }
+            for (var m : plan.moves()) WorldWreck.submit(level, m.dest().x, m.dest().z, m.lag(), seed, WreckShapes.shuffle(m, snaps));
+            for (LivingEntity e : inside(owner)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.VOID);
+            Cataclysm.frames(level, owner, pos, radius * 3, true);
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 40f, 0.4f);
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------

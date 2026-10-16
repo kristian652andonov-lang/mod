@@ -604,4 +604,32 @@ public final class WreckShapes {
             for (ChunkShaper s : shapers) s.shape(c);
         };
     }
+
+    /**
+     * A chunk refilled from another one's snapshot as a {@link com.fantasyweapons.weapons.ultimate.ShufflePlan} says:
+     * turned, hung upside down, shifted and tumbled, from the bottom of the world to the sky. Unbreakable blocks stay
+     * where they are and are not carried; nor are block entities. A source that could not be snapshotted is replaced by
+     * the chunk's own blocks.
+     */
+    public static ChunkShaper shuffle(com.fantasyweapons.weapons.ultimate.ShufflePlan.Move m,
+                                      java.util.Map<Long, net.minecraft.world.level.chunk.PalettedContainer<BlockState>[]> snaps) {
+        return c -> {
+            var self = snaps.computeIfAbsent(m.dest().toLong(), k -> c.snapshot());
+            var src = snaps.getOrDefault(m.source().toLong(), self);
+            int height = c.maxY() - c.minY();
+            int[] at = new int[3];
+            for (int h = 0; h < height; h++) {
+                for (int x = 0; x < 16; x++) {
+                    for (int z = 0; z < 16; z++) {
+                        BlockState s = AIR;
+                        if (com.fantasyweapons.weapons.ultimate.ShufflePlan.source(m, x, h, z, height, at)) {
+                            s = src[at[1] >> 4].get(at[0], at[1] & 15, at[2]);
+                            if (WreckChunk.unbreakable(s) || s.hasBlockEntity()) s = AIR;
+                        }
+                        c.set(c.minX() + x, c.minY() + h, c.minZ() + z, s);
+                    }
+                }
+            }
+        };
+    }
 }

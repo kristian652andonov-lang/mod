@@ -251,4 +251,6 @@ public final class FxIds {
     public static final ResourceLocation THORNSPIRE = FantasyWeapons.id("obliteration/thornspire");
     /** The Arch Dragon of Hell: pos = target, points = (caster, rift), scale = length, power = radius, level = flight ticks. */
     public static final ResourceLocation ARCH_DRAGON = FantasyWeapons.id("obliteration/arch_dragon");
+    /** 4th Dimension Ascension: pos = target, scale = radius, power = delay ticks, level = the level's bottom, entities = [height]. */
+    public static final ResourceLocation FOURTH_DIMENSION = FantasyWeapons.id("obliteration/fourth_dimension");
 }

@@ -36,6 +36,7 @@ public final class UltimateFx {
         FxDispatcher.register(FxIds.ICE_RAIN, UltimateFx::iceRain);
         FxDispatcher.register(FxIds.THORNSPIRE, UltimateFx::thornspire);
         FxDispatcher.register(FxIds.ARCH_DRAGON, UltimateFx::archDragon);
+        FxDispatcher.register(FxIds.FOURTH_DIMENSION, UltimateFx::fourthDimension);
         FxDispatcher.register(FxIds.GREAT_SLASH_CUT, p -> VfxManager.add(new GreatSlashVfx.Cut(p.pos(), p.dir(), p.scale())));
     }
 
@@ -404,5 +405,32 @@ public final class UltimateFx {
                 if (when % 18 == 0) sound(SoundEvents.GENERIC_EXPLODE, 0.45f, 0.4f);
             });
         }
+    }
+
+    private static void fourthDimension(FxPayload p) {
+        Vec3 at = p.pos();
+        float radius = p.scale();
+        int delay = Math.max(20, (int) p.power());
+        int minY = p.level(), height = p.entities().length > 0 ? p.entities()[0] : 384;
+        var plan = new com.fantasyweapons.weapons.ultimate.ShufflePlan(at, radius, p.seed(), minY, height);
+        BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
+        VfxManager.add(new FourthDimensionVfx(at, radius, delay, plan, minY, p.seed()).lifting(debris));
+        sound(SoundEvents.BEACON_ACTIVATE, 1f, 0.5f);
+        sound(SoundEvents.PORTAL_TRIGGER, 0.5f, 0.5f);
+        for (int k = 10; k < delay; k += 10) {
+            int when = k;
+            FxScheduler.after(when, () -> {
+                CameraShake.add(at, 0.4f + 1.2f * when / delay, radius * 4);
+                sound(SoundEvents.AMETHYST_BLOCK_RESONATE, 1f, 0.5f + when / (float) delay);
+            });
+        }
+        FxScheduler.after(delay, () -> {
+            ScreenFx.flash(0xF0E0FF, 0.8f, 10);
+            CameraShake.add(at, 3f, radius * 5);
+            sound(SoundEvents.END_PORTAL_SPAWN, 1f, 0.6f);
+            sound(SoundEvents.WARDEN_SONIC_BOOM, 1f, 0.4f);
+            sound(SoundEvents.GLASS_BREAK, 1f, 0.3f);
+        });
+        for (int k = 3; k < 24; k += 3) FxScheduler.after(delay + k, () -> sound(SoundEvents.GLASS_BREAK, 0.6f, 0.4f + (float) Math.random() * 0.4f));
     }
 }

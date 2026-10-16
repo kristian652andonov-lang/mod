@@ -69,6 +69,13 @@ public final class WorldWreck {
         QUEUE.add(new Task(level.dimension(), cx, cz, clock + Math.max(0, delay), order++, seed, shaper, 0));
     }
 
+    /** Keeps a chunk loaded (and loads it) for the next 20 seconds, so a job due later finds it ready. */
+    public static void hold(ServerLevel level, int cx, int cz) {
+        if (!enabled() || !ServerConfig.DESTRUCTION_LOADS_CHUNKS.getOrDefault()) return;
+        ChunkPos pos = new ChunkPos(cx, cz);
+        level.getChunkSource().addRegionTicket(TICKET, pos, 0, pos);
+    }
+
     /** Delay of a chunk from the distance (in blocks) of its centre to the centre of the job. */
     @FunctionalInterface
     public interface Delay {

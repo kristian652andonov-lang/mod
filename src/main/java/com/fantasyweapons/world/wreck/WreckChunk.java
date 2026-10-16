@@ -139,6 +139,19 @@ public final class WreckChunk {
         return state.getBlock().defaultDestroyTime() < 0;
     }
 
+    /** A copy of every section's blocks as they are now, for shapers that move blocks from one chunk to another. */
+    public net.minecraft.world.level.chunk.PalettedContainer<BlockState>[] snapshot() {
+        return snapshot(chunk);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static net.minecraft.world.level.chunk.PalettedContainer<BlockState>[] snapshot(LevelChunk chunk) {
+        LevelChunkSection[] secs = chunk.getSections();
+        net.minecraft.world.level.chunk.PalettedContainer<BlockState>[] out = new net.minecraft.world.level.chunk.PalettedContainer[secs.length];
+        for (int i = 0; i < secs.length; i++) out[i] = secs[i].getStates().copy();
+        return out;
+    }
+
     public int changed() {
         return changed;
     }
