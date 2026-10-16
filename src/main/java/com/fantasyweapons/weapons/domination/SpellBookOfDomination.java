@@ -43,6 +43,7 @@ public final class SpellBookOfDomination {
                         "the Codex of Endings")
                 .element(Element.DOMINION)
                 .rarity(Rarity.APOCALYPTIC)
+                .geo("codex_omega")
                 .type(WeaponClass.TOME)
                 .damage(18f, 1.8f)
                 .crit(0.15f, 2.2f)

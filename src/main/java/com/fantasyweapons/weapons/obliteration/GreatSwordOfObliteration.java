@@ -43,6 +43,7 @@ public final class GreatSwordOfObliteration {
                         "the Last Page of the World")
                 .element(Element.OBLITERATION)
                 .rarity(Rarity.APOCALYPTIC)
+                .geo("worldreaver")
                 .type(WeaponClass.GREATSWORD)
                 .damage(36f, 2.6f)
                 .crit(0.15f, 2.4f)

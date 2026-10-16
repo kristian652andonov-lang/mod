@@ -109,7 +109,13 @@ final class DevScripts {
                 else if (name.startsWith("local:")) local(b, name.substring(6));
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
                 else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
-                else if (name.startsWith("holds:")) holds(b, java.util.Arrays.stream(name.substring(6).split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
+                else if (name.startsWith("holds:")) {
+                    // "holds:terrain,a,b" films them on the ground of the fwterrain world
+                    String spec = name.substring(6);
+                    holdsOnTerrain = spec.startsWith("terrain,");
+                    if (holdsOnTerrain) spec = spec.substring(8);
+                    holds(b, java.util.Arrays.stream(spec.split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
+                }
                 else if (name.startsWith("abilities:")) {
                     for (String k : name.substring(10).split(",")) single(b.cmd("/clear @s").cmd("/kill @e[type=!player]").wait(10), k);
                 }
@@ -595,7 +601,12 @@ final class DevScripts {
         }
     }
 
+    private static boolean holdsOnTerrain;
+
     private static void holds(ScreenshotDirector.Builder b, java.util.List<com.fantasyweapons.weapon.WeaponDefinition> all) {
+        b.wait(40).cmd("/fw class set mage").closeScreen().wait(5).closeScreen().cmd("/gamemode creative")
+                .cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/clear @s");
+        if (holdsOnTerrain) b.cmd("/tp @s 30.5 200 -230.5 0 0").wait(200);
         for (var def : all) b.cmd("/fw give " + def.id() + " 1");
         b.wait(20).look(0, 0);
         for (int i = 0; i < all.size(); i++) {

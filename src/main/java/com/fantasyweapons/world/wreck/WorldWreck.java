@@ -58,6 +58,14 @@ public final class WorldWreck {
         return ServerConfig.DESTRUCTION.getOrDefault();
     }
 
+    /**
+     * The GameTest server runs many tests side by side in one world: there the abilities' destruction would tear up the
+     * other tests' arenas, so it is left out (shapers are tested directly through {@link #rewrite}).
+     */
+    private static boolean testServer(ServerLevel level) {
+        return level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer;
+    }
+
     /** A destruction radius scaled by the server's {@code destruction.radius_scale}. */
     public static double radius(double radius) {
         return radius * ServerConfig.DESTRUCTION_RADIUS_SCALE.getOrDefault();
@@ -65,13 +73,13 @@ public final class WorldWreck {
 
     /** Rewrites the chunk at chunk coordinates {@code (cx, cz)} after {@code delay} ticks. Does nothing when destruction is off. */
     public static void submit(ServerLevel level, int cx, int cz, int delay, long seed, ChunkShaper shaper) {
-        if (!enabled()) return;
+        if (!enabled() || testServer(level)) return;
         QUEUE.add(new Task(level.dimension(), cx, cz, clock + Math.max(0, delay), order++, seed, shaper, 0));
     }
 
     /** Keeps a chunk loaded (and loads it) for the next 20 seconds, so a job due later finds it ready. */
     public static void hold(ServerLevel level, int cx, int cz) {
-        if (!enabled() || !ServerConfig.DESTRUCTION_LOADS_CHUNKS.getOrDefault()) return;
+        if (!enabled() || testServer(level) || !ServerConfig.DESTRUCTION_LOADS_CHUNKS.getOrDefault()) return;
         ChunkPos pos = new ChunkPos(cx, cz);
         level.getChunkSource().addRegionTicket(TICKET, pos, 0, pos);
     }

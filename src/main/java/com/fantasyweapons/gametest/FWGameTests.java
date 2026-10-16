@@ -472,7 +472,9 @@ public final class FWGameTests {
         for (WeaponDefinition def : Weapons.all()) {
             for (AbilityDefinition a : def.castables()) {
                 String name = "ability_" + def.id() + "_" + a.id();
-                tests.add(new TestFunction("abilities", name, FantasyWeapons.MOD_ID + ":" + ARENA, 240, 0, true, h -> abilityTest(h, def, a)));
+                // an ultimate weapon's ability reaches hundreds of blocks: it runs alone, or it would hit the other tests
+                String batch = def.rarity().ultimate() ? "ultimate_" + a.id() : "abilities";
+                tests.add(new TestFunction(batch, name, FantasyWeapons.MOD_ID + ":" + ARENA, def.rarity().ultimate() ? 600 : 240, 0, true, h -> abilityTest(h, def, a)));
             }
         }
         return tests;
@@ -508,6 +510,9 @@ public final class FWGameTests {
         com.fantasyweapons.network.Fx.recorder = fx -> RECORDED.computeIfAbsent(fx.caster(), k -> java.util.Collections.synchronizedList(new java.util.ArrayList<>())).add(fx);
         java.util.List<TestFunction> tests = new java.util.ArrayList<>();
         for (WeaponDefinition def : Weapons.all()) {
+            // the ultimate weapons' cataclysms are cast at a target on the map or fill the sky by design (and reach the
+            // neighbouring tests); their grounding is the landing point, checked by their ability tests
+            if (def.rarity().ultimate()) continue;
             for (AbilityDefinition a : def.castables()) {
                 for (String scenario : new String[]{"air", "airdown", "skyward"}) {
                     tests.add(new TestFunction("midair", "midair_" + def.id() + "_" + a.id() + "_" + scenario, FantasyWeapons.MOD_ID + ":" + ARENA, 200, 0,
@@ -587,8 +592,14 @@ public final class FWGameTests {
         }
         stack.set(ModComponents.WEAPON_DATA.get(), d.withSelected(a.id()));
         UUID id = d.idOrNil();
-        java.util.List<Husk> dummies = java.util.List.of(dummy(h, new BlockPos(12, 2, 9), 2000f), dummy(h, new BlockPos(13, 2, 11), 2000f),
-                dummy(h, new BlockPos(10, 2, 7), 2000f));
+        java.util.List<Husk> dummies = new java.util.ArrayList<>(java.util.List.of(dummy(h, new BlockPos(12, 2, 9), 2000f), dummy(h, new BlockPos(13, 2, 11), 2000f),
+                dummy(h, new BlockPos(10, 2, 7), 2000f)));
+        if (def.rarity().ultimate()) {
+            // the cataclysms spare the ground right around the caster: some dummies stand further out
+            dummies.add(dummy(h, new BlockPos(12, 2, 26), 2000f));
+            dummies.add(dummy(h, new BlockPos(18, 2, 34), 2000f));
+            dummies.add(dummy(h, new BlockPos(6, 2, 42), 2000f));
+        }
         // look at the first dummy's chest
         Vec3 eye = p.getEyePosition();
         Vec3 to = dummies.get(0).getBoundingBox().getCenter().subtract(eye);
