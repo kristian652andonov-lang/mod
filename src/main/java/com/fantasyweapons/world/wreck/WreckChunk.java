@@ -172,7 +172,9 @@ public final class WreckChunk {
     }
 
     public static boolean unbreakable(BlockState state) {
-        return state.getBlock().defaultDestroyTime() < 0;
+        // the Worldforge outlasts the end of the world (and is never left half standing)
+        return state.getBlock().defaultDestroyTime() < 0 || state.getBlock() instanceof com.fantasyweapons.forge.WorldforgeBlock
+                || state.getBlock() instanceof com.fantasyweapons.forge.WorldforgePartBlock;
     }
 
     /** A copy of every section's blocks as they are now, for shapers that move blocks from one chunk to another. */

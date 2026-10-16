@@ -304,8 +304,10 @@ public class WorldforgeMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
+        // the forge is 21 blocks across: it can be used from anywhere on it or just beside it
+        double reach = WorldforgeBlock.REACH + 8;
         return access.evaluate((level, pos) -> level.getBlockState(pos).is(ModBlocks.WORLDFORGE.get())
-                && player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5) <= 12 * 12, true);
+                && player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 6, pos.getZ() + 0.5) <= reach * reach, true);
     }
 
     @Override

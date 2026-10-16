@@ -45,13 +45,13 @@ public final class ModBlocks {
             () -> new MachinePartBlock(tableProperties().noLootTable().lightLevel(s -> 3), ModBlocks.LEGENDARY_CRAFTING_TABLE));
 
     /**
-     * The Worldforge, seven blocks every way, where the ultimate weapons are forged: as hard to break as obsidian and nearly
+     * The Worldforge, 21 blocks wide and deep and 22 high, where the ultimate weapons are forged: as hard to break as obsidian and nearly
      * as blast-proof, lit by its own pylons (blazing while it forges).
      */
     public static final DeferredBlock<com.fantasyweapons.forge.WorldforgeBlock> WORLDFORGE = REGISTER.register("worldforge",
             () -> new com.fantasyweapons.forge.WorldforgeBlock(worldforgeProperties().lightLevel(s -> s.getValue(com.fantasyweapons.forge.WorldforgeBlock.CRAFTING) ? 15 : 9)));
     public static final DeferredBlock<com.fantasyweapons.forge.WorldforgePartBlock> WORLDFORGE_PART = REGISTER.register("worldforge_part",
-            () -> new com.fantasyweapons.forge.WorldforgePartBlock(worldforgeProperties().noLootTable().lightLevel(s -> 4)));
+            () -> new com.fantasyweapons.forge.WorldforgePartBlock(worldforgeProperties().noLootTable().lightLevel(s -> com.fantasyweapons.forge.WorldforgePartBlock.solid(s) ? 2 : 0)));
 
     static {
         // it was a plain block called the Legendary Forge before it had its model

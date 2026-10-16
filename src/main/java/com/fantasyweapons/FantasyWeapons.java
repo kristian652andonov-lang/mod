@@ -54,6 +54,8 @@ public final class FantasyWeapons {
             if (e.getConfig().getSpec() == ServerConfig.SPEC) ServerConfig.migrate();
         });
 
+        // the Worldforge's block shapes are worked out from its model in the background, ready before the first one is placed
+        modBus.addListener((net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent e) -> com.fantasyweapons.forge.WorldforgeBlock.warmUp());
         modBus.addListener(FWNetwork::register);
         modBus.addListener(com.fantasyweapons.datagen.FWDataGen::gather);
         ModEvents.register(NeoForge.EVENT_BUS);

@@ -1,63 +1,6 @@
 {
   "variants": {
-    "facing=east,part=left": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=east,part=right": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=east,part=top": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=east,part=top_left": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=east,part=top_right": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=north,part=left": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=north,part=right": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=north,part=top": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=north,part=top_left": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=north,part=top_right": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=south,part=left": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=south,part=right": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=south,part=top": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=south,part=top_left": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=south,part=top_right": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=west,part=left": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=west,part=right": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=west,part=top": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=west,part=top_left": {
-      "model": "fantasyweapons:block/legendary_crafting_table"
-    },
-    "facing=west,part=top_right": {
+    "": {
       "model": "fantasyweapons:block/legendary_crafting_table"
     }
   }

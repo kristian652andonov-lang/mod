@@ -156,7 +156,7 @@ public final class Quests {
         Supplier<ItemStack> forge = () -> stack(ModItems.WORLDFORGE.get(), 1);
         QuestGroup group = new QuestGroup("ultimate_weapons", "The Ultimate Weapons", () -> stack(ModItems.WEAPONS.get(sword).get(), 1));
         list.add(quest("raise_worldforge", Chapter.WEAPONS, "The Worldforge", "Raise the Worldforge: a Legendary Crafting Table on netherite, "
-                + "with nether stars, heavy cores and the Dragon's egg. It needs a clear space seven blocks every way.", forge)
+                + "with nether stars, heavy cores and the Dragon's egg. It needs a clear space 21 blocks wide and deep and 22 high, and rises in front of you.", forge)
                 .collect(() -> ModItems.WORLDFORGE.get(), 1, "Hold the Worldforge")
                 .reward(Items.NETHERITE_INGOT, 2).reward(Items.DIAMOND, 8).xp(2000).requires("trophy_table").group(group).build());
         list.add(quest("first_rite", Chapter.WEAPONS, "The Rite Begins", "Lay a whole rite on the Worldforge's eleven-by-eleven grid, "

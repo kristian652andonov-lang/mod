@@ -31,8 +31,8 @@ public class FWBlockStates extends BlockStateProvider {
 
     private void machine(net.minecraft.world.level.block.Block core, net.minecraft.world.level.block.Block part, String name) {
         ModelFile model = models().getBuilder(name).texture("particle", modLoc("block/" + name));
-        for (var block : new net.minecraft.world.level.block.Block[]{core, part}) {
-            getVariantBuilder(block).forAllStates(s -> net.neoforged.neoforge.client.model.generators.ConfiguredModel.builder().modelFile(model).build());
-        }
+        getVariantBuilder(core).forAllStates(s -> net.neoforged.neoforge.client.model.generators.ConfiguredModel.builder().modelFile(model).build());
+        // the parts are invisible: one model for every state
+        getVariantBuilder(part).partialState().setModels(new net.neoforged.neoforge.client.model.generators.ConfiguredModel(model));
     }
 }

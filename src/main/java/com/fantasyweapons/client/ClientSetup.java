@@ -71,6 +71,7 @@ public final class ClientSetup {
             e.registerReloadListener((net.minecraft.server.packs.resources.ResourceManagerReloadListener) rm -> {
                 com.fantasyweapons.client.fx.ImpactFrames.reset();
                 com.fantasyweapons.client.fx.BlockVoxels.reset();
+                com.fantasyweapons.client.fx.ultimate.Worldburner.reset();
             });
         });
         modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers e) -> {

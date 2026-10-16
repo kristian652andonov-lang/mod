@@ -26,83 +26,148 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
-/** The Worldforge: placed whole in a clear 7x7x7 space, shaped like its model, taken apart whole, and forging its rites. */
+/** The Worldforge: placed whole in a clear 21x22x21 space, shaped like its model, taken apart whole, and forging its rites. */
 @GameTestHolder(FantasyWeapons.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class WorldforgeGameTests {
     private static final String ARENA = "arena";
-    private static final BlockPos CORE = new BlockPos(12, 1, 12);
+    private static final BlockPos CORE = new BlockPos(11, 1, 11);
 
     private WorldforgeGameTests() {
     }
 
+    /** Places the forge with its core at {@code rel}: the player chooses the foot of its stairs, in front of them. */
     private static BlockPos place(GameTestHelper h, Player player, BlockPos rel) {
         ItemStack stack = new ItemStack(ModItems.WORLDFORGE.get());
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
         BlockPos at = h.absolutePos(rel);
+        // the top of the floor where the stairs will start, as a player clicks it (laid there: the arena may be turned,
+        // and the foot of the stairs is at its very edge)
+        BlockPos floor = at.relative(player.getDirection().getOpposite(), WorldforgeBlock.REACH + 1).below();
+        h.getLevel().setBlock(floor, Blocks.SMOOTH_STONE.defaultBlockState(), 3);
+        h.getLevel().setBlock(floor.above(), Blocks.AIR.defaultBlockState(), 3);
         ModItems.WORLDFORGE.get().place(new BlockPlaceContext(h.getLevel(), player, InteractionHand.MAIN_HAND, stack,
-                new BlockHitResult(Vec3.atCenterOf(at), Direction.UP, at, false)));
+                new BlockHitResult(Vec3.atCenterOf(floor).add(0, 0.5, 0), Direction.UP, floor, false)));
         return at;
     }
 
-    /** Placing it fills its whole 7x7x7 space (the core in the middle of the bottom), facing the player; there must be room. */
+    /** Placing it fills its whole 21x22x21 space (the core in the middle of the bottom), facing the player; there must be room. */
     @GameTest(template = ARENA, batch = "worldforge")
     public static void placingFillsItsSpace(GameTestHelper h) {
         clear(h);
         Player player = h.makeMockPlayer(GameType.SURVIVAL);
         player.setYRot(180);
-        player.moveTo(h.absoluteVec(new Vec3(12.5, 1, 20.5)));
+        player.moveTo(h.absoluteVec(new Vec3(11.5, 1, 22.5)));
+        for (BlockPos p : WorldforgeBlock.space(h.absolutePos(CORE))) {
+            if (!h.getLevel().getBlockState(p).isAir()) {
+                h.fail("the space is not clear: " + h.getLevel().getBlockState(p) + " at " + h.relativePos(p));
+                return;
+            }
+        }
+        var inWay = h.getLevel().getEntities((net.minecraft.world.entity.Entity) null, new AABB(h.absolutePos(CORE)).inflate(11, 0, 11).expandTowards(0, 22, 0),
+                e -> e instanceof net.minecraft.world.entity.LivingEntity);
+        if (!inWay.isEmpty()) {
+            h.fail("in the way: " + inWay);
+            return;
+        }
         BlockPos at = place(h, player, CORE);
         var core = h.getLevel().getBlockState(at);
         if (!core.is(ModBlocks.WORLDFORGE.get())) {
-            h.fail("placed " + core);
+            BlockPos found = null;
+            for (BlockPos p : BlockPos.betweenClosed(at.offset(-12, -2, -12), at.offset(12, 3, 12))) {
+                if (h.getLevel().getBlockState(p).is(ModBlocks.WORLDFORGE.get())) {
+                    found = h.relativePos(p.immutable());
+                    break;
+                }
+            }
+            h.fail("placed " + core + " (player at " + h.relativeVec(player.position()) + " facing " + player.getDirection() + ", the core is at " + found
+                    + ", floor " + h.getLevel().getBlockState(at.relative(player.getDirection().getOpposite(), WorldforgeBlock.REACH + 1).below()) + ")");
             return;
         }
         if (core.getValue(WorldforgeBlock.FACING) != Direction.SOUTH) h.fail("faces " + core.getValue(WorldforgeBlock.FACING));
-        int parts = 0;
+        int parts = 0, solid = 0;
         for (BlockPos p : WorldforgeBlock.space(at)) {
             var s = h.getLevel().getBlockState(p);
             if (s.is(ModBlocks.WORLDFORGE_PART.get())) {
                 parts++;
-                if (!ModBlocks.WORLDFORGE_PART.get().core(s, p).equals(at)) h.fail("a part at " + p + " points at " + ModBlocks.WORLDFORGE_PART.get().core(s, p));
+                if (com.fantasyweapons.forge.WorldforgePartBlock.solid(s)) solid++;
             }
         }
-        if (parts != 7 * 7 * 7 - 1) h.fail(parts + " parts");
+        int side = WorldforgeBlock.SIDE;
+        if (parts != side * side * WorldforgeBlock.LAYERS - 1) h.fail(parts + " parts");
+        if (solid < 1000) h.fail("only " + solid + " parts hold some of the model");
+        // a part finds its core, from anywhere in the space
+        for (BlockPos rel : new BlockPos[]{new BlockPos(-10, 0, -10), new BlockPos(9, 20, 4), new BlockPos(0, 5, -7)}) {
+            BlockPos found = WorldforgeBlock.findCore(h.getLevel(), at.offset(rel));
+            if (!at.equals(found)) h.fail("the part at " + rel + " finds its core at " + found);
+        }
         if (!(h.getLevel().getBlockEntity(at) instanceof WorldforgeBlockEntity)) h.fail("no block entity");
         // a block in the way: it is not placed
         clear(h);
-        h.setBlock(CORE.offset(2, 5, -3), Blocks.STONE);
+        h.setBlock(CORE.offset(9, 20, -9), Blocks.STONE);
         BlockPos at2 = place(h, player, CORE);
         if (h.getLevel().getBlockState(at2).is(ModBlocks.WORLDFORGE.get())) h.fail("placed without room");
+        h.setBlock(CORE.offset(9, 20, -9), Blocks.AIR);
         h.succeed();
     }
 
-    /** Its tiers can be stood on (solid at the floor all round the edge), the air between its pylons high up is empty. */
+    /**
+     * Its base is solid all round; the air high over its stairs is empty; every block's shape stays inside the block; and
+     * each of its four stairs can be walked up from the ground to the altar, no step higher than a player steps.
+     */
     @GameTest(template = ARENA, batch = "worldforge")
     public static void itIsShapedLikeItsModel(GameTestHelper h) {
+        int r = WorldforgeBlock.REACH;
         for (Direction facing : Direction.Plane.HORIZONTAL) {
-            for (int d = -3; d <= 3; d++) {
-                if (WorldforgeBlock.shape(facing, d, 0, -3).isEmpty() || WorldforgeBlock.shape(facing, -3, 0, d).isEmpty()) {
-                    h.fail("the bottom tier is missing at the edge facing " + facing);
+            for (int d = -r; d <= r; d++) {
+                if (WorldforgeBlock.shape(facing, d, 0, -r).isEmpty() || WorldforgeBlock.shape(facing, -r, 0, d).isEmpty()) {
+                    h.fail("the base is missing at the edge facing " + facing + " (" + d + ")");
                 }
             }
-            // the three tiers rise in steps of a few pixels each, so the edge can be walked up
-            var low = WorldforgeBlock.shape(facing, 3, 0, 0).bounds();
-            if (low.maxY > 0.75) h.fail("the outer tiers reach " + low.maxY + " high facing " + facing + ", expected low steps: "
-                    + WorldforgeBlock.shape(facing, 3, 0, 0).toAabbs());
-            if (!WorldforgeBlock.shape(facing, 3, 5, 0).isEmpty()) h.fail("solid in the air at the edge, facing " + facing);
-            for (int dx = -3; dx <= 3; dx++) {
-                for (int dy = 0; dy < 7; dy++) {
-                    for (int dz = -3; dz <= 3; dz++) {
-                        AABB b = WorldforgeBlock.shape(facing, dx, dy, dz).isEmpty() ? null : WorldforgeBlock.shape(facing, dx, dy, dz).bounds();
+            if (!WorldforgeBlock.shape(facing, 0, 12, -r).isEmpty()) h.fail("solid in the air over the stairs, facing " + facing);
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dy = 0; dy < WorldforgeBlock.LAYERS; dy++) {
+                    for (int dz = -r; dz <= r; dz++) {
+                        var shape = WorldforgeBlock.shape(facing, dx, dy, dz);
+                        AABB b = shape.isEmpty() ? null : shape.bounds();
                         if (b != null && (b.minX < -1e-6 || b.maxX > 1 + 1e-6 || b.minY < -1e-6 || b.maxY > 1 + 1e-6 || b.minZ < -1e-6 || b.maxZ > 1 + 1e-6)) {
                             h.fail("cell " + dx + "," + dy + "," + dz + " reaches out of its block: " + b);
                         }
                     }
                 }
             }
+            // up each stair: from just outside the forge to the platform round the altar, every eighth of a block, a little off
+            // its middle (a channel of blood runs down the middle, too narrow to fall into)
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                double prev = 0;
+                Direction across = side.getClockWise();
+                for (double t = r + 1.4; t >= 2.2; t -= 0.125) {
+                    double x = 0.5 + side.getStepX() * t + across.getStepX() * 0.8, z = 0.5 + side.getStepZ() * t + across.getStepZ() * 0.8;
+                    double top = surface(facing, x, z);
+                    if (top - prev > 0.6 + 1e-6) {
+                        h.fail("facing " + facing + ", the " + side + " stair rises " + String.format("%.2f", top - prev) + " at " + String.format("%.2f", t)
+                                + " blocks from the core (" + String.format("%.2f", prev) + " to " + String.format("%.2f", top) + ")");
+                        break;
+                    }
+                    prev = top;
+                }
+            }
         }
+        if (WorldforgeBlock.shapeCount() > com.fantasyweapons.forge.WorldforgePartBlock.CAPACITY) h.fail(WorldforgeBlock.shapeCount() + " shapes");
         h.succeed();
+    }
+
+    /** The height of the forge's top surface (blocks over its bottom) at a point of its footprint, relative to the core's corner. */
+    private static double surface(Direction facing, double x, double z) {
+        int dx = (int) Math.floor(x), dz = (int) Math.floor(z);
+        double fx = x - dx, fz = z - dz, top = 0;
+        if (Math.abs(dx) > WorldforgeBlock.REACH || Math.abs(dz) > WorldforgeBlock.REACH) return 0;
+        for (int dy = 0; dy < WorldforgeBlock.LAYERS; dy++) {
+            for (AABB b : WorldforgeBlock.shape(facing, dx, dy, dz).toAabbs()) {
+                if (fx >= b.minX && fx <= b.maxX && fz >= b.minZ && fz <= b.maxZ) top = Math.max(top, dy + b.maxY);
+            }
+        }
+        return top;
     }
 
     /** Breaking any of it takes the whole forge down and drops it as one item, with what lay on its grid. */
@@ -155,7 +220,7 @@ public final class WorldforgeGameTests {
             }
         }
         clear(h);
-        ServerPlayer p = FWGameTests.player(h, new Vec3(12.5, 1, 20.5), 180);
+        ServerPlayer p = FWGameTests.player(h, new Vec3(11.5, 1, 22.5), 180);
         BlockPos at = place(h, p, CORE);
         if (!(h.getLevel().getBlockEntity(at) instanceof WorldforgeBlockEntity forge)) {
             h.fail("not placed");

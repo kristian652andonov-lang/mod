@@ -453,10 +453,8 @@ final class DevScripts {
             // watch it from somewhere else (the player is moved, so the terrain there is loaded and drawn)
             String[] v = parts[4].substring(3).split(",");
             String tp2 = "/tp @s " + v[0] + " " + v[1] + " " + v[2] + " " + v[3] + " " + v[4];
-            b.wait(2).cmd(tp2).wait(4).run(mc -> {
-                mc.player.getAbilities().flying = true;
-                mc.player.onUpdateAbilities();
-            }).cmd(tp2);
+            // as a spectator: it neither falls nor holds the weapon in view
+            b.wait(2).cmd("/gamemode spectator").cmd(tp2).wait(4).cmd(tp2);
         }
         int prev = 0;
         for (String t : times) {
@@ -482,7 +480,7 @@ final class DevScripts {
         b.wait(40).cmd("/fw class set berserker").closeScreen().wait(5).closeScreen().cmd("/gamemode creative").cmd("/time set 18000")
                 .cmd("/gamerule doDaylightCycle false").cmd("/clear @s")
                 .cmd("/tp @s 0.5 131 -137.5 180 8").wait(200)
-                .cmd("/fill -12 127 -164 12 142 -136 air").cmd("/fill -12 126 -164 12 126 -136 polished_blackstone_bricks")
+                .cmd("/fill -14 127 -164 14 151 -132 air").cmd("/fill -14 126 -164 14 126 -132 polished_blackstone_bricks")
                 .cmd("/tp @s 0.5 127 -137.5 180 6").wait(40).run(mc -> {
                     mc.player.getAbilities().flying = false;
                     mc.player.onUpdateAbilities();
@@ -493,22 +491,27 @@ final class DevScripts {
             srv.execute(() -> {
                 var sp = srv.getPlayerList().getPlayer(id);
                 var stack = new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.WORLDFORGE.get());
-                var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(core), net.minecraft.core.Direction.UP, core, false);
+                // the forge rises in front of the player: they choose the foot of its stairs
+                var foot = core.relative(net.minecraft.core.Direction.SOUTH, com.fantasyweapons.forge.WorldforgeBlock.REACH + 1);
+                var hit = new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(foot), net.minecraft.core.Direction.UP, foot, false);
                 var res = com.fantasyweapons.registry.ModItems.WORLDFORGE.get().place(new net.minecraft.world.item.context.BlockPlaceContext(sp.serverLevel(), sp,
                         net.minecraft.world.InteractionHand.MAIN_HAND, stack, hit));
                 com.fantasyweapons.FantasyWeapons.LOGGER.warn("worldforge: placed {} -> {}", res, sp.serverLevel().getBlockState(core));
             });
         });
+        // the unfolding, watched from further off (spectating, so the camera never stands in the forge)
+        b.cmd("/gamemode spectator").cmd("/tp @s 0.5 142 -112 180 18");
         int prev = 0;
-        for (int t : new int[]{4, 30, 60, 90, 120, 170}) {
+        for (int t : new int[]{4, 60, 120, 180, 240, 300, 370}) {
             b.wait(t - prev).screenshot("worldforge_unfold_" + String.format("%03d", t));
             prev = t;
         }
+        b.cmd("/gamemode creative");
         b.hud(true);
         java.util.function.Consumer<net.minecraft.client.Minecraft> open = mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
-                new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(core.offset(0, 0, 3)), net.minecraft.core.Direction.SOUTH, core.offset(0, 0, 3), false));
-        // the forge is opened from its front step
-        b.cmd("/tp @s 0.5 127 -145.3 180 30").wait(10).run(open).wait(4).screenshot("worldforge_gui_fade").wait(16).screenshot("worldforge_gui_empty")
+                new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(core.offset(0, 0, 10)), net.minecraft.core.Direction.SOUTH, core.offset(0, 0, 10), false));
+        // the forge is opened from the foot of its front stairs
+        b.cmd("/tp @s 0.5 127 -137.5 180 30").wait(10).run(open).wait(4).screenshot("worldforge_gui_fade").wait(16).screenshot("worldforge_gui_empty")
                 .wait(37).screenshot("worldforge_gui_empty2").wait(29).screenshot("worldforge_gui_empty3");
         b.run(mc -> mc.gameMode.handleInventoryButtonClick(mc.player.containerMenu.containerId, com.fantasyweapons.forge.WorldforgeMenu.CHOOSE)).wait(20)
                 .screenshot("worldforge_gui_ghost");
@@ -523,11 +526,12 @@ final class DevScripts {
             });
         }).wait(20).screenshot("worldforge_gui_ready");
         b.run(mc -> mc.gameMode.handleInventoryButtonClick(mc.player.containerMenu.containerId, com.fantasyweapons.forge.WorldforgeMenu.FORGE_BUTTON)).wait(60)
-                .screenshot("worldforge_gui_forging").closeScreen().cmd("/tp @s 0.5 127 -137.5 180 6").wait(10).hud(false);
+                .screenshot("worldforge_gui_forging").closeScreen().cmd("/gamemode spectator").cmd("/tp @s 0.5 142 -112 180 18").wait(10).hud(false);
         for (int t : new int[]{0, 40, 80}) b.wait(t == 0 ? 2 : 40).screenshot("worldforge_crafting_" + t);
-        b.cmd("/tp @s 9.5 133 -140.5 140 25").wait(30).screenshot("worldforge_crafting_side");
-        b.cmd("/tp @s 0.5 127 -143.5 180 -30").wait(30).screenshot("worldforge_crafting_under");
-        b.hud(true);
+        b.cmd("/tp @s 27.5 141 -128.5 135 18").wait(30).screenshot("worldforge_crafting_side");
+        b.cmd("/tp @s 0.5 136 -141.5 180 10").wait(30).screenshot("worldforge_crafting_altar");
+        b.cmd("/tp @s 0.5 132 -150.5 180 -70").wait(30).screenshot("worldforge_crafting_under");
+        b.cmd("/gamemode creative").hud(true);
     }
 
     /** The remote-cast targeting map, opened by the ability key with the Spell Book of Absolute Domination (fwterrain world). */

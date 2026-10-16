@@ -530,7 +530,7 @@ public final class CodexBook {
             c.heading("The Worldforge");
             craftingGrid(c, FantasyWeapons.id("worldforge"), new ItemStack(ModItems.WORLDFORGE.get()));
             c.para("A Legendary Crafting Table raised on netherite, with two nether stars, two heavy cores and the Dragon's egg. "
-                    + "It needs a clear space seven blocks wide, deep and high; set down, it unfolds.", PageCanvas.INK, 0.5f);
+                    + "It needs a clear space 21 blocks wide and deep and 22 high, and rises in front of you, the block you choose the foot of its stairs; set down, it unfolds.", PageCanvas.INK, 0.5f);
         });
         page(c -> {
             c.y = PageCanvas.TOP;

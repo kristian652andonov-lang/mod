@@ -38,9 +38,10 @@ import java.util.List;
  * the forging under way, which takes the recipe's time whether or not anyone watches. Breaking the forge drops the grid,
  * the Forged slot and, mid-forging, what the forging took.
  * <p>
- * Its model shows folded until the forge is known to be placed; it unfolds once (eight seconds) when it is, idles after,
- * and plays its crafting animation while it forges: the seven pylons pour their elements into the heart, the heart's beam
- * strikes the anvil where the weapon lies, and the hammer falls.
+ * Its model shows folded until the forge is known to be placed; it unfolds once (eighteen seconds) when it is, idles
+ * after, and plays its crafting animation while it forges: the four skull towers pour their light into the heart, the
+ * heart's beam strikes the altar where the weapon lies, and the hammer falls. Where the model's blood breaks through (its
+ * spurt bones, timed in its animations), blood bursts out.
  */
 public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity {
     private static final RawAnimation FOLDED = RawAnimation.begin().thenLoop("animation.worldforge.block");
@@ -48,12 +49,16 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("animation.worldforge.idle");
     private static final RawAnimation CRAFTING = RawAnimation.begin().thenLoop("animation.worldforge.crafting");
     /** How long the forge takes to unfold, and keeps crafting after a weapon is forged, in ticks. */
-    public static final int UNFOLD_TICKS = 160, AFTERGLOW = 100;
+    public static final int UNFOLD_TICKS = 360, AFTERGLOW = 100;
     /** Not yet told when it was placed (a client before the server's word): shown folded. */
     private static final long UNKNOWN = Long.MIN_VALUE;
-    /** The seven pylons' crowns (model pixels), whose elements pour into the heart while it forges, with their colours. */
-    private static final double[][] CROWNS = {{0, 68, 34}, {-26.58, 68, 21.2}, {-33.15, 68, -7.57}, {-14.75, 68, -30.63}, {14.75, 68, -30.63},
-            {33.15, 68, -7.57}, {26.58, 68, 21.2}};
+    /** The four towers' skulls (model pixels), whose light pours into the heart while it forges. */
+    private static final double[][] CROWNS = {{135.5, 206, -137}, {-135.5, 206, -137}, {135.5, 206, 137}, {-135.5, 206, 137}};
+    /** The forges whose block entities are loaded, per level, so a part finds its core without searching the world. */
+    private static final java.util.Map<Level, java.util.Set<BlockPos>> LOADED = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+    /** Where each of the model's blood spurts breaks out (model pixels), by bone. */
+    private static final com.google.common.base.Supplier<java.util.Map<String, List<Vec3>>> SPURTS = com.google.common.base.Suppliers.memoize(
+            () -> com.fantasyweapons.machine.ModelShape.cubeCentres("worldforge", "worldforge_spurt_"));
     public static final int[] ELEMENT_COLORS = {0xFF6A2A, 0x9FE6FF, 0x6BE873, 0xFFE45A, 0xFFF6D0, 0xB46BFF, 0x6BF0D8};
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
@@ -113,6 +118,35 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
         return recipe;
     }
 
+    /** The cores of the forges loaded in {@code level}. */
+    public static java.util.Set<BlockPos> loaded(Level level) {
+        java.util.Set<BlockPos> set = LOADED.get(level);
+        return set == null ? java.util.Set.of() : set;
+    }
+
+    /** A forge loaded from before its parts were what they are now takes its present shape. */
+    private boolean repair;
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level == null) return;
+        LOADED.computeIfAbsent(level, l -> java.util.concurrent.ConcurrentHashMap.newKeySet()).add(worldPosition.immutable());
+        if (!level.isClientSide) repair = true;
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (level != null) loaded(level).remove(worldPosition);
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
+        if (level != null) loaded(level).remove(worldPosition);
+    }
+
     /** Just placed: it unfolds. */
     public void placed() {
         if (level == null || level.isClientSide) return;
@@ -142,6 +176,10 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, WorldforgeBlockEntity be) {
+        if (be.repair) {
+            be.repair = false;
+            ((WorldforgeBlock) state.getBlock()).placeParts(level, pos, state.getValue(WorldforgeBlock.FACING), true);
+        }
         boolean crafting = be.crafting();
         if (state.getValue(WorldforgeBlock.CRAFTING) != crafting) level.setBlock(pos, state.setValue(WorldforgeBlock.CRAFTING, crafting), Block.UPDATE_CLIENTS);
         if (!be.busy()) return;
@@ -238,13 +276,13 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
         return new Vec3(worldPosition.getX() + 0.5 + rx, worldPosition.getY() + my / 16, worldPosition.getZ() + 0.5 + rz);
     }
 
-    /** Over the anvil, under the heart's beam, where the weapon being forged lies. */
+    /** Over the altar's grid, under the heart's beam, where the weapon being forged lies. */
     public Vec3 forgePoint() {
-        return spot(0, 40, 0);
+        return spot(0, 120, 0);
     }
 
     public Vec3 heart() {
-        return spot(0, 80, 0);
+        return spot(0, 215, 0);
     }
 
     /** On a client: the forging goes on between updates, and the forge shows it. */
@@ -253,14 +291,17 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
         var random = level.random;
         Vec3 heart = be.heart();
         // always: embers drift up off the tiers
-        if (random.nextInt(3) == 0) {
-            Vec3 e = be.spot((random.nextDouble() - 0.5) * 100, 12, (random.nextDouble() - 0.5) * 100);
+        for (int k = 0; k < 2; k++) {
+            if (random.nextInt(2) != 0) continue;
+            double ex = (random.nextDouble() - 0.5) * 300, ez = (random.nextDouble() - 0.5) * 300;
+            double top = Math.max(Math.abs(ex), Math.abs(ez)) > 140 ? 14 : Math.max(Math.abs(ex), Math.abs(ez)) > 100 ? 34 : Math.max(Math.abs(ex), Math.abs(ez)) > 72 ? 58 : 82;
+            Vec3 e = be.spot(ex, top, ez);
             level.addParticle(ModParticles.FORGE_EMBER.get(), e.x, e.y, e.z, 0, 0.02 + random.nextDouble() * 0.02, 0);
         }
         if (!state.getValue(WorldforgeBlock.CRAFTING)) return;
         Vec3 at = be.forgePoint();
         if (be.busy()) {
-            // the seven elements pour from the pylons' crowns into the heart
+            // light pours from the towers' skulls into the heart
             for (double[] c : CROWNS) {
                 if (random.nextInt(2) != 0) continue;
                 Vec3 crown = be.spot(c[0], c[1], c[2]);
@@ -330,14 +371,14 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
         for (Tag t : tag.getList("Refund", Tag.TAG_COMPOUND)) refund.add(ItemStack.parseOptional(registries, (CompoundTag) t));
     }
 
-    /** The forge is far bigger than its block. */
+    /** The forge is far bigger than its block: its towers stand a little past its 21x21 base, its apex over 21 blocks up. */
     public AABB renderBox() {
-        return new AABB(worldPosition).inflate(4, 0, 4).expandTowards(0, 7.5, 0);
+        return new AABB(worldPosition).inflate(12.5, 0, 12.5).expandTowards(0, 22.5, 0);
     }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", 0, state -> {
+        controllers.add(new AnimationController<WorldforgeBlockEntity>(this, "main", 0, state -> {
             // folding and unfolding start at once (the model's rest pose is the whole forge); idle and crafting blend
             if (placedAt == UNKNOWN || level == null) {
                 state.getController().transitionLength(0);
@@ -349,7 +390,28 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
             }
             state.getController().transitionLength(10);
             return state.setAndContinue(getBlockState().getValue(WorldforgeBlock.CRAFTING) ? CRAFTING : IDLE);
-        }));
+        }).setParticleKeyframeHandler(event -> spurt(event.getKeyframeData().getLocator())));
+    }
+
+    /** Blood bursts out where the bone {@code bone} breaks through (on a client, as the animation reaches it). */
+    private void spurt(String bone) {
+        if (level == null || !level.isClientSide) return;
+        List<Vec3> at = SPURTS.get().get(bone);
+        if (at == null) return;
+        var random = level.random;
+        var blood = new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK.defaultBlockState());
+        var mist = new net.minecraft.core.particles.DustParticleOptions(new org.joml.Vector3f(0.45f, 0.02f, 0.04f), 1.6f);
+        for (Vec3 m : at) {
+            Vec3 p = spot(m.x, m.y, m.z);
+            for (int i = 0; i < 9; i++) {
+                level.addParticle(blood, p.x, p.y, p.z, (random.nextDouble() - 0.5) * 0.35, 0.25 + random.nextDouble() * 0.45, (random.nextDouble() - 0.5) * 0.35);
+            }
+            for (int i = 0; i < 4; i++) {
+                level.addParticle(mist, p.x + (random.nextDouble() - 0.5) * 0.4, p.y + random.nextDouble() * 0.6, p.z + (random.nextDouble() - 0.5) * 0.4, 0, 0.05, 0);
+            }
+        }
+        if (random.nextInt(3) == 0) level.playLocalSound(worldPosition.getX() + 0.5, worldPosition.getY() + 2, worldPosition.getZ() + 0.5,
+                net.minecraft.sounds.SoundEvents.HONEY_BLOCK_SLIDE, net.minecraft.sounds.SoundSource.BLOCKS, 0.8f, 0.5f, false);
     }
 
     @Override

@@ -57,6 +57,24 @@ public final class ModelShape {
         return boxes;
     }
 
+    /** The centre of every cube of every bone whose name starts with {@code prefix}, in the model's own pixels, by bone. */
+    public static Map<String, List<net.minecraft.world.phys.Vec3>> cubeCentres(String model, String prefix) {
+        JsonObject geo = read("/assets/fantasyweapons/geo/block/" + model + ".geo.json");
+        Map<String, List<net.minecraft.world.phys.Vec3>> out = new HashMap<>();
+        for (JsonElement b : geo.getAsJsonArray("bones")) {
+            JsonObject bone = b.getAsJsonObject();
+            String name = bone.get("name").getAsString();
+            if (!name.startsWith(prefix) || !bone.has("cubes")) continue;
+            List<net.minecraft.world.phys.Vec3> centres = new ArrayList<>();
+            for (JsonElement c : bone.getAsJsonArray("cubes")) {
+                float[] o = floats(c.getAsJsonObject().getAsJsonArray("origin")), s = floats(c.getAsJsonObject().getAsJsonArray("size"));
+                centres.add(new net.minecraft.world.phys.Vec3(o[0] + s[0] / 2, o[1] + s[1] / 2, o[2] + s[2] / 2));
+            }
+            out.put(name, centres);
+        }
+        return out;
+    }
+
     /** One cube as GeckoLib places it (x mirrored, turned about its pivot and its bones'), in the core's block coordinates. */
     private static AABB cube(JsonObject cube, JsonObject bone, Map<String, JsonObject> bones) {
         float[] o = floats(cube.getAsJsonArray("origin")), s = floats(cube.getAsJsonArray("size"));

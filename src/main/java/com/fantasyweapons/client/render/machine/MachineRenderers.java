@@ -97,7 +97,7 @@ public final class MachineRenderers {
     }
 
     /**
-     * The Worldforge: seven blocks every way, seen from far off; while it forges, the weapon lies over the anvil under the
+     * The Worldforge: 21 blocks wide and deep, 22 high, seen from far off; while it forges, the weapon lies over the anvil under the
      * heart's beam, turning, rising and growing as the forging goes on, at full light.
      */
     public static final class Worldforge extends Block<com.fantasyweapons.forge.WorldforgeBlockEntity> {
