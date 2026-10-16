@@ -25,6 +25,11 @@ public final class VfxTextures {
     public static final ResourceLocation SWIRL = t("swirl");
     public static final ResourceLocation RIFT_EDGE = t("rift_edge");
     public static final ResourceLocation RUNE_CIRCLE = t("rune_circle");
+    /** The ultimate weapons' great sky circle (1024px), its satellites, a strip of runes for rings, a soft beam cross-section. */
+    public static final ResourceLocation GRAND_CIRCLE = t("grand_circle");
+    public static final ResourceLocation SUB_CIRCLE = t("sub_circle");
+    public static final ResourceLocation RUNE_BAND = t("rune_band");
+    public static final ResourceLocation BEAM_SOFT = t("beam_soft");
     public static final ResourceLocation CRACK = t("crack");
     public static final ResourceLocation FLAME = t("flame");
     public static final ResourceLocation MIST = t("mist");

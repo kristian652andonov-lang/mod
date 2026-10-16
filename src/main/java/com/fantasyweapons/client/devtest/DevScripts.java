@@ -105,6 +105,7 @@ final class DevScripts {
                 else if (name.equals("oregen")) oreGen(b);
                 else if (name.startsWith("wreck:")) wreck(b, name.substring(6));
                 else if (name.equals("targetmap")) targetMap(b);
+                else if (name.startsWith("remote:")) remote(b, name.substring(7));
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
                 else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
                 else if (name.startsWith("holds:")) holds(b, java.util.Arrays.stream(name.substring(6).split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
@@ -333,6 +334,37 @@ final class DevScripts {
         });
         b.wait(400).hud(false).screenshot("oregen_a").wait(40).screenshot("oregen_b");
         b.cmd("/gamemode creative");
+    }
+
+    /**
+     * A remote ability of an ultimate weapon cast on a spot 230 blocks ahead, watched from a hill (fwterrain world):
+     * {@code weapon/ability/ticks,ticks,...} with the ticks after the cast to capture.
+     */
+    private static void remote(ScreenshotDirector.Builder b, String spec) {
+        String[] parts = spec.split("/");
+        String[] look = parts.length > 3 ? parts[3].split(",") : new String[0];
+        String weapon = parts[0], ability = parts[1];
+        String[] times = parts.length > 2 ? parts[2].split(",") : new String[]{"20", "60", "100", "104", "112", "130", "160", "200", "240", "280"};
+        b.wait(40).cmd("/fw class set " + (weapon.contains("book") ? "mage" : "berserker")).closeScreen().wait(5).closeScreen()
+                .cmd("/gamemode creative").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/gamerule doMobSpawning false")
+                .cmd("/clear @s").cmd("/fw give " + weapon + " 1").cmd("/tp @s 0 " + (look.length > 0 ? look[0] : "260") + " -300 0 " + (look.length > 1 ? look[1] : "-12")).wait(20)
+                .run(mc -> {
+                    mc.player.getAbilities().flying = true;
+                    mc.player.onUpdateAbilities();
+                }).wait(300).slot(0).closeScreen().cmd("/fw cooldowns")
+                .hud(true).screenshot("remote_" + ability + "_before");
+        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastAt(ability, 0.5, 80, 0.5)));
+        int prev = 0;
+        for (String t : times) {
+            int at = Integer.parseInt(t.trim());
+            b.wait(Math.max(1, at - prev)).screenshot("remote_" + ability + "_" + String.format("%03d", at));
+            prev = at;
+        }
+        b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("remote: {} chunks rewritten, {} pending",
+                com.fantasyweapons.world.wreck.WorldWreck.rewritten(), com.fantasyweapons.world.wreck.WorldWreck.pending()));
+        b.cmd("/tp @s 0 330 -10 0 90").wait(80).screenshot("remote_" + ability + "_after_top")
+                .cmd("/tp @s 0 140 -200 0 25").wait(60).screenshot("remote_" + ability + "_after_a")
+                .cmd("/tp @s 190 120 0 90 15").wait(60).screenshot("remote_" + ability + "_after_b");
     }
 
     /** The remote-cast targeting map, opened by the ability key with the Spell Book of Absolute Domination (fwterrain world). */

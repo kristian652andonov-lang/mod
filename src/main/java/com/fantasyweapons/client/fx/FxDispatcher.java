@@ -49,5 +49,6 @@ public final class FxDispatcher {
         InfernochainFx.register();
         ArmorFx.register();
         com.fantasyweapons.client.fx.mage.MageFx.register();
+        com.fantasyweapons.client.fx.ultimate.UltimateFx.register();
     }
 }

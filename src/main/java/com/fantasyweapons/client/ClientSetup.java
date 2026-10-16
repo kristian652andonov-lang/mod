@@ -132,6 +132,7 @@ public final class ClientSetup {
         event.registerAbove(VanillaGuiLayers.HOTBAR, FantasyWeapons.id("weapon_hud"), WeaponHud::render);
         event.registerAbove(VanillaGuiLayers.HOTBAR, FantasyWeapons.id("set_hud"), com.fantasyweapons.client.hud.SetHud::render);
         event.registerAboveAll(FantasyWeapons.id("notifications"), Notifications::render);
+        event.registerAboveAll(FantasyWeapons.id("cinematic"), com.fantasyweapons.client.hud.CinematicHud::render);
     }
 
     private static void registerExtensions(RegisterClientExtensionsEvent event) {
@@ -179,6 +180,7 @@ public final class ClientSetup {
         com.fantasyweapons.client.fx.ArmorFx.clear();
         com.fantasyweapons.client.render.ChainTracker.clear();
         com.fantasyweapons.client.fx.InfernochainFx.clear();
+        com.fantasyweapons.client.hud.CinematicHud.clear();
     }
 
     /** Client implementation of the common → client bridge. */

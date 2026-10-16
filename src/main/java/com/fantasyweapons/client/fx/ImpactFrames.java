@@ -24,14 +24,24 @@ import org.joml.Vector3f;
 public final class ImpactFrames {
     private static final int NEGATIVE = 1, INK = 2, LIGHT = 3;
 
-    /** One still: how long it is held (ms) and how it is drawn. */
-    private record Still(int ms, int mode) {
+    /** One still: how long it is held (ms), how it is drawn, and whether it freezes a fresh picture of the world. */
+    private record Still(int ms, int mode, boolean fresh) {
+        Still(int ms, int mode) {
+            this(ms, mode, false);
+        }
     }
 
     /** About three quarters of a second in all: each still on screen long enough to read, the last held longest. */
     private static final Still[] ULTIMATE = {new Still(85, NEGATIVE), new Still(85, INK), new Still(85, LIGHT), new Still(95, NEGATIVE),
             new Still(150, INK)};
     private static final Still[] ACTIVE = {new Still(55, INK), new Still(50, NEGATIVE)};
+    /**
+     * The ultimate weapons' world-breaking blows: about a second and a half of stills, the picture frozen afresh every
+     * few stills so the destruction is seen moving between them, pushing in harder, the last held longest.
+     */
+    private static final Still[] CATACLYSM = {new Still(90, NEGATIVE), new Still(80, INK), new Still(80, LIGHT), new Still(100, NEGATIVE, true),
+            new Still(110, INK), new Still(90, LIGHT), new Still(120, NEGATIVE, true), new Still(130, INK), new Still(110, LIGHT, true),
+            new Still(240, INK)};
     private static final int ULTIMATE_SNAP = 260, ACTIVE_SNAP = 180;
     /** How far an ultimate's stills push in over the sequence, and how often their speed lines flicker (ms). */
     private static final float ULTIMATE_ZOOM = 0.07f;
@@ -46,6 +56,7 @@ public final class ImpactFrames {
     private static int snapMs;
     private static long start = -1;
     private static float strength, centerX, centerY, seed, punch;
+    private static int lastIndex = -1;
     /** The first frame of a sequence captures the picture the stills are drawn from. */
     private static boolean capture;
 
@@ -69,10 +80,22 @@ public final class ImpactFrames {
     public static void play(boolean ultimate, float strength, @Nullable Vec3 at) {
         if (!ClientConfig.get(ClientConfig.IMPACT_FRAMES, true)) return;
         if (!ultimate && !ClientConfig.get(ClientConfig.IMPACT_FRAMES_ALL, true)) return;
-        // a quick flash never cuts short an ultimate's sequence still playing
-        if (active() && stills == ULTIMATE && !ultimate) return;
-        stills = ultimate ? ULTIMATE : ACTIVE;
-        snapMs = ultimate ? ULTIMATE_SNAP : ACTIVE_SNAP;
+        // a quick flash never cuts short an ultimate's sequence still playing, nor anything a cataclysm's
+        if (active() && (stills == ULTIMATE || stills == CATACLYSM) && !ultimate) return;
+        if (active() && stills == CATACLYSM) return;
+        begin(ultimate ? ULTIMATE : ACTIVE, ultimate ? ULTIMATE_SNAP : ACTIVE_SNAP, strength, at, ultimate ? 0.12f : 0.06f);
+    }
+
+    /** The long, hard sequence of the ultimate weapons' blows (cuts short anything else playing). */
+    public static void cataclysm(float strength, @Nullable Vec3 at) {
+        if (!ClientConfig.get(ClientConfig.IMPACT_FRAMES, true)) return;
+        begin(CATACLYSM, 320, strength, at, 0.18f);
+    }
+
+    private static void begin(Still[] sequence, int snap, float strength, @Nullable Vec3 at, float punch) {
+        stills = sequence;
+        snapMs = snap;
+        lastIndex = -1;
         start = Util.getMillis();
         capture = true;
         ImpactFrames.strength = Math.max(0, Math.min(1, strength));
@@ -80,7 +103,7 @@ public final class ImpactFrames {
         centerX = c[0];
         centerY = c[1];
         seed = (float) (Math.random() * 100);
-        punch = ultimate ? 0.12f : 0.06f;
+        ImpactFrames.punch = punch;
     }
 
     private static boolean active() {
@@ -125,9 +148,13 @@ public final class ImpactFrames {
         } else {
             fade = 1 - (t - frozen) / (float) snapMs;
         }
-        boolean longSequence = stills == ULTIMATE;
+        boolean longSequence = stills == ULTIMATE || stills == CATACLYSM;
+        float pushIn = stills == CATACLYSM ? 0.16f : ULTIMATE_ZOOM;
+        // a fresh still freezes a new picture of the world, so the destruction moves on between the stills
+        if (mode != 0 && index != lastIndex && stills[index].fresh()) capture = true;
+        lastIndex = index;
         // an ultimate's stills push slowly in about the burst, and each new one lands with a small jolt
-        float zoom = longSequence && mode != 0 ? 1 + ULTIMATE_ZOOM * (float) Math.sqrt(t / (float) frozen) : 1;
+        float zoom = longSequence && mode != 0 ? 1 + pushIn * (float) Math.sqrt(t / (float) frozen) : 1;
         float joltX = 0, joltY = 0;
         if (longSequence && mode != 0 && index > 0) {
             joltX = (hash(seed + index * 3.1f) - 0.5f) * 0.012f;

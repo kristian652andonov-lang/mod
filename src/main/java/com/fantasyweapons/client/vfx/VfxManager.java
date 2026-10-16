@@ -69,6 +69,8 @@ public final class VfxManager {
             if (v.isDead()) continue;
             try {
                 ctx.alphaScale = v.tailFade(partial);
+                ctx.farClamp = 0;
+                ctx.squash = 1;
                 if (ctx.alphaScale <= 0.003f) continue;
                 v.render(ctx);
             } catch (RuntimeException e) {
@@ -77,6 +79,8 @@ public final class VfxManager {
             }
         }
         ctx.alphaScale = 1f;
+        ctx.farClamp = 0;
+        ctx.squash = 1;
         com.fantasyweapons.client.fx.StatusVisuals.render(ctx);
         SOURCE.endBatch();
         if (mc.level == null) clear();

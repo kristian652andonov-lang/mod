@@ -88,8 +88,11 @@ public final class WreckChunk {
         LevelChunkSection section = sections[(y - minY) >> 4];
         BlockState old = section.getBlockState(x & 15, y & 15, z & 15);
         if (old == state || unbreakable(old)) return false;
-        section.setBlockState(x & 15, y & 15, z & 15, state);
         cursor.set(x, y, z);
+        // a block entity still waiting in the chunk's saved data (a chunk loaded for the rewrite) is brought to life first,
+        // or it would later be loaded onto a block that is no longer there
+        if (old.hasBlockEntity()) chunk.getBlockEntity(cursor, LevelChunk.EntityCreationType.CHECK);
+        section.setBlockState(x & 15, y & 15, z & 15, state);
         if (old.hasBlockEntity()) chunk.removeBlockEntity(cursor);
         if (state.hasBlockEntity()) chunk.getBlockEntity(cursor.immutable(), LevelChunk.EntityCreationType.IMMEDIATE);
         if (PoiTypes.hasPoi(old) || PoiTypes.hasPoi(state)) level.onBlockStateChange(cursor.immutable(), old, state);

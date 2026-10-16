@@ -221,4 +221,12 @@ public final class FxIds {
     public static final ResourceLocation UMBRAL_SEED = FantasyWeapons.id("umbral_codex/seed");
     public static final ResourceLocation UMBRAL_CONTAGION = FantasyWeapons.id("umbral_codex/contagion");
     public static final ResourceLocation UMBRAL_PLAGUE = FantasyWeapons.id("umbral_codex/plague");
+
+    // ---- the ultimate weapons ----
+    /** The Beam of Grant Execution: pos = ground at the target, scale = radius, power = delay ticks, level = beam ticks. */
+    public static final ResourceLocation GRANT_EXECUTION = FantasyWeapons.id("domination/grant_execution");
+    /** Impact frames of the ultimate weapons' world-breaking blows, for those near: pos = where it lands, scale = how near. */
+    public static final ResourceLocation CATACLYSM_FRAME = FantasyWeapons.id("ultimate/cataclysm_frame");
+    /** The Ultramassive Blackhole: pos = the hole, dir = the ground under it, scale = reach, power = collapse tick, level = form ticks. */
+    public static final ResourceLocation BLACKHOLE = FantasyWeapons.id("domination/blackhole");
 }

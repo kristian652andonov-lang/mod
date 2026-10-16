@@ -75,7 +75,45 @@ public final class VfxContext {
     // ------------------------------------------------------------------------------------------------------------
 
     public void vertex(VertexConsumer vc, double x, double y, double z, float u, float v, int argb) {
-        vc.addVertex((float) (x - cam.x), (float) (y - cam.y), (float) (z - cam.z)).setUv(u, v).setColor(fade(argb));
+        double dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
+        if (squash != 1) {
+            dx *= squash;
+            dy *= squash;
+            dz *= squash;
+        }
+        if (farClamp > 0) {
+            double d2 = dx * dx + dy * dy + dz * dz;
+            if (d2 > farClamp * farClamp) {
+                double k = farClamp / Math.sqrt(d2);
+                dx *= k;
+                dy *= k;
+                dz *= k;
+            }
+        }
+        vc.addVertex((float) dx, (float) dy, (float) dz).setUv(u, v).setColor(fade(argb));
+    }
+
+    /**
+     * Effects far beyond the view distance (the ultimate weapons' sky circles): every vertex further than this from the
+     * camera is drawn at this distance, along its own line of sight, so it lands on the same spot of the screen but
+     * inside the far plane and the fog. 0 = off.
+     */
+    public double farClamp;
+    /**
+     * Draws everything at this fraction of its distance from the camera: the picture is exactly the same (it is a
+     * scaling about the eye), only nearer, so an object far beyond the view distance still shows. 1 = off.
+     */
+    public double squash = 1;
+
+    /** The squash that brings a far object at {@code at} within {@code max} blocks of the camera (1 if already within). */
+    public double squashFor(Vec3 at, double max) {
+        double d = at.distanceTo(cam);
+        return d <= max ? 1 : max / d;
+    }
+
+    /** How far the view reaches (the fog's end), for far-reaching effects. */
+    public static double viewReach() {
+        return Math.max(64, com.mojang.blaze3d.systems.RenderSystem.getShaderFogEnd());
     }
 
     /** Applies the current effect's fade to an ARGB colour (for emitters that write vertices directly). */

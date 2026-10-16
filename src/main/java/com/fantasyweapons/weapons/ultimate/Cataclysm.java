@@ -49,6 +49,46 @@ public final class Cataclysm {
         return annihilate(ctx.player(), ctx.stack(), target, ctx.damage(), element);
     }
 
+    /**
+     * Erases everything inside a vertical column from the bottom of the world to the top: creatures (the caster may
+     * harm) are annihilated, everything else that is not a player - items, orbs, falling blocks, carts, arrows - is
+     * deleted outright.
+     *
+     * @return the creatures struck
+     */
+    public static List<LivingEntity> eraseColumn(ServerPlayer owner, ItemStack weapon, ServerLevel level, Vec3 center, double radius, float damage, Element element) {
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(center.x - radius, level.getMinBuildHeight() - 16, center.z - radius,
+                center.x + radius, level.getMaxBuildHeight() + 64, center.z + radius);
+        List<LivingEntity> hit = new java.util.ArrayList<>();
+        double r2 = radius * radius;
+        for (net.minecraft.world.entity.Entity e : level.getEntities((net.minecraft.world.entity.Entity) null, box, x -> true)) {
+            double dx = e.getX() - center.x, dz = e.getZ() - center.z;
+            if (dx * dx + dz * dz > r2) continue;
+            if (e instanceof LivingEntity le) {
+                if (FWDamage.canHarm(owner, le, FWDamage.Kind.ABILITY)) {
+                    annihilate(owner, weapon, le, damage, element);
+                    hit.add(le);
+                }
+            } else if (!(e instanceof net.minecraft.world.entity.player.Player) && !(e instanceof net.neoforged.neoforge.entity.PartEntity<?>)
+                    && !e.isRemoved()) {
+                e.discard();
+            }
+        }
+        return hit;
+    }
+
+    /**
+     * Impact frames for the blow landing at {@code at}, for the caster and everyone within {@code seen} blocks of it.
+     *
+     * @param cataclysm the long, hard sequence, or the ordinary ultimate one
+     */
+    public static void frames(ServerLevel level, ServerPlayer caster, Vec3 at, double seen, boolean cataclysm) {
+        FxPayload p = FxPayload.of(com.fantasyweapons.network.FxIds.CATACLYSM_FRAME).caster(caster.getId()).pos(at).scale((float) seen)
+                .level(cataclysm ? 1 : 0).build();
+        double r2 = seen * seen;
+        for (ServerPlayer pl : level.players()) if (pl == caster || pl.position().distanceToSqr(at) <= r2) Fx.only(pl, p);
+    }
+
     /** Every creature the caster may harm within {@code radius} of {@code center}. */
     public static List<LivingEntity> victims(ServerLevel level, ServerPlayer caster, Vec3 center, double radius) {
         return Targeting.inRadius(level, caster, center, radius, FWDamage.Kind.ABILITY);

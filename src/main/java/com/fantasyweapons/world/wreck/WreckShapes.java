@@ -41,6 +41,11 @@ public final class WreckShapes {
                         double edge = Math.sqrt(d2) - radius;
                         for (int y = floor; y <= top; y++) {
                             BlockState old = c.get(x, y, z);
+                            if (!old.getFluidState().isEmpty()) {
+                                // water and lava at the edge are seared into a wall of obsidian that holds back the rest
+                                c.set(x, y, z, OBSIDIAN);
+                                continue;
+                            }
                             if (!WreckChunk.terrain(old)) {
                                 if (!old.isAir()) c.set(x, y, z, AIR);
                                 continue;
@@ -49,6 +54,38 @@ public final class WreckShapes {
                             BlockState seared = edge < 1.2 && roll < 0.08 ? LAVA : roll < 0.75 ? MAGMA : roll < 0.9 ? BLACKSTONE : OBSIDIAN;
                             c.set(x, y, z, seared);
                         }
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * A sphere erased from the world, the bowl it leaves scarred: a crust of blackstone, obsidian and crying obsidian two
+     * blocks thick, and water or lava at its edge crushed into obsidian so nothing pours in.
+     */
+    public static ChunkShaper sphere(Vec3 center, double radius) {
+        double shell = radius + 2.2;
+        return c -> {
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    double dx = x + 0.5 - center.x, dz = z + 0.5 - center.z, d2 = dx * dx + dz * dz;
+                    if (d2 > shell * shell) continue;
+                    double half = Math.sqrt(shell * shell - d2);
+                    int y0 = Math.max(c.minY(), (int) Math.floor(center.y - half)), y1 = Math.min(c.top(x, z), (int) Math.ceil(center.y + half));
+                    for (int y = y0; y <= y1; y++) {
+                        double dy = y + 0.5 - center.y, r = Math.sqrt(d2 + dy * dy);
+                        if (r <= radius) {
+                            c.clear(x, y, z);
+                            continue;
+                        }
+                        if (r > shell) continue;
+                        BlockState old = c.get(x, y, z);
+                        if (!old.getFluidState().isEmpty()) c.set(x, y, z, OBSIDIAN);
+                        else if (WreckChunk.terrain(old)) {
+                            float roll = c.random().nextFloat();
+                            c.set(x, y, z, roll < 0.15f ? CRYING : roll < 0.5f ? OBSIDIAN : BLACKSTONE);
+                        } else if (!old.isAir()) c.clear(x, y, z);
                     }
                 }
             }
