@@ -508,7 +508,8 @@ final class DevScripts {
         java.util.function.Consumer<net.minecraft.client.Minecraft> open = mc -> mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(core.offset(0, 0, 3)), net.minecraft.core.Direction.SOUTH, core.offset(0, 0, 3), false));
         // the forge is opened from its front step
-        b.cmd("/tp @s 0.5 127 -145.3 180 30").wait(10).run(open).wait(20).screenshot("worldforge_gui_empty");
+        b.cmd("/tp @s 0.5 127 -145.3 180 30").wait(10).run(open).wait(4).screenshot("worldforge_gui_fade").wait(16).screenshot("worldforge_gui_empty")
+                .wait(37).screenshot("worldforge_gui_empty2").wait(29).screenshot("worldforge_gui_empty3");
         b.run(mc -> mc.gameMode.handleInventoryButtonClick(mc.player.containerMenu.containerId, com.fantasyweapons.forge.WorldforgeMenu.CHOOSE)).wait(20)
                 .screenshot("worldforge_gui_ghost");
         b.run(mc -> {

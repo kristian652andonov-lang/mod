@@ -13,6 +13,7 @@ public final class WreckShapes {
     static final BlockState LAVA = Blocks.LAVA.defaultBlockState();
     static final BlockState MAGMA = Blocks.MAGMA_BLOCK.defaultBlockState();
     static final BlockState OBSIDIAN = Blocks.OBSIDIAN.defaultBlockState();
+    static final BlockState WATER = Blocks.WATER.defaultBlockState();
     static final BlockState CRYING = Blocks.CRYING_OBSIDIAN.defaultBlockState();
     static final BlockState BLACKSTONE = Blocks.BLACKSTONE.defaultBlockState();
     static final BlockState BASALT = Blocks.BASALT.defaultBlockState();
@@ -323,27 +324,29 @@ public final class WreckShapes {
                     // the crater floor, rough
                     double blast = inside ? depth * (1 - u * u) * (0.75 + 0.5 * noise(x, z)) : 0;
                     int surface = Math.max(c.minY() + 2, (int) Math.round(ground - blast));
-                    if (inside || heat > 0.15) {
-                        boolean rim = u > 0.9;
+                    // under the sea, the sea pours into the crater: it is left a deeper basin, not a dry pit walled off
+                    int waterTop = top > ground && c.get(x, top, z).getFluidState().is(net.minecraft.tags.FluidTags.WATER) ? top : Integer.MIN_VALUE;
+                    boolean wet = waterTop != Integer.MIN_VALUE;
+                    if (inside) {
                         for (int y = Math.max(top, ground); y > surface; y--) {
-                            BlockState old = c.get(x, y, z);
-                            // water at the edge is boiled into obsidian, so the sea does not stand in a wall
-                            if (!old.getFluidState().isEmpty()) {
-                                if (rim || !inside) c.set(x, y, z, OBSIDIAN);
-                                else c.clear(x, y, z);
-                            } else c.clear(x, y, z);
+                            if (wet && y <= waterTop) c.set(x, y, z, WATER);
+                            else c.clear(x, y, z);
                         }
+                    } else if (heat > 0.15 && !wet) {
+                        for (int y = top; y > ground; y--) c.clear(x, y, z);
                     }
-                    if (network.near(dx, dz, Double.MAX_VALUE, 2.2, k) != null && u < 1.15) {
+                    if (network.near(dx, dz, Double.MAX_VALUE, 2.2, k) != null && u < 1.15 && !wet) {
                         crack(c, x, z, surface, k[0], k[1], k[2], Math.min(heat, 0.7));
                         continue;
                     }
-                    BlockState cap = seared(heat, x, z, inside && pool > 0.8);
+                    BlockState cap = seared(heat, x, z, inside && pool > 0.8 && !wet);
                     if (cap == null) continue;
+                    // under water the seared rock has cooled: no magma, no lava
+                    if (wet && (cap == MAGMA || cap == LAVA)) cap = cap == LAVA ? OBSIDIAN : BLACKSTONE;
                     if (!inside && !WreckChunk.terrain(c.get(x, surface, z))) continue;
                     c.set(x, surface, z, cap);
                     // the seared crust under it
-                    if (inside) for (int y = surface - 1; y >= surface - 2; y--) c.set(x, y, z, heat > 0.6 && hash(x + y, z) < 0.3 ? MAGMA : hash(x - y, z + y) < 0.5 ? BLACKSTONE : BASALT);
+                    if (inside) for (int y = surface - 1; y >= surface - 2; y--) c.set(x, y, z, heat > 0.6 && !wet && hash(x + y, z) < 0.3 ? MAGMA : hash(x - y, z + y) < 0.5 ? BLACKSTONE : BASALT);
                 }
             }
         };

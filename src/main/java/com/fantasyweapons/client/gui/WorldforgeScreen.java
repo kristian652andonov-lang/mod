@@ -29,6 +29,14 @@ import java.util.List;
  */
 public class WorldforgeScreen extends AbstractContainerScreen<WorldforgeMenu> {
     private static final ResourceLocation ART = FantasyWeapons.id("textures/gui/worldforge.png");
+    /** The panel's veins of blood, on their own so they can beat with the heart. */
+    private static final ResourceLocation VEINS = FantasyWeapons.id("textures/gui/worldforge_veins.png");
+    private static final int VEINS_W = 872, VEINS_H = 536;
+    /** Where blood wells up along the top of the frame: x (gui px), its period (ticks), how far it falls (gui px). */
+    private static final float[][] DRIPS = {
+            {34, 150, 40}, {58, 210, 22}, {79, 120, 60}, {146, 170, 30}, {171, 240, 18}, {198, 135, 52}, {226, 190, 26},
+            {254, 160, 160}, {281, 220, 34}, {309, 140, 24}, {338, 200, 46}, {366, 175, 20}, {393, 130, 38}, {417, 230, 28},
+            {8, 260, 250}, {428, 280, 250}};
     private static final int BLOOD = 0xFF3A30, DEEP = 0x9A1418, BONE = 0xE8D8C8, ASH = 0x9C7C74, EMBER = 0xFF8A3A;
     private static final int RITE_X = WorldforgeMenu.RIGHT_X + 10, RITE_Y = 50, FILL_W = 34, FORGE_W = 54, FORGE_H = 15;
     private static final int FORGE_X = WorldforgeMenu.FORGING_X + 8 - FORGE_W / 2, FORGE_Y = 132;
@@ -45,6 +53,8 @@ public class WorldforgeScreen extends AbstractContainerScreen<WorldforgeMenu> {
     private List<RecipeHolder<WorldforgeRecipe>> recipes = List.of();
     private RecipeHolder<WorldforgeRecipe> selected;
     private int chosenSeen = -2;
+    /** When the screen opened (game time), for its fade in out of the dark. */
+    private float openedAt = -1;
 
     public WorldforgeScreen(WorldforgeMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -102,6 +112,14 @@ public class WorldforgeScreen extends AbstractContainerScreen<WorldforgeMenu> {
         int x = leftPos, y = topPos;
         g.blit(ART, x, y, imageWidth, imageHeight, 0, 0, imageWidth * 2, imageHeight * 2, 1024, 1024);
         float beat = heartbeat(t);
+        mist(g, x, y, t);
+        // the veins swell with each beat, and a slow tide of light moves through them
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        float tide = 0.5f + 0.5f * (float) Math.sin(t * 0.045f);
+        g.setColor(0.85f, 0.75f, 0.75f, Mth.clamp(0.16f + 0.42f * beat + 0.12f * tide, 0, 1));
+        g.blit(VEINS, x, y, imageWidth, imageHeight, 0, 0, VEINS_W, VEINS_H, VEINS_W, VEINS_H);
+        g.setColor(1f, 1f, 1f, 1f);
+        drips(g, x, y, t);
         int gx = x + WorldforgeMenu.GRID_X, gy = y + WorldforgeMenu.GRID_Y, gs = WorldforgeMenu.SIZE * 18;
         // the grid's rim beats
         UiDraw.glowBorder(g, gx - 7, gy - 7, gx + gs + 5, gy + gs + 5, BLOOD, 0.25f + 0.55f * beat, 6);
@@ -157,21 +175,81 @@ public class WorldforgeScreen extends AbstractContainerScreen<WorldforgeMenu> {
 
     /** The skull over the grid: its eyes follow the cursor, glow with the heartbeat and now and then close. */
     private void eye(GuiGraphics g, int x, int y, int mouseX, int mouseY, float t) {
-        float cx = x + WorldforgeMenu.GRID_X + WorldforgeMenu.SIZE * 9, cy = y + 21.5f;
+        float cx = x + WorldforgeMenu.GRID_X + WorldforgeMenu.SIZE * 9, cy = y + 21.44f;
         boolean blink = (t % 140) > 133;
-        float look = 1.6f;
+        float look = 1.1f;
         double dx = mouseX - cx, dy = mouseY - cy, d = Math.max(1, Math.sqrt(dx * dx + dy * dy));
         float ox = (float) (dx / d * Math.min(look, d / 40)), oy = (float) (dy / d * Math.min(look, d / 40));
         float beat = heartbeat(t);
         for (int side = -1; side <= 1; side += 2) {
-            float ex = cx + side * 5.85f, ey = cy;
+            float ex = cx + side * 3.77f, ey = cy;
             if (blink) {
-                UiDraw.rect(g, ex - 3, ey - 0.5f, ex + 3, ey + 0.5f, Colors.alpha(1f, 0x2A0A0C));
+                UiDraw.rect(g, ex - 2.2f, ey - 0.35f, ex + 2.2f, ey + 0.35f, Colors.alpha(1f, 0x2A0A0C));
                 continue;
             }
-            UiDraw.glow(g, ex + ox, ey + oy, 12 + 6 * beat, Colors.alpha(0.55f + 0.35f * beat, BLOOD));
-            UiDraw.disc(g, ex + ox, ey + oy, 1.6f, Colors.alpha(1f, 0xFF5A40));
-            UiDraw.rect(g, ex + ox - 0.4f, ey + oy - 1.4f, ex + ox + 0.4f, ey + oy + 1.4f, Colors.alpha(1f, 0x1A0000));
+            UiDraw.glow(g, ex + ox, ey + oy, 8 + 5 * beat, Colors.alpha(0.55f + 0.35f * beat, BLOOD));
+            UiDraw.disc(g, ex + ox, ey + oy, 1.1f, Colors.alpha(1f, 0xFF5A40));
+            UiDraw.rect(g, ex + ox - 0.3f, ey + oy - 1.0f, ex + ox + 0.3f, ey + oy + 1.0f, Colors.alpha(1f, 0x1A0000));
+        }
+    }
+
+    /** A slow red mist drifting across the panel, thickening and thinning. */
+    private void mist(GuiGraphics g, int x, int y, float t) {
+        for (int i = 0; i < 7; i++) {
+            float speed = 0.06f + 0.03f * (i % 3);
+            float span = imageWidth + 160;
+            float mx = x - 80 + ((t * speed + i * 131) % span), my = y + 30 + (i * 53) % (imageHeight - 60) + (float) Math.sin(t * 0.01f + i) * 12;
+            float swell = 0.5f + 0.5f * (float) Math.sin(t * 0.017f + i * 2.1f);
+            float edge = Mth.clamp((mx - x + 40) / 80f, 0, 1) * Mth.clamp((x + imageWidth + 40 - mx) / 80f, 0, 1);
+            UiDraw.glow(g, mx, my, 120 + 50 * swell, Colors.alpha(0.1f * edge * (0.5f + 0.5f * swell), 0x6A0A10));
+        }
+    }
+
+    /**
+     * Blood welling up along the top of the frame: a bead swells on its thread, stretches, lets go and falls, faster and
+     * faster, leaving a fading streak; where it stops it splashes and the stain fades.
+     */
+    private void drips(GuiGraphics g, int x, int y, float t) {
+        for (int i = 0; i < DRIPS.length; i++) {
+            float dx = x + DRIPS[i][0], period = DRIPS[i][1], fall = DRIPS[i][2];
+            float p = ((t + i * 97) % period) / period;
+            float top = y + 5.5f;
+            int body = 0x8A0A10, lit = 0xFF6A5A;
+            // the thread it hangs from, always there, darkening as blood runs down it
+            float thread = 3f + (i % 4) * 1.2f;
+            UiDraw.rect(g, dx - 0.35f, top, dx + 0.35f, top + thread, Colors.alpha(0.85f, 0x5A060A));
+            if (p < 0.5f) {
+                // the bead swells
+                float r = 0.5f + 1.6f * (p / 0.5f);
+                float by = top + thread + r * 0.8f;
+                UiDraw.disc(g, dx, by, r, Colors.alpha(0.95f, body));
+                UiDraw.disc(g, dx - r * 0.35f, by - r * 0.35f, r * 0.3f, Colors.alpha(0.7f, lit));
+            } else if (p < 0.58f) {
+                // it stretches, about to let go
+                float k = (p - 0.5f) / 0.08f;
+                float by = top + thread + 1.4f + k * 2.2f;
+                UiDraw.rect(g, dx - 0.5f, top + thread, dx + 0.5f, by, Colors.alpha(0.9f, body));
+                UiDraw.disc(g, dx, by, 2.1f - 0.4f * k, Colors.alpha(0.95f, body));
+                UiDraw.disc(g, dx - 0.5f, by - 0.5f, 0.45f, Colors.alpha(0.7f, lit));
+            } else {
+                // falling, faster and faster
+                float k = (p - 0.58f) / 0.42f;
+                float travel = Math.min(fall, fall * 1.6f * k * k);
+                float fy = top + thread + 3.6f + travel;
+                boolean landed = travel >= fall;
+                if (!landed) {
+                    float streak = Math.min(travel, 6 + travel * 0.25f);
+                    UiDraw.vGradient(g, dx - 0.5f, fy - streak, dx + 0.5f, fy, 0, Colors.alpha(0.7f, body));
+                    UiDraw.disc(g, dx, fy, 1.5f, Colors.alpha(0.95f, body));
+                    UiDraw.disc(g, dx - 0.4f, fy - 0.4f, 0.35f, Colors.alpha(0.7f, lit));
+                } else {
+                    // the splash, fading
+                    float since = (k - (float) Math.sqrt(1 / 1.6f)) / (1 - (float) Math.sqrt(1 / 1.6f));
+                    float a = 1 - Mth.clamp(since, 0, 1);
+                    UiDraw.disc(g, dx, fy, 1.4f + 1.2f * (1 - a), Colors.alpha(0.6f * a, body));
+                    for (int s = -1; s <= 1; s += 2) UiDraw.disc(g, dx + s * (2 + 2 * (1 - a)), fy - 0.8f * a, 0.5f, Colors.alpha(0.7f * a, body));
+                }
+            }
         }
     }
 
@@ -335,6 +413,16 @@ public class WorldforgeScreen extends AbstractContainerScreen<WorldforgeMenu> {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
         renderGhost(g, mouseX, mouseY, partialTick);
+        // it rises out of the dark when opened
+        float t = time(partialTick);
+        if (openedAt < 0) openedAt = t;
+        float dark = 1 - Mth.clamp((t - openedAt) / 14f, 0, 1);
+        if (dark > 0) {
+            g.pose().pushPose();
+            g.pose().translate(0, 0, 400);
+            UiDraw.rect(g, 0, 0, width, height, Colors.alpha(dark * dark, 0x050102));
+            g.pose().popPose();
+        }
         renderTooltip(g, mouseX, mouseY);
         for (int i = 0; i < recipes.size(); i++) {
             int ix = leftPos + RITE_X + i * 24, iy = topPos + RITE_Y;

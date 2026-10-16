@@ -114,4 +114,39 @@ public final class ArmorGameTests {
         }
         h.succeed();
     }
+
+    /**
+     * Legendary Ward: a full set takes nearly half off every blow of the mod's weapons, and no single blow takes more
+     * than about a third of the wearer's health - however hard it hits.
+     */
+    @GameTest(template = ARENA)
+    public static void armorHoldsAgainstTheModsWeapons(GameTestHelper h) {
+        Player p = h.makeMockPlayer(GameType.SURVIVAL);
+        if (com.fantasyweapons.armor.ArmorEffects.ward(p, 10) != 10) h.fail("unarmored: the blow was changed");
+        wear(p, ArmorSet.VOIDFANG);
+        p.tick();
+        float max = p.getMaxHealth();
+        float small = com.fantasyweapons.armor.ArmorEffects.ward(p, 4);
+        if (Math.abs(small - 4 * (1 - 4 * com.fantasyweapons.armor.ArmorEffects.WARD_PER_PIECE)) > 1e-4) h.fail("full set: a 4 blow became " + small);
+        float huge = com.fantasyweapons.armor.ArmorEffects.ward(p, 100000);
+        if (huge > max * 0.34f) h.fail("full set: a huge blow still takes " + huge + " of " + max);
+        if (huge * 2 >= max) h.fail("full set: two huge blows kill (" + huge + " each of " + max + ")");
+        h.succeed();
+    }
+
+    /** Neither the armor nor the weapons wear out. */
+    @GameTest(template = ARENA)
+    public static void armorAndWeaponsNeverBreak(GameTestHelper h) {
+        for (ArmorSet set : ArmorSet.values()) {
+            for (ArmorItem.Type t : ArmorSet.PIECES) {
+                ItemStack s = new ItemStack(ModItems.ARMOR.get(set).get(t).get());
+                if (s.isDamageableItem() || !s.has(net.minecraft.core.component.DataComponents.UNBREAKABLE)) h.fail(set + " " + t + " can break");
+            }
+        }
+        for (var w : com.fantasyweapons.weapon.Weapons.all()) {
+            ItemStack s = new ItemStack(ModItems.WEAPONS.get(w.id()).get());
+            if (s.isDamageableItem() || !s.has(net.minecraft.core.component.DataComponents.UNBREAKABLE)) h.fail(w.id() + " can break");
+        }
+        h.succeed();
+    }
 }
