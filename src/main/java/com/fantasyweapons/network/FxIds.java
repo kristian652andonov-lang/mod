@@ -239,4 +239,14 @@ public final class FxIds {
     public static final ResourceLocation GREAT_TREE_GRAB = FantasyWeapons.id("domination/great_tree_grab");
     /** The Ice Age: pos = ground at the target, scale = radius, power = wave height, level = speed x100 (blocks per tick). */
     public static final ResourceLocation ICE_AGE = FantasyWeapons.id("domination/ice_age");
+    /** The Great Slash: pos = eye, dir = forward, points = [blade], scale = length, power = half-width, level = speed x100. */
+    public static final ResourceLocation GREAT_SLASH = FantasyWeapons.id("obliteration/great_slash");
+    /** A creature cut in two: pos = its middle, dir = the cut's normal, scale = its size. */
+    public static final ResourceLocation GREAT_SLASH_CUT = FantasyWeapons.id("obliteration/great_slash_cut");
+    /** The Grand Earthquake: pos = the ground under the caster, scale = radius, power = safe radius, level = ticks. */
+    public static final ResourceLocation GRAND_EARTHQUAKE = FantasyWeapons.id("obliteration/grand_earthquake");
+    /** Ice Rain: pos = ground under the caster, scale = radius, power = ticks, points = where each spike strikes, entities = when. */
+    public static final ResourceLocation ICE_RAIN = FantasyWeapons.id("obliteration/ice_rain");
+    /** Thornspire Cataclysm: pos = ground under the caster, scale = radius, points = (foot, tip) per thorn, entities = tick x1000 + radius x10. */
+    public static final ResourceLocation THORNSPIRE = FantasyWeapons.id("obliteration/thornspire");
 }

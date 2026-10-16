@@ -33,6 +33,10 @@ public final class UltimateFx {
         FxDispatcher.register(FxIds.GREAT_TREE, UltimateFx::greatTree);
         FxDispatcher.register(FxIds.GREAT_TREE_GRAB, UltimateFx::greatTreeGrab);
         FxDispatcher.register(FxIds.ICE_AGE, UltimateFx::iceAge);
+        FxDispatcher.register(FxIds.GREAT_SLASH, UltimateFx::greatSlash);
+        FxDispatcher.register(FxIds.GRAND_EARTHQUAKE, UltimateFx::grandEarthquake);
+        FxDispatcher.register(FxIds.ICE_RAIN, UltimateFx::iceRain);
+        FxDispatcher.register(FxIds.GREAT_SLASH_CUT, p -> VfxManager.add(new GreatSlashVfx.Cut(p.pos(), p.dir(), p.scale())));
     }
 
     /** How far the viewer is from a point (blocks), or a long way if there is no player. */
@@ -321,5 +325,90 @@ public final class UltimateFx {
                 sound(SoundEvents.GLASS_BREAK, 0.6f, 0.4f);
             });
         }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // the Great Sword of Obliteration
+    // ------------------------------------------------------------------------------------------------------------
+
+    private static void greatSlash(FxPayload p) {
+        Vec3 eye = p.pos(), look = p.dir();
+        Vec3 blade = p.points().isEmpty() ? new Vec3(1, 0, 0) : p.points().get(0);
+        float length = p.scale(), half = p.power(), speed = Math.max(1, p.level() / 100f);
+        BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
+        VfxManager.add(new GreatSlashVfx(eye, look, blade, length, half, speed, p.seed()).shattering(debris));
+        if (isCaster(p)) {
+            CinematicHud.play("UPLINK // OBLITERATION-01 > THE GREAT SLASH", eye.add(look.scale(length)), 0xFFE58A, 3200, List.of(
+                    Cue.status(0, "CUTTING", 0xFFE58A),
+                    Cue.card(200, 2200, "Cut", (int) length + " m  ·  nothing in its path remains whole", 0xFFFFFF)));
+        }
+        sound(SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 0.5f);
+        sound(SoundEvents.TRIDENT_RIPTIDE_3.value(), 1f, 0.6f);
+        sound(SoundEvents.WARDEN_SONIC_BOOM, 0.6f, 1.4f);
+        CameraShake.add(eye, 1.6f, 60);
+        ScreenFx.flash(0xFFFFFF, isCaster(p) ? 0.5f : 0.3f, 8);
+        FxScheduler.after(4, () -> sound(SoundEvents.GLASS_BREAK, 1f, 0.5f));
+    }
+
+    private static void grandEarthquake(FxPayload p) {
+        Vec3 at = p.pos();
+        float radius = p.scale(), safe = p.power();
+        int duration = Math.max(60, p.level());
+        var cracks = com.fantasyweapons.weapons.obliteration.ObliterationAbilities.quakeCracks(p.seed(), com.fantasyweapons.world.wreck.WorldWreck.radius(radius));
+        BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
+        VfxManager.add(new GrandEarthquakeVfx(at, radius, safe, duration, cracks, p.seed()).tearing(debris));
+        if (isCaster(p) || distance(at) < radius * 1.5) {
+            CinematicHud.play("UPLINK // OBLITERATION-01 > THE GRAND EARTHQUAKE", at, 0xD8A868, (duration + 50) * 50L, List.of(
+                    Cue.status(0, "MAGNITUDE 12.4", 0xD8A868),
+                    Cue.card(150, 2200, "Fury", "the earth breaks for " + (int) radius + " m  ·  only you stand", 0xFF8A4A),
+                    Cue.status(1500, "PLATES BREAKING", 0xFFB040),
+                    Cue.card(duration * 50L - 1500, 2400, "Nothing stands", "\u0394E 2.1 \u00D7 10^22 joules", 0xFFFFFF),
+                    Cue.status(duration * 50L, "SILENCE", 0x9CD67A)));
+        }
+        sound(SoundEvents.GENERIC_EXPLODE, 1f, 0.35f);
+        sound(SoundEvents.ANVIL_LAND, 1f, 0.4f);
+        sound(SoundEvents.WARDEN_SONIC_BOOM, 0.8f, 0.5f);
+        ScreenFx.flash(0xFFE0B0, 0.6f, 10);
+        for (int k = 0; k < duration; k += 6) {
+            int when = k;
+            FxScheduler.after(when, () -> {
+                CameraShake.add(at, 2.4f - 1.4f * when / duration, radius * 1.5);
+                if (when % 18 == 0) sound(when % 36 == 0 ? SoundEvents.DEEPSLATE_BREAK : SoundEvents.STONE_BREAK, 1f, 0.35f);
+                if (when % 30 == 0) sound(SoundEvents.GENERIC_EXPLODE, 0.5f, 0.3f);
+            });
+        }
+    }
+
+    private static void iceRain(FxPayload p) {
+        Vec3 at = p.pos();
+        float radius = p.scale();
+        int duration = Math.max(60, (int) p.power());
+        int[] times = p.entities();
+        VfxManager.add(new IceRainVfx(at, radius, duration, p.points(), times, p.seed()));
+        if (isCaster(p) || distance(at) < radius * 2) {
+            CinematicHud.play("UPLINK // OBLITERATION-01 > ICE RAIN", at, 0x8FE4FF, (duration + 40) * 50L, List.of(
+                    Cue.status(0, "STORM GATHERING", 0x8FE4FF),
+                    Cue.card(400, 2000, "Something is coming", "from above  ·  " + times.length + " spikes of ice", 0xFFFFFF),
+                    Cue.status(1500, "IMPACTS", 0xCFF4FF),
+                    Cue.card(duration * 50L - 1800, 2400, "Carnage", "everything within " + (int) radius + " m is frozen", 0xBFEFFF)));
+        }
+        sound(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.8f, 0.6f);
+        sound(SoundEvents.ELDER_GUARDIAN_CURSE, 0.6f, 0.6f);
+        for (int i = 0; i < times.length && i < p.points().size(); i++) {
+            Vec3 hit = p.points().get(i);
+            FxScheduler.after(times[i], () -> {
+                double d = distance(hit);
+                CameraShake.add(hit, 1.4f, 70);
+                if (d < 90) {
+                    float v = (float) Math.max(0.15, 1 - d / 90);
+                    sound(SoundEvents.GLASS_BREAK, v, 0.4f + (float) Math.random() * 0.3f);
+                    sound(SoundEvents.GENERIC_EXPLODE, v * 0.6f, 0.6f);
+                }
+            });
+        }
+        FxScheduler.after(duration - 10, () -> {
+            sound(SoundEvents.GLASS_BREAK, 1f, 0.3f);
+            CameraShake.add(at, 2f, radius * 2);
+        });
     }
 }

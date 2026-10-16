@@ -106,6 +106,7 @@ final class DevScripts {
                 else if (name.startsWith("wreck:")) wreck(b, name.substring(6));
                 else if (name.equals("targetmap")) targetMap(b);
                 else if (name.startsWith("remote:")) remote(b, name.substring(7));
+                else if (name.startsWith("local:")) local(b, name.substring(6));
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
                 else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
                 else if (name.startsWith("holds:")) holds(b, java.util.Arrays.stream(name.substring(6).split(",")).map(com.fantasyweapons.weapon.Weapons::get).toList());
@@ -394,6 +395,44 @@ final class DevScripts {
         b.cmd("/tp @s 0 215 -10 0 90").wait(80).screenshot("remote_" + ability + "_after_top")
                 .cmd("/tp @s 0 140 -200 0 25").wait(60).screenshot("remote_" + ability + "_after_a")
                 .cmd("/tp @s 190 120 0 90 15").wait(60).screenshot("remote_" + ability + "_after_b");
+    }
+
+    /**
+     * A local ability of an ultimate weapon (fwterrain world): {@code weapon/ability/ticks,.../x,y,z,yaw,pitch[/back]} -
+     * stand there facing that way, charge, release and capture; "back" films it from behind the player. Then a top-down map.
+     */
+    private static void local(ScreenshotDirector.Builder b, String spec) {
+        String[] parts = spec.split("/");
+        String weapon = parts[0], ability = parts[1];
+        String[] times = parts[2].split(",");
+        String[] at = parts[3].split(",");
+        boolean back = parts.length > 4 && parts[4].equals("back");
+        var def = com.fantasyweapons.weapon.Weapons.get(weapon);
+        var a = def.ability(ability);
+        String tp = "/tp @s " + at[0] + " " + at[1] + " " + at[2] + " " + at[3] + " " + at[4];
+        b.wait(40).cmd("/fw class set " + (def.weaponClass().magic() ? "mage" : "berserker")).closeScreen().wait(5).closeScreen()
+                .cmd("/gamemode creative").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/gamerule doMobSpawning false")
+                .cmd("/clear @s").cmd("/fw give " + weapon + " 1").cmd(tp).wait(300).slot(0).closeScreen().cmd("/fw cooldowns").cmd(tp).wait(40)
+                .run(mc -> {
+                    var srv = mc.getSingleplayerServer();
+                    var pos = mc.player.blockPosition();
+                    srv.execute(() -> DevMaps.dump(srv.overworld(), pos.getX(), pos.getZ(), 300, new java.io.File(mc.gameDirectory, "screenshots/fw_local_" + ability + "_map0.png")));
+                }).wait(5)
+                .hud(true).camera(back ? net.minecraft.client.CameraType.THIRD_PERSON_BACK : net.minecraft.client.CameraType.FIRST_PERSON)
+                .select(a.id()).wait(4).screenshot("local_" + ability + "_before");
+        b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+        int prev = 0;
+        for (String t : times) {
+            int when = Integer.parseInt(t.trim());
+            b.wait(Math.max(1, when - prev)).screenshot("local_" + ability + "_" + String.format("%03d", when));
+            prev = when;
+        }
+        b.wait(60).run(mc -> {
+            com.fantasyweapons.FantasyWeapons.LOGGER.warn("local: {}", com.fantasyweapons.world.wreck.WorldWreck.stats());
+            var srv = mc.getSingleplayerServer();
+            var pos = mc.player.blockPosition();
+            srv.execute(() -> DevMaps.dump(srv.overworld(), pos.getX(), pos.getZ(), 300, new java.io.File(mc.gameDirectory, "screenshots/fw_local_" + ability + "_map.png")));
+        }).wait(10).camera(net.minecraft.client.CameraType.FIRST_PERSON);
     }
 
     /** The remote-cast targeting map, opened by the ability key with the Spell Book of Absolute Domination (fwterrain world). */

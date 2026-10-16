@@ -55,7 +55,7 @@ public final class GreatSwordOfObliteration {
                         .standard(30.0, 1.5, 60.0)
                         .param("length", 64, "How far the slash runs")
                         .param("width", 64, "How wide the slash sweeps")
-                        .param("thickness", 3, "Thickness of the cut through the world")
+                        .param("thickness", 5, "Thickness of the cut through the world")
                         .param("speed", 4, "Blocks the slash travels per tick")
                         .stat("DAMAGE", AbilityText.damage())
                         .stat("LENGTH", AbilityText.param("length", "m", 0))

@@ -303,12 +303,17 @@ public final class WreckShapes {
      * glazed in snow and ice, and jagged spikes of ice stand here and there.
      */
     public static ChunkShaper freeze(Vec3 center, double radius) {
+        return freeze(center, radius, 0);
+    }
+
+    /** {@link #freeze(Vec3, double)}, sparing the ground within {@code spare} of the centre. */
+    public static ChunkShaper freeze(Vec3 center, double radius, double spare) {
         return c -> {
             net.minecraft.util.RandomSource r = c.random();
             for (int x = c.minX(); x < c.minX() + 16; x++) {
                 for (int z = c.minZ(); z < c.minZ() + 16; z++) {
                     double dx = x + 0.5 - center.x, dz = z + 0.5 - center.z;
-                    if (dx * dx + dz * dz > radius * radius) continue;
+                    if (dx * dx + dz * dz > radius * radius || dx * dx + dz * dz < spare * spare) continue;
                     int top = c.top(x, z), ground = c.ground(x, z);
                     if (ground <= c.minY()) continue;
                     boolean surface = true;
@@ -338,5 +343,196 @@ public final class WreckShapes {
                 }
             }
         };
+    }
+
+    /**
+     * The Great Slash's cut: a slab {@code thickness} thick through everything, in the plane through {@code origin}
+     * spanned by {@code forward} and {@code blade}, from the blade out to {@code length}, fanning to {@code halfWidth}
+     * either side.
+     */
+    public static ChunkShaper slab(Vec3 origin, Vec3 forward, Vec3 blade, double length, double halfWidth, double thickness) {
+        Vec3 n = forward.cross(blade).normalize();
+        double half = thickness / 2;
+        return c -> {
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    double dx = x + 0.5 - origin.x, dz = z + 0.5 - origin.z;
+                    double a = n.x * dx + n.z * dz;
+                    int y0, y1;
+                    if (Math.abs(n.y) > 1e-3) {
+                        double ya = origin.y + (-half - a) / n.y, yb = origin.y + (half - a) / n.y;
+                        y0 = (int) Math.floor(Math.min(ya, yb));
+                        y1 = (int) Math.ceil(Math.max(ya, yb));
+                    } else {
+                        if (Math.abs(a) > half) continue;
+                        y0 = (int) Math.floor(origin.y - halfWidth - 2);
+                        y1 = (int) Math.ceil(origin.y + halfWidth + 2);
+                    }
+                    y0 = Math.max(c.minY(), y0);
+                    y1 = Math.min(c.maxY() - 1, y1);
+                    for (int y = y0; y <= y1; y++) {
+                        double dy = y + 0.5 - origin.y;
+                        double f = forward.x * dx + forward.y * dy + forward.z * dz;
+                        if (f < 1.5 || f > length) continue;
+                        double l = Math.abs(blade.x * dx + blade.y * dy + blade.z * dz);
+                        if (l > halfWidth * Math.sqrt(Math.min(1, f / (length * 0.35)))) continue;
+                        if (Math.abs(n.x * dx + n.y * dy + n.z * dz) > half) continue;
+                        c.clear(x, y, z);
+                    }
+                }
+            }
+        };
+    }
+
+    /**
+     * The Grand Earthquake's broken land: the ground is split into plates (a Voronoi web around {@code plates}, given
+     * relative to the centre, with how far each heaves up or sinks in {@code shifts}); along their edges fissures tear
+     * down deep, some to bedrock, lava in their depths; the radial cracks of {@code cracks} run through it all. Nothing
+     * within {@code safe} of the centre is touched.
+     */
+    public static ChunkShaper quake(Vec3 center, double radius, double safe, double[][] plates, int[] shifts,
+                                    com.fantasyweapons.weapons.ultimate.CrackNetwork cracks) {
+        return c -> {
+            double[] k = new double[1];
+            int bottom = c.minY() + 6;
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    double dx = x + 0.5 - center.x, dz = z + 0.5 - center.z, d = Math.sqrt(dx * dx + dz * dz);
+                    if (d > radius || d < safe) continue;
+                    double fade = Math.min(1, (d - safe) / 6) * Math.min(1, (radius - d) / 12);
+                    // which plate, and how near its edge
+                    int best = 0;
+                    double d1 = Double.MAX_VALUE, d2 = Double.MAX_VALUE;
+                    for (int i = 0; i < plates.length; i++) {
+                        double px = dx - plates[i][0], pz = dz - plates[i][1], pd = px * px + pz * pz;
+                        if (pd < d1) {
+                            d2 = d1;
+                            d1 = pd;
+                            best = i;
+                        } else if (pd < d2) d2 = pd;
+                    }
+                    double edge = Math.sqrt(d2) - Math.sqrt(d1);
+                    int top = c.top(x, z), ground = c.ground(x, z);
+                    if (ground <= bottom) continue;
+                    // the plate heaves or sinks, fully away from its edges
+                    int shift = (int) Math.round(shifts[best] * fade * Math.min(1, Math.max(0, (edge - 3) / 8)));
+                    if (shift > 0) {
+                        for (int y = Math.min(top, c.maxY() - 1 - shift); y >= bottom; y--) c.set(x, y + shift, z, c.get(x, y, z));
+                    } else if (shift < 0) {
+                        for (int y = bottom - shift; y <= top; y++) c.set(x, y + shift, z, c.get(x, y, z));
+                        for (int y = top + shift + 1; y <= top; y++) c.clear(x, y, z);
+                    }
+                    top += shift;
+                    ground += shift;
+                    // the fissures along the plates' edges, and the cracks running out from the blow
+                    double width = (2.2 + 3.5 * noise(x * 0.7, z * 0.7)) * fade;
+                    double floor = Double.NaN;
+                    if (edge < width) {
+                        double deep = noise(x * 0.3 + 55, z * 0.3 + 91) > 0.6 ? ground - bottom : 22 + 30 * noise(x * 0.5, z * 0.5 + 7);
+                        floor = ground - deep * (1 - edge / width * 0.5);
+                    }
+                    var seg = cracks.at(dx, dz, Double.MAX_VALUE, k);
+                    if (seg != null) {
+                        double cf = ground - seg.depth() * (0.4 + 0.6 * k[0]) * fade;
+                        floor = Double.isNaN(floor) ? cf : Math.min(floor, cf);
+                    }
+                    if (Double.isNaN(floor)) continue;
+                    int f = Math.max(bottom, (int) Math.round(floor));
+                    for (int y = top; y > f + 2; y--) c.clear(x, y, z);
+                    if (f < 40) for (int y = f; y <= f + 2; y++) c.set(x, y, z, LAVA);
+                    else c.set(x, f, z, c.random().nextFloat() < 0.3f ? MAGMA : BLACKSTONE);
+                }
+            }
+        };
+    }
+
+    /**
+     * A giant ice spike driven into the ground: a crater blasted where it struck ({@code crater} across), the spike itself
+     * - a long cone of packed and blue ice, {@code length} long, leaning along {@code dir}, a third of it buried - and the
+     * ground around frozen.
+     */
+    public static ChunkShaper iceSpike(Vec3 impact, Vec3 dir, double length, double base, double crater) {
+        Vec3 d = dir.normalize();
+        Vec3 tip = impact.subtract(d.scale(length * 0.66)), root = impact.add(d.scale(length * 0.34));
+        return c -> {
+            int r = (int) Math.ceil(Math.max(crater + 6, base + length * 0.7));
+            for (int x = Math.max(c.minX(), (int) impact.x - r); x <= Math.min(c.minX() + 15, (int) impact.x + r); x++) {
+                for (int z = Math.max(c.minZ(), (int) impact.z - r); z <= Math.min(c.minZ() + 15, (int) impact.z + r); z++) {
+                    double dx = x + 0.5 - impact.x, dz = z + 0.5 - impact.z, hd = Math.sqrt(dx * dx + dz * dz);
+                    int ground = c.ground(x, z);
+                    // frost around the strike
+                    if (hd < crater + 6 && ground > c.minY()) {
+                        for (int y = c.top(x, z); y > ground; y--) if (!c.get(x, y, z).isAir()) c.clear(x, y, z);
+                        if (c.random().nextFloat() < 0.8f) c.set(x, ground, z, c.random().nextBoolean() ? SNOW : PACKED_ICE);
+                    }
+                    int y0 = (int) Math.floor(Math.min(tip.y, root.y) - crater - 1), y1 = (int) Math.ceil(Math.max(tip.y, root.y) + base + 1);
+                    for (int y = Math.max(c.minY(), y0); y <= Math.min(c.maxY() - 1, y1); y++) {
+                        double px = x + 0.5, py = y + 0.5, pz = z + 0.5;
+                        // the crater
+                        double cx = px - impact.x, cy = py - impact.y, cz = pz - impact.z;
+                        if (cx * cx + cy * cy + cz * cz < crater * crater) c.clear(x, y, z);
+                        // the spike: a cone from its buried root (wide) to its tip (a point)
+                        Vec3 rel = new Vec3(px - root.x, py - root.y, pz - root.z);
+                        double along = -rel.dot(d);
+                        if (along < 0 || along > length) continue;
+                        double off = rel.add(d.scale(along)).length();
+                        double rad = base * (1 - along / length);
+                        if (off <= rad) c.set(x, y, z, off < rad * 0.45 ? BLUE_ICE : PACKED_ICE);
+                    }
+                }
+            }
+        };
+    }
+
+    static final BlockState THORN_CORE = Blocks.STRIPPED_DARK_OAK_WOOD.defaultBlockState();
+
+    /**
+     * A giant thorn standing forever where it burst out of the ground: a cone of bark from {@code base} (sunk a little
+     * into the earth) to a point at {@code tip}, {@code radius} thick at its foot, moss on its back, its heart pale
+     * stripped wood, small thorns spiralling up its sides; the ground at its foot is torn into rooted dirt.
+     */
+    public static ChunkShaper thornSpire(Vec3 base, Vec3 tip, double radius) {
+        Vec3 axis = tip.subtract(base);
+        double length = axis.length();
+        Vec3 d = axis.scale(1 / length);
+        Vec3[] b = basisOf(d);
+        return c -> {
+            int reach = (int) Math.ceil(radius + 4);
+            int x0 = (int) Math.floor(Math.min(base.x, tip.x)) - reach, x1 = (int) Math.ceil(Math.max(base.x, tip.x)) + reach;
+            int z0 = (int) Math.floor(Math.min(base.z, tip.z)) - reach, z1 = (int) Math.ceil(Math.max(base.z, tip.z)) + reach;
+            int y0 = (int) Math.floor(Math.min(base.y, tip.y)) - reach, y1 = (int) Math.ceil(Math.max(base.y, tip.y)) + reach;
+            for (int x = Math.max(c.minX(), x0); x <= Math.min(c.minX() + 15, x1); x++) {
+                for (int z = Math.max(c.minZ(), z0); z <= Math.min(c.minZ() + 15, z1); z++) {
+                    for (int y = Math.max(c.minY(), y0); y <= Math.min(c.maxY() - 1, y1); y++) {
+                        Vec3 rel = new Vec3(x + 0.5 - base.x, y + 0.5 - base.y, z + 0.5 - base.z);
+                        double along = rel.dot(d);
+                        if (along < -2 || along > length) continue;
+                        Vec3 side = rel.subtract(d.scale(along));
+                        double off = side.length();
+                        double u = Math.max(0, along) / length;
+                        double rad = radius * (1 - u) * (1 - u * 0.2);
+                        // little thorns spiralling up its flanks
+                        double ang = Math.atan2(side.dot(b[1]), side.dot(b[0]));
+                        double spiral = Math.sin(ang * 3 - along * 0.9);
+                        if (spiral > 0.92 && u > 0.12 && u < 0.85 && off < rad + 2.2 * (1 - u)) rad += 2.2 * (1 - u);
+                        if (off > rad + 1.3) continue;
+                        BlockState old = c.get(x, y, z);
+                        if (off > rad) {
+                            if (along < 2 && WreckChunk.terrain(old) && c.random().nextFloat() < 0.6f) c.set(x, y, z, ROOTED_DIRT);
+                            continue;
+                        }
+                        boolean top = side.y > 0 && side.normalize().y > 0.5 && off > rad - 1.2;
+                        c.set(x, y, z, off < rad * 0.4 ? THORN_CORE : top && c.random().nextFloat() < 0.6f ? MOSS : c.random().nextFloat() < 0.2f ? ROOT_MANGROVE : ROOT_WOOD);
+                    }
+                }
+            }
+        };
+    }
+
+    /** Two unit vectors square to {@code n} and to each other. */
+    static Vec3[] basisOf(Vec3 n) {
+        Vec3 a = Math.abs(n.y) < 0.9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
+        Vec3 u = n.cross(a).normalize();
+        return new Vec3[]{u, n.cross(u).normalize()};
     }
 }
