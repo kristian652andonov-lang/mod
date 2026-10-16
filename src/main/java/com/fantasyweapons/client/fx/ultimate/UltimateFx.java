@@ -36,6 +36,7 @@ public final class UltimateFx {
         FxDispatcher.register(FxIds.GREAT_SLASH, UltimateFx::greatSlash);
         FxDispatcher.register(FxIds.GRAND_EARTHQUAKE, UltimateFx::grandEarthquake);
         FxDispatcher.register(FxIds.ICE_RAIN, UltimateFx::iceRain);
+        FxDispatcher.register(FxIds.THORNSPIRE, UltimateFx::thornspire);
         FxDispatcher.register(FxIds.GREAT_SLASH_CUT, p -> VfxManager.add(new GreatSlashVfx.Cut(p.pos(), p.dir(), p.scale())));
     }
 
@@ -410,5 +411,40 @@ public final class UltimateFx {
             sound(SoundEvents.GLASS_BREAK, 1f, 0.3f);
             CameraShake.add(at, 2f, radius * 2);
         });
+    }
+
+    private static void thornspire(FxPayload p) {
+        Vec3 at = p.pos();
+        float radius = p.scale(), safe = p.power();
+        int[] codes = p.entities();
+        int last = 0;
+        for (int c : codes) last = Math.max(last, c / 1000);
+        BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
+        VfxManager.add(new ThornspireVfx(at, radius, safe, p.points(), codes, p.seed()).bursting(debris));
+        if (isCaster(p) || distance(at) < radius * 2) {
+            CinematicHud.play("UPLINK // OBLITERATION-01 > THORNSPIRE CATACLYSM", at, 0x7BE86B, (last + 50) * 50L, List.of(
+                    Cue.status(0, "THE OLD FOREST WAKES", 0x7BE86B),
+                    Cue.card(300, 2000, "Something is coming", "from beneath  \u00B7  " + codes.length + " thorns rising", 0xFFFFFF),
+                    Cue.status(1200, "IMPALING", 0x9CFF6A),
+                    Cue.card(last * 50L - 600, 2600, "The Thornwood", "it will stand forever  \u00B7  " + (int) radius + " m", 0xC8FFA8),
+                    Cue.status(last * 50L + 400, "OVERGROWN", 0x9CD67A)));
+        }
+        sound(SoundEvents.WARDEN_EMERGE, 1f, 0.7f);
+        sound(SoundEvents.GENERIC_EXPLODE, 0.7f, 0.5f);
+        java.util.Set<Integer> loud = new java.util.HashSet<>();
+        for (int i = 0; i < codes.length && i * 2 < p.points().size(); i++) {
+            int when = Math.max(0, codes[i] / 1000 - 5);
+            Vec3 foot = p.points().get(i * 2);
+            FxScheduler.after(when, () -> {
+                double d = distance(foot);
+                CameraShake.add(foot, 1.2f, 60);
+                if (d < 100) {
+                    float v = (float) Math.max(0.2, 1 - d / 100);
+                    sound(SoundEvents.ROOTED_DIRT_BREAK, v, 0.5f);
+                    sound(SoundEvents.WOOD_BREAK, v, 0.4f + (float) Math.random() * 0.2f);
+                }
+            });
+            if (loud.add(when / 8)) FxScheduler.after(when, () -> sound(SoundEvents.GENERIC_EXPLODE, 0.35f, 0.5f));
+        }
     }
 }

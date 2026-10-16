@@ -421,6 +421,11 @@ final class DevScripts {
                 .hud(true).camera(back ? net.minecraft.client.CameraType.THIRD_PERSON_BACK : net.minecraft.client.CameraType.FIRST_PERSON)
                 .select(a.id()).wait(4).screenshot("local_" + ability + "_before");
         b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+        if (parts.length > 4 && parts[4].startsWith("view=")) {
+            // film it from a free camera at an offset from the player, looking at another offset
+            double[] v = java.util.Arrays.stream(parts[4].substring(5).split(",")).mapToDouble(Double::parseDouble).toArray();
+            b.viewAt(v[0], v[1], v[2], v[3], v[4], v[5]);
+        }
         int prev = 0;
         for (String t : times) {
             int when = Integer.parseInt(t.trim());
@@ -432,7 +437,7 @@ final class DevScripts {
             var srv = mc.getSingleplayerServer();
             var pos = mc.player.blockPosition();
             srv.execute(() -> DevMaps.dump(srv.overworld(), pos.getX(), pos.getZ(), 300, new java.io.File(mc.gameDirectory, "screenshots/fw_local_" + ability + "_map.png")));
-        }).wait(10).camera(net.minecraft.client.CameraType.FIRST_PERSON);
+        }).wait(10).playerView().camera(net.minecraft.client.CameraType.FIRST_PERSON);
     }
 
     /** The remote-cast targeting map, opened by the ability key with the Spell Book of Absolute Domination (fwterrain world). */
