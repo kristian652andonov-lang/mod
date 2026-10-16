@@ -231,4 +231,10 @@ public final class FxIds {
     public static final ResourceLocation BLACKHOLE = FantasyWeapons.id("domination/blackhole");
     /** The Earthsplitting Eruption: pos = ground at the target, scale = radius, power = delay ticks, level = crater depth. */
     public static final ResourceLocation ERUPTION = FantasyWeapons.id("domination/eruption");
+    /** Tectonic Breakage: pos = ground at the target, dir = along the canyon, scale = length, power = width, level = ticks. */
+    public static final ResourceLocation TECTONIC = FantasyWeapons.id("domination/tectonic");
+    /** The Roots of the Great Tree: pos = target, scale = radius, power = ticks, points = 4 control points per root, entities = root thickness x10. */
+    public static final ResourceLocation GREAT_TREE = FantasyWeapons.id("domination/great_tree");
+    /** The roots seize these creatures (entities), until power ticks have passed. */
+    public static final ResourceLocation GREAT_TREE_GRAB = FantasyWeapons.id("domination/great_tree_grab");
 }

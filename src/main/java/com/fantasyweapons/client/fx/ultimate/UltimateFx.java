@@ -29,6 +29,9 @@ public final class UltimateFx {
         FxDispatcher.register(FxIds.CATACLYSM_FRAME, UltimateFx::cataclysmFrame);
         FxDispatcher.register(FxIds.BLACKHOLE, UltimateFx::blackhole);
         FxDispatcher.register(FxIds.ERUPTION, UltimateFx::eruption);
+        FxDispatcher.register(FxIds.TECTONIC, UltimateFx::tectonic);
+        FxDispatcher.register(FxIds.GREAT_TREE, UltimateFx::greatTree);
+        FxDispatcher.register(FxIds.GREAT_TREE_GRAB, UltimateFx::greatTreeGrab);
     }
 
     /** How far the viewer is from a point (blocks), or a long way if there is no player. */
@@ -212,5 +215,80 @@ public final class UltimateFx {
             debris.throwBlock(state, new Vec3(x + 0.5, top + 1, z + 0.5), vel, r.nextFloat() < 0.15f ? 2.5f : 1f, 50 + r.nextInt(50));
         }
         debris.close();
+    }
+
+    private static void tectonic(FxPayload p) {
+        Vec3 at = p.pos();
+        float length = p.scale(), width = p.power();
+        int duration = Math.max(60, p.level());
+        BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(p.seed()));
+        VfxManager.add(new TectonicVfx(at, p.dir(), length, width, duration, p.seed()).shedding(debris));
+        long ms = duration * 50L;
+        if (isCaster(p) || distance(at) < length * 2) {
+            CinematicHud.play("UPLINK // DOMINION-01 > TECTONIC BREAKAGE", at, 0xD8A868, (duration + 60) * 50L, List.of(
+                    Cue.status(0, "FAULT LINE FOUND", 0xD8A868),
+                    Cue.card(500, 2200, "The plates split", (int) length + " m of fault  ·  drift 4 m/s", 0xFFFFFF),
+                    Cue.status(1500, "PLATES SEPARATING", 0xFFB040),
+                    Cue.card(ms / 2, 2200, "Down to bedrock", "canyon " + (int) width + " m wide  ·  the mantle rises", 0xFFB040),
+                    Cue.status(ms, "RIFT COMPLETE", 0x9CD67A)));
+        }
+        sound(SoundEvents.WARDEN_DIG, 1f, 0.4f);
+        FxScheduler.after(10, () -> {
+            sound(SoundEvents.GENERIC_EXPLODE, 1f, 0.35f);
+            CameraShake.add(at, 2.5f, length * 2);
+        });
+        for (int k = 20; k < duration; k += 12) {
+            int when = k;
+            FxScheduler.after(when, () -> {
+                CameraShake.add(at, 1.1f, length * 1.6);
+                sound(when % 36 == 0 ? SoundEvents.DEEPSLATE_BREAK : SoundEvents.STONE_BREAK, 1f, 0.4f);
+                if (when % 48 == 0) sound(SoundEvents.WARDEN_HEARTBEAT, 1f, 0.4f);
+            });
+        }
+    }
+
+    /** The last Great Tree effect started, so its seizing can be added to it. */
+    private static GreatTreeVfx lastTree;
+
+    private static void greatTree(FxPayload p) {
+        Vec3 at = p.pos();
+        float radius = p.scale();
+        int duration = Math.max(60, (int) p.power());
+        java.util.List<com.fantasyweapons.weapons.ultimate.RootSpline> roots = new java.util.ArrayList<>();
+        var pts = p.points();
+        int[] thick = p.entities();
+        for (int i = 0; i + 3 < pts.size() && i / 4 < thick.length; i += 4) {
+            roots.add(new com.fantasyweapons.weapons.ultimate.RootSpline(pts.get(i), pts.get(i + 1), pts.get(i + 2), pts.get(i + 3), thick[i / 4] / 10f));
+        }
+        lastTree = VfxManager.add(new GreatTreeVfx(at, radius, duration, roots));
+        long ms = duration * 50L;
+        if (isCaster(p) || distance(at) < radius * 3) {
+            CinematicHud.play("UPLINK // DOMINION-01 > THE ROOTS OF THE GREAT TREE", at, 0x6BE873, (duration + 50) * 50L, List.of(
+                    Cue.status(0, "THE WORLD TREE STIRS", 0x6BE873),
+                    Cue.card(700, 2200, "Something is coming", "from beneath  ·  " + roots.size() + " roots rising", 0xFFFFFF),
+                    Cue.status(2000, "SEIZING", 0x9CFF6A),
+                    Cue.card(2100, 2200, "Held fast", "nothing within " + (int) radius + " m can move", 0xB8FF9A),
+                    Cue.status(ms, "THE ROOTS REMAIN", 0x9CD67A),
+                    Cue.card(ms, 2600, "Returned to the earth", "the roots will stand forever", 0xFFFFFF)));
+        }
+        sound(SoundEvents.WARDEN_EMERGE, 1f, 0.6f);
+        for (int k = 14; k < 70; k += 7) {
+            int when = k;
+            FxScheduler.after(when, () -> {
+                CameraShake.add(at, 1.6f, radius * 2.5);
+                sound(when % 14 == 0 ? SoundEvents.ROOTED_DIRT_BREAK : SoundEvents.WOOD_BREAK, 1f, 0.4f);
+            });
+        }
+        FxScheduler.after(16, () -> sound(SoundEvents.GENERIC_EXPLODE, 0.8f, 0.5f));
+        FxScheduler.after(duration, () -> {
+            CameraShake.add(at, 2.5f, radius * 3);
+            sound(SoundEvents.WOOD_BREAK, 1f, 0.3f);
+            sound(SoundEvents.GENERIC_EXPLODE, 0.7f, 0.4f);
+        });
+    }
+
+    private static void greatTreeGrab(FxPayload p) {
+        if (lastTree != null && !lastTree.isDead()) lastTree.seize(p.entities());
+        sound(SoundEvents.CHAIN_PLACE, 1f, 0.4f);
     }
 }

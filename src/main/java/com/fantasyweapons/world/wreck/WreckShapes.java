@@ -190,4 +190,105 @@ public final class WreckShapes {
         h = (h ^ (h >>> 13)) * 0x5DEECE66DL;
         return ((h >>> 20) & 0xFFFF) / 65535.0;
     }
+
+    /**
+     * A canyon torn straight across the land, down to bedrock: {@code length} long through {@code center} along
+     * {@code dir}, {@code halfWidth} to each side (narrowing to its ends, its walls jagged), its floor sloping up steeply
+     * at the walls and drowned in lava up to {@code lavaY}, broken rock floating on the lava. The sea at its lips is
+     * sealed off with obsidian.
+     */
+    public static ChunkShaper canyon(Vec3 center, Vec3 dir, double length, double halfWidth, int lavaY) {
+        double ux = dir.x, uz = dir.z, half = length / 2;
+        return c -> {
+            net.minecraft.util.RandomSource r = c.random();
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    double rx = x + 0.5 - center.x, rz = z + 0.5 - center.z;
+                    double along = rx * ux + rz * uz, across = Math.abs(-rx * uz + rz * ux);
+                    if (Math.abs(along) > half) continue;
+                    double taper = Math.min(1, (half - Math.abs(along)) / (length * 0.18));
+                    double w = halfWidth * Math.sqrt(Math.max(0, taper)) * (0.78 + 0.44 * noise(along * 0.9 + 400, 13));
+                    if (across > w + 3) continue;
+                    int top = c.top(x, z), ground = Math.max(c.ground(x, z), c.minY() + 1);
+                    if (across > w) {
+                        // the lip: broken, the sea sealed off
+                        for (int y = top; y > ground - 6 && y > c.minY(); y--) {
+                            BlockState old = c.get(x, y, z);
+                            if (!old.getFluidState().isEmpty()) c.set(x, y, z, OBSIDIAN);
+                            else if (y > ground - 3 && r.nextFloat() < 0.4f) c.clear(x, y, z);
+                        }
+                        continue;
+                    }
+                    double k = across / Math.max(1, w);
+                    int floor = c.minY() + 1 + (int) Math.round(Math.pow(k, 5) * (ground - c.minY()) * 0.9);
+                    for (int y = Math.max(top, ground); y > floor; y--) c.clear(x, y, z);
+                    for (int y = floor; y <= lavaY; y++) c.set(x, y, z, LAVA);
+                    if (floor < lavaY && r.nextFloat() < 0.025f) {
+                        // broken rock floating on the lava
+                        c.set(x, lavaY + 1, z, r.nextBoolean() ? BLACKSTONE : BASALT);
+                    }
+                    // the deep walls glow
+                    if (k > 0.85 && floor < 40) c.set(x, floor - 1, z, MAGMA);
+                }
+            }
+        };
+    }
+
+    static final BlockState ROOT_WOOD = Blocks.DARK_OAK_WOOD.defaultBlockState();
+    static final BlockState ROOT_MANGROVE = Blocks.MANGROVE_WOOD.defaultBlockState();
+    static final BlockState ROOT_TIP = Blocks.MANGROVE_ROOTS.defaultBlockState();
+    static final BlockState MOSS = Blocks.MOSS_BLOCK.defaultBlockState();
+    static final BlockState ROOTED_DIRT = Blocks.ROOTED_DIRT.defaultBlockState();
+
+    /**
+     * Giant roots built into the world for good: solid bark, streaked with mangrove wood, moss on their backs and a
+     * tangle of roots at their thin ends; where they leave the ground it is broken into rooted dirt.
+     */
+    public static ChunkShaper roots(java.util.List<com.fantasyweapons.weapons.ultimate.RootSpline> roots) {
+        return c -> {
+            int x0 = c.minX(), z0 = c.minZ();
+            for (var root : roots) {
+                if (root.maxX() < x0 || root.minX() > x0 + 16 || root.maxZ() < z0 || root.minZ() > z0 + 16) continue;
+                int n = 28;
+                Vec3[] pts = root.samples(n);
+                // each piece of the root only looks at the blocks around itself
+                for (int i = 0; i < n; i++) {
+                    Vec3 a = pts[i], b = pts[i + 1];
+                    double ta = i / (double) n, tb = (i + 1) / (double) n;
+                    double reach = root.radius(ta) + 1.2;
+                    int xa = Math.max(x0, (int) Math.floor(Math.min(a.x, b.x) - reach)), xb = Math.min(x0 + 15, (int) Math.ceil(Math.max(a.x, b.x) + reach));
+                    int za = Math.max(z0, (int) Math.floor(Math.min(a.z, b.z) - reach)), zb = Math.min(z0 + 15, (int) Math.ceil(Math.max(a.z, b.z) + reach));
+                    int ya = Math.max(c.minY(), (int) Math.floor(Math.min(a.y, b.y) - reach)), yb = Math.min(c.maxY() - 1, (int) Math.ceil(Math.max(a.y, b.y) + reach));
+                    if (xa > xb || za > zb || ya > yb) continue;
+                    double dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len2 = dx * dx + dy * dy + dz * dz;
+                    for (int x = xa; x <= xb; x++) {
+                        for (int z = za; z <= zb; z++) {
+                            for (int y = ya; y <= yb; y++) {
+                                double px = x + 0.5, py = y + 0.5, pz = z + 0.5;
+                                double t = len2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy + (pz - a.z) * dz) / len2));
+                                double qx = a.x + dx * t - px, qy = a.y + dy * t - py, qz = a.z + dz * t - pz;
+                                double d = Math.sqrt(qx * qx + qy * qy + qz * qz);
+                                double u = ta + (tb - ta) * t, r = root.radius(u);
+                                if (d > r + 1.2) continue;
+                                BlockState old = c.get(x, y, z);
+                                if (d > r) {
+                                    // where the root breaks the ground, the earth around it is torn and rooted
+                                    if (WreckChunk.terrain(old) && c.random().nextFloat() < 0.5f) c.set(x, y, z, ROOTED_DIRT);
+                                    continue;
+                                }
+                                if (old.is(Blocks.DARK_OAK_WOOD) || old.is(Blocks.MANGROVE_WOOD) || old.is(Blocks.MOSS_BLOCK)) continue;
+                                if (u > 0.86) {
+                                    c.set(x, y, z, ROOT_TIP);
+                                    continue;
+                                }
+                                boolean back = py > a.y + dy * t + r * 0.55;
+                                float roll = c.random().nextFloat();
+                                c.set(x, y, z, back && roll < 0.55f ? MOSS : roll < 0.22f ? ROOT_MANGROVE : ROOT_WOOD);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+    }
 }
