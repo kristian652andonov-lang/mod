@@ -46,6 +46,7 @@ public final class ScreenshotDirector {
         }
         DevScripts.build(script, new Builder());
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> tick());
+        PerfProbe.start();
     }
 
     private static void tick() {

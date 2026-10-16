@@ -63,14 +63,13 @@ public final class DominationAbilities {
                 double r = WorldWreck.radius(radius);
                 // the land is erased from the middle out as the beam bites
                 WorldWreck.disc(level, pos, r + Math.min(8, r * 0.06) + 12, seed, d -> (int) (d / 6), WreckShapes.shaft(pos, r));
-                Cataclysm.frames(level, owner, pos, radius * 3, true);
+                Cataclysm.frames(level, owner, pos, radius * 3, 0xFFB43A, 0xFFF6D6);
                 level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 30f, 0.5f);
             }
             if (age >= delay && age <= delay + beam && (age - delay) % 4 == 0) {
                 Cataclysm.eraseColumn(owner, weapon(owner), level, pos, radius, damage, Element.LIGHT);
             }
             if (age == delay + beam / 2) {
-                Cataclysm.frames(level, owner, pos, radius * 3, false);
                 // the land round the hole splits open: deep cracks running out from its rim
                 double r = WorldWreck.radius(radius);
                 var ring = com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xBEA4L, 12, r + 2, r * 2.2, 6, 120);
@@ -131,12 +130,13 @@ public final class DominationAbilities {
                 int span = collapse - FORM - 10;
                 WorldWreck.disc(level, pos, r + WreckShapes.ragReach(r) + 14, seed, d -> FORM + (int) (Math.min(1, d / r) * span), WreckShapes.sphere(pos, r));
                 level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 30f, 0.4f);
+                // the one impact frame: the moment it tears open
+                Cataclysm.frames(level, owner, pos, reach * 2, 0xFF9636, 0xFFF8EE);
             }
             if (age >= FORM && age < collapse) feed(owner, (age - FORM) / (float) (collapse - FORM));
             if (age == collapse) {
                 // the collapse takes everything still in reach
                 for (net.minecraft.world.entity.Entity e : inReach()) swallow(owner, e);
-                Cataclysm.frames(level, owner, pos, reach * 2, true);
                 // the land round the bowl splits open as it collapses: deep cracks running out from its rim
                 double r = WorldWreck.radius(reach);
                 var ring = com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xB1AC4L, 14, r * 0.97, r * 1.7, 7, 120);
@@ -286,7 +286,7 @@ public final class DominationAbilities {
                 Kit.knock(e, pos, 3.5, 1.4);
                 e.igniteForSeconds(10);
             }
-            Cataclysm.frames(level, owner, pos, radius * 2.5, true);
+            Cataclysm.frames(level, owner, pos, radius * 2.5, 0xFF7A1A, 0xFFD050);
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 40f, 0.4f);
         }
     }
@@ -346,8 +346,7 @@ public final class DominationAbilities {
                 if (age == when) open(stage / (double) TECTONIC_STAGES);
             }
             if (age % 4 == 0 && age <= duration) swallow(owner);
-            if (age == 10) Cataclysm.frames(level, owner, pos, length * 0.75, true);
-            if (age == duration) Cataclysm.frames(level, owner, pos, length * 0.75, false);
+            if (age == 10) Cataclysm.frames(level, owner, pos, length * 0.75);
         }
 
         /** Widens the canyon to {@code fraction} of its width, the tear running from the middle out to its ends. */
@@ -490,7 +489,7 @@ public final class DominationAbilities {
                     double d = Math.hypot(cx * 16 + 8 - pos.x, cz * 16 + 8 - pos.z);
                     WorldWreck.submit(level, cx, cz, (int) (d / 20), seed, shaper);
                 }
-                Cataclysm.frames(level, owner, pos, radius * 2, false);
+                Cataclysm.frames(level, owner, pos, radius * 2);
             }
         }
 
@@ -502,7 +501,6 @@ public final class DominationAbilities {
                 ids.add(e.getId());
             }
             Cataclysm.fx(level, owner, FxPayload.of(FxIds.GREAT_TREE_GRAB).caster(owner.getId()).pos(pos).power(duration - GRAB).entities(ids).build());
-            Cataclysm.frames(level, owner, pos, radius * 2, true);
         }
 
         /** Held fast, lifted a little off the ground, crushed again and again. */
@@ -564,7 +562,7 @@ public final class DominationAbilities {
                 double r = WorldWreck.radius(radius);
                 // the land freezes right behind the wave
                 WorldWreck.disc(level, pos, r, seed, d -> SURGE + 4 + (int) (d / speed), WreckShapes.freeze(pos, r));
-                Cataclysm.frames(level, owner, pos, radius * 1.5, true);
+                Cataclysm.frames(level, owner, pos, radius * 1.5);
             }
             if (age < SURGE) return;
             double wave = (age - SURGE) * speed;

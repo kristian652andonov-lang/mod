@@ -143,7 +143,7 @@ public final class ObliterationAbilities {
 
         private void strike(ServerPlayer owner, Vec3 at) {
             struck = true;
-            Cataclysm.frames(level, owner, at, length, true);
+            Cataclysm.frames(level, owner, at, length, 0xFFD970, 0xFFFFFF);
             level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 30f, 0.4f);
         }
     }
@@ -216,7 +216,7 @@ public final class ObliterationAbilities {
             }
             for (var m : plan.moves()) WorldWreck.submit(level, m.dest().x, m.dest().z, m.lag(), seed, WreckShapes.shuffle(m, snaps));
             for (LivingEntity e : inside(owner)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.VOID);
-            Cataclysm.frames(level, owner, pos, radius * 3, true);
+            Cataclysm.frames(level, owner, pos, radius * 3, 0x9B4DFF, 0x30E8FF);
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 40f, 0.4f);
         }
     }
@@ -326,7 +326,7 @@ public final class ObliterationAbilities {
                 Kit.knock(e, pos, 3, 1.2);
                 e.igniteForSeconds(12);
             }
-            Cataclysm.frames(level, owner, pos, radius * 2.5, true);
+            Cataclysm.frames(level, owner, pos, radius * 2.5, 0xFF5A1A, 0xFFE6A0);
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 40f, 0.35f);
         }
     }
@@ -388,7 +388,7 @@ public final class ObliterationAbilities {
                 }
                 var shaper = WreckShapes.quake(pos, r, safe, plates, shifts, quakeCracks(seed, r));
                 WorldWreck.disc(level, pos, r, seed, d -> (int) (Math.max(0, d - safe) / Math.max(1, r - safe) * duration * 0.85), shaper);
-                Cataclysm.frames(level, owner, pos, 80, true);
+                Cataclysm.frames(level, owner, pos, 80);
             }
             double front = front();
             if (age % 5 == 0) {
@@ -405,7 +405,6 @@ public final class ObliterationAbilities {
                 for (LivingEntity e : Cataclysm.victims(level, owner, pos, radius)) {
                     if (Math.hypot(e.getX() - pos.x, e.getZ() - pos.z) >= safe + 1) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.EARTH);
                 }
-                Cataclysm.frames(level, owner, pos, radius, false);
             }
         }
     }
@@ -489,7 +488,7 @@ public final class ObliterationAbilities {
                     Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.NATURE);
                 }
             }
-            if (age == 10) Cataclysm.frames(level, owner, pos, radius, true);
+            if (age == 10) Cataclysm.frames(level, owner, pos, radius);
             if (age == SPIRAL + 12) {
                 // nothing in the forest of thorns survives
                 for (LivingEntity e : Cataclysm.victims(level, owner, pos, radius)) {
@@ -576,7 +575,7 @@ public final class ObliterationAbilities {
                 for (LivingEntity e : Cataclysm.victims(level, owner, p, 16)) Kit.knock(e, p, 1.2, 0.5);
             }
             // the impact frames: the moment the first spike strikes, where it strikes
-            if (age == first) Cataclysm.frames(level, owner, strikes.get(times.indexOf(first)), radius * 1.5, true);
+            if (age == first) Cataclysm.frames(level, owner, strikes.get(times.indexOf(first)), radius * 1.5);
             if (age == duration - 10) {
                 // what the ice did not strike, the cold takes
                 double r = WorldWreck.radius(radius);

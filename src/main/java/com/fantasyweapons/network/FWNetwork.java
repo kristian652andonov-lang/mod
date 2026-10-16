@@ -7,7 +7,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class FWNetwork {
-    public static final String VERSION = "1";
+    public static final String VERSION = "2";
 
     private FWNetwork() {
     }
@@ -36,6 +36,8 @@ public final class FWNetwork {
                 ctx.enqueueWork(() -> SidedHooks.get().handleProgression(p)));
         r.playToClient(DeedPayload.TYPE, DeedPayload.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> SidedHooks.get().handleDeed(p)));
+        r.playToClient(WreckPayload.TYPE, WreckPayload.CODEC, (p, ctx) ->
+                ctx.enqueueWork(() -> SidedHooks.get().handleWreck(p)));
         r.playToServer(QuestPayloads.Claim.TYPE, QuestPayloads.Claim.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> com.fantasyweapons.quest.QuestService.claim((ServerPlayer) ctx.player(), p.quest())));
         r.playToServer(QuestPayloads.ClaimAll.TYPE, QuestPayloads.ClaimAll.CODEC, (p, ctx) ->

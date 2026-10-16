@@ -94,6 +94,7 @@ final class DevScripts {
                 }
                 else if (name.equals("codexone")) codexOne(b);
                 else if (name.equals("impact")) impact(b);
+                else if (name.equals("tinted")) tinted(b);
                 else if (name.equals("codexflip")) codexFlip(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
@@ -1653,6 +1654,24 @@ final class DevScripts {
             for (String t : c[2].split(",")) {
                 long ms = Long.parseLong(t);
                 b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = ms).wait(10).screenshot("impact_" + c[1] + "_" + t);
+            }
+            b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = null).wait(60);
+        }
+    }
+
+    /** The ultimate weapons' long impact frames, tinted for the beam, the black hole and the fourth dimension, pinned in place. */
+    private static void tinted(ScreenshotDirector.Builder b) {
+        int[][] tints = {{0xFFB43A, 0xFFF6D6}, {0xFF9636, 0xFFF8EE}, {0x9B4DFF, 0x30E8FF}};
+        String[] names = {"beam", "blackhole", "fourth"};
+        b.wait(40).cmd("/fw class set mage").closeScreen().wait(5).closeScreen().cmd("/gamemode spectator").cmd("/time set noon")
+                .cmd("/tp @s 0 110 -60 0 25").wait(120).closeScreen().hud(false);
+        for (int k = 0; k < tints.length; k++) {
+            int[] tint = tints[k];
+            String n = names[k];
+            b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = 10L)
+                    .run(mc -> com.fantasyweapons.client.fx.ImpactFrames.cataclysm(1f, null, tint[0], tint[1])).wait(4);
+            for (long ms : new long[]{60, 300, 400, 560, 720, 880, 1000, 1150, 1550}) {
+                b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = ms).wait(6).screenshot("tinted_" + n + "_" + ms);
             }
             b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = null).wait(60);
         }

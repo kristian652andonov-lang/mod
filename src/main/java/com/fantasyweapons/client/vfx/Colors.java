@@ -20,6 +20,11 @@ public final class Colors {
         return ((int) (aa + (ba - aa) * t) << 24) | ((int) (ar + (br - ar) * t) << 16) | ((int) (ag + (bg - ag) * t) << 8) | (int) (ab + (bb - ab) * t);
     }
 
+    /** The colour with its alpha multiplied by {@code k}. */
+    public static int scaleAlpha(int argb, float k) {
+        return argb(Math.round(((argb >>> 24) & 255) * Math.max(0, Math.min(1, k))), argb);
+    }
+
     /** Lerp RGB only, result fully opaque. */
     public static int lerpRgb(int a, int b, float t) {
         return lerp(a | 0xFF000000, b | 0xFF000000, t) & 0xFFFFFF;

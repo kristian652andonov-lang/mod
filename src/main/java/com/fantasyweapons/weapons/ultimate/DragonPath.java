@@ -13,8 +13,13 @@ public final class DragonPath {
     private static final int SAMPLES = 480;
     private static final Vec3 UP = new Vec3(0, 1, 0);
 
+    /** How far (blocks) its back takes to settle towards the sky once it flies level, and how hard it banks into turns. */
+    private static final double SETTLE = 45, BANK = 80;
+
     private final Vec3[] pts = new Vec3[SAMPLES + 1];
     private final double[] arc = new double[SAMPLES + 1];
+    /** Its heading and which way its back faces at each sample: both change smoothly, and its back never flips over. */
+    private final Vec3[] dirs = new Vec3[SAMPLES + 1], ups = new Vec3[SAMPLES + 1];
     private final Vec3 rift, target, forward, side;
     private final Vec3 startDir, endDir;
     private final int flight;
@@ -50,6 +55,74 @@ public final class DragonPath {
         }
         startDir = pts[1].subtract(pts[0]).normalize();
         endDir = pts[SAMPLES].subtract(pts[SAMPLES - 1]).normalize();
+        for (int i = 0; i <= SAMPLES; i++) {
+            Vec3 d = pts[Math.min(SAMPLES, i + 2)].subtract(pts[Math.max(0, i - 2)]);
+            dirs[i] = d.lengthSqr() > 1e-10 ? d.normalize() : i == 0 ? startDir : dirs[i - 1];
+        }
+        orient();
+    }
+
+    /**
+     * Which way its back faces along the path. Carried from sample to sample with as little twist as possible, so it
+     * rolls only as the path turns and never flips over where the path runs straight up or down. It starts out so that
+     * it comes out of its climb the right way up, and while it flies level its back settles towards the sky, leaning
+     * into its turns.
+     */
+    private void orient() {
+        Vec3 first = across(forward, dirs[0]);
+        carry(first, false);
+        int level = 0;
+        while (level < SAMPLES && flatness(dirs[level]) < 0.7) level++;
+        double turn = flatness(dirs[level]) < 0.3 ? 0 : angle(ups[level], sky(dirs[level]), dirs[level]);
+        carry(rotate(first, dirs[0], turn), true);
+    }
+
+    private void carry(Vec3 first, boolean settle) {
+        ups[0] = first;
+        for (int i = 1; i <= SAMPLES; i++) {
+            Vec3 t = dirs[i];
+            Vec3 u = across(ups[i - 1], t);
+            double h = flatness(t);
+            if (settle && h > 0.25) {
+                // lean into the turn: tip its back towards the centre of the curve
+                int a = Math.max(0, i - 4), b = Math.min(SAMPLES, i + 4);
+                Vec3 bend = dirs[b].subtract(dirs[a]).scale(1 / Math.max(1e-6, arc[b] - arc[a]));
+                Vec3 left = UP.cross(t).normalize();
+                Vec3 want = sky(t).add(left.scale(Mth.clamp(bend.dot(left) * BANK, -0.85, 0.85))).normalize();
+                double k = 1 - Math.exp(-(arc[i] - arc[i - 1]) / SETTLE);
+                double w = Mth.clamp((h - 0.25) / 0.45, 0, 1);
+                u = rotate(u, t, angle(u, want, t) * k * w * w * (3 - 2 * w));
+            }
+            ups[i] = u;
+        }
+    }
+
+    /** v made square to the unit vector t (any square vector if v runs along t). */
+    private static Vec3 across(Vec3 v, Vec3 t) {
+        Vec3 u = v.subtract(t.scale(v.dot(t)));
+        if (u.lengthSqr() < 1e-8) u = (Math.abs(t.y) < 0.9 ? UP : new Vec3(1, 0, 0)).subtract(t.scale(Math.abs(t.y) < 0.9 ? t.y : t.x));
+        return u.normalize();
+    }
+
+    /** How level a heading is: 1 flat, 0 straight up or down. */
+    private static double flatness(Vec3 t) {
+        return Math.sqrt(Math.max(0, 1 - t.y * t.y));
+    }
+
+    /** The sky as seen square to a heading. */
+    private static Vec3 sky(Vec3 t) {
+        return across(UP, t);
+    }
+
+    /** The signed angle from a to b about the axis (all square to it). */
+    private static double angle(Vec3 a, Vec3 b, Vec3 axis) {
+        return Math.atan2(axis.dot(a.cross(b)), a.dot(b));
+    }
+
+    /** v turned by an angle about the unit axis. */
+    private static Vec3 rotate(Vec3 v, Vec3 axis, double angle) {
+        double c = Math.cos(angle), s = Math.sin(angle);
+        return v.scale(c).add(axis.cross(v).scale(s)).add(axis.scale(axis.dot(v) * (1 - c)));
     }
 
     private static Vec3 catmull(Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3, double t) {
@@ -95,29 +168,42 @@ public final class DragonPath {
     public Vec3 at(double s) {
         if (s <= 0) return pts[0].add(startDir.scale(s));
         if (s >= total()) return pts[SAMPLES].add(endDir.scale(s - total()));
+        int lo = sample(s);
+        return pts[lo].lerp(pts[lo + 1], within(s, lo));
+    }
+
+    /** Its heading at {@code s} (straight on past either end). */
+    public Vec3 direction(double s) {
+        return smooth(dirs, s);
+    }
+
+    /** Which way its back faces at {@code s}: square to {@link #direction}, turning smoothly, never flipping over. */
+    public Vec3 up(double s) {
+        Vec3 t = direction(s);
+        return across(smooth(ups, s), t);
+    }
+
+    private Vec3 smooth(Vec3[] along, double s) {
+        if (s <= 0) return along[0];
+        if (s >= total()) return along[SAMPLES];
+        int lo = sample(s);
+        Vec3 v = along[lo].lerp(along[lo + 1], within(s, lo));
+        return v.lengthSqr() < 1e-8 ? along[lo] : v.normalize();
+    }
+
+    /** The last sample at or before {@code s} (inside the path). */
+    private int sample(double s) {
         int lo = 0, hi = SAMPLES;
         while (hi - lo > 1) {
             int m = (lo + hi) >>> 1;
             if (arc[m] <= s) lo = m;
             else hi = m;
         }
-        double t = (s - arc[lo]) / Math.max(1e-6, arc[hi] - arc[lo]);
-        return pts[lo].lerp(pts[hi], t);
+        return lo;
     }
 
-    public Vec3 tangent(double s) {
-        Vec3 d = at(s + 1.5).subtract(at(s - 1.5));
-        return d.lengthSqr() < 1e-8 ? startDir : d.normalize();
-    }
-
-    /** A frame for the body at {@code s}: {tangent, right, up}, its "up" kept as near the sky as the tangent allows. */
-    public Vec3[] frame(double s, Vec3 prevUp) {
-        Vec3 t = tangent(s);
-        Vec3 ref = prevUp != null ? prevUp : Math.abs(t.y) > 0.92 ? forward.scale(-1) : UP;
-        Vec3 up = ref.subtract(t.scale(ref.dot(t)));
-        if (up.lengthSqr() < 1e-6) up = forward.scale(-1).subtract(t.scale(-forward.dot(t)));
-        up = up.normalize();
-        return new Vec3[]{t, t.cross(up).normalize(), up};
+    private double within(double s, int lo) {
+        return (s - arc[lo]) / Math.max(1e-6, arc[lo + 1] - arc[lo]);
     }
 
     /** Fraction of the strike's lead-up done: 0 at the cast, 1 when the head reaches the ground. */

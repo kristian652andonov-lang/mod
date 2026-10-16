@@ -68,7 +68,7 @@ public final class UltimateFx {
     /** The impact frames of a world-breaking blow, played by those near enough (the server sends them to them). */
     private static void cataclysmFrame(FxPayload p) {
         if (!isCaster(p) && distance(p.pos()) > p.scale()) return;
-        if (p.level() == 1) ImpactFrames.cataclysm(1f, p.pos());
+        if (p.level() == 1) ImpactFrames.cataclysm(1f, p.pos(), (int) (p.seed() >>> 24 & 0xFFFFFF), (int) (p.seed() & 0xFFFFFF));
         else ImpactFrames.play(true, 0.95f, p.pos());
     }
 
@@ -129,7 +129,6 @@ public final class UltimateFx {
         FxScheduler.after(form, () -> {
             sound(SoundEvents.WARDEN_SONIC_BOOM, 1f, 0.4f);
             CameraShake.add(hole, 2.5f, reach * 3);
-            ImpactFrames.play(true, 0.9f, hole);
         });
         for (int k = form + 30; k < collapse; k += 40) {
             FxScheduler.after(k, () -> {

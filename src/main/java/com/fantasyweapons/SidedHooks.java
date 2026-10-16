@@ -56,6 +56,10 @@ public interface SidedHooks {
         return null;
     }
 
+    /** Blocks the world's destruction changed arrived from the server. */
+    default void handleWreck(com.fantasyweapons.network.WreckPayload payload) {
+    }
+
     /** A custom effect arrived from the server. */
     default void handleFx(FxPayload payload) {
     }

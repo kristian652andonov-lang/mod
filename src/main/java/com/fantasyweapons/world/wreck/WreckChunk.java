@@ -1,8 +1,10 @@
 package com.fantasyweapons.world.wreck;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
 import net.minecraft.world.level.block.Blocks;
@@ -31,9 +33,15 @@ public final class WreckChunk {
     private final RandomSource random;
     private final BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
     private int changed;
-    /** The columns this job may change (null: all), and the blocks it changed, when they are to be sent one by one. */
+    /** The columns this job may change (null: all), and every block it changed (packed positions). */
     private boolean[] mask;
-    private it.unimi.dsi.fastutil.longs.LongArrayList changes;
+    private final it.unimi.dsi.fastutil.longs.LongArrayList changes = new it.unimi.dsi.fastutil.longs.LongArrayList();
+    private static final Direction[] ALL = Direction.values(), SIDES = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+    /** Which sections may hold water, and the water beside blocks this rewrite opened up (woken afterwards so it flows). */
+    private final boolean[] wet;
+    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet wake = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+    @org.jetbrains.annotations.Nullable
+    private LevelChunk beside;
 
     WreckChunk(ServerLevel level, LevelChunk chunk, long seed) {
         this.level = level;
@@ -49,6 +57,8 @@ public final class WreckChunk {
             top[i] = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, i & 15, i >> 4);
             ground[i] = Integer.MIN_VALUE;
         }
+        wet = new boolean[sections.length];
+        for (int i = 0; i < sections.length; i++) wet[i] = !sections[i].hasOnlyAir() && sections[i].maybeHas(s -> s.getFluidState().is(FluidTags.WATER));
     }
 
     public ServerLevel level() {
@@ -98,11 +108,12 @@ public final class WreckChunk {
         // or it would later be loaded onto a block that is no longer there
         if (old.hasBlockEntity()) chunk.getBlockEntity(cursor, LevelChunk.EntityCreationType.CHECK);
         section.setBlockState(x & 15, y & 15, z & 15, state);
+        if (state.isAir()) opened(x, y, z);
         if (old.hasBlockEntity()) chunk.removeBlockEntity(cursor);
         if (state.hasBlockEntity()) chunk.getBlockEntity(cursor.immutable(), LevelChunk.EntityCreationType.IMMEDIATE);
         if (PoiTypes.hasPoi(old) || PoiTypes.hasPoi(state)) level.onBlockStateChange(cursor.immutable(), old, state);
         changed++;
-        if (changes != null) changes.add(BlockPos.asLong(x, y, z));
+        changes.add(BlockPos.asLong(x, y, z));
         return true;
     }
 
@@ -116,14 +127,56 @@ public final class WreckChunk {
         return mask != null && !mask[(x & 15) | (z & 15) << 4];
     }
 
-    /** Records every block changed from now on (see {@link #changes()}). */
-    void trackChanges() {
-        changes = new it.unimi.dsi.fastutil.longs.LongArrayList();
-    }
-
-    /** The blocks changed since {@link #trackChanges()}, as packed positions; null if not tracking. */
+    /** The blocks changed, as packed positions (some more than once). */
     it.unimi.dsi.fastutil.longs.LongArrayList changes() {
         return changes;
+    }
+
+    /**
+     * Brings the chunk's heightmaps up to date with the blocks changed (only the columns touched, each scanning down
+     * only where its top was taken away), cheaper than rebuilding them all.
+     */
+    void updateHeightmaps() {
+        var maps = chunk.getHeightmaps().stream().map(java.util.Map.Entry::getValue).toArray(Heightmap[]::new);
+        for (int i = 0; i < changes.size(); i++) {
+            long p = changes.getLong(i);
+            int x = BlockPos.getX(p), y = BlockPos.getY(p), z = BlockPos.getZ(p);
+            BlockState state = get(x, y, z);
+            for (Heightmap map : maps) map.update(x & 15, y, z & 15, state);
+        }
+    }
+
+    /**
+     * The blocks changed as runs down their columns, for {@link com.fantasyweapons.network.WreckPayload}: column
+     * ({@code x | z << 4}), first y, length and block state id, four ints a run.
+     */
+    int[] runs() {
+        long[] keys = new long[changes.size()];
+        for (int i = 0; i < keys.length; i++) {
+            long p = changes.getLong(i);
+            keys[i] = (long) ((BlockPos.getX(p) & 15) | (BlockPos.getZ(p) & 15) << 4) << 32 | (BlockPos.getY(p) - minY);
+        }
+        java.util.Arrays.sort(keys);
+        it.unimi.dsi.fastutil.ints.IntArrayList out = new it.unimi.dsi.fastutil.ints.IntArrayList();
+        int col = -1, y0 = 0, len = 0, id = -1;
+        long last = -1;
+        for (long k : keys) {
+            if (k == last) continue;
+            last = k;
+            int c = (int) (k >>> 32), y = (int) k + minY;
+            int s = net.minecraft.world.level.block.Block.getId(get(minX + (c & 15), y, minZ + (c >> 4)));
+            if (c == col && y == y0 + len && s == id) {
+                len++;
+                continue;
+            }
+            if (len > 0) out.addAll(it.unimi.dsi.fastutil.ints.IntList.of(col, y0, len, id));
+            col = c;
+            y0 = y;
+            len = 1;
+            id = s;
+        }
+        if (len > 0) out.addAll(it.unimi.dsi.fastutil.ints.IntList.of(col, y0, len, id));
+        return out.toIntArray();
     }
 
     public boolean clear(int x, int y, int z) {
@@ -134,11 +187,51 @@ public final class WreckChunk {
     public boolean erase(int x, int y, int z) {
         if (y >= minY && y < maxY && get(x, y, z).is(Blocks.BEDROCK) && (mask == null || mask[(x & 15) | (z & 15) << 4])) {
             sections[(y - minY) >> 4].setBlockState(x & 15, y & 15, z & 15, Blocks.AIR.defaultBlockState());
+            opened(x, y, z);
             changed++;
-            if (changes != null) changes.add(BlockPos.asLong(x, y, z));
+            changes.add(BlockPos.asLong(x, y, z));
             return true;
         }
         return clear(x, y, z);
+    }
+
+    /**
+     * A block was opened up: water beside it is noted, to be woken when the rewrite is done - blocks changed this way
+     * tell nothing round them, so without that the sea would stand cut off in a wall instead of pouring in.
+     */
+    private void opened(int x, int y, int z) {
+        int si = (y - minY) >> 4, ly = y & 15, lx = x & 15, lz = z & 15;
+        boolean here = wet[si] || ly == 0 && si > 0 && wet[si - 1] || ly == 15 && si + 1 < wet.length && wet[si + 1];
+        boolean edge = lx == 0 || lx == 15 || lz == 0 || lz == 15;
+        if (!here && !edge) return;
+        for (Direction d : here ? ALL : SIDES) {
+            int nx = x + d.getStepX(), ny = y + d.getStepY(), nz = z + d.getStepZ();
+            if (ny < minY || ny >= maxY) continue;
+            FluidState f;
+            if (contains(nx, nz)) {
+                if (!here) continue;
+                f = get(nx, ny, nz).getFluidState();
+            } else {
+                int cx = nx >> 4, cz = nz >> 4;
+                if (beside == null || beside.getPos().x != cx || beside.getPos().z != cz) beside = level.getChunkSource().getChunkNow(cx, cz);
+                if (beside == null) continue;
+                f = beside.getFluidState(nx, ny, nz);
+            }
+            if (f.is(FluidTags.WATER)) wake.add(BlockPos.asLong(nx, ny, nz));
+        }
+    }
+
+    /** Wakes the water beside what this rewrite opened up, so it flows into the new space (call once it is done). */
+    void wakeWater() {
+        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
+        var it = wake.iterator();
+        while (it.hasNext()) {
+            at.set(it.nextLong());
+            if (level.getChunkSource().getChunkNow(at.getX() >> 4, at.getZ() >> 4) == null) continue;
+            FluidState f = level.getFluidState(at);
+            if (f.is(FluidTags.WATER)) level.scheduleTick(at.immutable(), f.getType(), f.getType().getTickDelay(level));
+        }
+        wake.clear();
     }
 
     /** Wakes a fluid placed by the shaper so it starts flowing (placed fluids otherwise sit still, which is cheaper). */

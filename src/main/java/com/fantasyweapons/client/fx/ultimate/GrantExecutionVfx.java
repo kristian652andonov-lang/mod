@@ -11,8 +11,11 @@ import net.minecraft.world.phys.Vec3;
  * THE BEAM OF GRANT EXECUTION. An enormous magic circle opens so high above the target that it fades into the sky:
  * a great rune circle ringed by bands of runes that draw themselves, thirty-two lesser circles and magic triangles
  * around its rim, and smaller circles stacked in tiers on top of it. A thin beam marks the target, then the full beam
- * falls - a column of white and golden light as wide as the land it erases - rings racing down it, shockwaves rolling
- * out over the ground; at the end it narrows to a thread and the circle comes apart.
+ * falls - a column of golden mana as wide as the land it erases, a white-hot thread down its middle, streams of light
+ * pouring down its skin, arcs of power crackling over it, bands of power winding round it and rune circles sliding down
+ * it - pulses racing down,
+ * sparks spraying from where it bites, shockwaves rolling out over the ground; at the end it narrows to a thread and the
+ * circle comes apart.
  */
 public class GrantExecutionVfx extends Vfx {
     private static final Vec3 X = new Vec3(1, 0, 0), Z = new Vec3(0, 0, 1), UP = new Vec3(0, 1, 0);
@@ -206,15 +209,27 @@ public class GrantExecutionVfx extends Vfx {
         float narrow = clamp01((f - beam) / 14f);
         float out = clamp01((f - beam - 14) / 10f);
         if (out >= 1) return;
-        float width = (1 - easeInOut(narrow)) * (1 + 0.01f * (float) Math.sin(f * 0.9f)) + 0.006f;
+        float width = (1 - easeInOut(narrow)) * (1 + 0.012f * (float) Math.sin(f * 0.9f)) + 0.006f;
         double front = sky.y - (sky.y - bottom) * fall;
         Vec3 top = sky.add(0, -2, 0), foot = new Vec3(ground.x, front, ground.z);
         float a = 1 - out;
         float r = radius * 0.9f * width;
-        // one pure column of light, nothing see-through about it
-        shaded(ctx, ctx.translucent(VfxTextures.WHITE), top, foot, r, ctx.segments(64), a);
-        // the air it throws off: rings born at its surface all up its height, racing outward and fading as they spread
+        // the column itself: golden and see-through, a thin white-hot thread down its middle
+        shaded(ctx, ctx.translucent(VfxTextures.WHITE), top, foot, r, ctx.segments(64), a * 0.7f);
+        // the mana pouring down it: living streams of light flowing over its skin, brightest at its edges
+        manaSkin(ctx, top, foot, r * 1.012f, f, a);
         if (narrow >= 1) return;
+        float live = a * (1 - narrow);
+        double low = Math.max(foot.y, ground.y);
+        // arcs of raw power crackling over its skin
+        crackle(ctx, top, low, r, f, live);
+        // three bands of power winding down round it
+        spirals(ctx, top, low, r, f, live);
+        // rune circles sliding down it from the great circle to the ground, turning as they go
+        runes(ctx, top, low, r, f, live);
+        // pulses of light racing down its skin, and motes of mana streaming down with them
+        pulses(ctx, top, low, r, f, live);
+        // the air it throws off: rings born at its surface all up its height, racing outward and fading as they spread
         var ring = ctx.additive(VfxTextures.RING);
         int rings = ctx.segments(28), segs = ctx.segments(72);
         double span = Math.min(sky.y, ground.y + radius * 1.6) - ground.y;
@@ -226,6 +241,161 @@ public class GrantExecutionVfx extends Vfx {
             float fadeIn = Math.min(1, s * 8);
             ctx.ring(ring, new Vec3(ground.x, y + s * 6, ground.z), X, Z, rr - 1.5f - 6 * s, rr, segs,
                     Colors.alpha(a * fadeIn * (1 - s) * (1 - s) * 0.55f * (1 - narrow), k % 3 == 0 ? PALE : WHITE));
+        }
+        // where it bites into the ground, sparks of mana spray out from its rim
+        if (front <= ground.y) splash(ctx, r, f, live);
+    }
+
+    /**
+     * Streams of mana flowing down the column's skin: the energy shader's noise scrolls along it, so bright veins of
+     * light pour downward; strongest at the edges as seen (where the skin is seen edge-on), fading into the circle above.
+     */
+    private void manaSkin(VfxContext ctx, Vec3 top, Vec3 foot, float r, float f, float alpha) {
+        if (r <= 0.05f || alpha <= 0) return;
+        var vc = ctx.energy(VfxTextures.WHITE);
+        Vec3 view = new Vec3(ctx.cam.x - top.x, 0, ctx.cam.z - top.z);
+        view = view.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : view.normalize();
+        Vec3 side = new Vec3(-view.z, 0, view.x);
+        int segs = Math.max(48, ctx.segments(72));
+        double h = top.y - foot.y;
+        // texture repeats: features about half the beam across, round it and down it
+        float tile = Math.max(4, r * 0.9f);
+        float around = (float) (Math.PI * 2 * r / tile);
+        int rows = 6;
+        for (int j = 0; j < rows; j++) {
+            double y0 = top.y - h * j / rows, y1 = top.y - h * (j + 1) / rows;
+            float u0 = (float) ((top.y - y0) / tile), u1 = (float) ((top.y - y1) / tile);
+            // it melts into the circle at the top
+            float k0 = j == 0 ? 0 : 1, k1 = 1;
+            for (int i = 0; i < segs; i++) {
+                double a0 = i * Math.PI * 2 / segs, a1 = (i + 1) * Math.PI * 2 / segs;
+                // only the near half: the far half seen through it would double the light down the middle
+                if (Math.cos((a0 + a1) / 2) * view.x + Math.sin((a0 + a1) / 2) * view.z < 0) continue;
+                int c0 = skin(a0, view, side, alpha), c1 = skin(a1, view, side, alpha);
+                Vec3 o0 = new Vec3(Math.cos(a0) * r, 0, Math.sin(a0) * r), o1 = new Vec3(Math.cos(a1) * r, 0, Math.sin(a1) * r);
+                float v0 = around * i / segs, v1 = around * (i + 1) / segs;
+                ctx.vertex(vc, new Vec3(top.x, y1, top.z).add(o0), u1, v0, Colors.scaleAlpha(c0, k1));
+                ctx.vertex(vc, new Vec3(top.x, y1, top.z).add(o1), u1, v1, Colors.scaleAlpha(c1, k1));
+                ctx.vertex(vc, new Vec3(top.x, y0, top.z).add(o1), u0, v1, Colors.scaleAlpha(c1, k0));
+                ctx.vertex(vc, new Vec3(top.x, y0, top.z).add(o0), u0, v0, Colors.scaleAlpha(c0, k0));
+            }
+        }
+    }
+
+    private static int skin(double ang, Vec3 view, Vec3 side, float alpha) {
+        double ox = Math.cos(ang), oz = Math.sin(ang);
+        float across = (float) Math.abs(ox * side.x + oz * side.z);
+        float edge = (float) Math.pow(across, 1.6);
+        // added light in the gold of the column, mostly towards its edges: the streams read as bright veins pouring down
+        // it, and its middle stays yellow round the thin white thread
+        return Colors.alpha(alpha * (0.07f + 0.55f * edge), Colors.lerpRgb(AMBER, GOLD, 0.2f + 0.6f * edge));
+    }
+
+    /**
+     * Arcs of raw power crackling over the column's skin: short forked bolts on the side facing the eye, each living a
+     * few ticks in one place before it jumps to another.
+     */
+    private void crackle(VfxContext ctx, Vec3 top, double low, float r, float f, float alpha) {
+        var vc = ctx.additive(VfxTextures.LIGHTNING);
+        Vec3 view = new Vec3(ctx.cam.x - top.x, 0, ctx.cam.z - top.z);
+        view = view.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : view.normalize();
+        double h = top.y - low, base = Math.atan2(view.z, view.x);
+        int n = ctx.segments(14), life = 4;
+        for (int i = 0; i < n; i++) {
+            int gen = (int) (f / life) + i * 7;
+            net.minecraft.util.RandomSource rng = net.minecraft.util.RandomSource.create(gen * 341873128712L + i * 132897987541L);
+            float age = (f % life) / life;
+            double ang = base + (rng.nextDouble() - 0.5) * Math.PI * 0.9;
+            double y = low + h * (0.05 + 0.9 * rng.nextDouble());
+            double len = Math.max(8, r * (0.5 + rng.nextDouble()));
+            Vec3 at = new Vec3(top.x + Math.cos(ang) * r * 1.02, y, top.z + Math.sin(ang) * r * 1.02);
+            // mostly down the column, a little round it
+            Vec3 dir = new Vec3(-Math.sin(ang) * (rng.nextDouble() - 0.5), -1, Math.cos(ang) * (rng.nextDouble() - 0.5));
+            float k = alpha * (1 - age) * (0.6f + 0.4f * rng.nextFloat());
+            ctx.streak(vc, at, dir, (float) len, Math.max(1.5f, r * 0.05f), Colors.alpha(k, i % 3 == 0 ? WHITE : PALE));
+        }
+    }
+
+    /** Bands of power winding down round the column, turning as they fall; dimmer where they pass behind it. */
+    private void spirals(VfxContext ctx, Vec3 top, double low, float r, float f, float alpha) {
+        var vc = ctx.energy(VfxTextures.STREAK);
+        Vec3 view = new Vec3(ctx.cam.x - top.x, 0, ctx.cam.z - top.z);
+        view = view.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : view.normalize();
+        double h = top.y - low;
+        int n = Math.max(24, ctx.segments(90));
+        double pitch = Math.max(r * 3.2, 40);
+        for (int k = 0; k < 3; k++) {
+            Vec3[] pts = new Vec3[n + 1];
+            float[] widths = new float[n + 1];
+            int[] cols = new int[n + 1];
+            for (int i = 0; i <= n; i++) {
+                double down = h * i / n;
+                double ang = k * Math.PI * 2 / 3 + down / pitch * Math.PI * 2 - f * 0.09;
+                double ox = Math.cos(ang), oz = Math.sin(ang);
+                float rr = r * 1.05f + 1.2f;
+                pts[i] = new Vec3(top.x + ox * rr, top.y - down, top.z + oz * rr);
+                float ends = Math.min(1, Math.min(i / (n * 0.06f), (n - i) / (n * 0.04f)));
+                float facing = ox * view.x + oz * view.z > 0 ? 1 : 0.28f;
+                widths[i] = Math.max(1.2f, r * 0.075f) * (0.5f + 0.5f * ends);
+                cols[i] = Colors.alpha(alpha * 0.85f * ends * facing, k == 0 ? WHITE : PALE);
+            }
+            ctx.ribbon(vc, pts, widths, cols, -f * 0.04f, (float) (h / n / Math.max(6, r * 0.5)));
+        }
+    }
+
+    /** Rune circles sliding down the column, from the great circle to the ground, each turning its own way. */
+    private void runes(VfxContext ctx, Vec3 top, double low, float r, float f, float alpha) {
+        var rune = ctx.additive(VfxTextures.RUNE_CIRCLE);
+        var sub = ctx.additive(VfxTextures.SUB_CIRCLE);
+        var ring = ctx.additive(VfxTextures.RING);
+        double h = top.y - low;
+        int n = 6, segs = ctx.segments(72);
+        for (int k = 0; k < n; k++) {
+            float s = (f * 0.011f + k / (float) n) % 1f;
+            float k1 = (float) Math.sin(Math.PI * s);
+            if (k1 <= 0.02f) continue;
+            Vec3 c = new Vec3(top.x, top.y - h * s * s, top.z);
+            float size = r * (1.45f + 0.15f * (k % 2));
+            float spin = f * 0.02f * (k % 2 == 0 ? 1 : -1) + k;
+            ctx.disc(k % 2 == 0 ? rune : sub, c, X, Z, size, spin, Colors.alpha(alpha * k1 * 0.75f, k % 3 == 0 ? WHITE : GOLD));
+            ctx.ring(ring, c.add(0, 0.2, 0), X, Z, size * 1.02f, size * 1.07f, segs, Colors.alpha(alpha * k1 * 0.55f, PALE));
+        }
+    }
+
+    /** Pulses of light racing down the column's skin, and motes of mana streaming down with them. */
+    private void pulses(VfxContext ctx, Vec3 top, double low, float r, float f, float alpha) {
+        var ring = ctx.additive(VfxTextures.RING);
+        double h = top.y - low;
+        int segs = ctx.segments(72);
+        for (int k = 0; k < 4; k++) {
+            float s = (f * 0.045f + k * 0.25f) % 1f;
+            Vec3 c = new Vec3(top.x, top.y - h * s, top.z);
+            ctx.ring(ring, c, X, Z, r * 0.99f, r * 1.1f, segs, Colors.alpha(alpha * 0.8f * (1 - s * 0.6f), WHITE));
+        }
+        var star = ctx.additive(VfxTextures.STAR);
+        int motes = ctx.segments(70);
+        for (int i = 0; i < motes; i++) {
+            float cyc = ((i * 0.618034f) + f * 0.018f) % 1f;
+            double ang = i * 2.39996 + cyc * 5 - f * 0.05;
+            float rr = r * (1.03f + 0.12f * ((i * 0.37f) % 1f));
+            Vec3 p = new Vec3(top.x + Math.cos(ang) * rr, top.y - h * cyc, top.z + Math.sin(ang) * rr);
+            float ma = Math.min(1, cyc * 6) * Math.min(1, (1 - cyc) * 5);
+            ctx.billboard(star, p, 2.2f + r * 0.03f + (i % 3), f * 0.1f + i, Colors.alpha(alpha * ma, i % 3 == 0 ? WHITE : PALE));
+        }
+    }
+
+    /** Sparks of mana spraying out from the rim where the column bites into the ground. */
+    private void splash(VfxContext ctx, float r, float f, float alpha) {
+        var spark = ctx.additive(VfxTextures.SPARK);
+        int n = ctx.segments(48);
+        for (int i = 0; i < n; i++) {
+            float cyc = ((i * 0.618034f) + f * 0.035f) % 1f;
+            double ang = i * 2.39996;
+            Vec3 out = new Vec3(Math.cos(ang), 0, Math.sin(ang));
+            float lift = 0.4f + 0.6f * ((i * 0.37f) % 1f);
+            Vec3 dir = out.add(0, lift, 0).normalize();
+            Vec3 p = ground.add(out.scale(r)).add(dir.scale(cyc * (18 + r * 0.3f))).add(0, -cyc * cyc * 8, 0);
+            ctx.streak(spark, p, dir, 6 + r * 0.05f, 1.4f, Colors.alpha(alpha * (1 - cyc), i % 2 == 0 ? WHITE : GOLD));
         }
     }
 

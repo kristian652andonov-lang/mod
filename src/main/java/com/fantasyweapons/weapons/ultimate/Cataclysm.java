@@ -154,13 +154,20 @@ public final class Cataclysm {
     }
 
     /**
-     * Impact frames for the blow landing at {@code at}, for the caster and everyone within {@code seen} blocks of it.
-     *
-     * @param cataclysm the long, hard sequence, or the ordinary ultimate one
+     * Impact frames for the blow landing at {@code at}, for the caster and everyone within {@code seen} blocks of it:
+     * the long, hard sequence, played once, the moment the power lands, in black and white.
      */
-    public static void frames(ServerLevel level, ServerPlayer caster, Vec3 at, double seen, boolean cataclysm) {
+    public static void frames(ServerLevel level, ServerPlayer caster, Vec3 at, double seen) {
+        frames(level, caster, at, seen, 0, 0);
+    }
+
+    /**
+     * {@link #frames(ServerLevel, ServerPlayer, Vec3, double)} for a power made of light: its middle stills drawn in its
+     * colour {@code tint} and the colour of its light {@code light}.
+     */
+    public static void frames(ServerLevel level, ServerPlayer caster, Vec3 at, double seen, int tint, int light) {
         FxPayload p = FxPayload.of(com.fantasyweapons.network.FxIds.CATACLYSM_FRAME).caster(caster.getId()).pos(at).scale((float) seen)
-                .level(cataclysm ? 1 : 0).build();
+                .level(1).seed((long) (tint & 0xFFFFFF) << 24 | (light & 0xFFFFFF)).build();
         double r2 = seen * seen;
         for (ServerPlayer pl : level.players()) if (pl == caster || pl.position().distanceToSqr(at) <= r2) Fx.only(pl, p);
     }

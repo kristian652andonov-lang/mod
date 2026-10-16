@@ -172,42 +172,58 @@ public class ArchDragonVfx extends Vfx {
     }
 
     /**
-     * The Worldburner itself, the artist's dragon: its mouth on the head of the path, its body along the path behind; it
-     * roars as it breaks out of the ground, beats its wings as it climbs, glides along the top of its arc and down into the
-     * dive, and breathes fire as it falls on its prey. Its tail trails flame, and a glow round it reads from far off.
+     * The Worldburner itself, the artist's dragon: its mouth on the head of the path, its body along the path behind,
+     * bending with it; it roars as it breaks out of the ground, beats its wings as it climbs, glides along the top of its
+     * arc and down into the dive, and breathes fire as it falls on its prey. Its tail trails flame, and a glow along it
+     * reads from far off.
      */
     private void drawWorldburner(VfxContext ctx, float t) {
         double scale = length / Worldburner.LENGTH;
         double head = path.head(t);
-        Vec3 mouth = path.at(head);
-        double roots = (-Worldburner.MOUTH.z) * scale;
-        Vec3 behind = path.at(head - roots);
-        Vec3 fwd = mouth.subtract(behind);
-        fwd = fwd.lengthSqr() < 1e-6 ? path.tangent(head) : fwd.normalize();
-        Vec3 up = path.frame(head - roots, null)[2];
+        Worldburner.Spine spine = new Worldburner.Spine() {
+            @Override
+            public Vec3 at(double back) {
+                return path.at(head - back);
+            }
+
+            @Override
+            public Vec3 heading(double back) {
+                return path.direction(head - back);
+            }
+
+            @Override
+            public Vec3 up(double back) {
+                return path.up(head - back);
+            }
+        };
         float u = t / flight;
-        dragon.move(u < 0.12f ? Worldburner.FLY : u < 0.4f ? Worldburner.FLY : Worldburner.GLIDE);
-        dragon.act(t < 90 ? Worldburner.ROAR : u > 0.6f ? Worldburner.FIRE_BREATH : null);
+        int breath = breathStarts();
+        dragon.move(u < 0.42f ? Worldburner.FLY : Worldburner.GLIDE);
+        dragon.act(t < Worldburner.ROAR_LENGTH ? Worldburner.ROAR : t >= breath ? Worldburner.FIRE_BREATH : null);
         int light = net.minecraft.client.renderer.LightTexture.pack(12, 15);
-        dragon.render(ctx, mouth, fwd, up, scale, light, t);
+        dragon.render(ctx, spine, scale, light, t);
 
         var flame = ctx.additive(VfxTextures.FLAME);
         var glow = ctx.additive(VfxTextures.GLOW);
         // the tail's flame
-        Vec3 tail = Worldburner.point(Worldburner.TAIL, mouth, fwd, up, scale);
+        Vec3 tail = dragon.tailTip();
         float flick = 0.75f + 0.25f * (float) Math.sin(t * 0.9f);
         ctx.billboard(flame, tail, (float) (14 * scale) * flick, t * 0.2f, Colors.alpha(0.9f, FIRE));
         ctx.billboard(glow, tail, (float) (30 * scale), 0, Colors.alpha(0.5f, LAVA));
         // a glow along its body, so it reads from far away
         for (int i = 0; i < 6; i++) {
-            Vec3 p = Worldburner.point(new Vec3(0, 26, -60 + i * 40), mouth, fwd, up, scale);
+            double back = (40 + i * 40) * scale;
+            Vec3 p = spine.at(back).add(spine.up(back).scale(3 * scale));
             ctx.billboard(glow, p, (float) (60 * scale), 0, Colors.alpha(0.14f, LAVA));
         }
-        // fire as it falls on its prey: a widening torrent from its jaws, licking ahead towards the ground
-        if (u > 0.66f && t < flight + 2) {
-            float k = clamp01((u - 0.66f) / 0.08f);
+        // fire from its jaws once they open, a widening torrent licking ahead towards its prey
+        float open = t - (breath + Worldburner.BREATH_OPENS);
+        float k = clamp01(open / 6f) * (1 - clamp01((open - (Worldburner.BREATH_CLOSES - Worldburner.BREATH_OPENS - 6)) / 6f));
+        if (k > 0 && t < flight + 2) {
+            Vec3 mouth = dragon.mouth();
+            Vec3 jaws = dragon.jaws();
             Vec3 aim = path.target().subtract(mouth);
-            aim = aim.lengthSqr() < 1 ? fwd : aim.normalize().add(fwd).normalize();
+            aim = aim.lengthSqr() < 1 ? jaws : aim.normalize().add(jaws.scale(1.5)).normalize();
             double len = Math.min(140 * scale, mouth.distanceTo(path.target()) + 20);
             Vec3[] b = VfxContext.basis(aim);
             for (int i = 0; i < 26; i++) {
@@ -218,6 +234,11 @@ public class ArchDragonVfx extends Vfx {
             }
             ctx.softBeam(glow, mouth, mouth.add(aim.scale(len)), (float) (22 * scale), Colors.alpha(k * 0.6f, FIRE), 0, 1, 0.05f, 0.3f);
         }
+    }
+
+    /** When it starts its fire breath: after its roar, timed so its jaws open as it tips into the dive. */
+    private int breathStarts() {
+        return Math.max(Worldburner.ROAR_LENGTH + 2, Math.round(flight * 0.55f));
     }
 
     // ------------------------------------------------------------------------------------------------------------

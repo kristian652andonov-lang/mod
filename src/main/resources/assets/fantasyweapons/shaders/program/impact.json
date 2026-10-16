@@ -135,6 +135,54 @@
       "values": [
         0.0
       ]
+    },
+    {
+      "name": "TintR",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "TintG",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "TintB",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "GlowR",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "GlowG",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "GlowB",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
     }
   ]
 }

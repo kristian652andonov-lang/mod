@@ -58,6 +58,14 @@ public final class CrackNetwork {
         return radial(seed, mains, 0, reach, width, depth);
     }
 
+    /** A single straight crack from (x0, z0) to (x1, z1) (relative to the centre), as wide and deep all along. */
+    public static CrackNetwork straight(double x0, double z0, double x1, double z1, double width, double depth) {
+        CrackNetwork n = new CrackNetwork(Math.max(Math.hypot(x0, z0), Math.hypot(x1, z1)));
+        n.deepest = depth;
+        n.segments.add(new Segment(x0, z0, x1, z1, 0, width, depth));
+        return n;
+    }
+
     /** {@link #radial(long, int, double, double, double)}, the cracks starting {@code inner} out (round a hole). */
     public static CrackNetwork radial(long seed, int mains, double inner, double reach, double width, double depth) {
         CrackNetwork n = new CrackNetwork(reach);

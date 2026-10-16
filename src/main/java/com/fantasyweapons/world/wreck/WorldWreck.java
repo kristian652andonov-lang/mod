@@ -2,7 +2,7 @@ package com.fantasyweapons.world.wreck;
 
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.config.ServerConfig;
-import net.minecraft.core.BlockPos;
+import com.fantasyweapons.network.WreckPayload;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.ResourceKey;
@@ -15,26 +15,21 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.PriorityQueue;
-import java.util.Set;
 
 /**
  * Really destroys the world for the ultimate weapons. A job rewrites whole chunk columns: a {@link ChunkShaper} edits
- * the chunk sections directly, then the column's heightmaps and light are rebuilt and the chunk is resent to the players
- * who see it. Work is spread over the ticks under a time budget ({@code destruction.ms_per_tick}) and each chunk can
+ * the chunk sections directly, the blocks it changed go straight to the players who see it (packed, see
+ * {@link WreckPayload}), and once the column is relit its true light follows. Work is spread over the ticks under a time budget ({@code destruction.ms_per_tick}) and each chunk can
  * wait a delay, so destruction can sweep outwards like a wave. Chunks out of view are loaded for the rewrite and saved
  * with it, so nothing in reach is spared.
  */
 public final class WorldWreck {
     /** Keeps a chunk loaded until its rewrite is done. */
     private static final TicketType<ChunkPos> TICKET = TicketType.create("fantasyweapons_wreck", Comparator.comparingLong(ChunkPos::toLong), 400);
-    private static final Set<Heightmap.Types> HEIGHTMAPS = EnumSet.of(Heightmap.Types.WORLD_SURFACE, Heightmap.Types.OCEAN_FLOOR,
-            Heightmap.Types.MOTION_BLOCKING, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES);
     /** Give up on a chunk that will not load (in ticks of retries). */
     private static final int MAX_WAIT = 600;
 
@@ -209,7 +204,9 @@ public final class WorldWreck {
         }
         if (edit.changed() == 0) return 0;
         rewritten++;
-        Heightmap.primeHeightmaps(chunk, HEIGHTMAPS);
+        edit.updateHeightmaps();
+        edit.wakeWater();
+        send(level, chunk, edit);
         chunk.initializeLightSources();
         chunk.setUnsaved(true);
         relight(level, chunk);
@@ -217,12 +214,11 @@ public final class WorldWreck {
     }
 
     /**
-     * Runs one band of a chunk swept in several: its blocks change now and are sent to the players who see them as
-     * ordinary block changes (their own light follows); the chunk's last band relights it and resends it whole.
+     * Runs one band of a chunk swept in several: its blocks change now and are sent to the players who see them (with
+     * the sky let in where it opened); the chunk's last band relights it and sends them its true light.
      */
     private static void rewritePart(ServerLevel level, LevelChunk chunk, long seed, ChunkShaper shaper) {
         WreckChunk edit = new WreckChunk(level, chunk, seed);
-        edit.trackChanges();
         try {
             shaper.shape(edit);
         } catch (RuntimeException e) {
@@ -230,11 +226,25 @@ public final class WorldWreck {
         }
         if (edit.changed() == 0) return;
         rewritten++;
-        Heightmap.primeHeightmaps(chunk, HEIGHTMAPS);
+        edit.updateHeightmaps();
+        edit.wakeWater();
+        send(level, chunk, edit);
         chunk.setUnsaved(true);
-        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
-        var changes = edit.changes();
-        for (int i = 0; i < changes.size(); i++) level.getChunkSource().blockChanged(at.set(changes.getLong(i)));
+    }
+
+    /**
+     * Sends the blocks a rewrite changed to the players who see the chunk, packed as runs down its columns: their game
+     * writes them straight in (see {@link WreckPayload}) instead of taking each as a block update and lighting it.
+     */
+    private static void send(ServerLevel level, LevelChunk chunk, WreckChunk edit) {
+        var players = level.getChunkSource().chunkMap.getPlayers(chunk.getPos(), false);
+        if (players.isEmpty()) return;
+        int[] runs = edit.runs();
+        int step = WreckPayload.MAX_RUNS * 4;
+        for (int from = 0; from < runs.length; from += step) {
+            WreckPayload p = new WreckPayload(chunk.getPos().x, chunk.getPos().z, java.util.Arrays.copyOfRange(runs, from, Math.min(runs.length, from + step)));
+            for (ServerPlayer pl : players) net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(pl, p);
+        }
     }
 
     /**
@@ -261,9 +271,18 @@ public final class WorldWreck {
             light.initializeLight(chunk, true);
             light.lightChunk(chunk, false).thenRunAsync(() -> {
                 relit++;
-                resend(level, chunk);
+                sendLight(level, chunk);
             }, server);
         }, server);
+    }
+
+    /** Sends the chunk's light, worked out afresh, to everyone who sees it (they already have its blocks). */
+    private static void sendLight(ServerLevel level, LevelChunk chunk) {
+        var players = level.getChunkSource().chunkMap.getPlayers(chunk.getPos(), false);
+        if (players.isEmpty()) return;
+        var packet = new net.minecraft.network.protocol.game.ClientboundLightUpdatePacket(chunk.getPos(), level.getLightEngine(), null, null);
+        for (ServerPlayer p : players) p.connection.send(packet);
+        resent++;
     }
 
     private static void resend(ServerLevel level, LevelChunk chunk) {

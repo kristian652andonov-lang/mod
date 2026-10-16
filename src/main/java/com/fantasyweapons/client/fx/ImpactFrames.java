@@ -17,12 +17,14 @@ import org.joml.Vector3f;
  * black-and-white still - a negative, black ink on white paper, white light on black - with speed lines bursting from
  * where the blow lands, the view punched in; then it snaps back, the colour flooding back in, as the camera springs out.
  * An ultimate gets the long sequence - five stills in half a second, pushing in, each landing with a jolt and fresh,
- * flickering speed lines, the last held longest, then the snap back; any other ability a quick two-frame flash.
+ * flickering speed lines, the last held longest, then the snap back; any other ability a quick two-frame flash. The
+ * ultimate weapons' powers play one far longer sequence, once, the moment each lands; for a power made of light its
+ * middle stills are drawn in the power's own colours.
  * <p>
  * Drawn by the post chain {@code shaders/post/impact.json} over the finished frame (world and hand) just before the HUD.
  */
 public final class ImpactFrames {
-    private static final int NEGATIVE = 1, INK = 2, LIGHT = 3;
+    private static final int NEGATIVE = 1, INK = 2, LIGHT = 3, TINT_INK = 4, TINT_LIGHT = 5;
 
     /** One still: how long it is held (ms), how it is drawn, and whether it freezes a fresh picture of the world. */
     private record Still(int ms, int mode, boolean fresh) {
@@ -36,12 +38,17 @@ public final class ImpactFrames {
             new Still(150, INK)};
     private static final Still[] ACTIVE = {new Still(55, INK), new Still(50, NEGATIVE)};
     /**
-     * The ultimate weapons' world-breaking blows: about a second and a half of stills, the picture frozen afresh every
-     * few stills so the destruction is seen moving between them, pushing in harder, the last held longest.
+     * The ultimate weapons' world-breaking blows, played once, the moment each lands: nearly two seconds of stills, the
+     * picture frozen afresh every few so the destruction is seen moving between them, pushing in harder, the last held
+     * longest.
      */
-    private static final Still[] CATACLYSM = {new Still(90, NEGATIVE), new Still(80, INK), new Still(80, LIGHT), new Still(100, NEGATIVE, true),
-            new Still(110, INK), new Still(90, LIGHT), new Still(120, NEGATIVE, true), new Still(130, INK), new Still(110, LIGHT, true),
-            new Still(240, INK)};
+    private static final Still[] CATACLYSM = {new Still(120, NEGATIVE), new Still(110, INK), new Still(110, LIGHT), new Still(140, NEGATIVE, true),
+            new Still(140, INK), new Still(130, LIGHT), new Still(150, NEGATIVE, true), new Still(160, INK), new Still(150, LIGHT, true),
+            new Still(160, NEGATIVE), new Still(380, INK)};
+    /** The same for a power made of light (a beam, a black hole's fire, the void): its middle stills in its own colours. */
+    private static final Still[] CATACLYSM_TINTED = {new Still(120, NEGATIVE), new Still(110, INK), new Still(110, LIGHT),
+            new Still(150, TINT_LIGHT, true), new Still(150, TINT_INK), new Still(160, TINT_LIGHT), new Still(160, TINT_INK, true),
+            new Still(140, NEGATIVE), new Still(150, INK), new Still(140, LIGHT, true), new Still(380, INK)};
     private static final int ULTIMATE_SNAP = 260, ACTIVE_SNAP = 180;
     /** How far an ultimate's stills push in over the sequence, and how often their speed lines flicker (ms). */
     private static final float ULTIMATE_ZOOM = 0.07f;
@@ -56,6 +63,8 @@ public final class ImpactFrames {
     private static int snapMs;
     private static long start = -1;
     private static float strength, centerX, centerY, seed, punch;
+    /** The power's colour and the colour of its light, for tinted stills (0 to 1 each). */
+    private static final float[] tint = {1, 1, 1}, glow = {1, 1, 1};
     private static int lastIndex = -1;
     /** The first frame of a sequence captures the picture the stills are drawn from. */
     private static boolean capture;
@@ -81,15 +90,32 @@ public final class ImpactFrames {
         if (!ClientConfig.get(ClientConfig.IMPACT_FRAMES, true)) return;
         if (!ultimate && !ClientConfig.get(ClientConfig.IMPACT_FRAMES_ALL, true)) return;
         // a quick flash never cuts short an ultimate's sequence still playing, nor anything a cataclysm's
-        if (active() && (stills == ULTIMATE || stills == CATACLYSM) && !ultimate) return;
-        if (active() && stills == CATACLYSM) return;
+        if (active() && (stills == ULTIMATE || cataclysmic()) && !ultimate) return;
+        if (active() && cataclysmic()) return;
         begin(ultimate ? ULTIMATE : ACTIVE, ultimate ? ULTIMATE_SNAP : ACTIVE_SNAP, strength, at, ultimate ? 0.12f : 0.06f);
     }
 
-    /** The long, hard sequence of the ultimate weapons' blows (cuts short anything else playing). */
-    public static void cataclysm(float strength, @Nullable Vec3 at) {
+    /**
+     * The long, hard sequence of the ultimate weapons' blows (cuts short anything else playing).
+     *
+     * @param tint the power's colour for the middle stills (0: all black and white)
+     * @param light the colour of its light there
+     */
+    public static void cataclysm(float strength, @Nullable Vec3 at, int tint, int light) {
         if (!ClientConfig.get(ClientConfig.IMPACT_FRAMES, true)) return;
-        begin(CATACLYSM, 320, strength, at, 0.18f);
+        rgb(tint == 0 ? 0xFFFFFF : tint, ImpactFrames.tint);
+        rgb(light == 0 ? 0xFFFFFF : light, glow);
+        begin(tint == 0 ? CATACLYSM : CATACLYSM_TINTED, 420, strength, at, 0.18f);
+    }
+
+    private static boolean cataclysmic() {
+        return stills == CATACLYSM || stills == CATACLYSM_TINTED;
+    }
+
+    private static void rgb(int c, float[] out) {
+        out[0] = (c >> 16 & 255) / 255f;
+        out[1] = (c >> 8 & 255) / 255f;
+        out[2] = (c & 255) / 255f;
     }
 
     private static void begin(Still[] sequence, int snap, float strength, @Nullable Vec3 at, float punch) {
@@ -148,8 +174,8 @@ public final class ImpactFrames {
         } else {
             fade = 1 - (t - frozen) / (float) snapMs;
         }
-        boolean longSequence = stills == ULTIMATE || stills == CATACLYSM;
-        float pushIn = stills == CATACLYSM ? 0.16f : ULTIMATE_ZOOM;
+        boolean longSequence = stills == ULTIMATE || cataclysmic();
+        float pushIn = cataclysmic() ? 0.16f : ULTIMATE_ZOOM;
         // a fresh still freezes a new picture of the world, so the destruction moves on between the stills
         if (mode != 0 && index != lastIndex && stills[index].fresh()) capture = true;
         lastIndex = index;
@@ -175,6 +201,12 @@ public final class ImpactFrames {
         post.setUniform("Zoom", zoom);
         post.setUniform("ShiftX", joltX);
         post.setUniform("ShiftY", joltY);
+        post.setUniform("TintR", tint[0]);
+        post.setUniform("TintG", tint[1]);
+        post.setUniform("TintB", tint[2]);
+        post.setUniform("GlowR", glow[0]);
+        post.setUniform("GlowG", glow[1]);
+        post.setUniform("GlowB", glow[2]);
         try {
             post.process(event.getPartialTick().getGameTimeDeltaPartialTick(false));
         } finally {
@@ -221,6 +253,15 @@ public final class ImpactFrames {
             height = h;
         }
         return chain;
+    }
+
+    /**
+     * Loads the shader ahead of need (in the world, before any blow lands), so the first impact frame does not stall the
+     * game while it compiles.
+     */
+    public static void warm(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (chain == null && !broken && mc.level != null && ClientConfig.get(ClientConfig.IMPACT_FRAMES, true)) chain(mc);
     }
 
     /** Throws the shader away after a resource reload, so it is loaded afresh. */

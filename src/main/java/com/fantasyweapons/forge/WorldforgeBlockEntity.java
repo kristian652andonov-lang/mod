@@ -138,13 +138,20 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
     @Override
     public void setRemoved() {
         super.setRemoved();
-        if (level != null) loaded(level).remove(worldPosition);
+        forget();
     }
 
     @Override
     public void onChunkUnloaded() {
         super.onChunkUnloaded();
-        if (level != null) loaded(level).remove(worldPosition);
+        forget();
+    }
+
+    /** Off the level's list of loaded forges (it may never have got on it: taken away the tick it was placed). */
+    private void forget() {
+        if (level == null) return;
+        java.util.Set<BlockPos> set = LOADED.get(level);
+        if (set != null) set.remove(worldPosition);
     }
 
     /** Just placed: it unfolds. */

@@ -6,7 +6,8 @@
 uniform sampler2D DiffuseSampler;
 uniform vec2 InSize;
 
-uniform float Mode;      // 0 none (snapping back), 1 negative, 2 ink on paper, 3 white light on black
+uniform float Mode;      // 0 none (snapping back), 1 negative, 2 ink on paper, 3 white light on black,
+                         // 4 ink in the power's colours, 5 the power's light on black
 uniform float Strength;  // how much of the still is shown
 uniform float Fade;      // the snap back: grey with a white wash, 1 -> 0, as the colour returns
 uniform float Lines;     // speed line strength
@@ -16,6 +17,12 @@ uniform float Seed;
 uniform float Zoom;      // the still pushed in about the burst (1 = as captured)
 uniform float ShiftX;    // and nudged, a jolt between stills
 uniform float ShiftY;
+uniform float TintR;     // the power's colour, and the colour of its light (modes 4 and 5)
+uniform float TintG;
+uniform float TintB;
+uniform float GlowR;
+uniform float GlowG;
+uniform float GlowB;
 
 in vec2 texCoord;
 in vec2 oneTexel;
@@ -86,11 +93,26 @@ void main() {
         still = mix(still, vec3(0.0), edge);
         still = mix(still, vec3(0.0), line);
         still = mix(still, vec3(0.0), vig * 0.6);
-    } else {
+    } else if (Mode < 3.5) {
         // light on black: the shadows burning white against black, white edges and speed lines of white light
         still = mix(vec3(0.94), vec3(0.0), lit);
         still = mix(still, vec3(1.0), edge);
         still = mix(still, vec3(1.0), line);
+        still *= 1.0 - 0.6 * vig;
+    } else if (Mode < 4.5) {
+        // ink in the power's colours: the lit world in its light, the dark in deep shades of its colour, inked edges
+        vec3 tint = vec3(TintR, TintG, TintB), glow = vec3(GlowR, GlowG, GlowB);
+        vec3 deep = tint * 0.12;
+        still = mix(deep, mix(tint, glow, smoothstep(0.45, 0.85, l)), lit);
+        still = mix(still, deep * 0.5, edge);
+        still = mix(still, deep * 0.4, line);
+        still = mix(still, deep * 0.3, vig * 0.6);
+    } else {
+        // the power's light on black: the shadows burning in its colour, edges and speed lines of its light
+        vec3 tint = vec3(TintR, TintG, TintB), glow = vec3(GlowR, GlowG, GlowB);
+        still = mix(tint * 1.15, tint * 0.04, lit);
+        still = mix(still, glow, edge);
+        still = mix(still, glow, line);
         still *= 1.0 - 0.6 * vig;
     }
     fragColor = vec4(mix(texture(DiffuseSampler, uv).rgb, clamp(still, 0.0, 1.0), Strength), 1.0);

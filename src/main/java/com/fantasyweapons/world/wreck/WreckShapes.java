@@ -29,7 +29,7 @@ public final class WreckShapes {
      * A shaft erased from the sky through the bottom of the world, bedrock and all, so it opens on the void. Its edge is
      * not a clean circle: it wanders in and out, and the rim crumbles back where the ground tore. Its walls are seared
      * into big chunks of dark rock that jut out into the shaft, split by seams of glowing magma set back a block or two
-     * behind them; no lava is left in them, and water at the edge is seared to obsidian so nothing pours in.
+     * behind them; no lava is left in them, and water at the edge is left to pour in.
      */
     public static ChunkShaper shaft(Vec3 center, double radius) {
         double salt = Math.floorMod((long) Math.floor(center.x * 0.41 + center.z * 0.73), 991L);
@@ -69,10 +69,8 @@ public final class WreckShapes {
                             c.set(x, y, z, BLACKSTONE);
                             continue;
                         }
-                        if (!old.getFluidState().isEmpty()) {
-                            c.set(x, y, z, OBSIDIAN);
-                            continue;
-                        }
+                        // water stays, and pours over the edge
+                        if (!old.getFluidState().isEmpty()) continue;
                         if (!WreckChunk.terrain(old)) {
                             if (!old.isAir()) c.set(x, y, z, AIR);
                             continue;
@@ -129,12 +127,15 @@ public final class WreckShapes {
     /**
      * A sphere erased from the world, but nowhere a clean one: its edge wanders in and out, the rim crumbles where it
      * broke through the ground, and the bowl it leaves is lined with big chunks of obsidian, blackstone and deepslate
-     * jutting out of it, split by seams of crying obsidian set back behind them. Water or lava at its edge is crushed
-     * into obsidian so nothing pours in.
+     * jutting out of it, split by seams of crying obsidian set back behind them. Water at its edge pours in; lava there is
+     * crushed to blackstone.
      */
     public static ChunkShaper sphere(Vec3 center, double radius) {
         double salt = Math.floorMod((long) Math.floor(center.x * 0.29 + center.z * 0.83), 983L);
         double band = 3, reach = radius + ragReach(radius) + band + 10;
+        // the rim strays inward by no more than this: anything nearer the middle is gone without working the rim out
+        double sure = radius - (radius * 0.2 + 9 + 2.5 + 7) - 4;
+        double sure2 = sure > 0 ? sure * sure : -1;
         return c -> {
             double[] cell = new double[3];
             for (int x = c.minX(); x < c.minX() + 16; x++) {
@@ -147,7 +148,12 @@ public final class WreckShapes {
                     int y0 = Math.max(c.minY(), (int) Math.floor(center.y - half)), y1 = Math.min(top, (int) Math.ceil(center.y + half));
                     double crumble = 3 + 6 * noise(x * 0.8 + salt, z * 0.8 - salt);
                     for (int y = y0; y <= y1; y++) {
-                        double dy = y + 0.5 - center.y, r = Math.sqrt(d2 + dy * dy);
+                        double dy = y + 0.5 - center.y;
+                        if (d2 + dy * dy < sure2) {
+                            c.clear(x, y, z);
+                            continue;
+                        }
+                        double r = Math.sqrt(d2 + dy * dy);
                         double ux = dx / Math.max(1e-6, r), uy = dy / Math.max(1e-6, r), uz = dz / Math.max(1e-6, r);
                         double ex = center.x + ux * radius, ey = center.y + uy * radius, ez = center.z + uz * radius;
                         double edge = radius + rag(ex, ey, ez, radius, salt);
@@ -166,7 +172,8 @@ public final class WreckShapes {
                         }
                         if (r > surface + band) continue;
                         BlockState old = c.get(x, y, z);
-                        if (!old.getFluidState().isEmpty()) c.set(x, y, z, OBSIDIAN);
+                        if (old.is(Blocks.LAVA)) c.set(x, y, z, BLACKSTONE);
+                        else if (!old.getFluidState().isEmpty()) continue;
                         else if (!WreckChunk.terrain(old)) {
                             if (!old.isAir()) c.set(x, y, z, AIR);
                         } else if (seam && r < surface + 1.2) c.set(x, y, z, CRYING);
@@ -242,7 +249,7 @@ public final class WreckShapes {
                     if (network.near(x + 0.5 - center.x, z + 0.5 - center.z, Double.MAX_VALUE, 2.2, k) == null) continue;
                     int ground = c.ground(x, z);
                     if (ground <= c.minY()) continue;
-                    crack(c, x, z, ground, k[0], k[1], k[2], 0);
+                    crack(c, x, z, c.top(x, z), ground, k[0], k[1], k[2], 0);
                 }
             }
         };
@@ -253,32 +260,34 @@ public final class WreckShapes {
      * steps down to a narrow river of lava at its bottom, its walls magma low down, blackstone above and basalt near the
      * top, its lips heaved up into rubble, and the ground beside it seared, the heat fading out over a couple of widths.
      *
+     * @param top  the column's highest block now (above its ground if the ground was heaved up): all of it is opened
      * @param warm how hot the ground around is already (0 to 1), so a crack inside a crater blends into it
      * @return the height of the column's new surface
      */
-    static int crack(WreckChunk c, int x, int z, int ground, double dist, double width, double depth, double warm) {
+    static int crack(WreckChunk c, int x, int z, int top, int ground, double dist, double width, double depth, double warm) {
+        int roof = Math.max(top, c.top(x, z));
         // the walls wander: wider here, narrower there
         double w = width * (0.75 + 0.5 * noise(x * 0.6 + 31, z * 0.6 - 17));
         double t = dist / w;
         if (t >= 1) {
             // beside it: the lips heaved up into rubble, and the ground seared
             double heat = Math.max(warm, 0.78 * (1 - (t - 1) / 2.2));
-            int top = ground;
+            int lip = ground;
             if (t < 1.6 && noise(x * 1.9 + 5, z * 1.9 + 9) > 0.45) {
-                top = ground + (t < 1.3 ? 2 : 1);
-                for (int y = ground + 1; y <= top; y++) c.set(x, y, z, hash(x + y * 31, z - y * 17) < 0.5 ? BASALT : BLACKSTONE);
+                lip = ground + (t < 1.3 ? 2 : 1);
+                for (int y = ground + 1; y <= lip; y++) c.set(x, y, z, hash(x + y * 31, z - y * 17) < 0.5 ? BASALT : BLACKSTONE);
             }
             if (heat > 0.15) {
-                for (int y = c.top(x, z); y > top; y--) if (c.get(x, y, z).getFluidState().isEmpty()) c.clear(x, y, z);
+                for (int y = roof; y > lip; y--) if (c.get(x, y, z).getFluidState().isEmpty()) c.clear(x, y, z);
             }
             BlockState s = seared(heat, x, z, false);
-            if (s != null && WreckChunk.terrain(c.get(x, top, z))) c.set(x, top, z, s);
-            return top;
+            if (s != null && WreckChunk.terrain(c.get(x, lip, z))) c.set(x, lip, z, s);
+            return lip;
         }
         // the V: widest at the top, narrowing to a slit a block or two wide at its deepest; a little rough
         double fall = depth * Math.pow(1 - t, 2.2) * (0.85 + 0.3 * noise(x * 1.3 - 40, z * 1.3 + 40));
         int bottom = Math.max(c.minY() + 1, ground - (int) Math.round(fall));
-        for (int y = c.top(x, z); y > bottom; y--) c.clear(x, y, z);
+        for (int y = roof; y > bottom; y--) c.clear(x, y, z);
         if (t < 0.12) {
             // the river of lava at the bottom, over magma
             c.set(x, bottom, z, LAVA);
@@ -336,13 +345,13 @@ public final class WreckShapes {
                         for (int y = top; y > ground; y--) c.clear(x, y, z);
                     }
                     if (network.near(dx, dz, Double.MAX_VALUE, 2.2, k) != null && u < 1.15 && !wet) {
-                        crack(c, x, z, surface, k[0], k[1], k[2], Math.min(heat, 0.7));
+                        crack(c, x, z, top, surface, k[0], k[1], k[2], Math.min(heat, 0.7));
                         continue;
                     }
                     BlockState cap = seared(heat, x, z, inside && pool > 0.8 && !wet);
                     if (cap == null) continue;
                     // under water the seared rock has cooled: no magma, no lava
-                    if (wet && (cap == MAGMA || cap == LAVA)) cap = cap == LAVA ? OBSIDIAN : BLACKSTONE;
+                    if (wet && (cap == MAGMA || cap == LAVA)) cap = cap == LAVA ? BASALT : BLACKSTONE;
                     if (!inside && !WreckChunk.terrain(c.get(x, surface, z))) continue;
                     c.set(x, surface, z, cap);
                     // the seared crust under it
@@ -375,7 +384,7 @@ public final class WreckShapes {
      * they step down in ragged ledges, narrowing as they go, with chunks of rock jutting out of them and hanging over;
      * the heat of the lava sears their lowest reaches, fading up through magma and blackstone to the bare rock. Its lips
      * crumble, with fissures running back from them; lava drowns its floor up to {@code lavaY}, clumps of fallen rock
-     * standing out of it. The sea at its lips is sealed off with obsidian.
+     * standing out of it. The sea at its lips pours in over them.
      */
     public static ChunkShaper canyon(Vec3 center, Vec3 dir, double length, double halfWidth, int lavaY) {
         double ux = dir.x, uz = dir.z, half = length / 2;
@@ -396,13 +405,11 @@ public final class WreckShapes {
                     if (across > w + 7 && !crack) continue;
                     int top = c.top(x, z), ground = Math.max(c.ground(x, z), c.minY() + 1);
                     if (across > w) {
-                        // the lip: crumbling, the sea sealed off; a fissure splits back into the land
+                        // the lip: crumbling (the sea on it left to pour in); a fissure splits back into the land
                         double edge = (across - w) / 7;
                         int bite = crack ? 6 + (int) (10 * (1 - edge)) : noise(x * 1.5 + salt, z * 1.5) > 0.35 + edge * 0.5 ? (int) (3 * (1 - edge)) + 1 : 0;
-                        for (int y = top; y > ground - Math.max(6, bite + 2) && y > c.minY(); y--) {
-                            BlockState old = c.get(x, y, z);
-                            if (!old.getFluidState().isEmpty()) c.set(x, y, z, OBSIDIAN);
-                            else if (y > ground - bite) c.clear(x, y, z);
+                        for (int y = top; y > ground - bite && y > c.minY(); y--) {
+                            if (c.get(x, y, z).getFluidState().isEmpty()) c.clear(x, y, z);
                         }
                         continue;
                     }
@@ -431,10 +438,7 @@ public final class WreckShapes {
                         }
                         if (across > face + 2.5) continue;
                         BlockState old = c.get(x, y, z);
-                        if (!old.getFluidState().isEmpty()) {
-                            c.set(x, y, z, OBSIDIAN);
-                            continue;
-                        }
+                        if (!old.getFluidState().isEmpty()) continue;
                         if (!WreckChunk.terrain(old)) {
                             if (!old.isAir()) c.clear(x, y, z);
                             continue;
@@ -661,9 +665,8 @@ public final class WreckShapes {
                     double fall = depth * ends * Math.pow(1 - t, 1.2) * (0.8 + 0.4 * noise(x * 1.1 - salt, z * 1.1 + salt));
                     int bottom = Math.max(c.minY() + 1, ground - (int) Math.round(fall));
                     for (int y = c.top(x, z); y > bottom; y--) {
-                        BlockState old = c.get(x, y, z);
-                        if (!old.getFluidState().isEmpty() && t > 0.85) c.set(x, y, z, OBSIDIAN);
-                        else c.clear(x, y, z);
+                        // (water at its edges stays, and pours in)
+                        if (t <= 0.85 || c.get(x, y, z).getFluidState().isEmpty()) c.clear(x, y, z);
                     }
                     // rubble on the floor and the lower walls
                     double h = hash(x * 5 + 11, z * 7 - 3);
@@ -764,7 +767,8 @@ public final class WreckShapes {
                     }
                     // the cracks running out from the blow: deep V's, narrowing to a slit
                     if (cracks.near(dx, dz, Double.MAX_VALUE, 2.2, nearCrack) != null) {
-                        int surface = crack(c, x, z, ground, nearCrack[0], nearCrack[1], nearCrack[2] * fade, 0.3);
+                        // (from the heaved surface, or the top of a raised plate would roof the crack over)
+                        int surface = crack(c, x, z, top, ground, nearCrack[0], nearCrack[1], nearCrack[2] * fade, 0.3);
                         if (Double.isNaN(floor) || floor >= surface) continue;
                     }
                     if (Double.isNaN(floor)) continue;
@@ -880,7 +884,7 @@ public final class WreckShapes {
                     if (network.near(x + 0.5 - center.x, z + 0.5 - center.z, Double.MAX_VALUE, 2.2, k) == null) continue;
                     int ground = c.ground(x, z);
                     if (ground <= c.minY()) continue;
-                    crack(c, x, z, ground, k[0], k[1], k[2], 0.4);
+                    crack(c, x, z, c.top(x, z), ground, k[0], k[1], k[2], 0.4);
                 }
             }
         };

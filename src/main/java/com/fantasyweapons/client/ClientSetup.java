@@ -93,6 +93,7 @@ public final class ClientSetup {
         });
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.ImpactFrames::render);
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.ImpactFrames::fov);
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.ImpactFrames::warm);
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.gui.InventoryButtons::onInit);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);
@@ -191,6 +192,11 @@ public final class ClientSetup {
 
     /** Client implementation of the common → client bridge. */
     static final class Hooks implements SidedHooks {
+        @Override
+        public void handleWreck(com.fantasyweapons.network.WreckPayload payload) {
+            com.fantasyweapons.client.wreck.WreckSync.apply(payload);
+        }
+
         @Override
         public void openCodex(InteractionHand hand) {
             com.fantasyweapons.client.guide.Codex.use(hand);
