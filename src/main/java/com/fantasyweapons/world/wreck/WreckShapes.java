@@ -625,9 +625,9 @@ public final class WreckShapes {
 
     /**
      * The canyon the Great Slash tears into the ground where its plane meets it, along its whole length: a ragged V up
-     * to {@code width} across and {@code depth} deep (shallower towards its ends), its floor strewn with rubble, and its
-     * lips heaved up a block or two with the ground they were made of. Columns further than {@code length} along the
-     * slash, or behind the blade, are left alone.
+     * to {@code width} across and {@code depth} deep (shallower towards its ends), leaning with the cut so it opens into
+     * it, its floor strewn with rubble, and its lips heaved up a block or two with the ground they were made of. Columns
+     * further than {@code length} along the slash, or behind the blade, are left alone.
      */
     public static ChunkShaper slashScar(Vec3 origin, Vec3 forward, Vec3 blade, double length, double width, double depth, long seed) {
         Vec3 n = forward.cross(blade).normalize();
@@ -643,35 +643,43 @@ public final class WreckShapes {
                     if (along < 4 || along > length) continue;
                     int ground = c.ground(x, z);
                     if (ground <= c.minY()) continue;
-                    // how far the column lies from where the plane cuts the ground here
-                    double s = n.x * dx + n.y * (ground + 0.5 - origin.y) + n.z * dz;
                     double flatness = Math.sqrt(Math.max(1e-3, n.x * n.x + n.z * n.z));
-                    s /= flatness;
                     double ends = Math.min(1, Math.min((along - 4) / 24, (length - along) / 40));
-                    double half = width * 0.5 * (0.7 + 0.6 * noise(along * 0.8 + salt, salt * 0.3)) * (0.5 + 0.5 * ends);
-                    double t = Math.abs(s) / Math.max(1, half);
-                    if (t > 1.5) continue;
-                    if (t >= 1) {
+                    double half = Math.max(1, width * 0.5 * (0.7 + 0.6 * noise(along * 0.8 + salt, salt * 0.3)) * (0.5 + 0.5 * ends));
+                    double deep = Math.max(1, depth * ends * (0.8 + 0.4 * noise(x * 1.1 - salt, z * 1.1 + salt)));
+                    int lowest = Math.max(c.minY() + 1, ground - (int) Math.ceil(deep));
+                    // how far a point of the column lies from the plane, across the ground: the V follows the cut's slant down
+                    // into the ground, so it opens straight into the slit with no blade of rock left between them
+                    double across = (n.x * dx + n.z * dz - n.y * origin.y) / flatness, perY = n.y / flatness;
+                    double t0 = Math.abs(across + perY * (ground + 0.5)) / half;
+                    double tLow = Math.abs(across + perY * (lowest + 0.5)) / half;
+                    boolean crosses = (across + perY * (ground + 0.5)) * (across + perY * (lowest + 0.5)) <= 0;
+                    if (!crosses && Math.min(t0, tLow) > 1.5) continue;
+                    if (t0 >= 1 && t0 <= 1.5) {
                         // the lips, heaved up with the ground they were made of
                         if (noise(x * 1.7 + salt, z * 1.7 - salt) > 0.4) {
                             BlockState surface = c.get(x, ground, z);
-                            int up = t < 1.25 ? 2 : 1;
+                            int up = t0 < 1.25 ? 2 : 1;
                             for (int y = ground + 1; y <= ground + up; y++) {
                                 if (c.get(x, y, z).isAir() || c.get(x, y, z).canBeReplaced()) c.set(x, y, z, WreckChunk.terrain(surface) ? surface : COBBLE);
                             }
                         }
-                        continue;
                     }
-                    double fall = depth * ends * Math.pow(1 - t, 1.2) * (0.8 + 0.4 * noise(x * 1.1 - salt, z * 1.1 + salt));
-                    int bottom = Math.max(c.minY() + 1, ground - (int) Math.round(fall));
-                    for (int y = c.top(x, z); y > bottom; y--) {
+                    int floor = Integer.MIN_VALUE;
+                    for (int y = c.top(x, z); y > lowest; y--) {
+                        double t = Math.abs(across + perY * (y + 0.5)) / half;
+                        double q = Math.max(0, (ground - y) / deep);
+                        if (t >= 1 - Math.pow(q, 1 / 1.2)) continue;
                         // (water at its edges stays, and pours in)
                         if (t <= 0.85 || c.get(x, y, z).getFluidState().isEmpty()) c.clear(x, y, z);
+                        floor = y;
                     }
-                    // rubble on the floor and the lower walls
+                    // rubble on the floor - on solid ground only, never hung in the air of the cut
+                    if (floor == Integer.MIN_VALUE || !WreckChunk.terrain(c.get(x, floor - 1, z))) continue;
+                    int bottom = floor - 1;
                     double h = hash(x * 5 + 11, z * 7 - 3);
                     if (h < 0.55) c.set(x, bottom, z, h < 0.2 ? GRAVEL : h < 0.4 ? COBBLE : COBBLED_DEEPSLATE);
-                    if (t < 0.5 && hash(x - 9, z + 4) < 0.18) c.set(x, bottom + 1, z, h < 0.3 ? COBBLE : COBBLED_DEEPSLATE);
+                    if (t0 < 0.5 && hash(x - 9, z + 4) < 0.18) c.set(x, bottom + 1, z, h < 0.3 ? COBBLE : COBBLED_DEEPSLATE);
                 }
             }
         };

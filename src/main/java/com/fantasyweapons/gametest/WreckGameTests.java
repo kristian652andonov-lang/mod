@@ -76,6 +76,49 @@ public final class WreckGameTests {
         h.succeed();
     }
 
+    /**
+     * The Great Slash's cut and the canyon it tears along the ground meet cleanly: no thin blade of rock is left between
+     * them, and no rubble hangs in the air of the cut - no column holds a sliver of one to three blocks with air both
+     * above and below it.
+     */
+    @GameTest(template = "arena", batch = "wreck")
+    public static void theSlashLeavesNoLineInsideItsCut(GameTestHelper h) {
+        ServerLevel level = h.getLevel();
+        LevelChunk chunk = flatChunk(level, 2906, 2900, GROUND, false);
+        int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
+        // cast from 150 blocks north of the chunk, looking south, as the ability casts it: almost straight down from high on
+        // the left (so the cut, leaning, meets the ground 13 blocks west of the caster - in the middle of the chunk)
+        Vec3 eye = new Vec3(minX + 21.5, GROUND + 41.6, minZ - 150), look = new Vec3(0, 0, 1);
+        Vec3 right = look.cross(new Vec3(0, 1, 0)).normalize(), up = right.cross(look).normalize();
+        double tilt = Math.toRadians(-72);
+        Vec3 blade = right.scale(Math.cos(tilt)).add(up.scale(Math.sin(tilt))).normalize();
+        WorldWreck.rewrite(level, chunk, 7L, WreckShapes.all(WreckShapes.slab(eye, look, blade, 384, 96, 10),
+                WreckShapes.slashScar(eye, look, blade, 384, 20, 34, 7L)));
+        int cut = 0;
+        for (int x = minX; x < minX + 16; x++) {
+            for (int z = minZ; z < minZ + 16; z++) {
+                int run = 0;
+                boolean airAbove = false;
+                for (int y = GROUND + 4; y > level.getMinBuildHeight(); y--) {
+                    boolean air = level.getBlockState(new BlockPos(x, y, z)).isAir();
+                    if (air && y <= GROUND) cut++;
+                    if (!air) {
+                        run++;
+                        continue;
+                    }
+                    if (airAbove && run >= 1 && run <= 3) {
+                        h.fail("a sliver " + run + " thick hangs in the cut at " + x + ", " + (y + 1) + ", " + z);
+                        return;
+                    }
+                    airAbove = true;
+                    run = 0;
+                }
+            }
+        }
+        if (cut < 500) h.fail("the slash hardly cut the chunk: " + cut + " blocks");
+        h.succeed();
+    }
+
     /** The highest block of a column. */
     private static int top(ServerLevel level, int x, int z) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos(x, level.getMaxBuildHeight() - 1, z);
