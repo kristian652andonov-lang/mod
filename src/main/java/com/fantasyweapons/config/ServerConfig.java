@@ -113,6 +113,8 @@ public final class ServerConfig {
     public static final Bool DESTRUCTION;
     public static final Bool DESTRUCTION_LOADS_CHUNKS;
     public static final Int DESTRUCTION_MS_PER_TICK;
+    public static final Bool DESTRUCTION_INSTANT;
+    public static final Int DESTRUCTION_THREADS;
     public static final Dbl DESTRUCTION_RADIUS_SCALE;
     private static final Map<AbilityDefinition, Map<String, Dbl>> ABILITY_PARAMS = new IdentityHashMap<>();
 
@@ -169,7 +171,9 @@ public final class ServerConfig {
         B.comment("World destruction by the two ultimate weapons (the Great Sword of Obliteration and the Spell Book of Absolute Domination)").push("destruction");
         DESTRUCTION = bool("enabled", true, "Whether their abilities really destroy the world: break, melt, freeze and rebuild blocks and whole chunks. When off, only the effects and the damage remain");
         DESTRUCTION_LOADS_CHUNKS = bool("load_chunks", true, "Load (and if needed generate) chunks out of view so the destruction is complete everywhere it reaches");
-        DESTRUCTION_MS_PER_TICK = i("ms_per_tick", 18, 1, 200, "Milliseconds of each server tick spent rewriting chunks. Lower keeps the server smoother, the destruction then spreads more slowly");
+        DESTRUCTION_MS_PER_TICK = i("ms_per_tick", 18, 1, 200, "Milliseconds of each server tick spent putting rewritten chunks into the world (the rewriting itself runs on other threads). Lower keeps the server smoother, the destruction then lands more slowly");
+        DESTRUCTION_INSTANT = bool("instant", true, "Each power's destruction lands all at once, the moment it strikes, instead of sweeping out over a few seconds");
+        DESTRUCTION_THREADS = i("threads", 0, 0, 64, "Threads rewriting chunks for the destruction (0: every core but two)");
         DESTRUCTION_RADIUS_SCALE = d("radius_scale", 1.0, 0.05, 1.0, "Scales the destroyed area of every ability (1 = the full 64 to 256 blocks)");
         B.pop();
 

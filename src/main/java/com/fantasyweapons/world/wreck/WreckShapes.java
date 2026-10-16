@@ -35,27 +35,43 @@ public final class WreckShapes {
         double salt = Math.floorMod((long) Math.floor(center.x * 0.41 + center.z * 0.73), 991L);
         // how far the edge wanders in and out of the circle, and how deep the wall's relief goes
         double wander = Math.min(8, radius * 0.06), band = 4;
+        // the rock of the wall depends only on how far round the shaft and how high: worked out once for each, shared by
+        // every chunk (and thread) of the job
+        int around = Math.max(32, (int) Math.ceil(2 * Math.PI * (radius + wander)));
+        WallRock wall = new WallRock(around, -128, 384, (a, y, out) -> {
+            double ang = (a + 0.5) / around * 2 * Math.PI - Math.PI;
+            double edge = radius + wander * (lobes(Math.cos(ang), Math.sin(ang), salt) * 2 - 1);
+            out[0] = center.x + Math.cos(ang) * edge;
+            out[1] = center.z + Math.sin(ang) * edge;
+        });
         return c -> {
             double[] cell = new double[3];
+            // a chunk wholly inside the shaft goes a section at a time
+            boolean[] gone = new boolean[c.sectionCount()];
+            double fx = Math.max(Math.abs(c.minX() - center.x), Math.abs(c.minX() + 16 - center.x));
+            double fz = Math.max(Math.abs(c.minZ() - center.z), Math.abs(c.minZ() + 16 - center.z));
+            if (Math.sqrt(fx * fx + fz * fz) < radius - wander - 5) {
+                for (int i = 0; i < gone.length; i++) gone[i] = c.clearSection(i);
+            }
             for (int x = c.minX(); x < c.minX() + 16; x++) {
                 for (int z = c.minZ(); z < c.minZ() + 16; z++) {
                     if (c.masked(x, z)) continue;
                     double dx = x + 0.5 - center.x, dz = z + 0.5 - center.z, d = Math.sqrt(dx * dx + dz * dz);
                     if (d > radius + wander + band + 7) continue;
                     double ca = dx / Math.max(1e-6, d), sa = dz / Math.max(1e-6, d);
-                    double lobes = 0.65 * noise(ca * 12 + salt, sa * 12 + salt) + 0.35 * noise(ca * 36 + salt + 200, sa * 36 + salt + 200);
-                    double edge = radius + wander * (lobes * 2 - 1);
+                    double edge = radius + wander * (lobes(ca, sa, salt) * 2 - 1);
                     int top = c.top(x, z);
                     // the rim crumbles back over the last few blocks below the ground, more in some places than others
                     double crumble = 3 + 5 * noise(x * 0.8 + salt, z * 0.8 - salt);
-                    double wx = center.x + ca * edge, wz = center.z + sa * edge;
+                    int a = Math.min(around - 1, (int) ((Math.atan2(sa, ca) + Math.PI) / (2 * Math.PI) * around));
                     for (int y = c.minY(); y <= top; y++) {
+                        if (gone[(y - c.minY()) >> 4]) continue;
                         if (d < edge - 4) {
                             c.erase(x, y, z);
                             continue;
                         }
                         // the chunk of rock the wall is made of here, and whether this is a seam between two
-                        cells(wx, y, wz, cell);
+                        wall.cells(a, y, cell);
                         boolean seam = cell[1] - cell[0] < 0.85;
                         double jut = seam ? -1.6 : (1.0 + 1.8 * cell[2]) * (1 - 0.6 * Math.min(1, cell[0] / (WALL_CELL * 0.6)));
                         double surface = edge - jut + Math.max(0, crumble - (top - y)) * 1.1;
@@ -82,6 +98,11 @@ public final class WreckShapes {
                 }
             }
         };
+    }
+
+    /** How far out a shaft's edge wanders in the direction (ca, sa): 0 in, 1 out. */
+    private static double lobes(double ca, double sa, double salt) {
+        return 0.65 * noise(ca * 12 + salt, sa * 12 + salt) + 0.35 * noise(ca * 36 + salt + 200, sa * 36 + salt + 200);
     }
 
     /** The rock a seared chunk is made of, by its own random value: mostly blackstone, some basalt, deepslate and netherrack. */
@@ -136,8 +157,22 @@ public final class WreckShapes {
         // the rim strays inward by no more than this: anything nearer the middle is gone without working the rim out
         double sure = radius - (radius * 0.2 + 9 + 2.5 + 7) - 4;
         double sure2 = sure > 0 ? sure * sure : -1;
+        // the rim and the rock of its wall depend only on the direction from the middle: worked out once a direction,
+        // shared by every chunk (and thread) of the job
+        Rim rim = new Rim(center, radius, salt);
+        double far = radius + ragReach(radius) + 4 + band + 9;
         return c -> {
             double[] cell = new double[3];
+            // whole sections deep inside go at once
+            boolean[] gone = new boolean[c.sectionCount()];
+            if (sure > 0) {
+                double fx = Math.max(Math.abs(c.minX() - center.x), Math.abs(c.minX() + 16 - center.x));
+                double fz = Math.max(Math.abs(c.minZ() - center.z), Math.abs(c.minZ() + 16 - center.z));
+                for (int i = 0; i < gone.length; i++) {
+                    double y0 = c.minY() + i * 16, fy = Math.max(Math.abs(y0 - center.y), Math.abs(y0 + 16 - center.y));
+                    if (fx * fx + fy * fy + fz * fz < sure2) gone[i] = c.clearSection(i);
+                }
+            }
             for (int x = c.minX(); x < c.minX() + 16; x++) {
                 for (int z = c.minZ(); z < c.minZ() + 16; z++) {
                     if (c.masked(x, z)) continue;
@@ -147,22 +182,28 @@ public final class WreckShapes {
                     int top = c.top(x, z);
                     int y0 = Math.max(c.minY(), (int) Math.floor(center.y - half)), y1 = Math.min(top, (int) Math.ceil(center.y + half));
                     double crumble = 3 + 6 * noise(x * 0.8 + salt, z * 0.8 - salt);
+                    // the rim's grid cell for each block of the column: its column of the grid is the same all the way up,
+                    // its row is stepped through from below
+                    double rho = Math.max(1e-6, Math.sqrt(d2));
+                    int col = rim.col(dx, dz), row = -1;
                     for (int y = y0; y <= y1; y++) {
+                        if (gone[(y - c.minY()) >> 4]) continue;
                         double dy = y + 0.5 - center.y;
                         if (d2 + dy * dy < sure2) {
                             c.clear(x, y, z);
                             continue;
                         }
                         double r = Math.sqrt(d2 + dy * dy);
-                        double ux = dx / Math.max(1e-6, r), uy = dy / Math.max(1e-6, r), uz = dz / Math.max(1e-6, r);
-                        double ex = center.x + ux * radius, ey = center.y + uy * radius, ez = center.z + uz * radius;
-                        double edge = radius + rag(ex, ey, ez, radius, salt);
+                        if (r > far) continue;
+                        row = row < 0 ? rim.row(dy, rho) : rim.up(row, dy, rho);
+                        int at = rim.cell(row, col);
+                        double edge = radius + rim.rag(at);
                         if (r < edge - 4) {
                             c.clear(x, y, z);
                             continue;
                         }
                         if (r > edge + 4 + band + Math.max(0, crumble)) continue;
-                        cells(center.x + ux * edge, center.y + uy * edge, center.z + uz * edge, cell);
+                        rim.cells(at, cell);
                         boolean seam = cell[1] - cell[0] < 0.85;
                         double jut = seam ? -1.5 : (1.0 + 1.8 * cell[2]) * (1 - 0.6 * Math.min(1, cell[0] / (WALL_CELL * 0.6)));
                         double surface = edge - jut + Math.max(0, crumble - (top - y)) * 1.1;
@@ -182,6 +223,127 @@ public final class WreckShapes {
                 }
             }
         };
+    }
+
+    /**
+     * A round crater's rim worked out over the directions from its middle, on a grid about a block (or two, for the
+     * biggest) wide on the rim: how far it strays from its circle ({@link #rag}) and the rock of its wall there
+     * ({@link #cells}). Each direction is worked out the first time it is needed, by whichever thread needs it, and kept.
+     */
+    private static final class Rim {
+        private static final java.lang.invoke.VarHandle DONE = java.lang.invoke.MethodHandles.arrayElementVarHandle(byte[].class);
+        private final Vec3 center;
+        private final double radius, salt;
+        private final int rows, cols;
+        private final float[] data;
+        private final byte[] done;
+        /** The cotangent of the angle down from straight up at which each row starts. */
+        private final double[] cot;
+
+        Rim(Vec3 center, double radius, double salt) {
+            this.center = center;
+            this.radius = radius;
+            this.salt = salt;
+            double step = Math.max(1, radius / 150);
+            rows = Math.max(16, (int) Math.ceil(Math.PI * radius / step));
+            cols = Math.max(32, (int) Math.ceil(2 * Math.PI * radius / step));
+            data = new float[rows * cols * 4];
+            done = new byte[rows * cols];
+            cot = new double[rows];
+            cot[0] = Double.POSITIVE_INFINITY;
+            for (int k = 1; k < rows; k++) cot[k] = 1 / Math.tan(k * Math.PI / rows);
+        }
+
+        /** The grid's column for a direction (x and z from the middle): the same for every height. */
+        int col(double dx, double dz) {
+            return Math.min(cols - 1, (int) ((Math.atan2(dz, dx) + Math.PI) / (2 * Math.PI) * cols));
+        }
+
+        /** The grid's row for a direction ({@code dy} up from the middle, {@code rho} out from it). */
+        int row(double dy, double rho) {
+            return Math.min(rows - 1, (int) (Math.atan2(rho, dy) / Math.PI * rows));
+        }
+
+        /** The row of a block higher up the same column than one in {@code row}: no worse than {@link #row}, far cheaper. */
+        int up(int row, double dy, double rho) {
+            while (row > 0 && dy > rho * cot[row]) row--;
+            return row;
+        }
+
+        /** The grid cell at a row and column, worked out if it is not yet. */
+        int cell(int row, int col) {
+            int i = row * cols + col;
+            if ((byte) DONE.getAcquire(done, i) == 0) fill(i, row, col);
+            return i;
+        }
+
+        private void fill(int i, int row, int col) {
+            double theta = (row + 0.5) / rows * Math.PI, phi = (col + 0.5) / cols * 2 * Math.PI - Math.PI;
+            double ux = Math.sin(theta) * Math.cos(phi), uy = Math.cos(theta), uz = Math.sin(theta) * Math.sin(phi);
+            double off = WreckShapes.rag(center.x + ux * radius, center.y + uy * radius, center.z + uz * radius, radius, salt);
+            double edge = radius + off;
+            double[] cell = new double[3];
+            WreckShapes.cells(center.x + ux * edge, center.y + uy * edge, center.z + uz * edge, cell);
+            data[i * 4] = (float) off;
+            data[i * 4 + 1] = (float) cell[0];
+            data[i * 4 + 2] = (float) cell[1];
+            data[i * 4 + 3] = (float) cell[2];
+            DONE.setRelease(done, i, (byte) 1);
+        }
+
+        double rag(int i) {
+            return data[i * 4];
+        }
+
+        void cells(int i, double[] out) {
+            out[0] = data[i * 4 + 1];
+            out[1] = data[i * 4 + 2];
+            out[2] = data[i * 4 + 3];
+        }
+    }
+
+    /**
+     * The rock of a wall worked out on a grid (columns {@code a} by heights {@code y}) the first time each point is
+     * needed, by whichever thread needs it, and kept: for walls whose rock depends only on where along them, and how
+     * high, a block is (see {@link #cells}).
+     */
+    private static final class WallRock {
+        private static final java.lang.invoke.VarHandle DONE = java.lang.invoke.MethodHandles.arrayElementVarHandle(byte[].class);
+        @FunctionalInterface
+        interface Point {
+            /** Where on the wall grid point (a, y) lies: x and z into {@code out}. */
+            void at(int a, int y, double[] out);
+        }
+
+        private final int cols, minY, height;
+        private final Point point;
+        private final float[] data;
+        private final byte[] done;
+
+        WallRock(int cols, int minY, int maxY, Point point) {
+            this.cols = cols;
+            this.minY = minY;
+            this.height = maxY - minY;
+            this.point = point;
+            data = new float[cols * height * 3];
+            done = new byte[cols * height];
+        }
+
+        void cells(int a, int y, double[] out) {
+            int i = Math.floorMod(a, cols) * height + Math.max(0, Math.min(height - 1, y - minY));
+            if ((byte) DONE.getAcquire(done, i) == 0) {
+                double[] xz = new double[2], cell = new double[3];
+                point.at(Math.floorMod(a, cols), y, xz);
+                WreckShapes.cells(xz[0], y, xz[1], cell);
+                data[i * 3] = (float) cell[0];
+                data[i * 3 + 1] = (float) cell[1];
+                data[i * 3 + 2] = (float) cell[2];
+                DONE.setRelease(done, i, (byte) 1);
+            }
+            out[0] = data[i * 3];
+            out[1] = data[i * 3 + 1];
+            out[2] = data[i * 3 + 2];
+        }
     }
 
     /**
@@ -241,16 +403,24 @@ public final class WreckShapes {
 
     /** Cracks running with lava, carved in full (see {@link #crack}). */
     public static ChunkShaper cracks(Vec3 center, com.fantasyweapons.weapons.ultimate.CrackNetwork network) {
-        return c -> {
-            double[] k = new double[3];
-            for (int x = c.minX(); x < c.minX() + 16; x++) {
-                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
-                    if (c.masked(x, z)) continue;
-                    if (network.near(x + 0.5 - center.x, z + 0.5 - center.z, Double.MAX_VALUE, 2.2, k) == null) continue;
-                    int ground = c.ground(x, z);
-                    if (ground <= c.minY()) continue;
-                    crack(c, x, z, c.top(x, z), ground, k[0], k[1], k[2], 0);
+        return new ChunkShaper() {
+            @Override
+            public void shape(WreckChunk c) {
+                double[] k = new double[3];
+                for (int x = c.minX(); x < c.minX() + 16; x++) {
+                    for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                        if (c.masked(x, z)) continue;
+                        if (network.near(x + 0.5 - center.x, z + 0.5 - center.z, Double.MAX_VALUE, 2.2, k) == null) continue;
+                        int ground = c.ground(x, z);
+                        if (ground <= c.minY()) continue;
+                        crack(c, x, z, c.top(x, z), ground, k[0], k[1], k[2], 0);
+                    }
                 }
+            }
+
+            @Override
+            public boolean reaches(int chunkX, int chunkZ) {
+                return network.reaches(chunkX * 16 - center.x, chunkZ * 16 - center.z, 16, 2.2);
             }
         };
     }
@@ -928,8 +1098,17 @@ public final class WreckShapes {
 
     /** Several shapers applied to a chunk one after another. */
     public static ChunkShaper all(ChunkShaper... shapers) {
-        return c -> {
-            for (ChunkShaper s : shapers) s.shape(c);
+        return new ChunkShaper() {
+            @Override
+            public void shape(WreckChunk c) {
+                for (ChunkShaper s : shapers) s.shape(c);
+            }
+
+            @Override
+            public boolean reaches(int chunkX, int chunkZ) {
+                for (ChunkShaper s : shapers) if (s.reaches(chunkX, chunkZ)) return true;
+                return false;
+            }
         };
     }
 

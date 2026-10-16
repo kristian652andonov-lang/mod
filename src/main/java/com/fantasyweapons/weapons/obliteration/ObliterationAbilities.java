@@ -209,7 +209,8 @@ public final class ObliterationAbilities {
 
         private void shatter(ServerPlayer owner) {
             // every chunk is read before any is written, so each can be refilled from any other
-            java.util.Map<Long, net.minecraft.world.level.chunk.PalettedContainer<net.minecraft.world.level.block.state.BlockState>[]> snaps = new java.util.HashMap<>();
+            // (read and filled from the threads the destruction is worked out on)
+            java.util.Map<Long, net.minecraft.world.level.chunk.PalettedContainer<net.minecraft.world.level.block.state.BlockState>[]> snaps = new java.util.concurrent.ConcurrentHashMap<>();
             for (var m : plan.moves()) {
                 var chunk = level.getChunkSource().getChunkNow(m.dest().x, m.dest().z);
                 if (chunk != null) snaps.put(m.dest().toLong(), com.fantasyweapons.world.wreck.WreckChunk.snapshot(chunk));
@@ -281,6 +282,7 @@ public final class ObliterationAbilities {
         @Override
         protected void tick(ServerPlayer owner) {
             Vec3 rift = path.rift();
+            if (age == 1) prepareStrike();
             if (age == 2) {
                 // the hole it came out of goes down to the bottom of the world
                 WorldWreck.disc(level, rift, 22, seed, d -> 0, WreckShapes.shaft(rift, 10));
@@ -310,12 +312,17 @@ public final class ObliterationAbilities {
             }
         }
 
-        private void strike(ServerPlayer owner) {
+        /** The crater it strikes and the ground it splits, worked out while it flies, so they land all at once as it strikes. */
+        private void prepareStrike() {
             double r = WorldWreck.radius(radius);
             double crater = r * 0.3;
             var cracks = dragonCracks(seed, r);
-            WorldWreck.disc(level, pos, crater + 10, seed, d -> (int) (d / 9), WreckShapes.eruption(pos, crater, 20, cracks));
-            WorldWreck.disc(level, pos, r + 4, seed + 1, d -> 2 + (int) (d / r * SPLIT), WreckShapes.all(WreckShapes.scorch(pos, r), WreckShapes.hellSplit(pos, cracks)));
+            WorldWreck.disc(level, pos, crater + 10, seed, d -> flight - 1, WreckShapes.eruption(pos, crater, 20, cracks));
+            WorldWreck.disc(level, pos, r + 4, seed + 1, d -> flight - 1, WreckShapes.all(WreckShapes.scorch(pos, r), WreckShapes.hellSplit(pos, cracks)));
+        }
+
+        private void strike(ServerPlayer owner) {
+            double crater = WorldWreck.radius(radius) * 0.3;
             for (LivingEntity e : Cataclysm.victims(level, owner, pos.add(0, crater * 0.3, 0), crater * 1.3)) {
                 e.push(0, 2.4, 0);
                 e.hurtMarked = true;

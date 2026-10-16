@@ -402,6 +402,9 @@ final class DevScripts {
             com.fantasyweapons.FantasyWeapons.LOGGER.warn("remote: server top at 0,0 is y={} {} ; client top y={} {}", y, ow.getBlockState(new net.minecraft.core.BlockPos(0, y - 1, 0)),
                     mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, 0, 0),
                     mc.level.getBlockState(new net.minecraft.core.BlockPos(0, mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, 0, 0) - 1, 0)));
+            // the client's blocks against the server's, chunk by chunk round the middle (on the server's thread, where its
+            // chunks can be read)
+            server.submit(() -> compare(mc, ow)).join();
         });
         if (parts.length > 5) {
             // views of the aftermath: x,y,z,yaw,pitch;... (no HUD, no hand)
@@ -419,6 +422,36 @@ final class DevScripts {
         b.cmd("/tp @s 0 215 -10 0 90").wait(80).screenshot("remote_" + ability + "_after_top")
                 .cmd("/tp @s 0 140 -200 0 25").wait(60).screenshot("remote_" + ability + "_after_a")
                 .cmd("/tp @s 190 120 0 90 15").wait(60).screenshot("remote_" + ability + "_after_b");
+    }
+
+
+    /** DEVELOPMENT ONLY: counts the blocks in which the client's chunks round the middle differ from the server's. */
+    private static void compare(net.minecraft.client.Minecraft mc, net.minecraft.server.level.ServerLevel ow) {
+        int bad = 0, chunks = 0, first = 0;
+        String example = "";
+        for (int cx = -24; cx <= 24; cx += 3) {
+            for (int cz = -24; cz <= 24; cz += 3) {
+                var sc = ow.getChunkSource().getChunkNow(cx, cz);
+                var cc = mc.level.getChunkSource().getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
+                if (sc == null || cc == null) continue;
+                chunks++;
+                int here = 0;
+                for (int i = 0; i < sc.getSectionsCount(); i++) {
+                    var ss = sc.getSection(i).getStates();
+                    var cs = cc.getSection(i).getStates();
+                    for (int q = 0; q < 4096; q++) {
+                        if (ss.get(q & 15, q >> 8, (q >> 4) & 15) != cs.get(q & 15, q >> 8, (q >> 4) & 15)) {
+                            here++;
+                            if (example.isEmpty()) example = "chunk " + cx + "," + cz + " section " + i + " at " + (q & 15) + "," + (q >> 8) + "," + ((q >> 4) & 15)
+                                    + " server " + ss.get(q & 15, q >> 8, (q >> 4) & 15) + " client " + cs.get(q & 15, q >> 8, (q >> 4) & 15);
+                        }
+                    }
+                }
+                if (here > 0) first++;
+                bad += here;
+            }
+        }
+        com.fantasyweapons.FantasyWeapons.LOGGER.warn("remote: client vs server: {} chunks compared, {} differ, {} blocks differ; {}", chunks, first, bad, example);
     }
 
     /**

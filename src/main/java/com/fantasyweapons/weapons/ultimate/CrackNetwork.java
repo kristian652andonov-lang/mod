@@ -145,6 +145,21 @@ public final class CrackNetwork {
         return best;
     }
 
+    /**
+     * Whether any crack, or the ground {@code margin} of its widths beside it, may reach into the square of side
+     * {@code size} whose corner is at {@code (x, z)} (a little generously).
+     */
+    public boolean reaches(double x, double z, double size, double margin) {
+        double cx = x + size / 2, cz = z + size / 2, half = size * 0.7072;
+        for (Segment s : segments) {
+            double m = s.width * (1 + margin) + 1;
+            if (Math.max(s.x0, s.x1) + m < x || Math.min(s.x0, s.x1) - m > x + size
+                    || Math.max(s.z0, s.z1) + m < z || Math.min(s.z0, s.z1) - m > z + size) continue;
+            if (s.distance(cx, cz, new double[1]) <= m + half) return true;
+        }
+        return false;
+    }
+
     public Segment at(double x, double z, double grownTo, double[] out) {
         Segment best = null;
         double bestK = 0;

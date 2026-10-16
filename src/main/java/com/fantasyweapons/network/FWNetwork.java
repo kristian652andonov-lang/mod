@@ -7,7 +7,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class FWNetwork {
-    public static final String VERSION = "2";
+    public static final String VERSION = "3";
 
     private FWNetwork() {
     }

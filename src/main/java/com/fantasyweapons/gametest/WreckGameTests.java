@@ -119,6 +119,29 @@ public final class WreckGameTests {
         h.succeed();
     }
 
+    /**
+     * A rewrite may fill a section with many kinds of block (its palette growing past what it held): the rewrite takes
+     * them all, and the chunk is left whole.
+     */
+    @GameTest(template = "arena", batch = "wreck")
+    public static void aRewriteCanFillASectionWithManyBlocks(GameTestHelper h) {
+        ServerLevel level = h.getLevel();
+        LevelChunk chunk = flatChunk(level, 2909, 2900, GROUND, false);
+        int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
+        BlockState[] kinds = net.minecraft.core.registries.BuiltInRegistries.BLOCK.stream().map(net.minecraft.world.level.block.Block::defaultBlockState)
+                .filter(s -> !s.hasBlockEntity() && s.getFluidState().isEmpty() && s.isCollisionShapeFullBlock(level, BlockPos.ZERO)
+                        && s.getBlock().defaultDestroyTime() >= 0).limit(40).toArray(BlockState[]::new);
+        WorldWreck.rewrite(level, chunk, 1L, c -> {
+            for (int i = 0; i < kinds.length; i++) c.set(minX + (i & 15), GROUND - 2, minZ + (i >> 4), kinds[i]);
+        });
+        for (int i = 0; i < kinds.length; i++) {
+            BlockState at = level.getBlockState(new BlockPos(minX + (i & 15), GROUND - 2, minZ + (i >> 4)));
+            if (at != kinds[i]) h.fail("block " + i + " is " + at + ", not " + kinds[i]);
+        }
+        if (!level.getBlockState(new BlockPos(minX + 15, GROUND - 2, minZ + 15)).is(Blocks.STONE)) h.fail("the rest of the section was not kept");
+        h.succeed();
+    }
+
     /** The highest block of a column. */
     private static int top(ServerLevel level, int x, int z) {
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos(x, level.getMaxBuildHeight() - 1, z);

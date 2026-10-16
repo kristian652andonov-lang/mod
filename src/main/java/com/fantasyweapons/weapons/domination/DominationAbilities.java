@@ -59,21 +59,23 @@ public final class DominationAbilities {
 
         @Override
         protected void tick(ServerPlayer owner) {
-            if (age == delay) {
+            // the land it erases, and the cracks it splits round the hole, are worked out while the circle opens, so each
+            // lands all at once: the hole the moment the beam bites, the cracks as it burns
+            if (age == 1) {
                 double r = WorldWreck.radius(radius);
-                // the land is erased from the middle out as the beam bites
-                WorldWreck.disc(level, pos, r + Math.min(8, r * 0.06) + 12, seed, d -> (int) (d / 6), WreckShapes.shaft(pos, r));
+                WorldWreck.disc(level, pos, r + Math.min(8, r * 0.06) + 12, seed, d -> delay - 1, WreckShapes.shaft(pos, r));
+            }
+            if (age == 2) {
+                double r = WorldWreck.radius(radius);
+                var ring = com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xBEA4L, 12, r + 2, r * 2.2, 6, 120);
+                WorldWreck.disc(level, pos, r * 2.2 + 12, seed + 3, d -> delay + beam / 2 - 2, WreckShapes.cracks(pos, ring));
+            }
+            if (age == delay) {
                 Cataclysm.frames(level, owner, pos, radius * 3, 0xFFB43A, 0xFFF6D6);
                 level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 30f, 0.5f);
             }
             if (age >= delay && age <= delay + beam && (age - delay) % 4 == 0) {
                 Cataclysm.eraseColumn(owner, weapon(owner), level, pos, radius, damage, Element.LIGHT);
-            }
-            if (age == delay + beam / 2) {
-                // the land round the hole splits open: deep cracks running out from its rim
-                double r = WorldWreck.radius(radius);
-                var ring = com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xBEA4L, 12, r + 2, r * 2.2, 6, 120);
-                WorldWreck.disc(level, pos, r * 2.2 + 12, seed + 3, d -> (int) (Math.max(0, d - r) / 4), WreckShapes.cracks(pos, ring));
             }
         }
     }
@@ -125,10 +127,18 @@ public final class DominationAbilities {
 
         @Override
         protected void tick(ServerPlayer owner) {
-            if (age == FORM) {
+            // the land it swallows, and the cracks its collapse splits round the bowl, are worked out from the start, so
+            // each lands all at once: the bowl the moment it tears open, the cracks as it collapses
+            if (age == 1) {
                 double r = WorldWreck.radius(reach);
-                int span = collapse - FORM - 10;
-                WorldWreck.disc(level, pos, r + WreckShapes.ragReach(r) + 14, seed, d -> FORM + (int) (Math.min(1, d / r) * span), WreckShapes.sphere(pos, r));
+                WorldWreck.disc(level, pos, r + WreckShapes.ragReach(r) + 14, seed, d -> FORM - 1, WreckShapes.sphere(pos, r));
+            }
+            if (age == 2) {
+                double r = WorldWreck.radius(reach);
+                var ring = com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xB1AC4L, 14, r * 0.97, r * 1.7, 7, 120);
+                WorldWreck.disc(level, pos, r * 1.7 + 12, seed + 5, d -> collapse - 2, WreckShapes.cracks(pos, ring));
+            }
+            if (age == FORM) {
                 level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 30f, 0.4f);
                 // the one impact frame: the moment it tears open
                 Cataclysm.frames(level, owner, pos, reach * 2, 0xFF9636, 0xFFF8EE);
@@ -137,10 +147,6 @@ public final class DominationAbilities {
             if (age == collapse) {
                 // the collapse takes everything still in reach
                 for (net.minecraft.world.entity.Entity e : inReach()) swallow(owner, e);
-                // the land round the bowl splits open as it collapses: deep cracks running out from its rim
-                double r = WorldWreck.radius(reach);
-                var ring = com.fantasyweapons.weapons.ultimate.CrackNetwork.radial(seed ^ 0xB1AC4L, 14, r * 0.97, r * 1.7, 7, 120);
-                WorldWreck.disc(level, pos, r * 1.7 + 12, seed + 5, d -> (int) (Math.max(0, d - r) / 5), WreckShapes.cracks(pos, ring));
             }
         }
 
@@ -239,6 +245,11 @@ public final class DominationAbilities {
         @Override
         protected void tick(ServerPlayer owner) {
             if (age == 1) tearCracks();
+            if (age == 2) {
+                // the crater is worked out while the ground shakes, so it blows out all at once the moment it erupts
+                double r = WorldWreck.radius(radius);
+                WorldWreck.disc(level, pos, r + 10, seed, d -> delay - 2, WreckShapes.eruption(pos, r, depth, cracks));
+            }
             if (age < delay && age % 10 == 0) tremor(owner);
             if (age == delay) erupt(owner);
             if (age > delay && age % 10 == 0) {
@@ -273,8 +284,6 @@ public final class DominationAbilities {
         }
 
         private void erupt(ServerPlayer owner) {
-            double r = WorldWreck.radius(radius);
-            WorldWreck.disc(level, pos, r + 10, seed, d -> (int) (d / 9), WreckShapes.eruption(pos, r, depth, cracks));
             for (var e : Cataclysm.victims(level, owner, pos.add(0, radius * 0.25, 0), radius * 1.05)) {
                 e.push(0, 2.2, 0);
                 e.hurtMarked = true;

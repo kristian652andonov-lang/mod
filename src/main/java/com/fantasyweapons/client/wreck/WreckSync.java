@@ -1,30 +1,32 @@
 package com.fantasyweapons.client.wreck;
 
 import com.fantasyweapons.network.WreckPayload;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.lighting.LevelLightEngine;
 
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Writes the blocks the world's destruction changed straight into the client's chunk: no block update for each, no
- * light worked out block by block (both of which, for the hundreds of thousands of blocks a hole swallows, would stall
- * the game for seconds). Where a block was opened up the sky's light is let in at once, so the new walls are lit, not
- * black; the true light arrives soon after, once the server has lit the chunk. A block with a block entity on either
- * side of the change goes the ordinary way, so nothing is left behind.
+ * Puts the sections the world's destruction rewrote straight into the client's chunk, whole: no block update for each
+ * block, no light worked out block by block (both of which, for the hundreds of thousands of blocks a power swallows,
+ * would stall the game for seconds). Where the land was opened the sky's light is let in at once, so the new walls are
+ * lit, not black; the true light arrives soon after, once the server has lit the chunk. Block entities whose blocks are
+ * gone go with them.
  */
 public final class WreckSync {
     private WreckSync() {
@@ -36,45 +38,37 @@ public final class WreckSync {
         if (level == null) return;
         LevelChunk chunk = level.getChunkSource().getChunk(p.chunkX(), p.chunkZ(), ChunkStatus.FULL, false);
         if (chunk == null) return;
-        LevelLightEngine light = level.getLightEngine();
-        Map<Long, DataLayer> sky = new Long2ObjectOpenHashMap<>();
-        LongOpenHashSet dirty = new LongOpenHashSet();
-        Heightmap[] maps = chunk.getHeightmaps().stream().map(Map.Entry::getValue).toArray(Heightmap[]::new);
-        BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
-        int[] runs = p.runs();
-        int minX = p.chunkX() << 4, minZ = p.chunkZ() << 4;
-        for (int i = 0; i + 3 < runs.length; i += 4) {
-            int col = runs[i], lx = col & 15, lz = (col >> 4) & 15;
-            BlockState state = Block.stateById(runs[i + 3]);
-            boolean open = state.isAir();
-            for (int y = runs[i + 1], end = y + runs[i + 2]; y < end; y++) {
-                if (y < level.getMinBuildHeight() || y >= level.getMaxBuildHeight()) continue;
-                int si = chunk.getSectionIndex(y);
-                LevelChunkSection section = chunk.getSection(si);
-                BlockState old = section.getBlockState(lx, y & 15, lz);
-                if (old == state) continue;
-                at.set(minX + lx, y, minZ + lz);
-                if (old.hasBlockEntity() || state.hasBlockEntity()) {
-                    level.setBlock(at, state, 19);
-                    continue;
-                }
-                section.setBlockState(lx, y & 15, lz, state);
-                for (Heightmap map : maps) map.update(lx, y, lz, state);
-                long sp = SectionPos.asLong(p.chunkX(), SectionPos.blockToSectionCoord(y), p.chunkZ());
-                dirty.add(sp);
-                if (open) {
-                    // the sky let straight into the light the game already holds for the section: handing the light
-                    // engine new data instead would set it checking every edge of every section, the very work this
-                    // spares; the true light replaces it when the server has lit the chunk
-                    DataLayer layer = sky.computeIfAbsent(sp, k -> light.getLayerListener(LightLayer.SKY).getDataLayerData(SectionPos.of(k)));
-                    if (layer != null) layer.set(lx, y & 15, lz, 15);
+        var skyLight = level.getLightEngine().getLayerListener(LightLayer.SKY);
+        List<BlockPos> gone = new ArrayList<>();
+        for (int k = 0; k < p.sectionYs().length; k++) {
+            int sy = p.sectionYs()[k], index = chunk.getSectionIndexFromSectionY(sy);
+            if (index < 0 || index >= chunk.getSectionsCount()) continue;
+            LevelChunkSection section = chunk.getSection(index);
+            PalettedContainer<BlockState> states = section.getStates();
+            PalettedContainer<BlockState> fresh = states.recreate();
+            fresh.read(new FriendlyByteBuf(Unpooled.wrappedBuffer(p.sections()[k])));
+            // the sky let straight into the light the game already holds for the section, where the land opened: handing
+            // the light engine new data instead would set it checking every edge of every section, the very work this
+            // spares; the true light replaces it when the server has lit the chunk
+            DataLayer sky = skyLight.getDataLayerData(SectionPos.of(p.chunkX(), sy, p.chunkZ()));
+            for (int y = 0; y < 16; y++) {
+                for (int z = 0; z < 16; z++) {
+                    for (int x = 0; x < 16; x++) {
+                        BlockState was = states.get(x, y, z), now = fresh.get(x, y, z);
+                        if (was == now) continue;
+                        if (sky != null && now.isAir()) sky.set(x, y, z, 15);
+                        if (was.hasBlockEntity() && was.getBlock() != now.getBlock())
+                            gone.add(new BlockPos((p.chunkX() << 4) + x, (sy << 4) + y, (p.chunkZ() << 4) + z));
+                    }
                 }
             }
+            states.read(new FriendlyByteBuf(Unpooled.wrappedBuffer(p.sections()[k])));
+            section.recalcBlockCounts();
+            level.setSectionDirtyWithNeighbors(p.chunkX(), sy, p.chunkZ());
         }
-        var it = dirty.iterator();
-        while (it.hasNext()) {
-            long sp = it.nextLong();
-            level.setSectionDirtyWithNeighbors(SectionPos.x(sp), SectionPos.y(sp), SectionPos.z(sp));
-        }
+        for (BlockPos pos : gone) chunk.removeBlockEntity(pos);
+        EnumSet<Heightmap.Types> maps = EnumSet.noneOf(Heightmap.Types.class);
+        for (Map.Entry<Heightmap.Types, Heightmap> e : chunk.getHeightmaps()) maps.add(e.getKey());
+        if (!maps.isEmpty()) Heightmap.primeHeightmaps(chunk, maps);
     }
 }
