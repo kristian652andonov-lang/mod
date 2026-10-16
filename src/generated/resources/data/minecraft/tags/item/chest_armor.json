@@ -12,6 +12,12 @@
     "fantasyweapons:starforge_chestplate",
     "fantasyweapons:aetherlance_chestplate",
     "fantasyweapons:monolith_chestplate",
-    "fantasyweapons:infernochain_chestplate"
+    "fantasyweapons:infernochain_chestplate",
+    "fantasyweapons:pyromancer_chestplate",
+    "fantasyweapons:cryomancer_chestplate",
+    "fantasyweapons:tidemancer_chestplate",
+    "fantasyweapons:archdruid_chestplate",
+    "fantasyweapons:luminarch_chestplate",
+    "fantasyweapons:umbramancer_chestplate"
   ]
 }

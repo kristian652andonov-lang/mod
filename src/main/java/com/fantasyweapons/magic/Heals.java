@@ -59,6 +59,7 @@ public final class Heals {
     /** Heals {@code target} by {@code amount} health; shows the number and rewards the weapon. */
     public static float healFlat(ServerPlayer caster, ItemStack weapon, LivingEntity target, float amount) {
         if (!target.isAlive() || amount <= 0) return 0;
+        amount *= com.fantasyweapons.armor.ArmorEffects.healingPower(caster);
         float before = target.getHealth();
         target.heal(amount);
         float healed = target.getHealth() - before;
@@ -73,6 +74,7 @@ public final class Heals {
             if (lvl > 0) barrierFlat(caster, target, healed * (float) (ebb.param("shield") + ebb.param("shield_per_level") * (lvl - 1)),
                     (int) Math.round(ebb.param("duration") * 20));
         }
+        com.fantasyweapons.armor.SetAbilities.onHeal(caster, weapon, target, healed);
         return healed;
     }
 
@@ -84,9 +86,11 @@ public final class Heals {
     /** A shield worth {@code health} points of absorption (golden hearts), fading after {@code ticks}. */
     public static void barrierFlat(ServerPlayer caster, LivingEntity target, float health, int ticks) {
         if (!target.isAlive() || health <= 0) return;
+        health *= com.fantasyweapons.armor.ArmorEffects.healingPower(caster);
         StatusService.apply(target, StatusType.BARRIER, ticks, 1, health, caster.getUUID());
         // the status raises the absorption the target can hold; then the shield is filled
         target.setAbsorptionAmount(Math.max(target.getAbsorptionAmount(), Math.min(health, target.getMaxAbsorption())));
+        com.fantasyweapons.armor.SetAbilities.onShield(caster, target);
     }
 
     /** Rewards the weapon for blessing {@code allies} others (the caster themselves count for a third). */

@@ -157,6 +157,16 @@ public final class FxIds {
     public static final ResourceLocation SET_PRECISION_BOLT_END = FantasyWeapons.id("armor/precision_bolt_end");
     public static final ResourceLocation SET_SHOCKWAVE = FantasyWeapons.id("armor/shockwave");
     public static final ResourceLocation SET_HELLFIRE_TRAIL = FantasyWeapons.id("armor/hellfire_trail");
+    public static final ResourceLocation SET_PYRE_NOVA = FantasyWeapons.id("armor/pyre_nova");
+    /** level 0: locked in ice (power = ticks); level 1: the ice shatters. */
+    public static final ResourceLocation SET_DEEP_FREEZE = FantasyWeapons.id("armor/deep_freeze");
+    public static final ResourceLocation SET_TIDAL_WAVE = FantasyWeapons.id("armor/tidal_wave");
+    public static final ResourceLocation SET_WILD_ROOTS = FantasyWeapons.id("armor/wild_roots");
+    public static final ResourceLocation SET_WILD_GROWTH = FantasyWeapons.id("armor/wild_growth");
+    /** pos = the struck foe's feet, points = the ally. */
+    public static final ResourceLocation SET_JUDGEMENT_RAY = FantasyWeapons.id("armor/judgement_ray");
+    /** pos = the slain, points = the wearer. */
+    public static final ResourceLocation SET_SHADOW_PACT = FantasyWeapons.id("armor/shadow_pact");
 
     // ---- the mage's weapons (client side: MageFx) ----
     /** A green number over a healed ally. power = health restored. */

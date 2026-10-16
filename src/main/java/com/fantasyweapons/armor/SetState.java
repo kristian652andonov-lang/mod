@@ -22,6 +22,8 @@ public final class SetState {
     public boolean frenzy;
     /** Gravebite: spectral allies currently fighting. */
     public int allies;
+    /** Pyromancer: spell hits landed towards the next nova. */
+    public int pyreHits;
 
     // ---- server only ----
     /** Soulreaper: souls being spent by the current cast, and until when its damage is empowered. */
@@ -30,6 +32,10 @@ public final class SetState {
     transient int stillTicks;
     transient double lastX = Double.NaN, lastZ = Double.NaN;
     transient long trailReadyAt;
+    /** Tidemancer and Luminarch: when the next wave and the next ray are ready. */
+    transient long tideReadyAt, judgementReadyAt;
+    /** Cryomancer and Archdruid: per creature (entity id), when it can next be locked in ice or rooted. */
+    transient java.util.Map<Integer, Long> freezeReadyAt = new java.util.HashMap<>(), rootReadyAt = new java.util.HashMap<>();
 
     public static final StreamCodec<RegistryFriendlyByteBuf, SetState> STREAM_CODEC = new StreamCodec<>() {
         @Override
@@ -43,6 +49,7 @@ public final class SetState {
             s.grove = buf.readBoolean();
             s.frenzy = buf.readBoolean();
             s.allies = buf.readVarInt();
+            s.pyreHits = buf.readVarInt();
             return s;
         }
 
@@ -56,6 +63,7 @@ public final class SetState {
             buf.writeBoolean(s.grove);
             buf.writeBoolean(s.frenzy);
             buf.writeVarInt(s.allies);
+            buf.writeVarInt(s.pyreHits);
         }
     };
 }

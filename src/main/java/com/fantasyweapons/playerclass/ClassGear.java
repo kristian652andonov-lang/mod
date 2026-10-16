@@ -35,6 +35,7 @@ public final class ClassGear {
             case ASSASSIN -> PlayerClass.ASSASSIN;
             case PALADIN -> PlayerClass.PALADIN;
             case BERSERKER -> PlayerClass.BERSERKER;
+            case MAGE -> PlayerClass.MAGE;
         };
     }
 

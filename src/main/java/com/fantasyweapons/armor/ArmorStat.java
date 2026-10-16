@@ -52,7 +52,15 @@ public enum ArmorStat {
     SLAM_DAMAGE("Ground-Slam Damage", Format.PERCENT),
     FIRE_RESISTANCE("Fire Resistance", Format.PERCENT),
     CHAIN_REACH("Chain Reach", Format.PERCENT),
-    BURN_ON_DASH("Burn on Dash", Format.FLAG);
+    BURN_ON_DASH("Burn on Dash", Format.FLAG),
+    ICE_ABILITY_DAMAGE("Ice Spell Damage", Format.PERCENT),
+    WATER_ABILITY_DAMAGE("Water Spell Damage", Format.PERCENT),
+    NATURE_ABILITY_DAMAGE("Nature Spell Damage", Format.PERCENT),
+    LIGHT_ABILITY_DAMAGE("Light Spell Damage", Format.PERCENT),
+    /** Everything a staff or spellbook deals: its bolts and its spells. */
+    SPELL_DAMAGE("Spell Damage", Format.PERCENT),
+    /** Heals and shields cast. */
+    HEALING_POWER("Healing & Shield Power", Format.PERCENT);
 
     public enum Format {
         /** "+15% Void Ability Damage" */

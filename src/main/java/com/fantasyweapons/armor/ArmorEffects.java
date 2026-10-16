@@ -74,6 +74,10 @@ public final class ArmorEffects {
             case CELESTIAL -> ArmorStat.CELESTIAL_ABILITY_DAMAGE;
             case COSMIC -> ArmorStat.COSMIC_ABILITY_DAMAGE;
             case FIRE -> ArmorStat.FIRE_ABILITY_DAMAGE;
+            case ICE -> ArmorStat.ICE_ABILITY_DAMAGE;
+            case WATER -> ArmorStat.WATER_ABILITY_DAMAGE;
+            case NATURE -> ArmorStat.NATURE_ABILITY_DAMAGE;
+            case LIGHT -> ArmorStat.LIGHT_ABILITY_DAMAGE;
             default -> null;
         };
     }
@@ -174,6 +178,17 @@ public final class ArmorEffects {
             default -> null;
         };
         return stat == null ? 1f : (float) (1 + stat.get(attacker));
+    }
+
+    /** Multiplier on what a staff or spellbook deals (its bolts and its spells). */
+    public static float spellDamage(LivingEntity attacker, net.minecraft.world.item.ItemStack weapon) {
+        if (!(weapon.getItem() instanceof com.fantasyweapons.weapon.FantasyWeaponItem w) || !w.definition().weaponClass().magic()) return 1f;
+        return (float) (1 + ArmorStat.SPELL_DAMAGE.get(attacker));
+    }
+
+    /** Multiplier on the heals and shields {@code caster} casts. */
+    public static float healingPower(LivingEntity caster) {
+        return (float) (1 + ArmorStat.HEALING_POWER.get(caster));
     }
 
     /** After damage lands: soul drain (necromancy) and life drain (soul) heal the attacker; a burning dash ignites. */

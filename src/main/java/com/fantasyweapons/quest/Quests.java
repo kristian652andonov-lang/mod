@@ -157,12 +157,18 @@ public final class Quests {
                     .count("wear:" + set.id(), 1, "Wear the full " + set.displayName() + " set", () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1))
                     .reward(() -> stack(ModItems.RAW.get(m).get(), 8)).reward(Items.NETHERITE_SCRAP, 4).reward(Items.DIAMOND, 2).xp(600).build());
         }
-        Builder b = quest("wardrobe", Chapter.ARMOR, "Wardrobe of Legends", "Wear every one of the thirteen legendary armor sets.",
+        Builder b = quest("wardrobe", Chapter.ARMOR, "Wardrobe of Legends", "Wear every one of the thirteen warriors' legendary armor sets.",
                 () -> stack(ModItems.ARMOR.get(ArmorSet.STARFORGE).get(ArmorItem.Type.CHESTPLATE).get(), 1));
         for (ArmorSet set : ArmorSet.values()) {
-            b.count("wear:" + set.id(), 1, set.displayName(), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1));
+            if (!set.regalia()) b.count("wear:" + set.id(), 1, set.displayName(), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1));
         }
         list.add(b.reward(Items.TOTEM_OF_UNDYING, 2).reward(Items.NETHERITE_INGOT, 4).xp(2500).build());
+        Builder robes = quest("robes_of_the_elements", Chapter.ARMOR, "Robes of Every Element", "Wear every one of the Mage's six regalia.",
+                () -> stack(ModItems.ARMOR.get(ArmorSet.LUMINARCH).get(ArmorItem.Type.CHESTPLATE).get(), 1));
+        for (ArmorSet set : ArmorSet.values()) {
+            if (set.regalia()) robes.count("wear:" + set.id(), 1, set.displayName(), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1));
+        }
+        list.add(robes.reward(Items.TOTEM_OF_UNDYING, 2).reward(Items.EXPERIENCE_BOTTLE, 64).xp(2500).build());
     }
 
     private static void hunts(List<Quest> list) {

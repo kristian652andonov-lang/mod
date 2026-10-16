@@ -445,8 +445,8 @@ public final class CodexBook {
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("Armor of Legend");
-            c.para("Every weapon has its armor, forged from the same cores. Each piece has bonuses of its own; wearing all "
-                    + "four wakes the set's power.", PageCanvas.INK, 0.56f);
+            c.para("Every blade has its armor, forged from the same cores, and every element of magic its regalia. Each piece "
+                    + "has bonuses of its own; wearing all four wakes the set's power.", PageCanvas.INK, 0.56f);
             float x = PageCanvas.MARGIN, y = c.y + 2;
             int i = 0;
             for (ArmorSet set : ArmorSet.values()) {
@@ -461,17 +461,20 @@ public final class CodexBook {
             }
             c.y = y + 18;
         });
-        page(c -> {
-            c.y = PageCanvas.TOP;
-            c.heading("Set Powers");
-            for (ArmorSet set : ArmorSet.values()) {
-                if (!c.fits(8)) break;
-                c.link(set.abilityName(), PageCanvas.MARGIN, c.y, 0.52f, go("armor_" + set.name()));
-                String who = set.displayName();
-                c.text(who, PageCanvas.W - PageCanvas.MARGIN - c.width(who, 0.45f), c.y + 0.6f, PageCanvas.FADED, 0.45f);
-                c.y += 7.6f;
-            }
-        });
+        // the set powers, the warriors' sets on one page and the Mage's regalia on the next
+        for (boolean regalia : new boolean[]{false, true}) {
+            page(c -> {
+                c.y = PageCanvas.TOP;
+                c.heading(regalia ? "Powers of the Regalia" : "Set Powers");
+                for (ArmorSet set : ArmorSet.values()) {
+                    if (set.regalia() != regalia || !c.fits(8)) continue;
+                    c.link(set.abilityName(), PageCanvas.MARGIN, c.y, 0.52f, go("armor_" + set.name()));
+                    String who = set.displayName();
+                    c.text(who, PageCanvas.W - PageCanvas.MARGIN - c.width(who, 0.45f), c.y + 0.6f, PageCanvas.FADED, 0.45f);
+                    c.y += 7.6f;
+                }
+            });
+        }
         for (WeaponDefinition def : all) weapon(def, ArmorSet.ofWeapon(def.id()));
         mage();
     }

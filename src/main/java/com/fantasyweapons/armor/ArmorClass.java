@@ -6,13 +6,15 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ArmorItem;
 
 /**
- * The three kinds of legendary armor. Assassin sets are light and fast, Paladin sets balanced plate, Berserker sets the
- * heaviest; all are tougher than netherite.
+ * The four kinds of legendary armor. Assassin sets are light and fast, Paladin sets balanced plate, Berserker sets the
+ * heaviest, and the Mage's regalia enchanted robes; all are tougher than netherite.
  */
 public enum ArmorClass {
     ASSASSIN("Assassin", new int[]{3, 7, 5, 3}, 2f, 0f, 18, SoundEvents.ARMOR_EQUIP_CHAIN),
     PALADIN("Paladin", new int[]{4, 9, 7, 4}, 3f, 0.05f, 15, SoundEvents.ARMOR_EQUIP_DIAMOND),
-    BERSERKER("Berserker", new int[]{4, 10, 8, 4}, 4f, 0.1f, 12, SoundEvents.ARMOR_EQUIP_NETHERITE);
+    BERSERKER("Berserker", new int[]{4, 10, 8, 4}, 4f, 0.1f, 12, SoundEvents.ARMOR_EQUIP_NETHERITE),
+    /** The mage regalia: enchanted robes, lighter than any plate, the easiest to enchant. */
+    MAGE("Mage", new int[]{3, 6, 5, 2}, 2f, 0f, 22, SoundEvents.ARMOR_EQUIP_LEATHER);
 
     /** Durability multiplier (netherite is 37). */
     public static final int DURABILITY = 40;

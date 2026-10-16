@@ -104,12 +104,13 @@ public final class ClassGameTests {
             PlayerClass c = com.fantasyweapons.playerclass.ClassGear.ofWeapon(def.id());
             if (c == PlayerClass.NONE || !c.available()) h.fail(def.id() + " answers to " + c);
             seen.add(c);
-            if (def.weaponClass().magic()) {
-                // the mage's staffs and spellbooks have no armor of their own
-                if (c != PlayerClass.MAGE) h.fail(def.id() + " should answer to the Mage, not " + c);
+            if (def.weaponClass().magic() && c != PlayerClass.MAGE) h.fail(def.id() + " should answer to the Mage, not " + c);
+            // a blade's own set; a staff's or spellbook's, the regalia of its element
+            var set = com.fantasyweapons.armor.ArmorSet.ofWeapon(def.id());
+            if (set == null) {
+                h.fail(def.id() + " has no armor");
                 continue;
             }
-            var set = com.fantasyweapons.armor.ArmorSet.ofWeapon(def.id());
             ItemStack chest = new ItemStack(com.fantasyweapons.registry.ModItems.ARMOR.get(set).get(net.minecraft.world.item.ArmorItem.Type.CHESTPLATE).get());
             if (com.fantasyweapons.playerclass.ClassGear.of(chest) != c) h.fail(def.id() + "'s armor answers to another class");
         }

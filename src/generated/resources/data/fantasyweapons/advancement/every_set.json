@@ -83,7 +83,7 @@
   "display": {
     "announce_to_chat": false,
     "description": {
-      "fallback": "Wear every one of the thirteen legendary armor sets",
+      "fallback": "Wear every one of the thirteen warriors' legendary armor sets",
       "translate": "advancements.fantasyweapons.every_set.description"
     },
     "frame": "challenge",

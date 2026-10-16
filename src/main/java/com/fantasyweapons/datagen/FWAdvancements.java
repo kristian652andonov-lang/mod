@@ -184,8 +184,12 @@ final class FWAdvancements implements AdvancementProvider.AdvancementGenerator {
                 "Full Regalia", ARCANE, "Wear a whole legendary armor set and wake its power", AdvancementType.GOAL,
                 b -> b.addCriterion("worn", ModTriggers.FULL_SET.get().any()));
         deed("every_set", regalia, ModItems.ARMOR.get(ArmorSet.STARFORGE).get(ArmorItem.Type.CHESTPLATE).get(), "Wardrobe of Legends", VIOLET,
-                "Wear every one of the thirteen legendary armor sets", AdvancementType.CHALLENGE, b -> {
-                    for (ArmorSet set : ArmorSet.values()) b.addCriterion(set.id(), ModTriggers.FULL_SET.get().named(set.id()));
+                "Wear every one of the thirteen warriors' legendary armor sets", AdvancementType.CHALLENGE, b -> {
+                    for (ArmorSet set : ArmorSet.values()) if (!set.regalia()) b.addCriterion(set.id(), ModTriggers.FULL_SET.get().named(set.id()));
+                });
+        deed("every_regalia", regalia, ModItems.ARMOR.get(ArmorSet.LUMINARCH).get(ArmorItem.Type.CHESTPLATE).get(), "Robes of Every Element", VIOLET,
+                "Wear every one of the Mage's six regalia", AdvancementType.CHALLENGE, b -> {
+                    for (ArmorSet set : ArmorSet.values()) if (set.regalia()) b.addCriterion(set.id(), ModTriggers.FULL_SET.get().named(set.id()));
                 });
     }
 

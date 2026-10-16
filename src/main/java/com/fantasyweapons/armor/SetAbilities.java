@@ -111,6 +111,37 @@ public final class SetAbilities {
     static final int TRAIL_TICKS = 60;
     static final int TRAIL_COOLDOWN = 8;
 
+    // ---- Pyromancer: Living Flame ----
+    public static final int PYRE_HITS = 5;
+    static final double PYRE_RADIUS = 4;
+    static final float PYRE_DAMAGE = 0.6f;
+    // ---- Cryomancer: Deep Freeze ----
+    static final int DEEP_FREEZE_STACKS = 3;
+    static final int DEEP_FREEZE_TICKS = 50;
+    static final int DEEP_FREEZE_COOLDOWN = 160;
+    static final float DEEP_FREEZE_SHATTER = 0.4f;
+    // ---- Tidemancer: Tidal Grace ----
+    static final double TIDE_RADIUS = 5;
+    static final float TIDE_SHARE = 0.35f;
+    static final int TIDE_COOLDOWN = 40;
+    // ---- Archdruid: Wild Growth ----
+    static final double GROWTH_RADIUS = 7;
+    static final int GROWTH_PERIOD = 40;
+    static final float GROWTH_HEAL = 1f;
+    static final int ROOT_TICKS = 25;
+    static final int ROOT_COOLDOWN = 100;
+    // ---- Luminarch: Radiant Judgement ----
+    static final double JUDGEMENT_RANGE = 12;
+    static final float JUDGEMENT_DAMAGE = 0.7f;
+    static final int JUDGEMENT_COOLDOWN = 30;
+    // ---- Umbramancer: Shadow Pact ----
+    static final float PACT_HEAL = 0.08f;
+    static final double PACT_RADIUS = 5;
+    static final int PACT_TICKS = 100;
+
+    /** True while a set effect deals its own damage or healing, so it does not set itself (or another) off again. */
+    private static boolean echoing;
+
     private static final ResourceLocation FRENZY_SPEED_ID = FantasyWeapons.id("set_blood_frenzy");
     private static final ResourceLocation IMMOVABLE_ID = FantasyWeapons.id("set_immovable");
 
@@ -130,6 +161,12 @@ public final class SetAbilities {
             case AETHERLANCE -> "The bolt deals " + pct(BOLT_DAMAGE) + " of the hit and pierces";
             case MONOLITH -> "The shockwave deals " + pct(SHOCK_DAMAGE) + " of the hit around the impact";
             case INFERNOCHAIN -> "The Infernochain's chain form and abilities · burns for " + TRAIL_TICKS / 20 + "s";
+            case PYROMANCER -> "Every " + PYRE_HITS + "th spell hit · " + pct(PYRE_DAMAGE) + " of your power within " + (int) PYRE_RADIUS + " blocks, and burns";
+            case CRYOMANCER -> DEEP_FREEZE_STACKS + " stacks of frostbite · frozen for " + DEEP_FREEZE_TICKS / 20f + "s, then shatters for " + pct(DEEP_FREEZE_SHATTER);
+            case TIDEMANCER -> "Heals " + pct(TIDE_SHARE) + " of the heal to allies within " + (int) TIDE_RADIUS + " blocks of the healed";
+            case ARCHDRUID -> "Half a heart every " + GROWTH_PERIOD / 20 + "s within " + (int) GROWTH_RADIUS + " blocks · roots for " + ROOT_TICKS / 20f + "s";
+            case LUMINARCH -> "The ray deals " + pct(JUDGEMENT_DAMAGE) + " of your power, within " + (int) JUDGEMENT_RANGE + " blocks of the ally";
+            case UMBRAMANCER -> "Heals " + pct(PACT_HEAL) + " of your health · withers enemies within " + (int) PACT_RADIUS + " blocks";
         };
     }
 
@@ -236,6 +273,207 @@ public final class SetAbilities {
         if (weapon.getItem() instanceof FantasyWeaponItem w && w.definition().id().equals("infernochain") && has(p, ArmorSet.INFERNOCHAIN)) {
             hellfireTrail(p, target);
         }
+        if (weapon.getItem() instanceof FantasyWeaponItem w && w.definition().weaponClass().magic()) onSpellHit(p, weapon, target);
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // the Mage's regalia
+    // ------------------------------------------------------------------------------------------------------------
+
+    /** A staff's or spellbook's bolt or spell struck {@code target}. */
+    public static void onSpellHit(ServerPlayer p, ItemStack weapon, LivingEntity target) {
+        if (echoing) return;
+        ArmorSet set = FantasyArmorItem.fullSet(p);
+        if (set == null) return;
+        switch (set) {
+            case PYROMANCER -> livingFlame(p, weapon, target);
+            case CRYOMANCER -> deepFreeze(p, weapon, target);
+            case ARCHDRUID -> wildRoots(p, target);
+            default -> {
+            }
+        }
+    }
+
+    /** Pyromancer: every few spell hits, a nova of fire bursts from the target. */
+    static void livingFlame(ServerPlayer p, ItemStack weapon, LivingEntity target) {
+        SetState s = state(p);
+        s.pyreHits++;
+        if (s.pyreHits < PYRE_HITS) {
+            sync(p);
+            return;
+        }
+        s.pyreHits = 0;
+        sync(p);
+        ServerLevel level = p.serverLevel();
+        Vec3 c = target.getBoundingBox().getCenter();
+        float damage = power(p) * PYRE_DAMAGE;
+        echoing = true;
+        List<Integer> ids;
+        try {
+            ids = Kit.burst(p, weapon, c, PYRE_RADIUS, damage, Element.FIRE, 0, 0.5, 0.25, e -> {
+                if (!e.isAlive()) return;
+                e.igniteForSeconds(4);
+                StatusService.apply(e, StatusType.KINDLED, 80, 1, damage * 0.05f, p.getUUID());
+            });
+        } finally {
+            echoing = false;
+        }
+        Kit.fx(level, FxPayload.of(FxIds.SET_PYRE_NOVA).caster(p.getId()).pos(c).scale((float) PYRE_RADIUS).entities(ids).seed(seed(p)).build());
+        Kit.sound(level, c, ModSounds.FIRE_WHOOSH.get(), 1.2f, 0.7f);
+    }
+
+    /** Cryomancer: spells crust their targets in frost; three layers deep, the target is locked in ice and then shatters. */
+    static void deepFreeze(ServerPlayer p, ItemStack weapon, LivingEntity target) {
+        StatusService.apply(target, StatusType.FROSTBITE, CHILL_TICKS, 1, CHILL_SLOW, p.getUUID());
+        if (StatusService.stacks(target, StatusType.FROSTBITE) < DEEP_FREEZE_STACKS) return;
+        SetState s = state(p);
+        long now = now(p);
+        if (now < s.freezeReadyAt.getOrDefault(target.getId(), 0L)) return;
+        s.freezeReadyAt.put(target.getId(), now + DEEP_FREEZE_COOLDOWN);
+        if (s.freezeReadyAt.size() > 64) s.freezeReadyAt.values().removeIf(t -> t < now);
+        StatusService.remove(target, StatusType.FROSTBITE);
+        StatusService.apply(target, StatusType.FROZEN, DEEP_FREEZE_TICKS, 1, 0f, p.getUUID());
+        ServerLevel level = p.serverLevel();
+        int id = target.getId();
+        float shatter = power(p) * DEEP_FREEZE_SHATTER;
+        Kit.fx(level, FxPayload.of(FxIds.SET_DEEP_FREEZE).caster(p.getId()).pos(target.position()).scale(target.getBbHeight()).power(DEEP_FREEZE_TICKS)
+                .entities(id).seed(seed(p)).build());
+        Kit.sound(level, target.position(), ModSounds.ICE_BURST.get(), 1f, 0.8f);
+        Delayed.schedule(p, weaponId(p), DEEP_FREEZE_TICKS, (o, w) -> {
+            if (!(o.serverLevel().getEntity(id) instanceof LivingEntity t) || !t.isAlive()) return;
+            echoing = true;
+            try {
+                FWDamage.deal(o, w, t, shatter, FWDamage.Kind.ABILITY, Element.ICE, FWDamage.FLAG_CRIT);
+            } finally {
+                echoing = false;
+            }
+            Kit.fx(o.serverLevel(), FxPayload.of(FxIds.SET_DEEP_FREEZE).caster(o.getId()).pos(t.position()).scale(t.getBbHeight()).power(0).level(1)
+                    .entities(id).seed(seed(o)).build());
+            Kit.sound(o.serverLevel(), t.position(), net.minecraft.sounds.SoundEvents.GLASS_BREAK, 1f, 0.7f);
+        });
+    }
+
+    /** Archdruid: what the spells strike is held by roots for a moment (not too often for the same creature). */
+    static void wildRoots(ServerPlayer p, LivingEntity target) {
+        SetState s = state(p);
+        long now = now(p);
+        if (now < s.rootReadyAt.getOrDefault(target.getId(), 0L)) return;
+        s.rootReadyAt.put(target.getId(), now + ROOT_COOLDOWN);
+        if (s.rootReadyAt.size() > 64) s.rootReadyAt.values().removeIf(t -> t < now);
+        StatusService.apply(target, StatusType.ROOTED, ROOT_TICKS, 1, 0f, p.getUUID());
+        Kit.fx(p.serverLevel(), FxPayload.of(FxIds.SET_WILD_ROOTS).caster(p.getId()).pos(target.position()).scale(target.getBbWidth()).power(ROOT_TICKS)
+                .entities(target.getId()).seed(seed(p)).build());
+        Kit.sound(p.serverLevel(), target.position(), ModSounds.NATURE_GROWTH.get(), 0.9f, 1.2f);
+    }
+
+    /** After {@code caster} healed {@code target} by {@code healed}. */
+    public static void onHeal(ServerPlayer caster, ItemStack weapon, LivingEntity target, float healed) {
+        if (echoing || healed <= 0) return;
+        ArmorSet set = FantasyArmorItem.fullSet(caster);
+        if (set == ArmorSet.TIDEMANCER) tidalGrace(caster, target, healed);
+        else if (set == ArmorSet.LUMINARCH) radiantJudgement(caster, weapon, target);
+    }
+
+    /** After {@code caster} shielded {@code target}. */
+    public static void onShield(ServerPlayer caster, LivingEntity target) {
+        if (echoing) return;
+        if (FantasyArmorItem.fullSet(caster) == ArmorSet.LUMINARCH) radiantJudgement(caster, weapon(caster), target);
+    }
+
+    /** Tidemancer: a heal sends a wave out from the healed: it heals the allies it reaches and washes enemies away. */
+    static void tidalGrace(ServerPlayer p, LivingEntity healed, float amount) {
+        SetState s = state(p);
+        long now = now(p);
+        if (now < s.tideReadyAt) return;
+        s.tideReadyAt = now + TIDE_COOLDOWN;
+        ServerLevel level = p.serverLevel();
+        Vec3 c = healed.position();
+        List<Integer> ids = new ArrayList<>();
+        echoing = true;
+        try {
+            for (LivingEntity a : com.fantasyweapons.magic.Allies.inRadius(p, c, TIDE_RADIUS)) {
+                if (a == healed) continue;
+                com.fantasyweapons.magic.Heals.healFlat(p, weapon(p), a, amount * TIDE_SHARE);
+                ids.add(a.getId());
+            }
+        } finally {
+            echoing = false;
+        }
+        for (LivingEntity e : Targeting.inRadius(level, p, c, TIDE_RADIUS, FWDamage.Kind.ABILITY)) {
+            Kit.knock(e, c, 0.9, 0.3);
+            StatusService.apply(e, StatusType.SOAKED, 60, 1, 0f, p.getUUID());
+        }
+        Kit.fx(level, FxPayload.of(FxIds.SET_TIDAL_WAVE).caster(p.getId()).pos(c).scale((float) TIDE_RADIUS).entities(ids).seed(seed(p)).build());
+        Kit.sound(level, c, net.minecraft.sounds.SoundEvents.GENERIC_SPLASH, 1f, 0.8f);
+    }
+
+    /** Luminarch: a heal or a shield calls a ray of light down on the enemy nearest the ally. */
+    static void radiantJudgement(ServerPlayer p, ItemStack weapon, LivingEntity ally) {
+        SetState s = state(p);
+        long now = now(p);
+        if (now < s.judgementReadyAt) return;
+        ServerLevel level = p.serverLevel();
+        LivingEntity foe = null;
+        double best = Double.MAX_VALUE;
+        for (LivingEntity e : Targeting.inRadius(level, p, ally.position(), JUDGEMENT_RANGE, FWDamage.Kind.ABILITY)) {
+            double d = e.distanceToSqr(ally);
+            if (d < best) {
+                best = d;
+                foe = e;
+            }
+        }
+        if (foe == null) return;
+        s.judgementReadyAt = now + JUDGEMENT_COOLDOWN;
+        echoing = true;
+        try {
+            FWDamage.deal(p, weapon, foe, power(p) * JUDGEMENT_DAMAGE, FWDamage.Kind.ABILITY, Element.LIGHT, 0);
+        } finally {
+            echoing = false;
+        }
+        if (foe.isAlive()) StatusService.apply(foe, StatusType.STAGGERED, 12, 1, 0f, p.getUUID());
+        Vec3 at = foe.position();
+        Kit.fx(level, FxPayload.of(FxIds.SET_JUDGEMENT_RAY).caster(p.getId()).pos(at).point(ally.getBoundingBox().getCenter()).scale(foe.getBbHeight())
+                .entities(foe.getId()).seed(seed(p)).build());
+        Kit.sound(level, at, ModSounds.SOLAR_BURST.get(), 0.9f, 1.6f);
+    }
+
+    /** Umbramancer: a kill feeds its life to the wearer, and its death withers the enemies around it. */
+    static void shadowPact(ServerPlayer p, LivingEntity victim) {
+        ServerLevel level = p.serverLevel();
+        p.heal(p.getMaxHealth() * PACT_HEAL);
+        Vec3 c = victim.getBoundingBox().getCenter();
+        float rot = power(p) * 0.04f;
+        List<Integer> ids = new ArrayList<>();
+        for (LivingEntity e : Targeting.inRadius(level, p, c, PACT_RADIUS, FWDamage.Kind.ABILITY)) {
+            if (e == victim) continue;
+            StatusService.apply(e, StatusType.WITHERING, PACT_TICKS, 1, rot, p.getUUID());
+            ids.add(e.getId());
+        }
+        Kit.fx(level, FxPayload.of(FxIds.SET_SHADOW_PACT).caster(p.getId()).pos(c).point(p.getBoundingBox().getCenter()).scale((float) PACT_RADIUS)
+                .entities(ids).seed(seed(p)).build());
+        Kit.sound(level, c, ModSounds.SOUL_PROJECTILE.get(), 1f, 0.5f);
+    }
+
+    /** Archdruid: allies around the wearer heal, a little at a time. */
+    static void wildGrowth(ServerPlayer p) {
+        if (p.tickCount % GROWTH_PERIOD != 0) return;
+        List<Integer> ids = new ArrayList<>();
+        echoing = true;
+        try {
+            for (LivingEntity a : com.fantasyweapons.magic.Allies.inRadius(p, p.position(), GROWTH_RADIUS)) {
+                if (a.getHealth() >= a.getMaxHealth()) continue;
+                a.heal(GROWTH_HEAL);
+                ids.add(a.getId());
+            }
+            if (p.getHealth() < p.getMaxHealth() && !ids.contains(p.getId())) {
+                p.heal(GROWTH_HEAL);
+                ids.add(p.getId());
+            }
+        } finally {
+            echoing = false;
+        }
+        if (!ids.isEmpty()) Fx.tracking(p, FxPayload.of(FxIds.SET_WILD_GROWTH).caster(p.getId()).pos(Kit.feet(p)).scale((float) GROWTH_RADIUS).entities(ids)
+                .seed(seed(p)).build());
     }
 
     // ---- Voidfang ----
@@ -510,6 +748,7 @@ public final class SetAbilities {
         ArmorSet set = FantasyArmorItem.fullSet(killer);
         if (set == ArmorSet.GRAVEBITE && victim instanceof Mob) rise(killer, victim);
         else if (set == ArmorSet.SOULREAPER) harvest(killer, victim);
+        else if (set == ArmorSet.UMBRAMANCER) shadowPact(killer, victim);
     }
 
     @Nullable
@@ -583,6 +822,9 @@ public final class SetAbilities {
         // Bloomfall: standing still grows the grove
         grove(p, s, set == ArmorSet.BLOOMFALL);
 
+        // Archdruid: the allies around heal
+        if (set == ArmorSet.ARCHDRUID) wildGrowth(p);
+
         // a set taken off loses what it was holding
         boolean changed = false;
         if (set != ArmorSet.SOULREAPER && s.souls > 0) {
@@ -595,6 +837,10 @@ public final class SetAbilities {
         }
         if (set != ArmorSet.VOIDFANG && s.riftUntil > 0) {
             s.riftUntil = 0;
+            changed = true;
+        }
+        if (set != ArmorSet.PYROMANCER && s.pyreHits > 0) {
+            s.pyreHits = 0;
             changed = true;
         }
         if (changed) sync(p);
@@ -687,6 +933,27 @@ public final class SetAbilities {
                 s.trailReadyAt = 0;
                 hellfireTrail(p, target);
             }
+            case PYROMANCER -> {
+                s.pyreHits = PYRE_HITS - 1;
+                livingFlame(p, w, target);
+            }
+            case CRYOMANCER -> {
+                s.freezeReadyAt.clear();
+                for (int i = 0; i < DEEP_FREEZE_STACKS; i++) deepFreeze(p, w, target);
+            }
+            case TIDEMANCER -> {
+                s.tideReadyAt = 0;
+                tidalGrace(p, p, 4);
+            }
+            case ARCHDRUID -> {
+                s.rootReadyAt.clear();
+                wildRoots(p, target);
+            }
+            case LUMINARCH -> {
+                s.judgementReadyAt = 0;
+                radiantJudgement(p, w, p);
+            }
+            case UMBRAMANCER -> shadowPact(p, target);
             default -> {
             }
         }

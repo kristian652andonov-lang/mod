@@ -57,6 +57,13 @@ public final class ArmorFx {
         FxDispatcher.register(FxIds.SET_PRECISION_BOLT_END, ArmorFx::precisionBoltEnd);
         FxDispatcher.register(FxIds.SET_SHOCKWAVE, ArmorFx::shockwave);
         FxDispatcher.register(FxIds.SET_HELLFIRE_TRAIL, ArmorFx::hellfireTrail);
+        FxDispatcher.register(FxIds.SET_PYRE_NOVA, ArmorFx::pyreNova);
+        FxDispatcher.register(FxIds.SET_DEEP_FREEZE, ArmorFx::deepFreeze);
+        FxDispatcher.register(FxIds.SET_TIDAL_WAVE, ArmorFx::tidalWave);
+        FxDispatcher.register(FxIds.SET_WILD_ROOTS, ArmorFx::wildRoots);
+        FxDispatcher.register(FxIds.SET_WILD_GROWTH, ArmorFx::wildGrowth);
+        FxDispatcher.register(FxIds.SET_JUDGEMENT_RAY, ArmorFx::judgementRay);
+        FxDispatcher.register(FxIds.SET_SHADOW_PACT, ArmorFx::shadowPact);
     }
 
     public static void clear() {
@@ -498,5 +505,127 @@ public final class ArmorFx {
                 }
             });
         }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------
+    // the Mage's regalia
+    // ------------------------------------------------------------------------------------------------------------
+
+    private static final int PYRE = 0xFF6A2A, PYRE_CORE = 0xFFD27A, RIME = 0x9FE6FF, RIME_CORE = 0xEAFBFF, TIDE = 0x4FB4FF, FOAM = 0xDFF6FF,
+            DRUID = 0x6BE873, BARK = 0x5A4030, LUMEN = 0xFFF0B0, LUMEN_CORE = 0xFFFFFF, UMBRA = 0x9B4DFF, NIGHT = 0x1A0633;
+
+    /** Pyromancer: a nova of fire bursting from the struck. */
+    private static void pyreNova(FxPayload p) {
+        Vec3 c = p.pos();
+        float r = p.scale();
+        VfxManager.add(new SunVfx(c, r * 0.25f, PYRE, PYRE_CORE, 10).grow(2).rays(10));
+        VfxManager.add(new FlashVfx(c, 0.5f, r * 1.5f, Colors.argb(230, PYRE), 9).energy());
+        VfxManager.add(new ShockwaveVfx(c, UP, 0.3f, r * 1.1f, 0.5f, Colors.argb(230, PYRE_CORE), 11).energy());
+        VfxManager.add(new ShockwaveVfx(c.add(0, -0.4, 0), UP, 0.2f, r * 0.9f, 0.35f, Colors.argb(200, PYRE), 14).energy());
+        VfxManager.add(new ShardBurstVfx(c, UP, 2.2f, 0.35f, 22, 0.3f, Colors.argb(255, PYRE_CORE), Colors.argb(0, PYRE), 20, p.seed())
+                .texture(VfxTextures.FLAME, false).physics(-0.005f, 0.9f));
+        hitFlashes(p, PYRE);
+        CameraShake.add(c, 0.25f, 14);
+    }
+
+    /** Cryomancer: a creature locked in a block of ice, and the ice shattering. */
+    private static void deepFreeze(FxPayload p) {
+        Vec3 at = p.pos();
+        float h = Math.max(0.8f, p.scale());
+        if (p.level() == 1) {
+            VfxManager.add(new FlashVfx(at.add(0, h * 0.5, 0), 0.4f, h * 1.8f, Colors.argb(230, RIME_CORE), 8).energy());
+            VfxManager.add(new ShardBurstVfx(at.add(0, h * 0.5, 0), UP, 3f, 0.35f, 24, 0.22f, Colors.argb(255, RIME_CORE), Colors.argb(0, RIME), 22, p.seed())
+                    .texture(VfxTextures.ICE, true).physics(0.025f, 0.9f));
+            VfxManager.add(new ShockwaveVfx(at.add(0, 0.05, 0), UP, 0.3f, h * 2f, 0.3f, Colors.argb(210, RIME), 10).energy());
+            return;
+        }
+        int ticks = Math.max(10, (int) p.power());
+        VfxManager.add(new FlashVfx(at.add(0, h * 0.5, 0), 0.3f, h * 1.4f, Colors.argb(220, RIME), 10).energy());
+        // a column of frost crystals growing up around the frozen
+        RandomSource rnd = RandomSource.create(p.seed());
+        for (int i = 0; i < 6; i++) {
+            double a = i * Math.PI / 3 + rnd.nextDouble() * 0.4;
+            Vec3 base = at.add(Math.cos(a) * 0.45, 0, Math.sin(a) * 0.45);
+            VfxManager.add(new BeamVfx(base, base.add(Math.cos(a) * 0.15, h * (0.8 + rnd.nextDouble() * 0.4), Math.sin(a) * 0.15), 0.35f,
+                    Colors.argb(150, RIME), ticks));
+        }
+        VfxManager.add(new DecalVfx(at.add(0, 0.04, 0), UP, h, Colors.argb(140, RIME), VfxTextures.FROST, ticks).timing(0.1f, 0.3f).energy());
+        VfxManager.add(new ShardBurstVfx(at.add(0, h * 0.5, 0), UP, 1.2f, 0.05f, 10, 0.12f, Colors.argb(230, RIME_CORE), Colors.argb(0, RIME), 30, p.seed())
+                .texture(VfxTextures.SNOWFLAKE, false).physics(-0.002f, 0.95f));
+    }
+
+    /** Tidemancer: a wave rolling out from the healed. */
+    private static void tidalWave(FxPayload p) {
+        Vec3 c = p.pos();
+        float r = p.scale();
+        VfxManager.add(new ShockwaveVfx(c.add(0, 0.1, 0), UP, 0.4f, r, 0.9f, Colors.argb(200, TIDE), 16).energy());
+        VfxManager.add(new ShockwaveVfx(c.add(0, 0.3, 0), UP, 0.3f, r * 0.85f, 0.4f, Colors.argb(230, FOAM), 13).energy());
+        VfxManager.add(new DecalVfx(c.add(0, 0.04, 0), UP, r, Colors.argb(120, TIDE), VfxTextures.RUNE_CIRCLE, 26).spin(0.04f).energy().timing(0.1f, 0.4f));
+        VfxManager.add(new ShardBurstVfx(c.add(0, 0.3, 0), UP, 1.6f, 0.3f, 26, 0.16f, Colors.argb(240, FOAM), Colors.argb(0, TIDE), 18, p.seed())
+                .texture(VfxTextures.SPARK, false).physics(0.03f, 0.92f));
+        hitFlashes(p, TIDE);
+    }
+
+    /** Archdruid: roots coiling up around the struck. */
+    private static void wildRoots(FxPayload p) {
+        Entity e = entity(p.entities().length > 0 ? p.entities()[0] : -1);
+        Vec3 base = p.pos();
+        double w = Math.max(0.4, p.scale() * 0.6), height = e != null ? e.getBbHeight() : 1.6;
+        int life = Math.max(12, (int) p.power() + 10);
+        RandomSource rnd = RandomSource.create(p.seed());
+        for (int k = 0; k < 4; k++) {
+            double a = k * Math.PI / 2 + rnd.nextDouble() * 0.5;
+            Vec3[] path = new Vec3[9];
+            for (int i = 0; i < path.length; i++) {
+                double t = i / (double) (path.length - 1);
+                double aa = a + t * 2.4, rr = w * (1.4 - t * 0.6);
+                path[i] = base.add(Math.cos(aa) * rr, height * 0.6 * t, Math.sin(aa) * rr);
+            }
+            VfxManager.add(new VineVfx(path, 0.2f, Colors.argb(255, BARK), Colors.argb(255, DRUID), 5, life, rnd.nextLong()));
+        }
+        VfxManager.add(new ShardBurstVfx(base.add(0, 0.2, 0), UP, 1.4f, 0.12f, 10, 0.14f, Colors.argb(230, DRUID), Colors.argb(0, BARK), 20, p.seed())
+                .texture(VfxTextures.LEAF, false).physics(0.01f, 0.9f));
+    }
+
+    /** Archdruid: the allies around heal; spores drift up off them. */
+    private static void wildGrowth(FxPayload p) {
+        Vec3 g = p.pos();
+        float r = p.scale();
+        VfxManager.add(new DecalVfx(g.add(0, 0.04, 0), UP, r, Colors.argb(80, DRUID), VfxTextures.RUNE_CIRCLE, 30).spin(0.02f).energy().timing(0.2f, 0.4f));
+        for (int id : p.entities()) {
+            Entity e = entity(id);
+            if (e == null) continue;
+            VfxManager.add(new ShardBurstVfx(e.position().add(0, 0.2, 0), UP, 1.2f, 0.05f, 8, 0.12f, Colors.argb(230, 0xC8FFA8), Colors.argb(0, DRUID), 26,
+                    p.seed() + id).texture(VfxTextures.SPARK, false).physics(-0.004f, 0.95f));
+        }
+    }
+
+    /** Luminarch: a ray of light falling on the struck, a thread of light from the ally it answers. */
+    private static void judgementRay(FxPayload p) {
+        Vec3 foot = p.pos();
+        float h = Math.max(1, p.scale());
+        Vec3 sky = foot.add(0, 14, 0);
+        VfxManager.add(new BeamVfx(sky, foot, 1.1f, Colors.argb(200, LUMEN), 10).fade(0.2f, 1f));
+        VfxManager.add(new BeamVfx(sky, foot, 0.4f, Colors.argb(255, LUMEN_CORE), 8));
+        VfxManager.add(new FlashVfx(foot.add(0, h * 0.5, 0), 0.4f, h * 1.8f, Colors.argb(230, LUMEN), 9).energy());
+        VfxManager.add(new ShockwaveVfx(foot.add(0, 0.06, 0), UP, 0.2f, 2.2f, 0.35f, Colors.argb(220, LUMEN), 11).energy());
+        VfxManager.add(new DecalVfx(foot.add(0, 0.04, 0), UP, 1.6f, Colors.argb(170, LUMEN), VfxTextures.RUNE_CIRCLE, 18).spin(0.08f).energy().timing(0.1f, 0.4f));
+        if (!p.points().isEmpty()) VfxManager.add(new BeamVfx(p.points().get(0), foot.add(0, h * 0.5, 0), 0.12f, Colors.argb(160, LUMEN), 8).fade(0.3f, 1f));
+    }
+
+    /** Umbramancer: the slain's life streaming into the wearer; a withering bloom around the body. */
+    private static void shadowPact(FxPayload p) {
+        Vec3 c = p.pos();
+        float r = p.scale();
+        VfxManager.add(new SunVfx(c, 0.6f, UMBRA, NIGHT, 14).darkCore().grow(3));
+        VfxManager.add(new ShockwaveVfx(c.add(0, -0.5, 0), UP, 0.3f, r, 0.5f, Colors.argb(200, UMBRA), 14).energy());
+        VfxManager.add(new ShardBurstVfx(c, UP, 2f, 0.2f, 16, 0.2f, Colors.argb(230, UMBRA), Colors.argb(0, NIGHT), 22, p.seed())
+                .texture(VfxTextures.SOUL, false).physics(-0.004f, 0.92f));
+        Entity caster = entity(p.caster());
+        if (caster != null) {
+            SeekerVfx s = VfxManager.add(new SeekerVfx(c, new Vec3(0, 0.3, 0), caster.getId(), 0.25, 0.15f, UMBRA, NIGHT, 26));
+            VfxManager.add(new FollowTrailVfx(s::now, 0.25f, Colors.argb(200, UMBRA), Colors.argb(0, NIGHT), 8, 40).texture(VfxTextures.STREAK, true));
+        }
+        hitFlashes(p, UMBRA);
     }
 }

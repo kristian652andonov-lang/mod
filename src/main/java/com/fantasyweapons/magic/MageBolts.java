@@ -112,6 +112,7 @@ public final class MageBolts {
     /** A bolt striking an enemy: its damage, its element's mark, and the weapon's own passive. */
     private static void hit(ServerPlayer o, ItemStack w, WeaponDefinition def, WeaponData data, LivingEntity e, float damage, int flags, boolean crit) {
         float dealt = FWDamage.deal(o, w, e, damage, FWDamage.Kind.MELEE, def.element(), flags);
+        if (dealt > 0) com.fantasyweapons.armor.SetAbilities.onSpellHit(o, w, e);
         Kit.knock(e, o.position(), 0.25, 0.05);
         float wd = ProgressionMath.weaponDamage(def, data);
         switch (def.element()) {

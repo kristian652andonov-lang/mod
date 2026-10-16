@@ -91,6 +91,13 @@ final class ForgeRecipes {
         ARMOR.put(ArmorSet.AETHERLANCE, new ItemLike[]{Items.QUARTZ});         // sleek white plate
         ARMOR.put(ArmorSet.MONOLITH, new ItemLike[]{Items.OBSIDIAN});          // stone and obsidian slabs
         ARMOR.put(ArmorSet.INFERNOCHAIN, new ItemLike[]{Items.NETHER_BRICK});  // demonic plate, crimson panels
+        // the Mage's regalia are robes, woven in the colours of their element
+        ARMOR.put(ArmorSet.PYROMANCER, new ItemLike[]{Items.RED_WOOL});
+        ARMOR.put(ArmorSet.CRYOMANCER, new ItemLike[]{Items.LIGHT_BLUE_WOOL});
+        ARMOR.put(ArmorSet.TIDEMANCER, new ItemLike[]{Items.CYAN_WOOL});
+        ARMOR.put(ArmorSet.ARCHDRUID, new ItemLike[]{Items.GREEN_WOOL});
+        ARMOR.put(ArmorSet.LUMINARCH, new ItemLike[]{Items.WHITE_WOOL});
+        ARMOR.put(ArmorSet.UMBRAMANCER, new ItemLike[]{Items.PURPLE_WOOL});
     }
 
     /**

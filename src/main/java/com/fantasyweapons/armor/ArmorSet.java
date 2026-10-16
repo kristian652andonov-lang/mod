@@ -15,8 +15,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * The 13 legendary armor sets, one per weapon, each crafted from its weapon's refined material. Every piece has its own
- * bonus; wearing all four unlocks the set ability. Models and textures: {@code geo/armor/<id>_armor}.
+ * The legendary armor sets: thirteen for the warriors, one per blade, each crafted from its weapon's refined material, and
+ * six regalia for the Mage, one per element of the staffs and spellbooks. Every piece has its own bonus; wearing all
+ * four unlocks the set ability. Models and textures: {@code geo/armor/<id>_armor}.
  */
 public enum ArmorSet {
     VOIDFANG("voidfang", "Voidfang", Material.VOID_CRYSTAL, ArmorClass.ASSASSIN,
@@ -109,7 +110,51 @@ public enum ArmorSet {
                     List.of(health(), stat(ArmorStat.FIRE_RESISTANCE, 0.30)),
                     List.of(stat(ArmorStat.CHAIN_REACH, 0.20)),
                     List.of(speed(), stat(ArmorStat.BURN_ON_DASH, 1))),
-            "Hellforged", "Chain attacks leave a burning trail that ignites enemies.");
+            "Hellforged", "Chain attacks leave a burning trail that ignites enemies."),
+
+    // ---- the Mage's regalia: one robe for each element of the staffs and spellbooks ----
+    PYROMANCER("pyromancer", "Pyromancer", Material.INFERNITE, ArmorClass.MAGE,
+            "Charred crimson robes trimmed in molten gold, a flame-crowned hood, smouldering mantles and three embers circling the wearer.",
+            pieces(List.of(stat(ArmorStat.FIRE_ABILITY_DAMAGE, 0.15)),
+                    List.of(health(), stat(ArmorStat.FIRE_RESISTANCE, 0.30)),
+                    List.of(stat(ArmorStat.SPELL_DAMAGE, 0.10)),
+                    List.of(speed())),
+            "Living Flame", "Every few spell hits erupt in a nova of fire around the target."),
+    CRYOMANCER("cryomancer", "Cryomancer", Material.FROSTHEART, ArmorClass.MAGE,
+            "Pale blue robes stiff with frost, an icicle diadem, a fur-lined stole and shards of ice drifting about the shoulders.",
+            pieces(List.of(stat(ArmorStat.ICE_ABILITY_DAMAGE, 0.15)),
+                    List.of(health(), stat(ArmorStat.FROST_RESISTANCE, 0.25)),
+                    List.of(stat(ArmorStat.FREEZE_DURATION, 0.25)),
+                    List.of(stat(ArmorStat.ICE_SPEED, 0.25))),
+            "Deep Freeze", "Spells crust their targets in frost; one frozen deep enough is locked in ice."),
+    TIDEMANCER("tidemancer", "Tidemancer", Material.AETHERITE, ArmorClass.MAGE,
+            "Sea-green robes that ripple like water, a coral-and-pearl circlet, a flowing stole and three droplets orbiting the hands.",
+            pieces(List.of(stat(ArmorStat.HEALING_POWER, 0.15)),
+                    List.of(health(), stat(ArmorStat.WATER_ABILITY_DAMAGE, 0.15)),
+                    List.of(stat(ArmorStat.COOLDOWN_REDUCTION, 0.10)),
+                    List.of(speed())),
+            "Tidal Grace", "Your heals send out a wave that heals those around the healed and washes enemies away."),
+    ARCHDRUID("archdruid", "Archdruid", Material.VERDANT, ArmorClass.MAGE,
+            "Bark-brown robes grown through with moss and leaves, an antlered crown, a mantle of vines and spores drifting about.",
+            pieces(List.of(stat(ArmorStat.HEALING_POWER, 0.10)),
+                    List.of(health(), stat(ArmorStat.REGENERATION, 1)),
+                    List.of(stat(ArmorStat.NATURE_ABILITY_DAMAGE, 0.15)),
+                    List.of(knockbackResistance())),
+            "Wild Growth", "Allies around you slowly heal, and your spells root what they strike."),
+    LUMINARCH("luminarch", "Luminarch", Material.SOLARITE, ArmorClass.MAGE,
+            "White and gold vestments, a radiant halo above a tall mitre, a sun-embroidered stole and motes of light circling.",
+            pieces(List.of(stat(ArmorStat.HEALING_POWER, 0.15)),
+                    List.of(health(), armor(2)),
+                    List.of(stat(ArmorStat.LIGHT_ABILITY_DAMAGE, 0.15)),
+                    List.of(speed(), stat(ArmorStat.CHARGE_SPEED, 0.10))),
+            "Radiant Judgement", "Healing or shielding an ally calls a ray of light down on the nearest enemy."),
+    UMBRAMANCER("umbramancer", "Umbramancer", Material.VOID_CRYSTAL, ArmorClass.MAGE,
+            "Robes of living shadow edged in violet, a deep cowl with burning eyes, a tattered cape and three wisps of night.",
+            pieces(List.of(stat(ArmorStat.VOID_ABILITY_DAMAGE, 0.15)),
+                    List.of(health(), stat(ArmorStat.VOID_DAMAGE, 0.10)),
+                    List.of(stat(ArmorStat.COOLDOWN_REDUCTION, 0.10)),
+                    List.of(speed())),
+            "Shadow Pact", "Each kill feeds you its life, and spreads a withering curse to the enemies around it.");
 
     /** Refined material cost of each piece (its forging pattern's cores). */
     public static int cost(ArmorItem.Type type) {
@@ -198,6 +243,13 @@ public enum ArmorSet {
 
     /** Display name of a piece, e.g. "Voidfang Helmet". */
     public String itemName(ArmorItem.Type type) {
+        // the regalia are robes: a hood, a robe, vestments and sandals
+        if (regalia()) return displayName + " " + switch (type) {
+            case HELMET -> "Hood";
+            case CHESTPLATE, BODY -> "Robe";
+            case LEGGINGS -> "Vestments";
+            case BOOTS -> "Sandals";
+        };
         String piece = type.getName();
         return displayName + " " + Character.toUpperCase(piece.charAt(0)) + piece.substring(1).toLowerCase(Locale.ROOT);
     }
@@ -217,9 +269,25 @@ public enum ArmorSet {
         return id + "_armor";
     }
 
+    /** A blade's own set, or for a staff or spellbook the regalia of its element. */
     public static ArmorSet ofWeapon(String weaponId) {
         for (ArmorSet s : values()) if (s.id.equals(weaponId)) return s;
-        return null;
+        var def = com.fantasyweapons.weapon.Weapons.get(weaponId);
+        if (def == null || !def.weaponClass().magic()) return null;
+        return switch (def.element()) {
+            case FIRE -> PYROMANCER;
+            case ICE -> CRYOMANCER;
+            case WATER -> TIDEMANCER;
+            case NATURE -> ARCHDRUID;
+            case LIGHT, SOLAR -> LUMINARCH;
+            case VOID -> UMBRAMANCER;
+            default -> null;
+        };
+    }
+
+    /** Whether this is one of the Mage's regalia. */
+    public boolean regalia() {
+        return armorClass == ArmorClass.MAGE;
     }
 
     // ------------------------------------------------------------------------------------------------------------

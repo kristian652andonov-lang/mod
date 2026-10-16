@@ -83,7 +83,8 @@ public final class FWDamage {
         ServerLevel level = attacker.serverLevel();
 
         float scaled = amount * StatusService.incomingMultiplier(target, element)
-                * com.fantasyweapons.armor.ArmorEffects.elementDamage(attacker, element) * com.fantasyweapons.armor.ArmorEffects.incomingElement(target, element);
+                * com.fantasyweapons.armor.ArmorEffects.elementDamage(attacker, element) * com.fantasyweapons.armor.ArmorEffects.incomingElement(target, element)
+                * com.fantasyweapons.armor.ArmorEffects.spellDamage(attacker, weapon);
         float before = target.getHealth() + target.getAbsorptionAmount();
         boolean hurt = rawTarget.hurt(source(level, kind, attacker), scaled);
         if (!hurt) return 0;

@@ -130,6 +130,15 @@ public final class SetHud {
             case AETHERLANCE -> UiDraw.text(g, "Critical hits fire a bolt", x, y, bright, 0.55f, false);
             case MONOLITH -> UiDraw.text(g, "Unmovable · heavy shockwave", x, y, bright, 0.55f, false);
             case INFERNOCHAIN -> UiDraw.text(g, "Chain attacks burn", x, y, bright, 0.55f, false);
+            case PYROMANCER -> {
+                UiDraw.text(g, "Flame", x, y, bright, 0.55f, false);
+                pips(g, x + 26, y + 2.5f, SetAbilities.PYRE_HITS, s.pyreHits, color, a, s.pyreHits == SetAbilities.PYRE_HITS - 1 ? flash : 1f);
+            }
+            case CRYOMANCER -> UiDraw.text(g, "Spells freeze deep", x, y, bright, 0.55f, false);
+            case TIDEMANCER -> UiDraw.text(g, "Heals send out a wave", x, y, bright, 0.55f, false);
+            case ARCHDRUID -> UiDraw.text(g, "Allies heal · spells root", x, y, bright, 0.55f, false);
+            case LUMINARCH -> UiDraw.text(g, "Heals call down light", x, y, bright, 0.55f, false);
+            case UMBRAMANCER -> UiDraw.text(g, "Kills feed you", x, y, bright, 0.55f, false);
         }
     }
 

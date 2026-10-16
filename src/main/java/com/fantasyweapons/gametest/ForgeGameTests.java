@@ -94,7 +94,7 @@ public final class ForgeGameTests {
     public static void forgesEveryWeaponAndPiece(GameTestHelper h) {
         ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
         var recipes = h.getLevel().getRecipeManager().getAllRecipesFor(ModRecipes.FORGING.get());
-        int expected = com.fantasyweapons.weapon.Weapons.legendaries().size() + 13 * 4;
+        int expected = com.fantasyweapons.weapon.Weapons.legendaries().size() + com.fantasyweapons.armor.ArmorSet.values().length * 4;
         if (recipes.size() != expected) h.fail("expected " + expected + " forge recipes, found " + recipes.size());
         LegendaryCraftingMenu menu = open(h, p);
         LegendaryCraftingTableBlockEntity table = table(h);
