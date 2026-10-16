@@ -91,4 +91,103 @@ public final class WreckShapes {
             }
         };
     }
+
+    /**
+     * Cracks torn into the ground along a {@link com.fantasyweapons.weapons.ultimate.CrackNetwork}: trenches down from the
+     * ground, deepest along their middle, edged in magma, with lava welling up in the bottom.
+     */
+    public static ChunkShaper cracks(Vec3 center, com.fantasyweapons.weapons.ultimate.CrackNetwork network) {
+        return c -> {
+            double[] k = new double[1];
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    var seg = network.at(x + 0.5 - center.x, z + 0.5 - center.z, Double.MAX_VALUE, k);
+                    if (seg == null) continue;
+                    int ground = c.ground(x, z);
+                    if (ground <= c.minY()) continue;
+                    int bottom = Math.max(c.minY() + 1, ground - (int) Math.round(seg.depth() * (0.35 + 0.65 * k[0])));
+                    for (int y = c.top(x, z); y > bottom + 2; y--) c.clear(x, y, z);
+                    for (int y = bottom; y <= bottom + 2; y++) c.set(x, y, z, LAVA);
+                    // the lips of the crack glow
+                    if (k[0] < 0.3) c.set(x, bottom - 1, z, MAGMA);
+                }
+            }
+        };
+    }
+
+    /**
+     * The land blown out by an eruption: within {@code radius} everything on it is gone and the ground is blasted into a
+     * shallow crater ({@code depth} at the middle), its cracks torn deeper and running with lava, and nothing is left on
+     * top but lava, magma and coal over scorched blackstone and basalt. A band of scorched ground rings it.
+     */
+    public static ChunkShaper eruption(Vec3 center, double radius, double depth, com.fantasyweapons.weapons.ultimate.CrackNetwork network) {
+        double scorch = radius + 10;
+        return c -> {
+            double[] k = new double[1];
+            net.minecraft.util.RandomSource r = c.random();
+            for (int x = c.minX(); x < c.minX() + 16; x++) {
+                for (int z = c.minZ(); z < c.minZ() + 16; z++) {
+                    double dx = x + 0.5 - center.x, dz = z + 0.5 - center.z, d = Math.sqrt(dx * dx + dz * dz);
+                    if (d > scorch) continue;
+                    int top = c.top(x, z), ground = c.ground(x, z);
+                    if (ground <= c.minY()) continue;
+                    if (d > radius) {
+                        // scorched ring: plants and trees burnt away (the sea stays), the ground charred here and there
+                        for (int y = top; y > ground; y--) {
+                            if (c.get(x, y, z).getFluidState().isEmpty()) c.clear(x, y, z);
+                        }
+                        float roll = r.nextFloat();
+                        if (roll < 0.45f * (1 - (d - radius) / 10)) c.set(x, ground, z, roll < 0.15f ? COAL : roll < 0.3f ? BLACKSTONE : BASALT);
+                        continue;
+                    }
+                    // the crater: deepest in the middle, rough
+                    double u = d / radius;
+                    double blast = depth * (1 - u * u) * (0.75 + 0.5 * noise(x, z));
+                    int surface = (int) Math.round(ground - blast);
+                    var seg = network.at(dx, dz, Double.MAX_VALUE, k);
+                    boolean crack = seg != null;
+                    if (crack) surface -= (int) Math.round(seg.depth() * (0.4 + 0.6 * k[0]));
+                    surface = Math.max(c.minY() + 2, surface);
+                    boolean rim = d > radius - 4;
+                    for (int y = Math.max(top, ground); y > surface; y--) {
+                        BlockState old = c.get(x, y, z);
+                        // water at the very edge is boiled into obsidian, so the sea does not stand in a wall
+                        if (rim && !old.getFluidState().isEmpty()) c.set(x, y, z, OBSIDIAN);
+                        else c.clear(x, y, z);
+                    }
+                    if (crack) {
+                        // rivers of lava down the cracks
+                        for (int y = surface; y <= surface + 2; y++) c.set(x, y, z, LAVA);
+                        c.set(x, surface - 1, z, MAGMA);
+                        continue;
+                    }
+                    float roll = r.nextFloat();
+                    double pool = noise(x * 0.5 + 91, z * 0.5 + 17);
+                    BlockState cap = pool > 0.72 ? LAVA : roll < 0.4f ? MAGMA : roll < 0.75f ? COAL : roll < 0.88f ? BLACKSTONE : BASALT;
+                    c.set(x, surface, z, cap);
+                    for (int y = surface - 1; y >= surface - 3; y--) {
+                        float q = r.nextFloat();
+                        c.set(x, y, z, q < 0.35f ? BLACKSTONE : q < 0.65f ? BASALT : q < 0.85f ? MAGMA : COAL);
+                    }
+                }
+            }
+        };
+    }
+
+    /** Smooth value noise in [0, 1] on a coarse grid (about 12 blocks), the same everywhere for the same column. */
+    static double noise(double x, double z) {
+        double gx = x / 12, gz = z / 12;
+        int ix = (int) Math.floor(gx), iz = (int) Math.floor(gz);
+        double fx = gx - ix, fz = gz - iz;
+        fx = fx * fx * (3 - 2 * fx);
+        fz = fz * fz * (3 - 2 * fz);
+        double a = hash(ix, iz), b = hash(ix + 1, iz), c = hash(ix, iz + 1), d = hash(ix + 1, iz + 1);
+        return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
+    }
+
+    private static double hash(int x, int z) {
+        long h = x * 73856093L ^ z * 19349663L;
+        h = (h ^ (h >>> 13)) * 0x5DEECE66DL;
+        return ((h >>> 20) & 0xFFFF) / 65535.0;
+    }
 }

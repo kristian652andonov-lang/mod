@@ -28,6 +28,7 @@ public final class UltimateFx {
         FxDispatcher.register(FxIds.GRANT_EXECUTION, UltimateFx::grantExecution);
         FxDispatcher.register(FxIds.CATACLYSM_FRAME, UltimateFx::cataclysmFrame);
         FxDispatcher.register(FxIds.BLACKHOLE, UltimateFx::blackhole);
+        FxDispatcher.register(FxIds.ERUPTION, UltimateFx::eruption);
     }
 
     /** How far the viewer is from a point (blocks), or a long way if there is no player. */
@@ -152,5 +153,64 @@ public final class UltimateFx {
             CameraShake.add(hole, 3f, reach * 4);
             sound(SoundEvents.LIGHTNING_BOLT_THUNDER, 1f, 0.4f);
         });
+    }
+
+    private static void eruption(FxPayload p) {
+        var level = Minecraft.getInstance().level;
+        if (level == null) return;
+        Vec3 at = p.pos();
+        float radius = p.scale();
+        int delay = Math.max(20, (int) p.power());
+        var cracks = com.fantasyweapons.weapons.domination.DominationAbilities.eruptionCracks(p.seed(),
+                com.fantasyweapons.world.wreck.WorldWreck.radius(radius));
+        VfxManager.add(new EruptionVfx(at, radius, delay, cracks, p.seed()));
+        long ms = delay * 50L;
+        if (isCaster(p) || distance(at) < radius * 4) {
+            CinematicHud.play("UPLINK // DOMINION-01 > THE EARTHSPLITTING ERUPTION", at, 0xFF6A2A, (delay + 160) * 50L, List.of(
+                    Cue.status(0, "MANTLE BREACHED", 0xFF6A2A),
+                    Cue.card(300, 2000, "The ground splits", "11 fault lines  ·  magma rising at 900 m/s", 0xFFFFFF),
+                    Cue.status(ms * 6 / 10, "PRESSURE CRITICAL", 0xFF4040),
+                    Cue.status(ms, "ERUPTION", 0xFFD050),
+                    Cue.card(ms + 300, 2400, "Ignition", "radius " + (int) radius + " m  ·  only ash remains", 0xFFB040)));
+        }
+        sound(SoundEvents.WARDEN_DIG, 1f, 0.5f);
+        for (int k = 0; k < delay; k += 15) {
+            int when = k;
+            FxScheduler.after(when, () -> {
+                CameraShake.add(at, 0.8f + 1.4f * when / delay, radius * 3);
+                sound(SoundEvents.DEEPSLATE_BREAK, 1f, 0.4f);
+                if (when % 30 == 0) sound(SoundEvents.LAVA_POP, 1f, 0.5f);
+            });
+        }
+        FxScheduler.after(delay, () -> {
+            ScreenFx.flash(0xFFC080, 0.85f * (float) Math.max(0.3, 1 - distance(at) / (radius * 5)), 16);
+            CameraShake.add(at, 3f, radius * 6);
+            sound(SoundEvents.GENERIC_EXPLODE, 1f, 0.35f);
+            sound(SoundEvents.DRAGON_FIREBALL_EXPLODE, 1f, 0.4f);
+            sound(SoundEvents.LIGHTNING_BOLT_THUNDER, 1f, 0.5f);
+            throwLand(at, radius, p.seed());
+        });
+        FxScheduler.after(delay + 15, () -> sound(SoundEvents.FIRECHARGE_USE, 1f, 0.4f));
+    }
+
+    /** Real blocks of the land flung up and out by a blast. */
+    private static void throwLand(Vec3 at, float radius, long seed) {
+        var level = Minecraft.getInstance().level;
+        if (level == null) return;
+        BlockDebrisVfx debris = VfxManager.add(new BlockDebrisVfx(seed));
+        net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(seed);
+        int n = Math.round(380 * com.fantasyweapons.config.ClientConfig.quality().density());
+        var m = new net.minecraft.core.BlockPos.MutableBlockPos();
+        for (int i = 0; i < n; i++) {
+            double a = r.nextDouble() * Math.PI * 2, d = Math.sqrt(r.nextDouble()) * radius;
+            int x = (int) Math.floor(at.x + Math.cos(a) * d), z = (int) Math.floor(at.z + Math.sin(a) * d);
+            if (!level.hasChunk(x >> 4, z >> 4)) continue;
+            int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, x, z) - 1 - (r.nextFloat() < 0.4f ? r.nextInt(6) : 0);
+            var state = level.getBlockState(m.set(x, top, z));
+            double k = 1 - d / radius;
+            Vec3 vel = new Vec3(Math.cos(a) * (0.4 + 1.6 * r.nextDouble()), 1.0 + 2.6 * k * r.nextDouble() + 0.4, Math.sin(a) * (0.4 + 1.6 * r.nextDouble()));
+            debris.throwBlock(state, new Vec3(x + 0.5, top + 1, z + 0.5), vel, r.nextFloat() < 0.15f ? 2.5f : 1f, 50 + r.nextInt(50));
+        }
+        debris.close();
     }
 }

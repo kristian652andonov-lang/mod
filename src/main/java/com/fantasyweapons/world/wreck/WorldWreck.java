@@ -44,6 +44,8 @@ public final class WorldWreck {
     private static long clock;
     private static long order;
     private static int rewritten;
+    /** Chunks whose relight finished, and chunks resent to at least one player (for diagnostics). */
+    private static int relit, resent;
 
     /** DEVELOPMENT ONLY (GameTests): every task runs the moment it is due, without the time budget. */
     public static volatile boolean unbudgeted;
@@ -109,6 +111,10 @@ public final class WorldWreck {
         return rewritten;
     }
 
+    public static String stats() {
+        return rewritten + " rewritten, " + relit + " relit, " + resent + " resent, " + QUEUE.size() + " pending";
+    }
+
     public static void tick(MinecraftServer server) {
         clock++;
         if (QUEUE.isEmpty()) return;
@@ -167,9 +173,15 @@ public final class WorldWreck {
         for (int i = level.getMinSection(); i < level.getMaxSection(); i++) light.updateSectionStatus(SectionPos.of(pos, i), true);
         MinecraftServer server = level.getServer();
         light.waitForPendingTasks(pos.x, pos.z).thenRunAsync(() -> {
-            if (level.getChunkSource().getChunkNow(pos.x, pos.z) != chunk) return;
+            if (level.getChunkSource().getChunkNow(pos.x, pos.z) != chunk) {
+                resend(level, chunk);
+                return;
+            }
             light.initializeLight(chunk, true);
-            light.lightChunk(chunk, false).thenRunAsync(() -> resend(level, chunk), server);
+            light.lightChunk(chunk, false).thenRunAsync(() -> {
+                relit++;
+                resend(level, chunk);
+            }, server);
         }, server);
     }
 
@@ -178,6 +190,7 @@ public final class WorldWreck {
         if (players.isEmpty()) return;
         ClientboundLevelChunkWithLightPacket packet = new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null);
         for (ServerPlayer p : players) p.connection.send(packet);
+        resent++;
     }
 
     public static void clear() {

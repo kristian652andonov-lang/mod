@@ -347,22 +347,51 @@ final class DevScripts {
         String[] times = parts.length > 2 ? parts[2].split(",") : new String[]{"20", "60", "100", "104", "112", "130", "160", "200", "240", "280"};
         b.wait(40).cmd("/fw class set " + (weapon.contains("book") ? "mage" : "berserker")).closeScreen().wait(5).closeScreen()
                 .cmd("/gamemode creative").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/gamerule doMobSpawning false")
-                .cmd("/clear @s").cmd("/fw give " + weapon + " 1").cmd("/tp @s 0 " + (look.length > 0 ? look[0] : "260") + " -300 0 " + (look.length > 1 ? look[1] : "-12")).wait(20)
+                .cmd("/clear @s").cmd("/fw give " + weapon + " 1").cmd("/tp @s 0 " + (look.length > 0 ? look[0] : "260") + " " + (look.length > 2 ? look[2] : "-300") + " 0 " + (look.length > 1 ? look[1] : "-12")).wait(20)
                 .run(mc -> {
                     mc.player.getAbilities().flying = true;
                     mc.player.onUpdateAbilities();
                 }).wait(300).slot(0).closeScreen().cmd("/fw cooldowns")
+                .cmd("/tp @s 0 " + (look.length > 0 ? look[0] : "260") + " " + (look.length > 2 ? look[2] : "-300") + " 0 " + (look.length > 1 ? look[1] : "-12")).wait(2)
+                .run(mc -> {
+                    mc.player.getAbilities().flying = true;
+                    mc.player.onUpdateAbilities();
+                }).wait(40)
+                .run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("remote: camera at {} flying {}", mc.player.position(), mc.player.getAbilities().flying))
                 .hud(true).screenshot("remote_" + ability + "_before");
-        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastAt(ability, 0.5, 80, 0.5)));
+        double tx = parts.length > 4 ? Double.parseDouble(parts[4].split(",")[0]) : 0.5, tz = parts.length > 4 ? Double.parseDouble(parts[4].split(",")[1]) : 0.5;
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> DevMaps.dump(srv.overworld(), (int) tx, (int) tz, 300, new java.io.File(mc.gameDirectory, "screenshots/fw_remote_" + ability + "_map0.png")));
+        }).wait(5);
+        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastAt(ability, tx, 80, tz)));
         int prev = 0;
         for (String t : times) {
             int at = Integer.parseInt(t.trim());
             b.wait(Math.max(1, at - prev)).screenshot("remote_" + ability + "_" + String.format("%03d", at));
+            int when = at;
+            b.run(mc -> {
+                var ow = mc.getSingleplayerServer().overworld();
+                StringBuilder col = new StringBuilder();
+                for (int y = 70; y >= 20; y -= 5) col.append(y).append('=').append(ow.getBlockState(new net.minecraft.core.BlockPos(0, y, 0)).getBlock().getName().getString()).append(' ');
+                com.fantasyweapons.FantasyWeapons.LOGGER.warn("remote: t={} column 0,0: {} | {}", when, col, com.fantasyweapons.world.wreck.WorldWreck.stats());
+            });
             prev = at;
         }
-        b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("remote: {} chunks rewritten, {} pending",
-                com.fantasyweapons.world.wreck.WorldWreck.rewritten(), com.fantasyweapons.world.wreck.WorldWreck.pending()));
-        b.cmd("/tp @s 0 330 -10 0 90").wait(80).screenshot("remote_" + ability + "_after_top")
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> DevMaps.dump(srv.overworld(), (int) tx, (int) tz, 300, new java.io.File(mc.gameDirectory, "screenshots/fw_remote_" + ability + "_map.png")));
+        }).wait(10);
+        b.run(mc -> {
+            com.fantasyweapons.FantasyWeapons.LOGGER.warn("remote: {}", com.fantasyweapons.world.wreck.WorldWreck.stats());
+            var server = mc.getSingleplayerServer();
+            var ow = server.overworld();
+            int y = ow.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, 0, 0);
+            com.fantasyweapons.FantasyWeapons.LOGGER.warn("remote: server top at 0,0 is y={} {} ; client top y={} {}", y, ow.getBlockState(new net.minecraft.core.BlockPos(0, y - 1, 0)),
+                    mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, 0, 0),
+                    mc.level.getBlockState(new net.minecraft.core.BlockPos(0, mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, 0, 0) - 1, 0)));
+        });
+        b.cmd("/tp @s 0 215 -10 0 90").wait(80).screenshot("remote_" + ability + "_after_top")
                 .cmd("/tp @s 0 140 -200 0 25").wait(60).screenshot("remote_" + ability + "_after_a")
                 .cmd("/tp @s 190 120 0 90 15").wait(60).screenshot("remote_" + ability + "_after_b");
     }

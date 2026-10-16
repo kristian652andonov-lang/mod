@@ -42,6 +42,7 @@ public final class WreckChunk {
         this.maxY = level.getMaxBuildHeight();
         this.random = RandomSource.create(seed ^ chunk.getPos().toLong() * 0x9E3779B97F4A7C15L);
         for (int i = 0; i < 256; i++) {
+            // a chunk's getHeight is already the highest block (one below the level's "first free" height)
             top[i] = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, i & 15, i >> 4);
             ground[i] = Integer.MIN_VALUE;
         }
@@ -112,7 +113,7 @@ public final class WreckChunk {
 
     /** Y of the highest block of the column (air above), as it was before this rewrite; {@code minY - 1} if empty. */
     public int top(int x, int z) {
-        return top[(x & 15) | (z & 15) << 4] - 1;
+        return top[(x & 15) | (z & 15) << 4];
     }
 
     /**
@@ -122,7 +123,7 @@ public final class WreckChunk {
     public int ground(int x, int z) {
         int i = (x & 15) | (z & 15) << 4;
         if (ground[i] != Integer.MIN_VALUE) return ground[i];
-        int y = top[i] - 1;
+        int y = top[i];
         while (y >= minY && !terrain(get(x, y, z))) y--;
         ground[i] = y;
         return y;

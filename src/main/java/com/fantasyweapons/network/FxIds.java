@@ -229,4 +229,6 @@ public final class FxIds {
     public static final ResourceLocation CATACLYSM_FRAME = FantasyWeapons.id("ultimate/cataclysm_frame");
     /** The Ultramassive Blackhole: pos = the hole, dir = the ground under it, scale = reach, power = collapse tick, level = form ticks. */
     public static final ResourceLocation BLACKHOLE = FantasyWeapons.id("domination/blackhole");
+    /** The Earthsplitting Eruption: pos = ground at the target, scale = radius, power = delay ticks, level = crater depth. */
+    public static final ResourceLocation ERUPTION = FantasyWeapons.id("domination/eruption");
 }
