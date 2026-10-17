@@ -31,7 +31,25 @@ public final class DivineSummoning {
     /** Each power's colour, in {@link WeaponOfGod#POWERS} order (the summoning burns in it). */
     private static final int[] COLORS = {0xFFD970, 0xA066FF, 0xFF5A1E, 0xD49A52, 0x7BDA62, 0x9EE6FF, 0xFFF2C0, 0xB57CFF, 0xFFFFFF};
 
+    /**
+     * The destruction of a power set going when its summoning began (its land is worked out while it is summoned, so it is
+     * gone the moment the power strikes): by caster, until the power comes.
+     */
+    private static final java.util.Map<java.util.UUID, Prepared> PREPARED = new java.util.HashMap<>();
+
+    /** Destruction set going at the start of a summoning: for which power, where it lands, its seed, and when it began. */
+    public record Prepared(String ability, Vec3 at, long seed, long began) {
+    }
+
     private DivineSummoning() {
+    }
+
+    /** The destruction set going for {@code ctx}'s power when its summoning began, if any (it is taken: used once). */
+    @org.jetbrains.annotations.Nullable
+    public static Prepared prepared(AbilityContext ctx) {
+        Prepared p = PREPARED.remove(ctx.player().getUUID());
+        if (p == null || !p.ability().equals(ctx.ability().id())) return null;
+        return Math.abs(ctx.level().getGameTime() - p.began() - TICKS) <= 5 ? p : null;
     }
 
     public static int color(String abilityId) {
@@ -54,6 +72,12 @@ public final class DivineSummoning {
         for (var c : com.fantasyweapons.weapons.ultimate.ShufflePlan.region(at, reach(held.ability()))) {
             com.fantasyweapons.world.wreck.WorldWreck.hold(level, c.x, c.z);
         }
+        // the greatest powers' land is worked out from now, to fall when they strike
+        long seed = Kit.seed(level);
+        String id = held.ability().id();
+        if (id.equals(WeaponOfGod.TRIDENT)) HeavenTrident.prepare(held, at, seed, TICKS);
+        else if (id.equals(WeaponOfGod.SIX_GODS)) SixGods.prepare(held, at, seed, TICKS);
+        PREPARED.put(p.getUUID(), new Prepared(id, at, seed, level.getGameTime()));
         AreaEffectManager.add(new Summoning(held, at, power));
         level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 6f, 0.5f);
         return true;

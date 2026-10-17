@@ -551,6 +551,14 @@ final class DevScripts {
                 b.hud(false).viewAt(9, 4, -12, 0, 2.5, 0);
             } else if (cam != null && cam != current) {
                 double[] c = cam;
+                // the player (the summoning over) goes under a camera in the land loaded for the power, so the land
+                // round it is sent and drawn
+                if (at >= com.fantasyweapons.weapons.god.DivineSummoning.TICKS && Math.hypot(c[1] - ox, c[3] - oz) <= reach) {
+                    b.cmd("/tp @s " + c[1] + " " + (c[2] - 40) + " " + c[3]).run(mc -> {
+                        mc.player.getAbilities().flying = true;
+                        mc.player.onUpdateAbilities();
+                    });
+                }
                 b.hud(false).run(mc -> {
                     var stand = new net.minecraft.world.entity.decoration.ArmorStand(net.minecraft.world.entity.EntityType.ARMOR_STAND, mc.level);
                     double ex = c[4] - c[1], ey = c[5] - (c[2] + stand.getEyeHeight()), ez = c[6] - c[3];
@@ -569,6 +577,9 @@ final class DevScripts {
             b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("god: t={} {}", when, com.fantasyweapons.world.wreck.WorldWreck.stats()));
             prev = at;
         }
+        // everything the power destroys, landed
+        b.until(mc -> com.fantasyweapons.world.wreck.WorldWreck.pending() == 0, 3600)
+                .run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("god: done {}", com.fantasyweapons.world.wreck.WorldWreck.stats()));
         b.playerView().wait(100);
         if (parts.length > 4 && !parts[4].isEmpty()) {
             String[] views = parts[4].split(";");
@@ -580,7 +591,26 @@ final class DevScripts {
                 }).wait(100).screenshot("god_" + ability + "_after" + i);
             }
         }
-        // the land round the target from above, once the views have loaded it
+        // the land round the target from above, once it is all loaded again
+        int[] back = {0};
+        long[] askedAgain = {0};
+        b.until(mc -> {
+            var srv = mc.getSingleplayerServer();
+            long now = mc.level.getGameTime();
+            if (now - askedAgain[0] >= 20) {
+                askedAgain[0] = now;
+                srv.execute(() -> {
+                    var level = srv.overworld();
+                    int n = 0;
+                    for (var c : region) {
+                        com.fantasyweapons.world.wreck.WorldWreck.hold(level, c.x, c.z);
+                        if (level.getChunkSource().getChunkNow(c.x, c.z) != null) n++;
+                    }
+                    back[0] = n;
+                });
+            }
+            return back[0] >= region.size();
+        }, 2400);
         b.run(mc -> {
             var srv = mc.getSingleplayerServer();
             srv.execute(() -> DevMaps.dump(srv.overworld(), (int) ox, (int) oz, mapRadius, new java.io.File(mc.gameDirectory, "screenshots/fw_god_" + ability + "_map_after.png")));

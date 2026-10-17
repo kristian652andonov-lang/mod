@@ -40,18 +40,42 @@ public final class HeavenTrident {
         return at.add(back.scale(HEIGHT / Math.tan(Math.toRadians(PITCH)))).add(0, HEIGHT, 0);
     }
 
+    private static int open(AbilityContext ctx) {
+        return Math.max(40, (int) Math.round(ctx.param("open") * 20));
+    }
+
+    private static int emerge(AbilityContext ctx) {
+        return Math.max(40, (int) Math.round(ctx.param("emerge") * 20));
+    }
+
+    /** Ticks from the cast until the trident strikes. */
+    private static int strike(AbilityContext ctx) {
+        return open(ctx) + emerge(ctx) + Math.max(20, (int) Math.round(ctx.param("fall") * 20));
+    }
+
+    /**
+     * Sets going the crater and the cracks it splits round itself, to land the moment the trident strikes: {@code lead}
+     * ticks from now and the trident's coming after that. They are worked out while it comes (and while it is summoned).
+     */
+    static void prepare(AbilityContext ctx, Vec3 at, long seed, int lead) {
+        int strike = strike(ctx);
+        double r = WorldWreck.radius(ctx.param("radius"));
+        WorldWreck.disc(ctx.level(), at, r + WreckShapes.ragReach(r) + 14, seed, d -> lead + strike, WreckShapes.sphere(at, r));
+        var ring = CrackNetwork.radial(seed ^ 0x7121DEL, 18, r * 0.98, r * 1.6, 7, 120);
+        WorldWreck.disc(ctx.level(), at, r * 1.6 + 12, seed + 7, d -> lead + strike + 12, WreckShapes.cracks(at, ring));
+    }
+
     public static boolean cast(AbilityContext ctx) {
-        Vec3 at = Cataclysm.landing(ctx, 1024);
+        DivineSummoning.Prepared pre = DivineSummoning.prepared(ctx);
+        Vec3 at = pre != null ? pre.at() : Cataclysm.landing(ctx, 1024);
         Vec3 sky = opening(at, ctx.feet());
-        int open = Math.max(40, (int) Math.round(ctx.param("open") * 20));
-        int emerge = Math.max(40, (int) Math.round(ctx.param("emerge") * 20));
-        int fall = Math.max(20, (int) Math.round(ctx.param("fall") * 20));
-        int strike = open + emerge + fall;
+        int open = open(ctx), emerge = emerge(ctx), strike = strike(ctx);
         double radius = ctx.param("radius");
-        long seed = Kit.seed(ctx.level());
+        long seed = pre != null ? pre.seed() : Kit.seed(ctx.level());
+        if (pre == null) prepare(ctx, at, seed, 0);
         Cataclysm.fx(ctx.level(), ctx.player(), FxPayload.of(FxIds.HEAVEN_TRIDENT).caster(ctx.player().getId()).pos(at).point(sky)
                 .scale((float) radius).power(strike).level(open).entities(java.util.List.of(emerge)).seed(seed).build());
-        AreaEffectManager.add(new Strike(ctx, at, sky, radius, open, emerge, strike, seed));
+        AreaEffectManager.add(new Strike(ctx, at, sky, radius, open, emerge, strike));
         Kit.active(ctx, strike + 40);
         return true;
     }
@@ -76,33 +100,20 @@ public final class HeavenTrident {
         private final Vec3 sky;
         private final double radius;
         private final int open, emerge, strike;
-        private final long seed;
         private final float damage;
 
-        Strike(AbilityContext ctx, Vec3 at, Vec3 sky, double radius, int open, int emerge, int strike, long seed) {
+        Strike(AbilityContext ctx, Vec3 at, Vec3 sky, double radius, int open, int emerge, int strike) {
             super(ctx.level(), ctx.player(), ctx.data().idOrNil(), at, strike + 40);
             this.sky = sky;
             this.radius = radius;
             this.open = open;
             this.emerge = emerge;
             this.strike = strike;
-            this.seed = seed;
             this.damage = ctx.damage();
         }
 
         @Override
         protected void tick(ServerPlayer owner) {
-            if (age == 1) {
-                // the crater, and the cracks it splits round itself, are worked out while the trident comes, so they land
-                // all at once the moment it strikes
-                double r = WorldWreck.radius(radius);
-                WorldWreck.disc(level, pos, r + WreckShapes.ragReach(r) + 14, seed, d -> strike - 1, WreckShapes.sphere(pos, r));
-            }
-            if (age == 2) {
-                double r = WorldWreck.radius(radius);
-                var ring = CrackNetwork.radial(seed ^ 0x7121DEL, 18, r * 0.98, r * 1.6, 7, 120);
-                WorldWreck.disc(level, pos, r * 1.6 + 12, seed + 7, d -> strike + 10, WreckShapes.cracks(pos, ring));
-            }
             if (age == open) level.playSound(null, sky.x, sky.y, sky.z, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 60f, 0.5f);
             if (age > open && age < strike) {
                 // whatever is in its way as it comes is destroyed

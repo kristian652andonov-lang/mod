@@ -137,8 +137,8 @@ public final class DimensionBreakage {
                 for (ChunkPos p : region) WorldWreck.hold(level, p.x, p.z);
             }
             if (age == delay) fold(owner);
-            // the end is worked out a while before it comes, so it lands all at once
-            if (age == delay + Math.max(10, hold - 200)) {
+            // the end is worked out long before it comes (once the fold is under way), so it lands all at once
+            if (age == delay + Math.max(10, hold - 560)) {
                 ChunkShaper end = spare(WreckShapes.shaft(pos, radius));
                 WorldWreck.disc(level, pos, radius + 20, seed + 9, d -> delay + hold - age - 1, end);
             }
