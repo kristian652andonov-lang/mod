@@ -30,6 +30,7 @@ import java.util.Map;
 public final class DialogueContext {
     public final String name;
     public final String playerName;
+    public final java.util.UUID companionId;
     public final DialogueTrigger trigger;
     public final Map<String, String> vars;
     public final long day;
@@ -43,6 +44,7 @@ public final class DialogueContext {
     public final Emotion emotion;
     public final float hunger, energy, attention, healthFraction, fear;
     public final RelationshipStage stage;
+    public final boolean married;
     public final float trust;
     public final int daysTogether;
     public final Personality personality;
@@ -65,6 +67,7 @@ public final class DialogueContext {
         Level level = gf.level();
         long now = level.getGameTime();
         this.name = d.name;
+        this.companionId = d.companionId;
         Player owner = player != null ? player : gf.getOwner();
         this.playerName = owner != null ? owner.getGameProfile().getName() : "you";
         this.trigger = trigger;
@@ -84,6 +87,7 @@ public final class DialogueContext {
         this.healthFraction = gf.getHealth() / gf.getMaxHealth();
         this.fear = gf.controller().fear.level;
         this.stage = d.relationship.stage();
+        this.married = d.relationship.married;
         this.trust = d.relationship.trust;
         this.daysTogether = d.relationship.daysTogether;
         this.personality = d.personality;

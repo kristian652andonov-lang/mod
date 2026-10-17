@@ -18,7 +18,13 @@ public enum GiftCategory {
     DECORATIVE("decorative"),
     ADVENTURE("adventure"),
     CUTE("cute"),
-    MUSIC("music");
+    MUSIC("music"),
+    // appended so saved ordinals (revealed mask, status sync) keep their meaning
+    JEWELRY("jewelry"),
+    ROMANTIC("romantic");
+
+    /** Hand-made romantic presents (tags/item/special_gifts.json): always welcome and loved like her favourite. */
+    public static final TagKey<Item> SPECIAL = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(AIGirlfriend.MOD_ID, "special_gifts"));
 
     public final String id;
     public final TagKey<Item> tag;
@@ -42,6 +48,8 @@ public enum GiftCategory {
             case ADVENTURE -> "adventure gear";
             case CUTE -> "cute things";
             case MUSIC -> "music";
+            case JEWELRY -> "pretty jewelry";
+            case ROMANTIC -> "romantic surprises";
         };
     }
 

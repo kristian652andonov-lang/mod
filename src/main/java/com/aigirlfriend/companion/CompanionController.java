@@ -1,5 +1,6 @@
 package com.aigirlfriend.companion;
 
+import com.aigirlfriend.AIGirlfriend;
 import com.aigirlfriend.config.GFConfig;
 import com.aigirlfriend.dialogue.DialogueService;
 import com.aigirlfriend.dialogue.DialogueTrigger;
@@ -12,6 +13,7 @@ import com.aigirlfriend.interaction.InteractionMenu;
 import com.aigirlfriend.interaction.InteractionType;
 import com.aigirlfriend.network.StatusSnapshot;
 import com.aigirlfriend.network.payload.StatusPayload;
+import com.aigirlfriend.registry.ModItems;
 import com.aigirlfriend.seat.SeatManager;
 import com.aigirlfriend.util.WorldClock;
 import com.aigirlfriend.world.CompanionRegistry;
@@ -55,6 +57,9 @@ import java.util.Map;
  */
 public final class CompanionController {
     private static final ResourceLocation TIRED_SPEED = ResourceLocation.fromNamespaceAndPath("aigirlfriend", "tired_slowdown");
+    /** Preference weight of hand-made romantic gifts (same as her favourite category). */
+    private static final float SPECIAL_GIFT_WEIGHT = 1.8f;
+    private static final int PROPOSAL_SURPRISE_TICKS = 30;
 
     private final GirlfriendEntity gf;
     public final FearState fear = new FearState();
@@ -77,6 +82,8 @@ public final class CompanionController {
     private float activityLevel = 0.2f;
     private long pendingMorningLine = -1;
     private long pendingWakeAffection = -1;
+    /** Countdown from her surprised reaction to the celebration after she accepted a proposal. */
+    private int proposalTicks;
     /** Set when the owner picks "sleep together"; the lead-to-bed goal picks it up. */
     public boolean bedtimeRequested;
     /** A bed she is lying on, waiting for the owner to join. */
@@ -112,6 +119,7 @@ public final class CompanionController {
             return;
         }
         if (wakeTicks > 0 && --wakeTicks == 0) finishWakeUp();
+        if (proposalTicks > 0 && --proposalTicks == 0) celebrateProposal();
         if (ticks % 10 == 0) threatTick();
         if (ticks % 5 == 0) gf.setExpression(currentExpression());
         if (ticks % 20 == 0) secondTick();
@@ -408,11 +416,16 @@ public final class CompanionController {
             InteractionMenu.open(gf, player);
             return InteractionResult.SUCCESS;
         }
+        if (stack.is(ModItems.WEDDING_RING.get())) {
+            onPropose(player, stack);
+            return InteractionResult.SUCCESS;
+        }
         if (FoodHelper.isDrink(stack)) {
             onDrink(player, stack);
             return InteractionResult.SUCCESS;
         }
-        if (FoodHelper.isFood(stack, gf)) {
+        // edible romantic gifts (chocolates) are presents first; she still eats some in onGift
+        if (FoodHelper.isFood(stack, gf) && !stack.is(GiftCategory.SPECIAL)) {
             onFeed(player, stack);
             return InteractionResult.SUCCESS;
         }
@@ -542,6 +555,8 @@ public final class CompanionController {
         String itemId = FoodHelper.id(stack);
         String itemName = stack.getHoverName().getString();
         Preferences prefs = d.preferences;
+        boolean special = stack.is(GiftCategory.SPECIAL);
+        int nutrition = FoodHelper.isFood(stack, gf) ? FoodHelper.nutrition(stack, gf) : 0;
         float moodFactor = 1f + d.mood.primary.valence * 0.15f;
         float rarity = switch (stack.getRarity()) {
             case COMMON -> 0f;
@@ -549,8 +564,11 @@ public final class CompanionController {
             case RARE -> 0.4f;
             case EPIC -> 0.6f;
         };
-        float score = prefs.weight(cat) * prefs.novelty(itemId) * moodFactor * (1f + rarity);
-        if (cat == prefs.disliked) score *= 0.4f;
+        // hand-made romantic gifts weigh like her favourite category and are never handed back; repeats still wear off
+        float weight = special ? Math.max(prefs.weight(cat), SPECIAL_GIFT_WEIGHT) : prefs.weight(cat);
+        float score = weight * prefs.novelty(itemId) * moodFactor * (1f + rarity);
+        if (special) score = Math.max(score, 0.6f);
+        else if (cat == prefs.disliked) score *= 0.4f;
         long now = now();
         prefs.recordGift(itemId);
         d.lastGiftTick = now;
@@ -558,7 +576,7 @@ public final class CompanionController {
         RequestSystem.progress(gf, RequestType.PREFERRED_GIFT, cat.name().equals(d.request != null ? d.request.detail : "") ? 1f : 0f, cat.name());
         boolean shy = d.personality.shyness > 0.6f && d.relationship.stage().ordinal() <= RelationshipStage.FRIENDSHIP.ordinal();
 
-        if (score < 0.5f || cat == prefs.disliked) {
+        if (!special && (score < 0.5f || cat == prefs.disliked)) {
             // she gently gives it back: disliked gifts are not consumed
             gf.playGesture(d.personality.playfulness > 0.5f ? Gesture.POUT : Gesture.SHY);
             d.today.add(LogKey.GIFTS_DISLIKED, 1);
@@ -573,19 +591,25 @@ public final class CompanionController {
         }
         if (!player.getAbilities().instabuild) stack.shrink(1);
         heartParticles(5);
+        if (nutrition > 0) {
+            // a box of chocolates: she eats a few and keeps the rest
+            d.needs.addHunger(-nutrition * GFConfig.FOOD_MULTIPLIER.get().floatValue() * 0.5f);
+            RequestSystem.progress(gf, RequestType.BRING_FOOD, 1f, null);
+        }
         if (score >= 1.4f) {
             gain("gift", 8f + score * 3f, 2.5f);
             d.needs.addAttention(14f);
             d.mood.shiftWellbeing(12f);
-            feel(Emotion.JOY, 0.95f, 800);
+            feel(special ? Emotion.LOVE : Emotion.JOY, 0.95f, 800);
             gf.playGesture(shy ? Gesture.SHY : Gesture.GIFT_HAPPY);
             d.today.add(LogKey.GIFTS_LIKED, 1);
-            d.memory.remember(MemoryType.GIFT, "you gave me " + itemName + " and I loved it", itemId, day(), now, 0.75f);
+            d.memory.remember(MemoryType.GIFT, "you gave me " + itemName + " and I loved it", itemId, day(), now, special ? 0.9f : 0.75f);
             if (cat == prefs.favorite && !prefs.isRevealed(cat)) {
                 prefs.reveal(cat);
                 d.memory.remember(MemoryType.PREFERENCE, "you found out I love " + cat.word(), "fav_" + cat.id, day(), now, 0.8f);
             }
-            say(DialogueTrigger.GIFT_LOVED, Map.of("item", itemName, "category", cat.word()));
+            if (special) onRomanticGift(itemId, itemName, cat);
+            else say(DialogueTrigger.GIFT_LOVED, Map.of("item", itemName, "category", cat.word()));
         } else if (score >= 0.85f) {
             gain("gift", 5f + score * 2f, 1.5f);
             d.needs.addAttention(10f);
@@ -602,6 +626,92 @@ public final class CompanionController {
             gf.playGesture(Gesture.TALK);
             say(DialogueTrigger.GIFT_OKAY, Map.of("item", itemName, "category", cat.word()));
         }
+    }
+
+    /** Extra warmth for a loved hand-made gift: its own line, more hearts, and a keepsake memory for a love letter. */
+    private void onRomanticGift(String itemId, String itemName, GiftCategory cat) {
+        CompanionData d = data();
+        ResourceLocation id = ResourceLocation.tryParse(itemId);
+        String gift = id != null && id.getNamespace().equals(AIGirlfriend.MOD_ID) ? id.getPath() : "";
+        heartParticles(8);
+        d.mood.shiftWellbeing(4f);
+        if (gift.equals("love_letter")) {
+            gf.playGesture(Gesture.SHY);
+            if (d.relationship.milestones.add("love_letter")) {
+                d.memory.remember(MemoryType.MILESTONE, "you wrote me a love letter and I read it again and again", "love_letter", day(), now(), 1.1f);
+            }
+        }
+        say(DialogueTrigger.GIFT_ROMANTIC, Map.of("item", itemName, "category", cat.word(), "gift", gift));
+    }
+
+    // ================================================================== proposal & stage helpers
+
+    /**
+     * Right-click with a wedding ring. From DEEP_TRUST on she says yes: the ring becomes hers and she is married
+     * (surprise first, the celebration follows in {@link #tick}). Earlier she sweetly declines and the ring stays with the player.
+     */
+    public void onPropose(ServerPlayer player, ItemStack ring) {
+        CompanionData d = data();
+        Relationship r = d.relationship;
+        if (proposalTicks > 0) return; // she is still taking in the last one
+        markInteraction();
+        gf.getLookControl().setLookAt(player, 30f, 30f);
+        if (r.married) {
+            if (!canSay(DialogueTrigger.PROPOSAL_ALREADY_MARRIED)) return;
+            gf.playGesture(Gesture.GIGGLE);
+            feel(Emotion.LOVE, 0.8f, 400);
+            heartParticles(4);
+            say(DialogueTrigger.PROPOSAL_ALREADY_MARRIED);
+            return;
+        }
+        if (gf.isSleeping() || fear.afraid()) {
+            player.displayClientMessage(Component.translatable("aigirlfriend.message.propose_later", d.name), true);
+            return;
+        }
+        if (!r.stage().atLeast(RelationshipStage.DEEP_TRUST)) {
+            if (!canSay(DialogueTrigger.PROPOSAL_DECLINED)) return;
+            boolean romantic = r.stage().isRomantic();
+            gf.playGesture(romantic ? Gesture.SHY : Gesture.STARTLED);
+            feel(romantic ? Emotion.LOVE : Emotion.EMBARRASSMENT, 0.8f, 600);
+            if (romantic) {
+                gain("proposal_early", 3f, 1f);
+                d.memory.remember(MemoryType.AFFECTION, "you asked me to marry you and I asked you to wait a little", "proposal_early", day(), now(), 0.8f);
+            }
+            say(DialogueTrigger.PROPOSAL_DECLINED);
+            return;
+        }
+        if (!player.getAbilities().instabuild) ring.shrink(1);
+        r.setMarried(true, day());
+        d.memory.remember(MemoryType.MILESTONE, "you proposed to me in the " + biomeName() + " and I said yes", "married", day(), now(), 1.5f);
+        gain("proposal", 30f, 10f);
+        d.needs.addAttention(30f);
+        d.mood.shiftWellbeing(25f);
+        gf.playGesture(Gesture.STARTLED);
+        feel(Emotion.SURPRISE, 1f, PROPOSAL_SURPRISE_TICKS);
+        gf.level().playSound(null, gf.blockPosition(), SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.NEUTRAL, 1f, 1.5f);
+        proposalTicks = PROPOSAL_SURPRISE_TICKS;
+        player.displayClientMessage(Component.translatable("aigirlfriend.message.married", d.name), false);
+        if (gf.level() instanceof ServerLevel sl) CompanionRegistry.get(sl.getServer()).update(gf, true);
+    }
+
+    private void celebrateProposal() {
+        gf.playGesture(Gesture.CELEBRATE);
+        feel(Emotion.LOVE, 1f, 2400);
+        heartParticles(20);
+        if (gf.level() instanceof ServerLevel sl) {
+            sl.sendParticles(ParticleTypes.TOTEM_OF_UNDYING, gf.getX(), gf.getY() + 1.2, gf.getZ(), 40, 0.5, 0.6, 0.5, 0.3);
+        }
+        gf.level().playSound(null, gf.blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.NEUTRAL, 0.8f, 1f);
+        say(DialogueTrigger.PROPOSAL_ACCEPTED);
+    }
+
+    /** Behind /gf maxtier: real stats for the top stage (so it sticks), with the usual milestone once. False if she was already there. */
+    public boolean reachMaxStage() {
+        Relationship r = data().relationship;
+        boolean already = r.stage() == RelationshipStage.PARTNERSHIP;
+        r.maxOut();
+        checkStage();
+        return !already;
     }
 
     // ================================================================== interactions

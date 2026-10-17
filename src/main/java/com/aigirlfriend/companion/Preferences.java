@@ -31,12 +31,14 @@ public final class Preferences {
         prefs.weights.merge(GiftCategory.ADVENTURE, p.confidence * 0.4f, Float::sum);
         prefs.weights.merge(GiftCategory.SWEETS, p.playfulness * 0.3f, Float::sum);
         prefs.weights.merge(GiftCategory.FLOWERS, p.affection * 0.3f, Float::sum);
+        prefs.weights.merge(GiftCategory.ROMANTIC, p.affection * 0.3f, Float::sum);
         GiftCategory[] all = GiftCategory.values();
         prefs.favorite = all[random.nextInt(all.length)];
         if (prefs.favorite == GiftCategory.FOOD) prefs.favorite = GiftCategory.SWEETS;
         do {
             prefs.disliked = all[random.nextInt(all.length)];
-        } while (prefs.disliked == prefs.favorite || prefs.disliked == GiftCategory.FOOD || prefs.disliked == GiftCategory.FLOWERS);
+        } while (prefs.disliked == prefs.favorite || prefs.disliked == GiftCategory.FOOD || prefs.disliked == GiftCategory.FLOWERS
+                || prefs.disliked == GiftCategory.JEWELRY || prefs.disliked == GiftCategory.ROMANTIC);
         prefs.weights.put(prefs.favorite, 1.8f);
         prefs.weights.put(prefs.disliked, 0.3f);
         String[] activities = {"walks", "stargazing", "exploring caves", "watching the sunset", "sitting by the water", "picking flowers", "cuddling by the fire", "building things"};

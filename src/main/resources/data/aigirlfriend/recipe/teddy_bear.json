@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "minecraft:brown_wool"
+    },
+    "W": {
+      "item": "minecraft:white_wool"
+    }
+  },
+  "pattern": [
+    "B B",
+    "BWB",
+    "B B"
+  ],
+  "result": {
+    "count": 1,
+    "id": "aigirlfriend:teddy_bear"
+  }
+}

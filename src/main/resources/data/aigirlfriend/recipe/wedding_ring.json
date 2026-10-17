@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "G": {
+      "item": "minecraft:gold_ingot"
+    }
+  },
+  "pattern": [
+    " D ",
+    "G G",
+    " G "
+  ],
+  "result": {
+    "count": 1,
+    "id": "aigirlfriend:wedding_ring"
+  }
+}

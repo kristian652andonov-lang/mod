@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": {
+      "item": "aigirlfriend:red_rose"
+    },
+    "F": {
+      "tag": "minecraft:small_flowers"
+    },
+    "P": {
+      "item": "minecraft:paper"
+    }
+  },
+  "pattern": [
+    " R ",
+    "RFR",
+    " P "
+  ],
+  "result": {
+    "count": 1,
+    "id": "aigirlfriend:rose_bouquet"
+  }
+}

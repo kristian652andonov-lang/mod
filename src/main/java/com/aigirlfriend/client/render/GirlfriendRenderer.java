@@ -19,6 +19,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -110,7 +111,7 @@ public class GirlfriendRenderer extends GeoEntityRenderer<GirlfriendEntity> {
         if (speech != null) {
             renderBubble(gf, speech, y, poseStack, bufferSource, packedLight, partialTick);
         } else if (looking && distSq < 12 * 12) {
-            renderLine(Component.literal(gf.getCompanionName()).withStyle(s -> s.withColor(0xFFB6D9)), y - 0.2f, poseStack, bufferSource, packedLight, 1f);
+            renderLine(Component.literal(gf.getCompanionName()).withStyle(s -> s.withColor(0xFFB6D9)), y + 0.05f, poseStack, bufferSource, packedLight, 1f); // clear of her hair
         }
     }
 
@@ -147,12 +148,22 @@ public class GirlfriendRenderer extends GeoEntityRenderer<GirlfriendEntity> {
         Matrix4f m = poseStack.last().pose();
         int bgAlpha = (int) (0.55f * 255f * alpha);
         int textColor = ((int) (255 * alpha) << 24) | 0xFFFFFF;
+        // See-through, so leaves or a ceiling between the camera and the bubble do not cut it. The background is its
+        // own pass (a separate render type is drawn first), so it can never end up on top of the letters.
+        VertexConsumer bg = buffers.getBuffer(RenderType.textBackgroundSeeThrough());
+        int bgColor = (bgAlpha << 24) | 0x3A1F33;
+        for (int i = 0; i < lines.size(); i++) {
+            float w = font.width(lines.get(i));
+            float x0 = -w / 2f - 1, x1 = w / 2f + 1, y0 = i * lineHeight - 1, y1 = i * lineHeight + font.lineHeight;
+            bg.addVertex(m, x0, y0, 0).setColor(bgColor).setLight(LightTexture.FULL_BRIGHT);
+            bg.addVertex(m, x0, y1, 0).setColor(bgColor).setLight(LightTexture.FULL_BRIGHT);
+            bg.addVertex(m, x1, y1, 0).setColor(bgColor).setLight(LightTexture.FULL_BRIGHT);
+            bg.addVertex(m, x1, y0, 0).setColor(bgColor).setLight(LightTexture.FULL_BRIGHT);
+        }
         for (int i = 0; i < lines.size(); i++) {
             FormattedCharSequence line = lines.get(i);
             float x = -font.width(line) / 2f;
-            float ly = i * lineHeight;
-            // see-through: leaves or a ceiling between the camera and the bubble must not cut the text
-            font.drawInBatch(line, x, ly, textColor, false, m, buffers, Font.DisplayMode.SEE_THROUGH, (bgAlpha << 24) | 0x3A1F33, LightTexture.FULL_BRIGHT);
+            font.drawInBatch(line, x, i * lineHeight, textColor, false, m, buffers, Font.DisplayMode.SEE_THROUGH, 0, LightTexture.FULL_BRIGHT);
         }
         String name = gf.getCompanionName();
         float nx = -font.width(name) / 2f;

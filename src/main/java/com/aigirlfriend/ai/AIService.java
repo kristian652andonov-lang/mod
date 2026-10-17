@@ -47,7 +47,7 @@ public final class AIService {
         if (builtin()) {
             // one local worker answers in order, so no rate limit, just a short queue
             BuiltinBrain.ensureStarted(false);
-            return BuiltinBrain.ready() && IN_FLIGHT.get() < 3;
+            return BuiltinBrain.ready() && IN_FLIGHT.get() < 3 && BuiltinBrain.queued() < 4;
         }
         if (System.currentTimeMillis() < failuresUntil) return false;
         if (IN_FLIGHT.get() >= GFConfig.AI_MAX_CONCURRENT.get()) return false;
@@ -127,21 +127,25 @@ public final class AIService {
             return;
         }
         LAST_REQUEST.put(companion, System.currentTimeMillis());
-        IN_FLIGHT.incrementAndGet();
         var messages = PromptBuilder.chat(ctx, playerMessage);
-        float temperature = (float) Math.min(GFConfig.AI_TEMPERATURE.get(), 0.75);
+        IN_FLIGHT.incrementAndGet();
+        // small models answer more sensibly (and get facts right more often) when sampled conservatively
+        float temperature = (float) Math.min(GFConfig.AI_TEMPERATURE.get(), 0.6);
         String conversation = companion.toString();
-        BuiltinBrain.reply(conversation, messages, 72, temperature)
+        java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean();
+        BuiltinBrain.reply(conversation, messages, 72, temperature, cancelled)
                 .thenCompose(text -> {
                     ResponseValidator.Result first = usable(ResponseValidator.validate(text, ctx.name, ctx.playerName), ctx);
-                    if (first != null) return CompletableFuture.completedFuture(first);
+                    if (first != null || cancelled.get()) return CompletableFuture.completedFuture(first);
                     // invalid or a repeat of something she just said: one more try, a little more adventurous
                     // (the prompt is still cached, so this only costs the new words)
-                    return BuiltinBrain.reply(conversation, messages, 72, Math.max(temperature, 0.95f))
+                    return BuiltinBrain.reply(conversation, messages, 72, Math.max(temperature, 0.85f), cancelled)
                             .thenApply(t -> usable(ResponseValidator.validate(t, ctx.name, ctx.playerName), ctx));
                 })
-                .orTimeout(Math.max(60, GFConfig.AI_TIMEOUT_SECONDS.get()), java.util.concurrent.TimeUnit.SECONDS)
+                // generous: a slow computer still gets her real answer (the first one after loading reads the whole persona)
+                .orTimeout(Math.max(120, GFConfig.AI_TIMEOUT_SECONDS.get()), java.util.concurrent.TimeUnit.SECONDS)
                 .handle((result, error) -> {
+                    cancelled.set(true); // a timed-out job must not keep the brain busy
                     IN_FLIGHT.decrementAndGet();
                     ResponseValidator.Result r = error == null ? result : null;
                     if (error != null) AIGirlfriend.LOGGER.warn("Built-in brain failed: {}", error.toString());
@@ -157,7 +161,10 @@ public final class AIService {
 
     /** After she said something: let the built-in brain read the conversation so far while the player answers. */
     public static void prewarm(UUID companion, DialogueContext ctx) {
-        if (builtin() && BuiltinBrain.ready()) BuiltinBrain.prefill(companion.toString(), PromptBuilder.chatSoFar(ctx));
+        if (builtin() && BuiltinBrain.ready()) {
+            PromptBuilder.ReadAhead ahead = PromptBuilder.chatSoFar(ctx);
+            BuiltinBrain.prefill(companion.toString(), ahead.turns(), ahead.openUser());
+        }
     }
 
     @Nullable
@@ -192,6 +199,13 @@ public final class AIService {
         } else if (error != null) {
             AIGirlfriend.LOGGER.debug("AI request failed: {}", error.toString());
         }
+    }
+
+    /** Forget per-world state (server stopping). */
+    public static void clear() {
+        LAST_REQUEST.clear();
+        failuresUntil = 0;
+        consecutiveFailures = 0;
     }
 
     /** A short explanation for players while the built-in brain is not ready yet, or null. */

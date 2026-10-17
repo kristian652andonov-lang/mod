@@ -18,6 +18,7 @@ import com.aigirlfriend.world.ActiveCompanions;
 import com.aigirlfriend.world.CompanionRegistry;
 import com.aigirlfriend.world.CompanionTransfer;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -32,8 +33,8 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.Locale;
 
 /**
- * /aigirlfriend (alias /gf): everyday helpers for owners (info, recall, restore, rename) and op-only debug tools
- * to test every relationship stage, mood, need, cycle phase and request.
+ * /aigirlfriend (alias /gf): everyday helpers for owners (info, recall, restore, rename), the op-only /gf maxtier cheat
+ * and op-only debug tools to test every relationship stage, marriage, mood, need, cycle phase and request.
  */
 public final class GirlfriendCommand {
     private static final SimpleCommandExceptionType NONE = new SimpleCommandExceptionType(Component.translatable("aigirlfriend.fail.none_nearby"));
@@ -59,7 +60,7 @@ public final class GirlfriendCommand {
                 .then(Commands.literal("ai").executes(ctx -> {
                     ctx.getSource().sendSuccess(() -> Component.literal("AI: " + AIService.status()), false);
                     return 1;
-                }).then(Commands.literal("download").requires(s -> s.hasPermission(2) || s.getServer().isSingleplayer()).executes(ctx -> {
+                }).then(Commands.literal("download").requires(GirlfriendCommand::opOrWorldOwner).executes(ctx -> {
                     if (!AIService.builtin()) {
                         ctx.getSource().sendFailure(Component.literal("The built-in brain is not selected (config: ai.brain = BUILTIN)."));
                         return 0;
@@ -68,9 +69,22 @@ public final class GirlfriendCommand {
                     ctx.getSource().sendSuccess(() -> Component.literal("AI: " + AIService.status()), false);
                     return 1;
                 })))
+                .then(Commands.literal("maxtier").requires(GirlfriendCommand::opOrWorldOwner).executes(GirlfriendCommand::maxTier))
+                .then(Commands.literal("answer")
+                        .then(Commands.literal("yes").executes(ctx -> answer(ctx, true, -1))
+                                .then(Commands.argument("request", com.mojang.brigadier.arguments.LongArgumentType.longArg(0))
+                                        .executes(ctx -> answer(ctx, true, com.mojang.brigadier.arguments.LongArgumentType.getLong(ctx, "request")))))
+                        .then(Commands.literal("no").executes(ctx -> answer(ctx, false, -1))
+                                .then(Commands.argument("request", com.mojang.brigadier.arguments.LongArgumentType.longArg(0))
+                                        .executes(ctx -> answer(ctx, false, com.mojang.brigadier.arguments.LongArgumentType.getLong(ctx, "request"))))))
                 .then(debug());
         d.register(root);
         d.register(Commands.literal("gf").redirect(d.getRoot().getChild("aigirlfriend")));
+    }
+
+    /** Operators, or the player whose single-player world this is (works without "allow cheats"). */
+    private static boolean opOrWorldOwner(CommandSourceStack s) {
+        return s.hasPermission(2) || s.getPlayer() != null && s.getServer().isSingleplayerOwner(s.getPlayer().getGameProfile());
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> debug() {
@@ -143,6 +157,13 @@ public final class GirlfriendCommand {
             gf.controller().faint(gf.damageSources().generic());
             return 1;
         }));
+        dbg.then(Commands.literal("married").then(Commands.argument("married", BoolArgumentType.bool()).executes(ctx -> {
+            GirlfriendEntity gf = nearest(ctx);
+            boolean married = BoolArgumentType.getBool(ctx, "married");
+            gf.data().relationship.setMarried(married, WorldClock.day(gf.level()));
+            feedback(ctx, gf.data().name + (married ? " is now married to you" : " is no longer married"));
+            return 1;
+        })));
         dbg.then(Commands.literal("reset_cooldowns").executes(ctx -> {
             GirlfriendEntity gf = nearest(ctx);
             gf.controller().lastInitiativeTick = 0;
@@ -168,11 +189,40 @@ public final class GirlfriendCommand {
         GirlfriendEntity gf = nearest(ctx);
         CompanionData d = gf.data();
         String s = String.format(Locale.ROOT,
-                "%s | %s (%s) | mood %s: %s | hunger %.0f energy %.0f attention %.0f | affection %.0f trust %.0f | days %d | %s | cycle %s",
-                d.name, d.relationship.stage(), d.personality.archetype(), d.mood.primary, String.join("; ", d.mood.causes),
+                "%s | %s%s (%s) | mood %s: %s | hunger %.0f energy %.0f attention %.0f | affection %.0f trust %.0f | days %d | %s | cycle %s",
+                d.name, d.relationship.stage(), d.relationship.married ? ", married" : "", d.personality.archetype(), d.mood.primary, String.join("; ", d.mood.causes),
                 d.needs.hunger, d.needs.energy, d.needs.attention, d.relationship.affection, d.relationship.trust,
                 d.relationship.daysTogether, gf.getCommand(), d.cycle.phase(NeedsSystem.cycleClock(gf.level())));
         feedback(ctx, s);
+        return 1;
+    }
+
+    /** /gf maxtier: the highest relationship stage with the stats to keep it; the milestone plays only when she moves up. */
+    /** The [Yes] / [No] buttons under her requests in chat. */
+    private static int answer(CommandContext<CommandSourceStack> ctx, boolean yes, long requestId) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        GirlfriendEntity gf = null;
+        for (GirlfriendEntity g : com.aigirlfriend.world.ActiveCompanions.ownedBy(player.getUUID())) {
+            var r = g.data().request;
+            if (g.level() != player.level() || r == null || r.accepted) continue;
+            if (requestId >= 0 && r.issuedTick == requestId) {
+                gf = g; // the companion whose request this button belongs to
+                break;
+            }
+            if (gf == null || g.distanceTo(player) < gf.distanceTo(player)) gf = g;
+        }
+        if (gf == null) gf = nearest(ctx);
+        com.aigirlfriend.dialogue.DialogueService.answerRequest(gf, player, yes, requestId);
+        return 1;
+    }
+
+    private static int maxTier(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        GirlfriendEntity gf = nearest(ctx);
+        CompanionData d = gf.data();
+        boolean moved = gf.controller().reachMaxStage();
+        Component stage = Component.translatable(d.relationship.stage().key());
+        ctx.getSource().sendSuccess(() -> Component.translatable(moved ? "aigirlfriend.cmd.maxtier.done" : "aigirlfriend.cmd.maxtier.already", d.name, stage), false);
+        if (!d.relationship.married) ctx.getSource().sendSuccess(() -> Component.translatable("aigirlfriend.cmd.maxtier.hint", d.name), false);
         return 1;
     }
 

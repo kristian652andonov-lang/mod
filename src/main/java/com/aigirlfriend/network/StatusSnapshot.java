@@ -29,7 +29,7 @@ public record StatusSnapshot(
         int requestType, boolean requestAccepted, float requestProgress, int requestTicksLeft, String requestDetail,
         String archetype, int favoriteRevealed, String favoriteActivity,
         List<String> memories, int[] moodHistory,
-        int outfit, int outfitCount, boolean hasHome, int interaction) {
+        int outfit, int outfitCount, boolean hasHome, int interaction, boolean married) {
 
     public static final StreamCodec<FriendlyByteBuf, StatusSnapshot> STREAM_CODEC = StreamCodec.of((buf, s) -> s.write(buf), StatusSnapshot::read);
 
@@ -66,7 +66,7 @@ public record StatusSnapshot(
                 r == null ? "" : r.detail,
                 d.personality.archetype(), fav, d.preferences.favoriteActivity,
                 memories, history,
-                d.outfit, GFConfig.OUTFIT_COUNT.get(), d.home != null, cur == null ? -1 : cur.ordinal());
+                d.outfit, GFConfig.OUTFIT_COUNT.get(), d.home != null, cur == null ? -1 : cur.ordinal(), d.relationship.married);
     }
 
     public GiftCategory favoriteCategory() {
@@ -107,6 +107,7 @@ public record StatusSnapshot(
         buf.writeVarInt(outfitCount);
         buf.writeBoolean(hasHome);
         buf.writeVarInt(interaction);
+        buf.writeBoolean(married);
     }
 
     private static StatusSnapshot read(FriendlyByteBuf buf) {
@@ -119,6 +120,6 @@ public record StatusSnapshot(
                 buf.readVarInt(), buf.readBoolean(), buf.readFloat(), buf.readVarInt(), buf.readUtf(64),
                 buf.readUtf(32), buf.readVarInt(), buf.readUtf(64),
                 buf.readList(b -> b.readUtf(256)), buf.readVarIntArray(16),
-                buf.readVarInt(), buf.readVarInt(), buf.readBoolean(), buf.readVarInt());
+                buf.readVarInt(), buf.readVarInt(), buf.readBoolean(), buf.readVarInt(), buf.readBoolean());
     }
 }

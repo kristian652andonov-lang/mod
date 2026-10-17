@@ -43,8 +43,24 @@ public final class ResponseValidator {
         String lower = s.toLowerCase(Locale.ROOT);
         String n = name.toLowerCase(Locale.ROOT);
         if (lower.startsWith(n + ":")) s = s.substring(name.length() + 1).trim();
-        else if (lower.startsWith(n + ", ")) s = capitalize(s.substring(name.length() + 2).trim()); // she addressed herself
-        if (playerName != null && !playerName.isEmpty() && s.toLowerCase(Locale.ROOT).startsWith(playerName.toLowerCase(Locale.ROOT) + ":")) return null;
+        // she addressed herself: "Iris, you..." loses the name, "Hey Iris!" greets the player instead
+        Matcher self = Pattern.compile("^((?:hey|hi|hello|oh|aw+|well|good (?:morning|night|evening))[ ,]+)?" + Pattern.quote(name) + "\\b[,!.]?\\s*",
+                Pattern.CASE_INSENSITIVE).matcher(s);
+        if (self.find() && self.end() < s.length()) {
+            String greeting = self.group(1);
+            s = greeting != null && playerName != null && !playerName.isEmpty()
+                    ? greeting.trim().replaceAll(",$", "") + " " + playerName + "! " + s.substring(self.end())
+                    : capitalize(s.substring(self.end()));
+        }
+        if (playerName != null && !playerName.isEmpty()) {
+            // "...about you, Iris." when Iris is her: she means the player
+            s = Pattern.compile(",\\s*" + Pattern.quote(name) + "(?=[.!?~]*$|[.!?,]\\s)", Pattern.CASE_INSENSITIVE).matcher(s)
+                    .replaceAll(Matcher.quoteReplacement(", " + playerName));
+            if (s.toLowerCase(Locale.ROOT).startsWith(playerName.toLowerCase(Locale.ROOT) + ":")) return null;
+            // never let her go on to write the player's next line
+            Matcher other = Pattern.compile("\\s*\\b" + Pattern.quote(playerName) + ":", Pattern.CASE_INSENSITIVE).matcher(s);
+            if (other.find()) s = s.substring(0, other.start()).trim();
+        }
         Emotion emotion = Emotion.NONE;
         Matcher m = TAG.matcher(s);
         if (m.find()) {

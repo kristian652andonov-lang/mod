@@ -22,6 +22,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,7 +40,7 @@ import java.util.UUID;
  */
 public final class DialogueService {
     /** Lines held back so her answer never shows up before the player's own chat line. */
-    private record Pending(GirlfriendEntity gf, String text, Emotion emotion, long due) {}
+    private record Pending(GirlfriendEntity gf, String text, Emotion emotion, @Nullable DialogueTrigger trigger, long due) {}
 
     private static final List<Pending> PENDING = new ArrayList<>();
     private static final Map<UUID, Long> REPLY_NOT_BEFORE = new HashMap<>();
@@ -47,8 +48,42 @@ public final class DialogueService {
 
     private DialogueService() {}
 
+    private static boolean brainWasReady;
+
+    /**
+     * Runs AI results on the server thread. While the server shuts down, execute() would run them right on the AI
+     * thread instead; those late results are dropped.
+     */
+    private static java.util.function.Consumer<Runnable> onServerThread(MinecraftServer server) {
+        return task -> server.execute(() -> {
+            if (server.isSameThread()) task.run();
+        });
+    }
+
+    /** Forget per-world state (server stopping). */
+    public static void clear() {
+        PENDING.clear();
+        REPLY_NOT_BEFORE.clear();
+        LAST_NOTICE.clear();
+        brainWasReady = false;
+    }
+
     /** Delivers held-back lines once they are due. Called every server tick. */
     public static void tick(MinecraftServer server) {
+        if (server.getTickCount() % 20 == 0) {
+            boolean ready = AIService.builtin() && com.aigirlfriend.ai.BuiltinBrain.ready();
+            if (ready && !brainWasReady) {
+                // the brain just finished loading: read every nearby conversation now, so the first answer is quick
+                for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                    for (GirlfriendEntity gf : com.aigirlfriend.world.ActiveCompanions.ownedBy(p.getUUID())) {
+                        if (gf.level() == p.level() && gf.distanceTo(p) <= GFConfig.CHAT_LISTEN_RADIUS.get()) {
+                            AIService.prewarm(gf.data().companionId, new DialogueContext(gf, p, DialogueTrigger.REPLY, Map.of()));
+                        }
+                    }
+                }
+            }
+            brainWasReady = ready;
+        }
         if (PENDING.isEmpty()) {
             if (!REPLY_NOT_BEFORE.isEmpty()) REPLY_NOT_BEFORE.clear();
             return;
@@ -60,7 +95,7 @@ public final class DialogueService {
                 it.remove();
             } else if (p.gf.level().getGameTime() >= p.due) {
                 it.remove();
-                deliverNow(p.gf, p.text, p.emotion);
+                deliverNow(p.gf, p.text, p.emotion, p.trigger);
             }
         }
     }
@@ -71,16 +106,16 @@ public final class DialogueService {
         DialogueContext ctx = new DialogueContext(gf, null, trigger, vars);
         boolean useAi = GFConfig.AI_FOR_AMBIENT.get() && AIService.enabled() && AIService.available(gf.data().companionId);
         if (!useAi) {
-            deliver(gf, LocalDialogueGenerator.line(ctx, gf.data().companionId, gf.getRandom()), emotionFor(trigger));
+            deliver(gf, LocalDialogueGenerator.line(ctx, gf.data().companionId, gf.getRandom()), emotionFor(trigger), trigger);
             return;
         }
         String cacheKey = trigger.name() + "|" + ctx.mood + "|" + ctx.stage + "|" + ctx.partOfDay + "|" + ctx.hungerWord() + "|" + ctx.energyWord() + "|" + vars;
         MinecraftServer server = level.getServer();
         sendTyping(gf);
-        AIService.generate(gf.data().companionId, ctx, null, cacheKey, server::execute, result -> {
+        AIService.generate(gf.data().companionId, ctx, null, cacheKey, onServerThread(server), result -> {
             if (gf.isRemoved()) return;
-            if (result == null) deliver(gf, LocalDialogueGenerator.line(ctx, gf.data().companionId, gf.getRandom()), emotionFor(trigger));
-            else deliver(gf, result.text(), result.emotion() != Emotion.NONE ? result.emotion() : emotionFor(trigger));
+            if (result == null) deliver(gf, LocalDialogueGenerator.line(ctx, gf.data().companionId, gf.getRandom()), emotionFor(trigger), trigger);
+            else deliver(gf, result.text(), result.emotion() != Emotion.NONE ? result.emotion() : emotionFor(trigger), trigger);
         });
     }
 
@@ -104,7 +139,7 @@ public final class DialogueService {
         String notice = AIService.brainNotice();
         if (notice != null) {
             Long last = LAST_NOTICE.get(player.getUUID());
-            if (last == null || now - last > 2400) {
+            if (last == null || now - last > 2400 || now < last) {
                 LAST_NOTICE.put(player.getUUID(), now);
                 player.sendSystemMessage(Component.literal("[" + d.name + "] " + notice).withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
             }
@@ -114,7 +149,7 @@ public final class DialogueService {
             return;
         }
         sendTyping(gf);
-        AIService.generate(d.companionId, ctx, message, null, level.getServer()::execute, result -> {
+        AIService.generate(d.companionId, ctx, message, null, onServerThread(level.getServer()), result -> {
             if (gf.isRemoved()) return;
             if (result == null) deliver(gf, LocalDialogueGenerator.reply(ctx, replyIntent, d.companionId, gf.getRandom()), emotionFor(replyIntent));
             else deliver(gf, result.text(), result.emotion() != Emotion.NONE ? result.emotion() : emotionFor(replyIntent));
@@ -279,11 +314,16 @@ public final class DialogueService {
 
     private static void sendTyping(GirlfriendEntity gf) {
         com.aigirlfriend.network.Net.sendNear((ServerLevel) gf.level(), gf.getX(), gf.getY(), gf.getZ(), GFConfig.SPEECH_RADIUS.get(),
-                new SpeechPayload(gf.getId(), "...", Emotion.NONE.ordinal(), true, 600)); // replaced by her line when it arrives
+                new SpeechPayload(gf.getId(), "...", Emotion.NONE.ordinal(), true, AIService.builtin() ? 2400 : 600)); // replaced by her line when it arrives
     }
 
     /** Shows a line: speech bubble for nearby players, chat log, conversation history. */
     public static void deliver(GirlfriendEntity gf, String text, Emotion emotion) {
+        deliver(gf, text, emotion, null);
+    }
+
+    /** As {@link #deliver(GirlfriendEntity, String, Emotion)}; {@code trigger} says what the line is about (a request gets answer buttons). */
+    public static void deliver(GirlfriendEntity gf, String text, Emotion emotion, @Nullable DialogueTrigger trigger) {
         if (!(gf.level() instanceof ServerLevel) || text == null || text.isBlank()) return;
         Long notBefore = REPLY_NOT_BEFORE.get(gf.data().companionId);
         long now = gf.level().getGameTime();
@@ -293,13 +333,13 @@ public final class DialogueService {
             long due = notBefore == null ? now : notBefore;
             for (Pending p : PENDING) if (p.gf == gf) due = Math.max(due, p.due + 30); // keep her lines in order, a beat apart
             if (PENDING.stream().noneMatch(p -> p.gf == gf)) sendTyping(gf);
-            PENDING.add(new Pending(gf, text, emotion, due));
+            PENDING.add(new Pending(gf, text, emotion, trigger, due));
             return;
         }
-        deliverNow(gf, text, emotion);
+        deliverNow(gf, text, emotion, trigger);
     }
 
-    private static void deliverNow(GirlfriendEntity gf, String text, Emotion emotion) {
+    private static void deliverNow(GirlfriendEntity gf, String text, Emotion emotion, @Nullable DialogueTrigger trigger) {
         if (!(gf.level() instanceof ServerLevel level)) return;
         CompanionData d = gf.data();
         d.history.add(false, text, level.getGameTime());
@@ -311,13 +351,49 @@ public final class DialogueService {
         if (!gf.isPlayingGesture() && !gf.interactions().isActive() && gf.getRandom().nextInt(3) == 0) gf.playGesture(Gesture.TALK);
         if (GFConfig.SPEECH_IN_CHAT.get()) {
             Component line = Component.literal("<").append(Component.literal(d.name).withStyle(ChatFormatting.LIGHT_PURPLE)).append("> ").append(text);
+            boolean asking = trigger == DialogueTrigger.REQUEST_ISSUED && d.request != null && !d.request.accepted;
             for (ServerPlayer p : level.players()) {
-                if (p.distanceToSqr(gf) <= radius * radius) p.sendSystemMessage(line);
+                if (p.distanceToSqr(gf) > radius * radius) continue;
+                // her owner can answer a request with one click (or by typing)
+                p.sendSystemMessage(asking && p.getUUID().equals(gf.getOwnerUUID()) ? line.copy().append(answerButtons(d.name, d.request.issuedTick)) : line);
             }
         }
         if (AIService.builtin() && gf.getOwner() instanceof ServerPlayer owner && owner.distanceTo(gf) <= GFConfig.CHAT_LISTEN_RADIUS.get()) {
             AIService.prewarm(d.companionId, new DialogueContext(gf, owner, DialogueTrigger.REPLY, Map.of()));
         }
+    }
+
+    private static Component answerButtons(String name, long requestId) {
+        return Component.literal("  ").append(button("aigirlfriend.chat.yes", "yes", ChatFormatting.GREEN, name, requestId))
+                .append(" ").append(button("aigirlfriend.chat.no", "no", ChatFormatting.RED, name, requestId));
+    }
+
+    private static Component button(String key, String answer, ChatFormatting color, String name, long requestId) {
+        // the request's id makes an old button in the chat history unable to answer a newer request
+        return Component.literal("[").append(Component.translatable(key)).append("]").withStyle(style -> style.withColor(color).withBold(true)
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND,
+                        "/aigirlfriend answer " + answer + " " + requestId))
+                .withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT,
+                        Component.translatable(key + ".hover", name))));
+    }
+
+    /** The player answered her request with a chat button ({@code /gf answer}). */
+    public static void answerRequest(GirlfriendEntity gf, ServerPlayer player, boolean yes, long requestId) {
+        if (!(gf.level() instanceof ServerLevel level)) return;
+        CompanionData d = gf.data();
+        if (d.request == null || d.request.accepted || requestId >= 0 && d.request.issuedTick != requestId) {
+            player.displayClientMessage(Component.translatable("aigirlfriend.chat.no_request", d.name), true);
+            return;
+        }
+        String text = Component.translatable(yes ? "aigirlfriend.chat.yes.said" : "aigirlfriend.chat.no.said").getString();
+        long now = level.getGameTime();
+        if (GFConfig.SPEECH_IN_CHAT.get()) {
+            player.sendSystemMessage(Component.literal("<" + player.getGameProfile().getName() + "> " + text).withStyle(ChatFormatting.GRAY));
+        }
+        d.history.add(true, text, now);
+        REPLY_NOT_BEFORE.put(d.companionId, now + 12);
+        gf.getLookControl().setLookAt(player, 30f, 30f);
+        RequestSystem.respond(gf, player, yes);
     }
 
     private static Emotion emotionFor(DialogueTrigger t) {

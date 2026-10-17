@@ -30,6 +30,9 @@ public final class Relationship {
     private final Map<String, Integer> todayCounts = new HashMap<>();
     private long countsDay = -1;
     public final Set<String> milestones = new LinkedHashSet<>();
+    /** Set when she accepted a wedding ring proposal. Independent of the stage. */
+    public boolean married = false;
+    public long marriedDay = -1;
 
     /** Applies a positive change with same-day diminishing returns. Returns the amount actually gained. */
     public float gain(String key, float amount, float trustAmount, long day) {
@@ -107,6 +110,23 @@ public final class Relationship {
         cachedStage = s;
     }
 
+    /** Fills affection, trust and days well past the top stage's thresholds, so the stage survives hysteresis and small losses. */
+    public void maxOut() {
+        RelationshipStage[] all = RelationshipStage.values();
+        RelationshipStage top = all[all.length - 1];
+        affection = Math.max(affection, Math.min(MAX_AFFECTION, top.affection + 150f));
+        trust = 100f;
+        daysTogether = Math.max(daysTogether, top.days);
+        stageOverride = -1;
+    }
+
+    public void setMarried(boolean value, long day) {
+        married = value;
+        marriedDay = value ? day : -1;
+        if (value) milestones.add("married");
+        else milestones.remove("married");
+    }
+
     public CompoundTag save() {
         CompoundTag t = new CompoundTag();
         t.putFloat("affection", affection);
@@ -123,6 +143,8 @@ public final class Relationship {
         ListTag ms = new ListTag();
         milestones.forEach(m -> ms.add(StringTag.valueOf(m)));
         t.put("milestones", ms);
+        t.putBoolean("married", married);
+        t.putLong("marriedDay", marriedDay);
         return t;
     }
 
@@ -141,5 +163,7 @@ public final class Relationship {
         milestones.clear();
         ListTag ms = t.getList("milestones", Tag.TAG_STRING);
         for (int i = 0; i < ms.size(); i++) milestones.add(ms.getString(i));
+        married = t.getBoolean("married");
+        marriedDay = t.contains("marriedDay") ? t.getLong("marriedDay") : -1;
     }
 }

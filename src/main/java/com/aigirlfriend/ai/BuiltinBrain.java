@@ -36,11 +36,12 @@ public final class BuiltinBrain {
 
     private record ModelFile(String file, String url, long size, String sha256, String label) {}
 
+    // pinned to a repository revision, so the file always matches its checksum
     private static final ModelFile SMALL = new ModelFile("qwen2.5-0.5b-instruct-q8_0.gguf",
-            "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q8_0.gguf",
+            "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/9217f5db79a29953eb74d5343926648285ec7e67/qwen2.5-0.5b-instruct-q8_0.gguf",
             675_710_816L, "ca59ca7f13d0e15a8cfa77bd17e65d24f6844b554a7b6c12e07a5f89ff76844e", "Qwen2.5 0.5B Instruct");
     private static final ModelFile SMART = new ModelFile("qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+            "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf",
             1_117_320_736L, "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e", "Qwen2.5 1.5B Instruct");
 
     private static final ExecutorService WORKER = Executors.newSingleThreadExecutor(r -> {
@@ -78,6 +79,11 @@ public final class BuiltinBrain {
         return QUEUED.get() > 0;
     }
 
+    /** Jobs waiting for or running on the brain thread (replies and read-aheads). */
+    public static int queued() {
+        return QUEUED.get();
+    }
+
     private static String configKey() {
         return GFConfig.AI_BUILTIN_MODEL.get() + "|" + GFConfig.AI_BUILTIN_PATH.get() + "|" + GFConfig.AI_BUILTIN_CONTEXT.get() + "|" + GFConfig.AI_BUILTIN_THREADS.get();
     }
@@ -93,7 +99,13 @@ public final class BuiltinBrain {
             return;
         }
         boolean present = Files.isRegularFile(file);
-        if (!present && !userRequested && !GFConfig.AI_BUILTIN_DOWNLOAD.get()) {
+        if (!present && GFConfig.AI_BUILTIN_MODEL.get() == GFConfig.BuiltinModel.CUSTOM) {
+            fail("builtinModelPath not found: " + file);
+            return;
+        }
+        // a dedicated server never downloads on its own: an operator decides with /gf ai download
+        boolean auto = GFConfig.AI_BUILTIN_DOWNLOAD.get() && !net.neoforged.fml.loading.FMLEnvironment.dist.isDedicatedServer();
+        if (!present && !userRequested && !auto) {
             state = State.IDLE;
             detail = "model not downloaded (run /gf ai download)";
             return;
@@ -122,7 +134,7 @@ public final class BuiltinBrain {
     private static ModelFile modelFile() {
         return switch (GFConfig.AI_BUILTIN_MODEL.get()) {
             case SMART -> SMART;
-            case AUTO -> Runtime.getRuntime().availableProcessors() >= 8 ? SMART : SMALL;
+            case AUTO -> Runtime.getRuntime().availableProcessors() >= 12 ? SMART : SMALL; // SMART needs ~6 cores to answer in seconds
             default -> SMALL;
         };
     }
@@ -150,13 +162,26 @@ public final class BuiltinBrain {
             Files.delete(part);
             have = 0;
         }
-        AIGirlfriend.LOGGER.info("Downloading the built-in AI model {} ({} MB) to {}", mf.label(), mf.size() / 1_000_000, target);
+        if (have < mf.size()) fetch(mf, part, have);
+        verifyAndMove(mf, part, target);
+    }
+
+    private static void fetch(ModelFile mf, Path part, long have) throws IOException, InterruptedException {
+        AIGirlfriend.LOGGER.info("Downloading the built-in AI model {} ({} MB) to {}", mf.label(), mf.size() / 1_000_000, part.getParent());
         HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS).connectTimeout(Duration.ofSeconds(20)).build();
         HttpRequest.Builder req = HttpRequest.newBuilder(URI.create(mf.url())).header("User-Agent", "AIGirlfriend-mod").GET();
         if (have > 0) req.header("Range", "bytes=" + have + "-");
         HttpResponse<InputStream> resp = http.send(req.build(), HttpResponse.BodyHandlers.ofInputStream());
-        if (resp.statusCode() == 200 && have > 0) have = 0; // server ignored the range: start over
-        else if (resp.statusCode() != 206 && resp.statusCode() != 200) throw new IOException("Download failed: HTTP " + resp.statusCode());
+        int code = resp.statusCode();
+        if (code == 416) { // nothing left to fetch: the part file is already complete
+            resp.body().close();
+            return;
+        }
+        if (code != 206 && code != 200) {
+            resp.body().close();
+            throw new IOException("Download failed: HTTP " + code);
+        }
+        if (code == 200 && have > 0) have = 0; // server ignored the range: start over
         try (InputStream in = resp.body();
              OutputStream out = Files.newOutputStream(part, StandardOpenOption.CREATE,
                      have > 0 ? StandardOpenOption.APPEND : StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
@@ -169,6 +194,9 @@ public final class BuiltinBrain {
                 progress = (float) done / mf.size();
             }
         }
+    }
+
+    private static void verifyAndMove(ModelFile mf, Path part, Path target) throws IOException {
         detail = "verifying download";
         if (Files.size(part) != mf.size()) throw new IOException("Download incomplete (" + Files.size(part) + " of " + mf.size() + " bytes); it will resume next time");
         String sha = sha256(part);
@@ -215,14 +243,19 @@ public final class BuiltinBrain {
         AIGirlfriend.LOGGER.info("Built-in AI brain ready ({}, {} threads, {} ms)", file.getFileName(), threads, System.currentTimeMillis() - t0);
     }
 
-    /** Generates her next message for this conversation; completes off-thread (exceptionally if not ready). */
-    public static CompletableFuture<String> reply(String conversation, List<LocalChat.Message> messages, int maxTokens, float temperature) {
+    /**
+     * Generates her next message for this conversation; completes off-thread (exceptionally if not ready).
+     * Once {@code cancelled} is set (the caller gave up waiting) the job is skipped or cut short.
+     */
+    public static CompletableFuture<String> reply(String conversation, List<LocalChat.Message> messages, int maxTokens, float temperature,
+                                                  java.util.concurrent.atomic.AtomicBoolean cancelled) {
         if (!ready()) return CompletableFuture.failedFuture(new IllegalStateException("built-in brain not ready"));
         QUEUED.incrementAndGet();
         long seed = System.nanoTime();
         return CompletableFuture.supplyAsync(() -> {
             try {
-                LocalChat.Reply r = chat.reply(conversation, messages, maxTokens, temperature, 0.9f, seed);
+                if (cancelled.get()) return null;
+                LocalChat.Reply r = chat.reply(conversation, messages, maxTokens, temperature, 0.9f, seed, cancelled::get);
                 AIGirlfriend.LOGGER.debug("Built-in brain: {} prompt tokens ({} reused), {} generated in {} ms",
                         r.promptTokens(), r.reusedTokens(), r.generatedTokens(), r.millis());
                 return r.text();
@@ -236,13 +269,13 @@ public final class BuiltinBrain {
      * Reads the conversation so far in the background (while the player reads her line and types), so the next
      * reply only costs the new message. Skipped when she is busy answering.
      */
-    public static void prefill(String conversation, List<LocalChat.Message> messages) {
+    public static void prefill(String conversation, List<LocalChat.Message> messages, @org.jetbrains.annotations.Nullable String openUser) {
         if (!ready() || QUEUED.get() > 0) return;
         QUEUED.incrementAndGet();
         WORKER.execute(() -> {
             try {
                 long t0 = System.currentTimeMillis();
-                int n = chat.prefill(conversation, messages, 200);
+                int n = chat.prefill(conversation, messages, openUser, 200);
                 if (n > 0) AIGirlfriend.LOGGER.debug("Built-in brain: read ahead {} tokens in {} ms", n, System.currentTimeMillis() - t0);
             } catch (RuntimeException e) {
                 AIGirlfriend.LOGGER.debug("Built-in brain read-ahead failed", e);

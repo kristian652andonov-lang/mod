@@ -68,7 +68,8 @@ public final class InteractionMenu {
 
         ItemStack held = player.getMainHandItem();
         if (!held.isEmpty()) {
-            if (FoodHelper.isFood(held, gf) || FoodHelper.isDrink(held)) list.add(ActionType.FEED);
+            if (held.is(GiftCategory.SPECIAL)) list.add(ActionType.GIVE_GIFT);
+            else if (FoodHelper.isFood(held, gf) || FoodHelper.isDrink(held)) list.add(ActionType.FEED);
             else if (GiftCategory.of(held) != null) list.add(ActionType.GIVE_GIFT);
         }
         if ((WorldClock.isNight(gf.level()) || gf.level().isThundering()) && gf.data().relationship.stage().atLeast(InteractionType.SLEEP_TOGETHER.stage)
@@ -124,7 +125,8 @@ public final class InteractionMenu {
             case LET_GO, PUT_DOWN, STOP, GET_UP -> im.stop(InteractionManager.StopReason.CANCELLED_PLAYER);
             case GIVE_GIFT, FEED -> {
                 ItemStack held = player.getItemInHand(InteractionHand.MAIN_HAND);
-                if (FoodHelper.isDrink(held)) gf.controller().onDrink(player, held);
+                if (held.is(GiftCategory.SPECIAL)) gf.controller().onGift(player, held);
+                else if (FoodHelper.isDrink(held)) gf.controller().onDrink(player, held);
                 else if (FoodHelper.isFood(held, gf)) gf.controller().onFeed(player, held);
                 else gf.controller().onGift(player, held);
             }

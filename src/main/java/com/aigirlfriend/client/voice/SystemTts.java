@@ -396,17 +396,24 @@ final class SystemTts {
             pb.environment().putAll(env);
             Process p = pb.start();
             try {
-                p.getOutputStream().close();
-            } catch (IOException ignored) {
+                try {
+                    p.getOutputStream().close();
+                } catch (IOException ignored) {
+                }
+                if (!p.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
+                    p.descendants().forEach(ProcessHandle::destroyForcibly);
+                    p.destroyForcibly();
+                    p.waitFor(2, TimeUnit.SECONDS);
+                    throw new IOException(new File(cmd.get(0)).getName() + " timed out");
+                }
+                String out = Files.isRegularFile(log) ? new String(Files.readAllBytes(log), StandardCharsets.UTF_8) : "";
+                return new Result(p.exitValue(), out);
+            } finally {
+                if (p.isAlive()) { // interrupted while waiting: never leave a speech process behind
+                    p.descendants().forEach(ProcessHandle::destroyForcibly);
+                    p.destroyForcibly();
+                }
             }
-            if (!p.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
-                p.descendants().forEach(ProcessHandle::destroyForcibly);
-                p.destroyForcibly();
-                p.waitFor(2, TimeUnit.SECONDS);
-                throw new IOException(new File(cmd.get(0)).getName() + " timed out");
-            }
-            String out = Files.isRegularFile(log) ? new String(Files.readAllBytes(log), StandardCharsets.UTF_8) : "";
-            return new Result(p.exitValue(), out);
         } finally {
             delete(log);
         }

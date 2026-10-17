@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "minecraft:paper"
+    },
+    "S": {
+      "item": "minecraft:string"
+    },
+    "D": {
+      "item": "minecraft:pink_dye"
+    }
+  },
+  "pattern": [
+    "PSP",
+    "PDP",
+    "PPP"
+  ],
+  "result": {
+    "count": 1,
+    "id": "aigirlfriend:gift_box"
+  }
+}

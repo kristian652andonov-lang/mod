@@ -26,9 +26,13 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.phys.Vec3;
@@ -48,6 +52,8 @@ public final class CompanionGameTests {
 
     /** Lays out a known test platform: a solid floor at relative y = 0 and free space above it. */
     private static void floor(GameTestHelper h) {
+        // tests use the scripted dialogue: never download or load the built-in AI model
+        com.aigirlfriend.config.GFConfig.AI_BRAIN.set(com.aigirlfriend.config.GFConfig.Brain.OFF);
         for (int x = 0; x < 9; x++) {
             for (int z = 0; z < 9; z++) {
                 h.setBlock(new BlockPos(x, 0, z), net.minecraft.world.level.block.Blocks.SMOOTH_STONE);
@@ -161,8 +167,8 @@ public final class CompanionGameTests {
         h.succeed();
     }
 
-    // 10. talking without an AI provider still produces a reply (synchronously, never blocking)
-    @GameTest(template = "platform")
+    // 10. talking without an AI provider still produces a reply, and it comes after the player's own line
+    @GameTest(template = "platform", timeoutTicks = 120)
     public static void talkingFallsBackToLocalDialogue(GameTestHelper h) {
         floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 4));
@@ -170,11 +176,34 @@ public final class CompanionGameTests {
         gf.controller().claim(owner);
         int before = gf.data().history.recent(64).size();
         DialogueService.playerSays(gf, owner, "Hey, how are you?");
-        int after = gf.data().history.recent(64).size();
-        h.assertTrue(after >= before + 2, "expected player line + her reply, got " + (after - before));
+        int now = gf.data().history.recent(64).size();
+        h.assertTrue(now == before + 1, "her reply must wait for the player's chat line, got " + (now - before) + " new lines at once");
         h.assertTrue(gf.data().today.get(LogKey.TALKS) >= 1, "talk not counted");
-        removePlayer(h, owner);
-        h.succeed();
+        h.succeedWhen(() -> {
+            var lines = gf.data().history.recent(64);
+            h.assertTrue(lines.size() >= before + 2, "no reply yet");
+            h.assertTrue(lines.get(before).fromPlayer() && !lines.get(before + 1).fromPlayer(), "reply order wrong");
+            removePlayer(h, owner);
+        });
+    }
+
+    // her requests can be answered with the chat buttons (/gf answer yes|no)
+    @GameTest(template = "platform", timeoutTicks = 120)
+    public static void requestAnsweredFromChatButton(GameTestHelper h) {
+        floor(h);
+        GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 4));
+        ServerPlayer owner = player(h, new BlockPos(2, 1, 2));
+        gf.controller().claim(owner);
+        com.aigirlfriend.companion.RequestSystem.issue(gf, com.aigirlfriend.companion.RequestType.EXPLORE_TOGETHER, owner);
+        h.assertTrue(gf.data().request != null && !gf.data().request.accepted, "request not issued");
+        int before = gf.data().history.recent(64).size();
+        owner.getServer().getCommands().performPrefixedCommand(owner.createCommandSourceStack(), "aigirlfriend answer yes");
+        h.assertTrue(gf.data().request != null && gf.data().request.accepted, "yes button did not accept the request");
+        h.assertTrue(gf.data().history.recent(64).get(before).fromPlayer(), "the player's answer is not in the conversation");
+        h.succeedWhen(() -> {
+            h.assertTrue(gf.data().history.recent(64).size() >= before + 2, "she did not react to the answer");
+            removePlayer(h, owner);
+        });
     }
 
     // 3. she notices hostile mobs and becomes afraid
@@ -303,6 +332,123 @@ public final class CompanionGameTests {
             removePlayer(h, owner);
             h.succeed();
         });
+    }
+
+    /** An owned companion at the given stage next to a survival-mode owner holding the given item. */
+    private static GirlfriendEntity romanceSetup(GameTestHelper h, ServerPlayer owner, RelationshipStage stage, ItemStack held) {
+        GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 4));
+        gf.controller().claim(owner);
+        gf.data().relationship.forceStage(stage);
+        gf.controller().checkStage();
+        owner.getAbilities().instabuild = false;
+        owner.setItemInHand(InteractionHand.MAIN_HAND, held);
+        return gf;
+    }
+
+    // proposing at DEEP_TRUST: she says yes, keeps the ring, and the marriage survives save/load
+    @GameTest(template = "platform", timeoutTicks = 100)
+    public static void proposalMarriesAtDeepTrust(GameTestHelper h) {
+        floor(h);
+        ServerPlayer owner = player(h, new BlockPos(2, 1, 2));
+        GirlfriendEntity gf = romanceSetup(h, owner, RelationshipStage.DEEP_TRUST, new ItemStack(ModItems.WEDDING_RING.get()));
+        int linesBefore = gf.data().history.recent(64).size();
+        gf.interact(owner, InteractionHand.MAIN_HAND);
+        var r = gf.data().relationship;
+        h.assertTrue(r.married && r.marriedDay >= 0, "she should have said yes");
+        h.assertTrue(owner.getMainHandItem().isEmpty(), "the ring should now be hers");
+        h.assertTrue(r.milestones.contains("married"), "marriage milestone missing");
+        h.assertTrue(gf.data().memory.find(e -> e.type == MemoryType.MILESTONE && "married".equals(e.detail)) != null, "proposal memory missing");
+
+        GirlfriendEntity copy = ModEntities.GIRLFRIEND.get().create(h.getLevel());
+        h.assertTrue(copy != null, "could not create copy");
+        copy.load(gf.saveWithoutId(new CompoundTag()));
+        h.assertTrue(copy.data().relationship.married && copy.data().relationship.marriedDay == r.marriedDay, "marriage lost on save/load");
+        h.assertTrue(new DialogueContext(copy, owner, DialogueTrigger.AFFECTIONATE, new HashMap<>()).married, "dialogue does not know she is married");
+
+        owner.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.WEDDING_RING.get()));
+        h.runAfterDelay(40, () -> {
+            h.assertTrue(gf.data().history.recent(64).size() > linesBefore, "she never answered the proposal");
+            gf.interact(owner, InteractionHand.MAIN_HAND);
+            h.assertTrue(owner.getMainHandItem().getCount() == 1, "proposing again must keep the second ring");
+            removePlayer(h, owner);
+            h.succeed();
+        });
+    }
+
+    // proposing while only ROMANTIC: a sweet "not yet", the ring stays with the player
+    @GameTest(template = "platform")
+    public static void proposalDeclinedWhenRomantic(GameTestHelper h) {
+        floor(h);
+        ServerPlayer owner = player(h, new BlockPos(2, 1, 2));
+        GirlfriendEntity gf = romanceSetup(h, owner, RelationshipStage.ROMANTIC, new ItemStack(ModItems.WEDDING_RING.get()));
+        gf.interact(owner, InteractionHand.MAIN_HAND);
+        var r = gf.data().relationship;
+        h.assertTrue(!r.married && !r.milestones.contains("married"), "she must not marry at ROMANTIC");
+        h.assertTrue(owner.getMainHandItem().is(ModItems.WEDDING_RING.get()) && owner.getMainHandItem().getCount() == 1, "declined ring must be kept");
+        h.assertTrue(gf.data().memory.find(e -> "proposal_early".equals(e.detail)) != null, "she should remember being asked");
+        removePlayer(h, owner);
+        h.succeed();
+    }
+
+    // /gf maxtier reaches PARTNERSHIP with real stats, keeps it through refreshes and losses, milestone once
+    @GameTest(template = "platform")
+    public static void maxTierCommandReachesPartnership(GameTestHelper h) {
+        floor(h);
+        ServerPlayer owner = player(h, new BlockPos(2, 1, 2));
+        GirlfriendEntity gf = romanceSetup(h, owner, RelationshipStage.ACQUAINTANCE, ItemStack.EMPTY);
+        var r = gf.data().relationship;
+        h.getLevel().getServer().getCommands().performPrefixedCommand(owner.createCommandSourceStack().withPermission(2).withSuppressedOutput(), "gf maxtier");
+        h.assertTrue(r.stage() == RelationshipStage.PARTNERSHIP && gf.getSyncedStage() == RelationshipStage.PARTNERSHIP, "not at the top stage: " + r.stage());
+        var milestone = gf.data().memory.find(e -> "stage_PARTNERSHIP".equals(e.detail));
+        h.assertTrue(milestone != null && milestone.count == 1, "milestone should play exactly once");
+        r.refreshStage();
+        gf.controller().lose(10f, 6f);
+        h.assertTrue(r.stage() == RelationshipStage.PARTNERSHIP, "stage did not stick: " + r.stage());
+        h.assertTrue(!gf.controller().reachMaxStage(), "a second maxtier should report she was already there");
+        h.assertTrue(milestone.count == 1, "milestone repeated");
+        removePlayer(h, owner);
+        h.succeed();
+    }
+
+    // hand-made gifts are loved and consumed; chocolates count as a present (not plain feeding) but still fill her up
+    @GameTest(template = "platform")
+    public static void romanticGiftsAreLoved(GameTestHelper h) {
+        floor(h);
+        ServerPlayer owner = player(h, new BlockPos(2, 1, 2));
+        GirlfriendEntity gf = romanceSetup(h, owner, RelationshipStage.FRIENDSHIP, new ItemStack(ModItems.LOVE_LETTER.get()));
+        CompanionData d = gf.data();
+        float affection = d.relationship.affection;
+        gf.interact(owner, InteractionHand.MAIN_HAND);
+        h.assertTrue(owner.getMainHandItem().isEmpty(), "love letter not accepted");
+        h.assertTrue(d.today.get(LogKey.GIFTS_LIKED) >= 1 && d.relationship.affection > affection + 8f, "love letter should count like a favourite gift");
+        h.assertTrue(d.relationship.milestones.contains("love_letter"), "love letter keepsake memory missing");
+
+        d.needs.hunger = 60f;
+        owner.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(ModItems.BOX_OF_CHOCOLATES.get()));
+        gf.interact(owner, InteractionHand.MAIN_HAND);
+        h.assertTrue(owner.getMainHandItem().isEmpty(), "chocolates not accepted");
+        h.assertTrue(d.today.get(LogKey.GIFTS_LIKED) >= 2 && d.today.get(LogKey.FEEDINGS) == 0, "chocolates should be a gift, not plain food");
+        h.assertTrue(d.needs.hunger < 60f, "she should have eaten some chocolates");
+        removePlayer(h, owner);
+        h.succeed();
+    }
+
+    // every romance item can be crafted in survival; the ring recipe matches gold + diamond
+    @GameTest(template = "platform")
+    public static void romanceItemsAreCraftable(GameTestHelper h) {
+        floor(h);
+        var recipes = h.getLevel().getRecipeManager();
+        for (var item : ModItems.romanceItems()) {
+            h.assertTrue(recipes.byKey(item.getId()).isPresent(), "no recipe for " + item.getId());
+        }
+        ItemStack gold = new ItemStack(Items.GOLD_INGOT), diamond = new ItemStack(Items.DIAMOND);
+        CraftingInput grid = CraftingInput.of(3, 3, java.util.List.of(
+                ItemStack.EMPTY, diamond, ItemStack.EMPTY,
+                gold, ItemStack.EMPTY, gold,
+                ItemStack.EMPTY, gold, ItemStack.EMPTY));
+        var ring = recipes.getRecipeFor(RecipeType.CRAFTING, grid, h.getLevel());
+        h.assertTrue(ring.isPresent() && ring.get().value().getResultItem(h.getLevel().registryAccess()).is(ModItems.WEDDING_RING.get()), "ring recipe does not match");
+        h.succeed();
     }
 
     // duplicate prevention: one companion per player by default

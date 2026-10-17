@@ -54,6 +54,19 @@ The mod is needed on both the server and every client. Players without it cannot
 * **Memory**: remembers gifts, meals, rescues, places, conversations and milestones (bounded, merged, saved with her).
 * **Optional cycle** (on by default, non-explicit): a configurable world-time cycle (default 3 Minecraft days with 1 menstrual day) that changes energy, hunger and mood sensitivity and makes her seek comfort. The status display can be hidden (`showCycleStatus`, `allowStatusDisplay`).
 * **Outfits**: everyday, beach and sleepwear (`/gf` wheel entry or automatic sleepwear).
+* **Requests**: now and then she asks for something ("Want to go exploring together?", a gift, being home before
+  night...). Answer by typing in chat ("sure!", "not now") or click the **[Yes]** / **[No]** buttons right after
+  her message. The status screen shows the request and its progress.
+* **Her voice**: she speaks her lines out loud from where she stands, through the Voice/Speech volume slider. The
+  mod uses your system's speech engine (Windows SAPI, macOS `say`, Linux pico2wave/flite/espeak-ng) and reshapes it
+  into her own voice (pitch, timbre, emotion); without one it uses a built-in synthesized voice. See the `sound`
+  section of the client config.
+* **Gifts and marriage**: nine craftable romantic items she loves (recipes in the recipe book; also in the
+  *AI Girlfriend* creative tab): Red Rose, Rose Bouquet, Flower Crown, Box of Chocolates (also food), Teddy Bear,
+  Love Letter (becomes a lasting memory), Heart Necklace, Wrapped Gift Box, and the **Wedding Ring**
+  (diamond over a ring of gold ingots). Right-click her holding the ring to propose: at Deep trust or higher she says
+  yes and you are married (she remembers the day, the status screen shows it and she treats you as her husband);
+  earlier she gently says "not yet" and you keep the ring.
 
 ## Dialogue and AI
 
@@ -63,7 +76,7 @@ about anything (questions, jokes, feelings, Minecraft) with no account, key or e
 
 * **First use**: the model is downloaded once from huggingface.co (checksum verified, resumable) to
   `<game dir>/aigirlfriend/models/`. `builtinModel = AUTO` picks **SMART** (Qwen2.5 1.5B, 1.1 GB, much better
-  answers) on computers with 8+ CPU threads and **SMALL** (Qwen2.5 0.5B, 0.7 GB, faster but simpler) otherwise.
+  answers) on computers with 12+ CPU threads and **SMALL** (Qwen2.5 0.5B, 0.7 GB, faster but simpler) otherwise.
   While it downloads she answers with scripted lines and tells you the progress. Set `builtinAutoDownload = false`
   to download only with `/gf ai download`. `CUSTOM` + `builtinModelPath` loads any Qwen2-family ChatML GGUF file.
 * **Speed**: replies take a few seconds on a gaming PC (she shows "..." while thinking); it runs on background
@@ -94,8 +107,10 @@ Other brains (`ai.brain`):
 
 ## Commands
 
-`/aigirlfriend` (alias `/gf`): `info`, `recall`, `restore`, `name <name>`, `memories`, `ai`, `ai download`, and (operators)
-`debug stage|mood|evaluate_mood|needs|cycle|request|faint|reset_cooldowns`.
+`/aigirlfriend` (alias `/gf`): `info`, `recall`, `restore`, `name <name>`, `memories`, `ai`, `answer yes|no` (what the
+chat buttons run). For operators and the owner of a single-player world: `maxtier` (puts her straight into the
+highest relationship tier, Long-term partners; then propose with the ring to marry her) and `ai download`.
+Operators: `debug stage|mood|evaluate_mood|needs|cycle|request|faint|reset_cooldowns|married`.
 
 ## Configuration guide
 
@@ -115,7 +130,8 @@ Common (server) config `config/aigirlfriend-common.toml`, grouped by section:
 * **requests**: `enabled`, `maxPerDay`, gaps and expiry.
 
 Client config `config/aigirlfriend-client.toml`: HUD (`showHud`, corner), `speechBubbles`, `showCycleStatus`,
-`minimalUi`, `tooltips`, `animationSpeed`, `playerAnimations`, `lockMovement`, hand-pull, voice blips, sounds, and
+`minimalUi`, `tooltips`, `animationSpeed`, `playerAnimations`, `lockMovement`, hand-pull, her voice (`speakAloud`,
+`voiceMode` AUTO/SPEECH/SYNTH/BLIPS/OFF, `voiceVolume`, `voicePitchScale`, `voiceRate`, `systemVoice`), sounds, and
 **pose tuning** for custom models: `carryForward`, `carryHeight`, `carryYaw`, `lapForward`, `lapHeight`, `lapYaw`,
 `seatHeight` (defaults are tuned in game for the bundled model).
 
@@ -159,11 +175,27 @@ Set `-Daigirlfriend.animtest.only=<regex>` to run selected shots.
   animation test harness and a mock player, reviewed from several camera angles, and fixed where it did not look
   natural (see the "in-game review" notes in `tools/build_animations.py`).
 
+* Built-in AI: the pure-Java engine was checked against an independent numpy implementation of Qwen2 (logits and
+  greedy tokens match for Qwen2.5 0.5B q8_0 and 1.5B q4_k_m; tokenizer exact on 172 test strings). In game, the
+  model was downloaded on first use (checksum verified), loaded, and held a conversation through normal chat:
+  her reply always arrives after your line, simple questions are answered ("15 times 3 is 45", what a creeper
+  is), and the [Yes]/[No] request buttons, the see-through speech bubble and the single name tag were checked in
+  screenshots. GameTests cover reply order and the answer buttons.
+
 Known limitations:
 
+* Speed of the built-in brain depends on your CPU. On the 4-core cloud machine used for testing (2 threads for
+  the AI while also rendering the game in software) the small model answered in about 5-15 s, the first answer
+  after loading took about 50 s (it reads her whole persona once), and the SMART model took about 30 s per answer
+  with 4 threads. A typical gaming PC is several times faster. For the best answers use `builtinModel = SMART`
+  (or a bigger model through Ollama / an API).
+* The small built-in models are not as clever as big online AIs: they can get facts wrong or mix up who said what.
+* Her spoken voice was tested outside the game (Linux speech engines, audio analysis); in-game playback and the
+  Windows/macOS speech paths could not be heard here (no audio device).
+
 * Lead-to-bed, swimming and crouch-walking were not covered by the scripted visual test.
-* The AI providers (Ollama, OpenAI-compatible, Anthropic) have not been tested against a live model yet; when a
-  request fails she falls back to the local dialogue, which always works.
+* The external AI providers (Ollama, OpenAI-compatible, Anthropic) have not been tested against a live server;
+  when a request fails she falls back to the local dialogue, which always works.
 * The mock player in the visual test does not move its body on its own, so multi-client testing with real
   players is still worth doing on a server.
 

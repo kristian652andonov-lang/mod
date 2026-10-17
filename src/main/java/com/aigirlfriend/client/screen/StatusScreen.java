@@ -12,11 +12,14 @@ import com.aigirlfriend.network.StatusSnapshot;
 import com.aigirlfriend.network.payload.OutfitPayload;
 import com.aigirlfriend.network.payload.RequestResponsePayload;
 import com.aigirlfriend.network.payload.StatusRequestPayload;
+import com.aigirlfriend.registry.ModItems;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.List;
@@ -89,7 +92,17 @@ public class StatusScreen extends Screen {
         RelationshipStage stage = RelationshipStage.byId(s.stage());
         g.drawString(font, Component.literal(s.name()).withStyle(st -> st.withBold(true)), x + 10, y + 8, 0xFFFFC2E2);
         g.drawString(font, Component.translatable("aigirlfriend.personality." + s.archetype()), x + 12 + font.width(s.name()) + 8, y + 8, 0xFFAAAAAA, false);
-        g.drawString(font, Component.translatable(stage.key()).append(" · ").append(Component.translatable("aigirlfriend.screen.status.days", s.daysTogether())), x + 10, y + 20, 0xFFE0A0FF, false);
+        MutableComponent relation = Component.translatable(stage.key()).append(" · ").append(Component.translatable("aigirlfriend.screen.status.days", s.daysTogether()));
+        if (s.married()) relation.append(" · ").append(Component.translatable("aigirlfriend.screen.status.married").withStyle(st -> st.withColor(0xFFD75E)));
+        g.drawString(font, relation, x + 10, y + 20, 0xFFE0A0FF, false);
+        if (s.married()) {
+            // her wedding ring, drawn small after the text
+            g.pose().pushPose();
+            g.pose().translate(x + 12 + font.width(relation), y + 17, 0);
+            g.pose().scale(0.75f, 0.75f, 1f);
+            g.renderItem(new ItemStack(ModItems.WEDDING_RING.get()), 0, 0);
+            g.pose().popPose();
+        }
 
         // mood
         GuiDraw.icon(g, GuiDraw.ICON_HEART, x + 8, y + 32);

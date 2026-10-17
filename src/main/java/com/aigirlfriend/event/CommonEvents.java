@@ -80,6 +80,11 @@ public final class CommonEvents {
         CompanionTransfer.clear();
         SLEEPING.clear();
         PORTAL_FOLLOWERS.clear();
+        // game times from this world must not leak into the next one (a smaller clock would block chat for hours)
+        LAST_CHAT.clear();
+        ServerPayloadHandler.clear();
+        DialogueService.clear();
+        com.aigirlfriend.ai.AIService.clear();
     }
 
     @SubscribeEvent
@@ -236,40 +241,71 @@ public final class CommonEvents {
         ServerPlayer player = event.getPlayer();
         String raw = event.getRawText();
         double radius = GFConfig.CHAT_LISTEN_RADIUS.get();
+        String lower = raw.toLowerCase(java.util.Locale.ROOT);
+        List<GirlfriendEntity> near = new ArrayList<>();
         for (GirlfriendEntity gf : ActiveCompanions.ownedBy(player.getUUID())) {
-            if (gf.level() != player.level() || gf.distanceTo(player) > radius) continue;
-            String name = gf.data().name;
-            String lower = raw.toLowerCase();
-            String n = name.toLowerCase();
-            boolean addressed = lower.startsWith("@" + n) || lower.matches(".*\\b" + java.util.regex.Pattern.quote(n) + "\\b.*")
-                    || inConversation(gf, player) || aloneWith(gf, player, radius);
-            if (!addressed) continue;
-            long now = player.level().getGameTime();
-            Long last = LAST_CHAT.get(player.getUUID());
-            if (last != null && now - last < 15) return;
-            LAST_CHAT.put(player.getUUID(), now);
-            String message = ServerPayloadHandler.sanitize(raw.replaceFirst("(?i)^@?" + java.util.regex.Pattern.quote(name) + "[,:]?\\s*", ""));
-            if (message.isEmpty()) message = "Hey " + name;
-            final String msg = message;
-            player.server.execute(() -> {
-                if (!gf.isRemoved()) DialogueService.playerSays(gf, player, msg);
-            });
-            return;
+            if (gf.level() == player.level() && gf.distanceTo(player) <= radius) near.add(gf);
         }
+        if (near.isEmpty()) return;
+        // 1) the message names one of them
+        GirlfriendEntity target = null;
+        for (GirlfriendEntity gf : near) {
+            String n = gf.data().name.toLowerCase(java.util.Locale.ROOT);
+            if (lower.startsWith("@" + n) || lower.matches(".*\\b" + java.util.regex.Pattern.quote(n) + "\\b.*")) {
+                target = gf;
+                break;
+            }
+        }
+        // 2) otherwise the one the player is talking with, or anyone if nobody else is online to be talking to
+        if (target == null) {
+            long best = Long.MIN_VALUE;
+            for (GirlfriendEntity gf : near) {
+                long t = lastPlayerLine(gf);
+                if (t > best) {
+                    best = t;
+                    target = gf;
+                }
+            }
+            long since = player.level().getGameTime() - best;
+            boolean talking = target != null && since >= 0 && since < 1200;
+            if (!talking) {
+                if (!onlyPlayerOnline(player)) return;
+                target = nearest(near, player);
+            }
+        }
+        long now = player.level().getGameTime();
+        Long last = LAST_CHAT.get(player.getUUID());
+        if (last != null && now - last >= 0 && now - last < 15) return;
+        LAST_CHAT.put(player.getUUID(), now);
+        String name = target.data().name;
+        String message = ServerPayloadHandler.sanitize(raw.replaceFirst("(?i)^@?" + java.util.regex.Pattern.quote(name) + "[,:]?\\s*", ""));
+        if (message.isEmpty()) message = "Hey " + name;
+        final String msg = message;
+        final GirlfriendEntity gf = target;
+        player.server.execute(() -> {
+            if (!gf.isRemoved()) DialogueService.playerSays(gf, player, msg);
+        });
     }
 
-    /** They talked within the last minute: the next line is for her even without her name. */
-    private static boolean inConversation(GirlfriendEntity gf, ServerPlayer player) {
-        var recent = gf.data().history.recent(1);
-        return !recent.isEmpty() && player.level().getGameTime() - recent.get(0).gameTime() < 1200;
+    /** Game time of the player's last line to her (her own lines do not count), or Long.MIN_VALUE. */
+    private static long lastPlayerLine(GirlfriendEntity gf) {
+        var lines = gf.data().history.recent(64);
+        for (int i = lines.size() - 1; i >= 0; i--) if (lines.get(i).fromPlayer()) return lines.get(i).gameTime();
+        return Long.MIN_VALUE;
     }
 
-    /** Nobody else is around to be talking to. */
-    private static boolean aloneWith(GirlfriendEntity gf, ServerPlayer player, double radius) {
-        for (ServerPlayer other : player.serverLevel().players()) {
-            if (other != player && !other.isSpectator() && other.distanceTo(gf) <= radius * 2) return false;
+    /** Chat is global: only when nobody else is online can an unnamed message only be meant for her. */
+    private static boolean onlyPlayerOnline(ServerPlayer player) {
+        for (ServerPlayer other : player.server.getPlayerList().getPlayers()) {
+            if (other != player && !other.isSpectator()) return false;
         }
         return true;
+    }
+
+    private static GirlfriendEntity nearest(List<GirlfriendEntity> list, ServerPlayer player) {
+        GirlfriendEntity best = list.get(0);
+        for (GirlfriendEntity gf : list) if (gf.distanceToSqr(player) < best.distanceToSqr(player)) best = gf;
+        return best;
     }
 
     @SubscribeEvent(priority = EventPriority.HIGH)

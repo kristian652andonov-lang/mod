@@ -30,6 +30,10 @@ public final class ServerPayloadHandler {
 
     private ServerPayloadHandler() {}
 
+    public static void clear() {
+        LAST_TALK.clear();
+    }
+
     @Nullable
     private static GirlfriendEntity owned(ServerPlayer player, int entityId, double maxDist) {
         Entity e = player.level().getEntity(entityId);
@@ -79,7 +83,7 @@ public final class ServerPayloadHandler {
         if (gf == null) return;
         long now = player.level().getGameTime();
         Long last = LAST_TALK.get(player.getUUID());
-        if (last != null && now - last < 15) return;
+        if (last != null && now - last >= 0 && now - last < 15) return;
         LAST_TALK.put(player.getUUID(), now);
         String msg = sanitize(p.message());
         if (msg.isEmpty()) return;

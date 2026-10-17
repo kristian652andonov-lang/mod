@@ -24,6 +24,7 @@ public final class AIGirlfriend {
     public AIGirlfriend(IEventBus modBus, ModContainer container) {
         ModEntities.ENTITIES.register(modBus);
         ModItems.ITEMS.register(modBus);
+        ModItems.TABS.register(modBus);
         modBus.addListener(ModNetwork::register);
         modBus.addListener(AIGirlfriend::onAttributes);
         modBus.addListener(ModItems::addToTabs);

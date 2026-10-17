@@ -29,7 +29,7 @@ public final class PromptBuilder {
      * message has to be read.
      */
     public static List<LocalChat.Message> chat(DialogueContext c, @Nullable String playerMessage) {
-        String key = c.name + "|" + c.playerName;
+        String key = c.companionId + "|" + c.playerName;
         List<ConversationHistory.Line> lines = new ArrayList<>(c.history);
         long nowLine = -1;
         // the current message was already added to the history
@@ -43,8 +43,7 @@ public final class PromptBuilder {
         String pending = "";
         if (last == LocalChat.Role.USER) pending = out.remove(out.size() - 1).text() + "\n"; // player lines she has not answered yet
         String situation = situation(c);
-        // repeat the situation only when it changed (and is still visible in the window)
-        String note = noted[0] && situation.equals(LAST_NOTE.get(key)) ? "" : "(" + situation + ")\n";
+        String note = note(key, situation, noted[0]);
         if (playerMessage != null) {
             LAST_NOTE.put(key, situation);
             if (nowLine >= 0 && !note.isEmpty()) NOTES.put(key + "|" + nowLine, note);
@@ -56,10 +55,24 @@ public final class PromptBuilder {
         return out;
     }
 
-    /** The conversation so far without a new message: what {@link #chat} will start with next time (for read-ahead). */
-    public static List<LocalChat.Message> chatSoFar(DialogueContext c) {
-        return turns(c, c.name + "|" + c.playerName, new ArrayList<>(c.history), new boolean[1]);
+    /** Repeat the situation only when it changed (and is still visible in the window). */
+    private static String note(String key, String situation, boolean noted) {
+        return noted && situation.equals(LAST_NOTE.get(key)) ? "" : "(" + situation + ")\n";
     }
+
+    /**
+     * What {@link #chat} will most likely start with for the player's next message: the conversation so far plus
+     * the beginning of that message (situation note and the player's name), for read-ahead.
+     */
+    public static ReadAhead chatSoFar(DialogueContext c) {
+        String key = c.companionId + "|" + c.playerName;
+        boolean[] noted = new boolean[1];
+        List<LocalChat.Message> turns = turns(c, key, new ArrayList<>(c.history), noted);
+        if (turns.get(turns.size() - 1).role() == LocalChat.Role.USER) return new ReadAhead(turns.subList(0, turns.size() - 1), null);
+        return new ReadAhead(turns, note(key, situation(c), noted[0]) + c.playerName + ":");
+    }
+
+    public record ReadAhead(List<LocalChat.Message> turns, @Nullable String openUser) {}
 
     private static List<LocalChat.Message> turns(DialogueContext c, String key, List<ConversationHistory.Line> all, boolean[] noted) {
         List<LocalChat.Message> out = new ArrayList<>();
@@ -117,6 +130,13 @@ public final class PromptBuilder {
         return lines.subList(from, lines.size());
     }
 
+    /** Things a small model tends to get wrong about the world she lives in. */
+    private static final String MINECRAFT_FACTS = "What you know about your world: creepers are green, silent monsters that sneak up and explode; "
+            + "zombies, skeletons and spiders come out at night or in the dark; endermen are tall and teleport, don't look them in the eyes; "
+            + "diamonds are found deep underground; redstone carries power like electricity and makes doors, lamps and machines work; "
+            + "the Nether is a hot, dangerous world reached through an obsidian portal; villagers trade for emeralds; "
+            + "sleeping in a bed skips the night.\n";
+
     /** Stable character definition for the built-in model (changes only with name, relationship or personality). */
     private static String persona(DialogueContext c) {
         String n = c.name, p = c.playerName;
@@ -127,6 +147,7 @@ public final class PromptBuilder {
                 + "feelings and ideas, suggest things, tease a little, and only sometimes ask a question back. Answer what " + p + " actually said; "
                 + "if they ask something factual, answer it simply and correctly in your own words. Lines in parentheses describe the situation: "
                 + "use them, never repeat them. Keep romance sweet and innocent. No emojis, no lists, no stage directions.\n"
+                + MINECRAFT_FACTS
                 + "Example:\n" + p + ": what should we do?\n" + n + ": Let's build a little cottage by the river, I already picked flowers for the garden!";
     }
 
@@ -172,6 +193,7 @@ public final class PromptBuilder {
     }
 
     private static String stageDescription(DialogueContext c) {
+        if (c.married) return "you are married to them, their loving wife; you adore them, call them lovingly (my love, darling, honey) and share your whole life together";
         return switch (c.stage) {
             case ACQUAINTANCE -> "you only recently met and are still a bit unsure of each other";
             case FRIENDSHIP -> "you are friends";
@@ -264,6 +286,14 @@ public final class PromptBuilder {
             case GIFT_DISLIKED -> "They offered you " + c.var("item", "something") + " but you don't like " + c.var("category", "that") + "; politely give it back.";
             case GIFT_CONFUSED -> "They handed you " + c.var("item", "something") + " and you don't know what it's for.";
             case MILESTONE -> "Your relationship just grew deeper (" + c.var("stage", "closer") + "). Express it.";
+            case GIFT_ROMANTIC -> (c.var("gift", "").equals("love_letter")
+                    ? c.playerName + " wrote you a love letter and you just read it."
+                    : "They gave you " + c.var("item", "a romantic present") + ", a romantic present.") + " You are overjoyed and deeply touched.";
+            case PROPOSAL_ACCEPTED -> c.playerName + " just proposed to you with a wedding ring and you said yes. You are surprised, overjoyed and emotional; you are now married.";
+            case PROPOSAL_DECLINED -> c.romantic()
+                    ? c.playerName + " proposed with a wedding ring, but it is too soon for you. Gently say not yet, you love them, and they should ask again someday."
+                    : c.playerName + " suddenly proposed with a wedding ring although you are not even a couple. You are flustered; say it is far too soon.";
+            case PROPOSAL_ALREADY_MARRIED -> "You are already married to " + c.playerName + " and they playfully proposed again with another ring. React cutely and tell them to keep it.";
             case RENAMED -> "They gave you a new name: " + c.name + ".";
             case HOME_SET -> "You just decided this place is your home together.";
             case COMMAND_FOLLOW -> "They ask you to follow them.";

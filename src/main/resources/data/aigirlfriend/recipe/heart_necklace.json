@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "N": {
+      "item": "minecraft:gold_nugget"
+    },
+    "R": {
+      "item": "minecraft:red_dye"
+    }
+  },
+  "pattern": [
+    "N N",
+    "N N",
+    " R "
+  ],
+  "result": {
+    "count": 1,
+    "id": "aigirlfriend:heart_necklace"
+  }
+}

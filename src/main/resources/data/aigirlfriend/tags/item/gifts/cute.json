@@ -1,3 +1,3 @@
 {
-  "values": [{"id": "#c:dyes", "required": false}, "minecraft:feather", "minecraft:rabbit_foot", "minecraft:nautilus_shell", "minecraft:turtle_scute", "minecraft:glow_ink_sac", "minecraft:name_tag", "minecraft:white_wool", "minecraft:pink_wool", "minecraft:egg", "minecraft:honeycomb"]
+  "values": [{"id": "#c:dyes", "required": false}, "minecraft:feather", "minecraft:rabbit_foot", "minecraft:nautilus_shell", "minecraft:turtle_scute", "minecraft:glow_ink_sac", "minecraft:name_tag", "minecraft:white_wool", "minecraft:pink_wool", "minecraft:egg", "minecraft:honeycomb", "aigirlfriend:teddy_bear"]
 }

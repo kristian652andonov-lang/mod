@@ -23,6 +23,8 @@ public final class LocalChat {
     private final int contextSize;
     private final int maxSessions;
     private final int imStart, imEnd, endOfText, newline;
+    /** Tokens containing a line break ("\n", "\n\n", ".\n"...): a reply is one paragraph, so they end it. */
+    private final boolean[] breaksLine;
     private final Map<String, Model.Session> sessions = new LinkedHashMap<>(8, 0.75f, true);
 
     public LocalChat(Model model, int contextSize, int maxSessions) {
@@ -35,6 +37,12 @@ public final class LocalChat {
         this.endOfText = t.id("<|endoftext|>");
         List<Integer> nl = t.encode("\n", false);
         this.newline = nl.size() == 1 ? nl.get(0) : -1;
+        this.breaksLine = new boolean[t.vocabSize()];
+        for (int id = 0; id < breaksLine.length; id++) {
+            byte[] b = t.tokenBytes(id);
+            if (b == null) continue;
+            for (byte x : b) if (x == '\n') breaksLine[id] = true;
+        }
         if (imStart < 0 || imEnd < 0) throw new IllegalArgumentException("Model has no ChatML tokens; use an instruct/chat model");
     }
 
@@ -64,10 +72,16 @@ public final class LocalChat {
 
     /**
      * Processes these messages ahead of time (no reply), so a later {@link #reply} whose prompt starts with them
-     * only has to read what is new. Returns the number of tokens processed (0 if already cached or too long).
+     * only has to read what is new. {@code openUser}, if not null, is the known beginning of the next user message.
+     * Returns the number of tokens processed (0 if already cached or too long).
      */
-    public int prefill(String sessionKey, List<Message> messages, int reserve) {
+    public int prefill(String sessionKey, List<Message> messages, String openUser, int reserve) {
         List<Integer> prompt = renderTurns(messages);
+        if (openUser != null) {
+            prompt.add(imStart);
+            prompt.addAll(model.tokenizer.encode("user\n", false));
+            prompt.addAll(model.tokenizer.encode(openUser, false));
+        }
         if (prompt.size() + reserve > contextSize) return 0;
         Model.Session s = session(sessionKey);
         int reuse = 0;
@@ -85,6 +99,12 @@ public final class LocalChat {
      * not fit the context. Generation stops at the end-of-turn token, after {@code maxTokens}, or at the end of the paragraph.
      */
     public Reply reply(String sessionKey, List<Message> messages, int maxTokens, float temperature, float topP, long seed) {
+        return reply(sessionKey, messages, maxTokens, temperature, topP, seed, null);
+    }
+
+    /** As above; generation stops early (keeping what it has) once {@code stop} returns true. */
+    public Reply reply(String sessionKey, List<Message> messages, int maxTokens, float temperature, float topP, long seed,
+                       java.util.function.BooleanSupplier stop) {
         long start = System.currentTimeMillis();
         List<Message> msgs = new ArrayList<>(messages);
         List<Integer> prompt = render(msgs);
@@ -110,8 +130,9 @@ public final class LocalChat {
         for (int i = 0; i < maxTokens; i++) {
             int tok = sampler.sample(logits, recent, recentCount, null, random);
             if (tok == imEnd || tok == endOfText || model.tokenizer.isControl(tok)) break;
-            if (tok == newline && !out.isEmpty()) break; // replies are a single paragraph
-            if (tok != newline) {
+            if (breaksLine[tok] && !out.isEmpty()) break; // replies are a single paragraph
+            if (stop != null && stop.getAsBoolean()) break;
+            if (!breaksLine[tok]) {
                 out.add(tok);
                 recent[recentPos] = tok;
                 recentPos = (recentPos + 1) % recent.length;

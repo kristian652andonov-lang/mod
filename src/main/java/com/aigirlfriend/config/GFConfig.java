@@ -164,7 +164,7 @@ public final class GFConfig {
                 "in the environment variable named by apiKeyEnvVar, or in config/aigirlfriend/secrets.properties as api_key=...").push("ai");
         AI_BRAIN = b.comment("BUILTIN (default), OLLAMA (local server), OPENAI_COMPATIBLE (LM Studio, llama.cpp server, OpenAI, OpenRouter, ...),",
                 "ANTHROPIC, or OFF (scripted lines only, no network).").defineEnum("brain", Brain.BUILTIN);
-        AI_BUILTIN_MODEL = b.comment("Built-in model: AUTO (SMART on computers with 8+ CPU threads, else SMALL), SMALL (Qwen2.5 0.5B, 0.7 GB",
+        AI_BUILTIN_MODEL = b.comment("Built-in model: AUTO (SMART on computers with 12+ CPU threads, else SMALL), SMALL (Qwen2.5 0.5B, 0.7 GB",
                 "download, fast but simple), SMART (Qwen2.5 1.5B, 1.1 GB, much better answers, about 3x slower), or CUSTOM (any",
                 "Qwen2-family ChatML GGUF file at builtinModelPath).").defineEnum("builtinModel", BuiltinModel.AUTO);
         AI_BUILTIN_PATH = b.comment("GGUF file for builtinModel = CUSTOM (absolute, or relative to the game directory).").define("builtinModelPath", "");

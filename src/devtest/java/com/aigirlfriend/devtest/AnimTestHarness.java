@@ -146,7 +146,7 @@ public final class AnimTestHarness {
         VIEWS.put("beds_top", new View(Anchor.BED2, 179, 0.5f, 3.4f, 0.5f));
         VIEWS.put("beds_foot", new View(Anchor.BED2, 0, 3.0f, 2.2f, 0.55f));
         VIEWS.put("talk", new View(Anchor.HER, 15, 3.4f, 1.7f, 1.55f));
-        VIEWS.put("aim", new View(Anchor.HER, 0, 2.6f, 1.2f, 1.0f));
+        VIEWS.put("aim", new View(Anchor.HER, 0, 3.0f, 1.5f, 1.2f)); // crosshair on her, room above her head
     }
 
     private final Minecraft mc = Minecraft.getInstance();
@@ -222,6 +222,10 @@ public final class AnimTestHarness {
     @SubscribeEvent
     public void onFrame(RenderFrameEvent.Post event) {
         frames++;
+        if (shot != null && extraCapAt >= 0 && frames >= extraCapAt) {
+            extraCapAt = -1;
+            grab(String.format("%s__reply%d_t%d", shot.name, ++extraCaps, ticks - shotStart));
+        }
         if (shot == null || camSetFrame < 0 || frames < camSetFrame + 3) return;
         Cap cap = shot.caps.get(capIdx);
         grab(String.format("%s__%02d_%s_t%d", shot.name, capIdx, cap.view(), ticks - shotStart));
@@ -273,11 +277,12 @@ public final class AnimTestHarness {
         if (event.getMessage().getString().startsWith("<" + gfName + ">")) {
             herLines++;
             lastHerAt = ticks - shotStart;
+            if (shot.gui) extraCapAt = frames + 20; // show the chat and her bubble right after she answers
         }
     }
 
     private volatile String gfName = "";
-    private int chatLines, herLines, sent, lastSentAt, lastHerAt;
+    private int chatLines, herLines, sent, lastSentAt, lastHerAt, extraCapAt = -1, extraCaps;
 
     /** The camera player (the real client) says something in chat, through the normal chat pipeline. */
     void clientChat(String text) {
@@ -294,6 +299,7 @@ public final class AnimTestHarness {
         for (ServerPlayer p : server().getPlayerList().getPlayers()) if (p != tp) viewer = p;
         if (viewer == null) return;
         gf.setOwner(viewer.getUUID());
+        gf.setCustomName(net.minecraft.network.chat.Component.literal("Iris")); // the test lines call her Iris
         gf.data().history.clear();
         com.aigirlfriend.config.GFConfig.AI_BRAIN.set(ai ? com.aigirlfriend.config.GFConfig.Brain.BUILTIN : com.aigirlfriend.config.GFConfig.Brain.OFF);
         if (ai) com.aigirlfriend.ai.BuiltinBrain.ensureStarted(true);
@@ -398,6 +404,8 @@ public final class AnimTestHarness {
         gf.goalSelector.removeAllGoals(g -> REMOVED_GOALS.contains(g.getClass().getSimpleName()));
         gfId = gf.getId();
         tpId = tp.getId();
+        // the AI chat shot needs the built-in brain: start its (first-run) download / load right away
+        if (only == null || "ui_chat_ai".matches(only)) com.aigirlfriend.ai.BuiltinBrain.ensureStarted(true);
         setupDone = true;
         AIGirlfriend.LOGGER.info("[animtest] scene ready at {} (gf {}, player {})", origin, gfId, tpId);
     }
@@ -720,7 +728,8 @@ public final class AnimTestHarness {
         }).cap(20, "beds_top").cap(40, "beds_foot");
 
         // chat, name tag and speech bubble checks (GUI visible)
-        shot("ui_nametag", h -> h.chatSetup(false)).gui().cap(20, "aim").cap(30, "aim");
+        // after the rename line's bubble is gone: only her pink name plate may show (no white vanilla name tag)
+        shot("ui_nametag", h -> h.chatSetup(false)).gui().cap(20, "aim").cap(230, "aim");
         shot("ui_bubble_leaves", h -> {
             h.chatSetup(false);
             h.leafWall();
@@ -729,12 +738,20 @@ public final class AnimTestHarness {
         shot("ui_chat_scripted", h -> h.chatSetup(false)).gui()
                 .clientTick((h, t) -> h.converse(t, "Iris, how are you?", "Iris, you look cute."))
                 .caps("talk", 12, 30, 60, 120, 200, 280);
+        shot("ui_request_buttons", h -> {
+            h.chatSetup(false);
+            com.aigirlfriend.companion.RequestSystem.issue(h.gf, com.aigirlfriend.companion.RequestType.EXPLORE_TOGETHER, h.gf.getOwner());
+        }).gui()
+                .clientTick((h, t) -> {
+                    if (t == 60 && h.mc.player != null) h.mc.player.connection.sendCommand("aigirlfriend answer yes"); // what the [Yes] button runs
+                })
+                .caps("talk", 30, 110);
         shot("ui_chat_ai", h -> h.chatSetup(true)).gui()
                 .clientTick((h, t) -> {
                     if (com.aigirlfriend.ai.BuiltinBrain.ready()) h.converse(t, "Hi Iris. How are you?", "You look cute.", "Iris, what's 15 times 3?",
                             "Iris, can you tell me what a creeper is?", "Iris I love you");
                 })
-                .caps("talk", 20, 400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600);
+                .caps("talk", 20, 2400, 4800);
     }
 
     private boolean walkToEast = true;

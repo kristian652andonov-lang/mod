@@ -11,8 +11,10 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -30,6 +32,7 @@ public final class LocalDialogueGenerator {
     private static final Map<Intent, List<T>> REPLIES = new EnumMap<>(Intent.class);
     private static final Map<UUID, Deque<Integer>> RECENT = new HashMap<>();
     private static final Predicate<DialogueContext> ANY = c -> true;
+    private static final Set<String> SPECIAL_GIFTS = new HashSet<>();
 
     // ---- predicates ----
     private static Predicate<DialogueContext> romantic() { return DialogueContext::romantic; }
@@ -37,6 +40,7 @@ public final class LocalDialogueGenerator {
     private static Predicate<DialogueContext> early() { return c -> c.stage.ordinal() <= RelationshipStage.FRIENDSHIP.ordinal(); }
     private static Predicate<DialogueContext> close() { return c -> c.stage.atLeast(RelationshipStage.GROWING_AFFECTION); }
     private static Predicate<DialogueContext> deep() { return c -> c.stage.atLeast(RelationshipStage.DEEP_TRUST); }
+    private static Predicate<DialogueContext> married() { return c -> c.married; }
     private static Predicate<DialogueContext> shy() { return c -> c.personality.shyness > 0.6f; }
     private static Predicate<DialogueContext> playful() { return c -> c.personality.playfulness > 0.6f; }
     private static Predicate<DialogueContext> bold() { return c -> c.personality.confidence > 0.6f; }
@@ -60,6 +64,12 @@ public final class LocalDialogueGenerator {
 
     private static void add(DialogueTrigger t, Predicate<DialogueContext> cond, String... texts) {
         for (String s : texts) LINES.computeIfAbsent(t, k -> new ArrayList<>()).add(new T(s, cond, 1.6f));
+    }
+
+    /** Lines for one hand-made romantic gift (var "gift" = item path); unknown gifts use the generic lines. */
+    private static void giftLines(String gift, Predicate<DialogueContext> cond, String... texts) {
+        SPECIAL_GIFTS.add(gift);
+        add(DialogueTrigger.GIFT_ROMANTIC, cond.and(c -> c.var("gift", "").equals(gift)), texts);
     }
 
     private static void reply(Intent i, String... texts) {
@@ -343,6 +353,66 @@ public final class LocalDialogueGenerator {
         add(DialogueTrigger.HOME_SET,
                 "Home sweet home! I like it here.",
                 "Our home... I like the sound of that.");
+        add(DialogueTrigger.AFFECTIONATE, married(),
+                "Being your wife is the best thing that ever happened to me.",
+                "I still look at my ring every day and smile.",
+                "I'm so lucky I get to call you mine. Forever.");
+        add(DialogueTrigger.GOOD_MORNING, married().and(flag("together")),
+                "Good morning, my love. I still can't believe I get to wake up next to you every day.");
+        add(DialogueTrigger.WAVE_GOODBYE, married(), "Come home to me soon, okay? I'll be waiting for you.");
+
+        // ------------------------------------------------------------ romantic gifts & proposal
+        add(DialogueTrigger.GIFT_ROMANTIC, c -> !SPECIAL_GIFTS.contains(c.var("gift", "")),
+                "For me? Oh, {player}... this is the sweetest thing. I love it so much!",
+                "*hugs it to her chest* You're so romantic. Thank you, really.");
+        giftLines("red_rose", ANY,
+                "A red rose... for me? *smells it* It's beautiful. Thank you, {player}.",
+                "*twirls the rose* You know red roses mean love, right? ...I'm keeping it forever.");
+        giftLines("rose_bouquet", ANY,
+                "A whole bouquet of roses?! {player}, they're gorgeous! *hugs them close*",
+                "*buries her face in the roses* They smell amazing. Nobody's ever given me flowers like this.",
+                "Roses, for me? I'm putting them somewhere I can see them every day.");
+        giftLines("flower_crown", ANY,
+                "*puts the flower crown on* How do I look? Like a princess? Hehe, thank you!",
+                "You made me a flower crown? It's so pretty... I feel like the queen of the meadow.");
+        giftLines("box_of_chocolates", ANY,
+                "Chocolates! *opens the box* Mmm... okay, I'm eating one right now. Want one too?",
+                "A heart-shaped box of chocolates? You really know the way to my heart~",
+                "*pops a chocolate in her mouth* Mmm! These are the best. You spoil me.");
+        giftLines("teddy_bear", ANY,
+                "A teddy bear! *squeezes it tight* He's so soft... I'm going to sleep with him every night.",
+                "Aww, look at his little face! I'm naming him Mr. Snuggles. Thank you!",
+                "*hugs the teddy bear* Now I have something to cuddle when you're away.");
+        giftLines("love_letter", romantic(),
+                "*reads the letter slowly, then presses it to her chest* {player}... I'm going to read this a hundred times.",
+                "*her eyes get teary as she reads* Nobody has ever written me something this sweet. I love you so much.",
+                "*reads it twice, blushing* You wrote this... for me? I'm keeping it forever. Every single word.");
+        giftLines("love_letter", notRomantic(),
+                "*reads the letter and turns bright red* You... you really feel this way about me? I don't know what to say... thank you.",
+                "*hides her smile behind the letter* That's the sweetest thing anyone has ever written to me.");
+        giftLines("heart_necklace", ANY,
+                "A heart necklace... *puts it on* Will you help me with the clasp? ...There. I'll never take it off.",
+                "It's beautiful! *holds the little heart* Now I carry a piece of you with me everywhere.");
+        giftLines("gift_box", ANY,
+                "A present? For me? *unwraps it carefully* Oh! I love it! What's the occasion? ...Just because? You're the sweetest.",
+                "*shakes the box* What could it be... *tears the paper open* Aaah, it's perfect! Thank you!");
+        add(DialogueTrigger.PROPOSAL_ACCEPTED,
+                "*gasps, hands over her mouth* Yes... yes! Of course I'll marry you, {player}!",
+                "Is this... a ring? *happy tears* Yes! A thousand times yes! I love you so much!",
+                "*trembling* I've dreamed about this moment... Yes. I want to spend forever with you.",
+                "*throws her arms around you* YES! Oh my gosh, yes! I'm going to be your wife!");
+        add(DialogueTrigger.PROPOSAL_DECLINED, romantic(),
+                "*blushes deeply* I love you, I really do. But it's a little soon. Ask me again someday, okay? Keep the ring safe for me.",
+                "Oh! *covers her face* That's the sweetest thing... but not yet. Let's grow a little closer first. Ask me again someday, I'll be waiting.",
+                "*holds your hands* My heart is racing... but I want us to be really sure. Not yet, okay? Hold on to that ring.");
+        add(DialogueTrigger.PROPOSAL_DECLINED, notRomantic(),
+                "W-wait, a ring?! We barely know each other! Put that away before I faint!",
+                "*turns bright red* M-marry you? That's way too soon! Maybe take me on a few adventures first?",
+                "Hehe, you're funny. Let's get to know each other first, okay?");
+        add(DialogueTrigger.PROPOSAL_ALREADY_MARRIED,
+                "*giggles and shows you her ring* Silly, we're already married! I'd say yes all over again, though.",
+                "Another ring? Hehe, one is enough, {player}. Keep it, okay?",
+                "You're proposing again? *kisses your cheek* I still say yes. Every single day.");
 
         // ------------------------------------------------------------ commands
         add(DialogueTrigger.COMMAND_FOLLOW, "Right behind you!", "Okay, lead the way!", "Coming!");
@@ -466,6 +536,8 @@ public final class LocalDialogueGenerator {
         reply(Intent.ASK_RELATIONSHIP, early(), "We're friends, right? I'd like that.", "I'm still getting to know you. But I like where this is going.");
         reply(Intent.ASK_RELATIONSHIP, close(), "I think... we're more than friends. Right?");
         reply(Intent.ASK_RELATIONSHIP, romantic(), "You're my partner, silly. My favorite person in the world.");
+        reply(Intent.ASK_RELATIONSHIP, married(), "We're married, silly! You're stuck with me forever~", "I'm your wife, and you're my everything.");
+        reply(Intent.LOVE, married(), "I love you too, my love. More every day since we got married.");
         reply(Intent.PROMISE, "I'm holding you to that!", "Promise? Okay. I'll remember.", "Really? You promise? Yay!");
         reply(Intent.PROMISE_KEPT, "You kept your promise! Thank you.", "I knew you would. Thank you for keeping your word.");
         reply(Intent.PLAN, "Yes! Let's do it.", "Sounds fun! I'm in.", "Lead the way!");
@@ -536,6 +608,10 @@ public final class LocalDialogueGenerator {
     }
 
     private static String petName(DialogueContext c, RandomSource r) {
+        if (c.married) {
+            String[] names = {"my love", "darling", "honey", "sweetheart", "my love", c.playerName};
+            return names[r.nextInt(names.length)];
+        }
         if (!c.romantic() || c.personality.shyness > 0.75f && r.nextBoolean()) return c.playerName;
         String[] names = c.stage.atLeast(RelationshipStage.DEEP_TRUST)
                 ? new String[]{"love", "darling", "sweetheart", "my love", c.playerName, "dear"}
@@ -591,6 +667,13 @@ public final class LocalDialogueGenerator {
         return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
+    /** "I", names and other proper words keep their capital letter after an opener ("Hey, Iris..." not "Hey, iris..."). */
+    private static boolean keepsCapital(String text, DialogueContext c) {
+        String first = text.split("[^\\p{L}']", 2)[0];
+        return first.equals("I") || first.startsWith("I'") || first.equals(c.name) || first.equals(c.playerName)
+                || first.length() > 1 && Character.isUpperCase(first.charAt(1));
+    }
+
     /** Personality and context flavour: openers, need remarks, follow-up questions. */
     private static String decorate(String text, DialogueContext c, RandomSource r, boolean allowFollowUp) {
         StringBuilder sb = new StringBuilder();
@@ -604,13 +687,15 @@ public final class LocalDialogueGenerator {
                 default -> "Hey, ";
             };
             if (c.mood == Mood.SLEEPY && r.nextBoolean()) opener = "*yawns* ";
-            sb.append(opener).append(Character.toLowerCase(text.charAt(0))).append(text.substring(1));
+            sb.append(opener).append(keepsCapital(text, c) ? text : Character.toLowerCase(text.charAt(0)) + text.substring(1));
         } else {
             sb.append(text);
         }
         boolean needsTrigger = c.trigger == DialogueTrigger.HUNGRY || c.trigger == DialogueTrigger.STARVING || c.trigger == DialogueTrigger.FED
                 || c.trigger == DialogueTrigger.TIRED || c.trigger == DialogueTrigger.EXHAUSTED || c.trigger == DialogueTrigger.FULL;
-        boolean urgent = c.fear > 0.3f || c.trigger.name().startsWith("HURT") || c.trigger == DialogueTrigger.CRITICAL || c.trigger == DialogueTrigger.SCARED;
+        // "urgent" also covers big moments (a proposal) that should not end in small talk
+        boolean urgent = c.fear > 0.3f || c.trigger.name().startsWith("HURT") || c.trigger == DialogueTrigger.CRITICAL || c.trigger == DialogueTrigger.SCARED
+                || c.trigger.name().startsWith("PROPOSAL_");
         if (!needsTrigger && !urgent && r.nextFloat() < 0.25f) {
             if (c.hunger >= 60) sb.append(" ...Also, I'm getting hungry.");
             else if (c.energy <= 25) sb.append(" I'm kind of sleepy, though.");
