@@ -124,6 +124,7 @@ final class DevScripts {
                 else if (name.equals("worldforge")) worldforge(b);
                 else if (name.startsWith("remote:")) remote(b, name.substring(7));
                 else if (name.startsWith("god:")) god(b, name.substring(4));
+                else if (name.equals("scout")) scout(b);
                 else if (name.startsWith("local:")) local(b, name.substring(6));
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
                 else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
@@ -439,69 +440,139 @@ final class DevScripts {
 
 
     /**
-     * A power of the Weapon of God (fwterrain world): {@code ability/distance/ticks,.../vx,vy,vz[/aftermath x,y,z;...]}. The caster
+     * A power of the Weapon of God (fwterrain world): {@code ability[@x,z]/distance/ticks,.../tick@vx,vy,vz[,lx,ly,lz];...[/aftermath x,y,z,yaw,pitch;...[/map radius]]}. The caster
      * stands on the ground {@code distance} blocks south of the target (0, 0) facing it and casts through the map; the
      * summoning is filmed from beside them (ticks under {@link com.fantasyweapons.weapons.god.DivineSummoning#TICKS}), the power
-     * from a camera at {@code vx, vy, vz} looking at the target; then views of what is left.
+     * from a camera at {@code vx, vy, vz} looking at the target (or at {@code lx, ly, lz}); then views of what is left.
      */
     private static void god(ScreenshotDirector.Builder b, String spec) {
         String[] parts = spec.split("/");
-        String ability = parts[0];
+        // name@x,z: filmed round that spot (fresh land far from the middle), every position below relative to it
+        String ability = parts[0].contains("@") ? parts[0].substring(0, parts[0].indexOf('@')) : parts[0];
+        double cx = 0, cz = 0;
+        if (parts[0].contains("@")) {
+            String[] c = parts[0].substring(parts[0].indexOf('@') + 1).split(",");
+            cx = Double.parseDouble(c[0]);
+            cz = Double.parseDouble(c[1]);
+        }
+        double ox = cx, oz = cz;
         double dist = parts.length > 1 ? Double.parseDouble(parts[1]) : 330;
         String[] times = parts.length > 2 ? parts[2].split(",") : new String[]{"20", "100", "190", "260", "340", "420"};
-        String[] vantage = parts.length > 3 ? parts[3].split(",") : new String[]{"90", "150", "-230"};
-        double vx = Double.parseDouble(vantage[0]), vy = Double.parseDouble(vantage[1]), vz = Double.parseDouble(vantage[2]);
+        // cameras: tick@x,y,z[,lookx,looky,lookz];... each taking over from its tick
+        java.util.List<double[]> cams = new java.util.ArrayList<>();
+        for (String c : (parts.length > 3 ? parts[3] : "200@90,150,-230").split(";")) {
+            int at = Integer.parseInt(c.substring(0, c.indexOf('@')));
+            String[] v = c.substring(c.indexOf('@') + 1).split(",");
+            double[] cam = {at, ox + Double.parseDouble(v[0]), Double.parseDouble(v[1]), oz + Double.parseDouble(v[2]), ox + 0.5, 70, oz + 0.5};
+            if (v.length > 5) {
+                cam[4] = ox + Double.parseDouble(v[3]);
+                cam[5] = Double.parseDouble(v[4]);
+                cam[6] = oz + Double.parseDouble(v[5]);
+            }
+            cams.add(cam);
+        }
+        int mapRadius = parts.length > 5 ? Integer.parseInt(parts[5]) : 400;
+        // a film before may have left the player over a hole to the void
+        b.wait(20).run(mc -> {
+            if (mc.player != null && !mc.player.isAlive()) mc.player.respawn();
+        }).wait(40).closeScreen();
         b.wait(40).cmd("/fw class set berserker").closeScreen().wait(5).closeScreen()
                 .cmd("/gamemode creative").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/gamerule doMobSpawning false")
                 .cmd("/kill @e[type=!player]").cmd("/clear @s").cmd("/fw give " + com.fantasyweapons.weapons.god.WeaponOfGod.ID + " 1")
-                .cmd("/tp @s 0.5 200 " + (-dist + 0.5) + " 0 0").wait(260).slot(0).closeScreen();
+                .cmd("/tp @s " + (ox + 0.5) + " 200 " + (oz - dist + 0.5) + " 0 0").wait(400).slot(0).closeScreen();
         onServer(b, sp -> {
             var level = sp.serverLevel();
-            int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, 0, (int) Math.floor(-dist));
+            int fx = (int) Math.floor(ox), fz = (int) Math.floor(oz - dist);
+            int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, fx, fz);
+            // a clearing round the caster, so the summoning can be seen
+            net.minecraft.core.BlockPos.MutableBlockPos m = new net.minecraft.core.BlockPos.MutableBlockPos();
+            for (int x = fx - 16; x <= fx + 16; x++) {
+                for (int z = fz - 22; z <= fz + 16; z++) {
+                    for (int yy = y - 2; yy < y + 30; yy++) {
+                        var st = level.getBlockState(m.set(x, yy, z));
+                        if (st.is(net.minecraft.tags.BlockTags.LEAVES) || st.is(net.minecraft.tags.BlockTags.LOGS) || (yy >= y && !st.isAir() && st.getFluidState().isEmpty()))
+                            level.setBlock(m, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+                    }
+                }
+            }
             sp.getAbilities().flying = false;
             sp.onUpdateAbilities();
-            sp.teleportTo(level, 0.5, y, -dist + 0.5, 0, -8);
+            sp.teleportTo(level, ox + 0.5, y, oz - dist + 0.5, 0, -8);
+            DevMaps.dump(level, (int) ox, (int) oz, mapRadius, new java.io.File(net.minecraft.client.Minecraft.getInstance().gameDirectory,
+                    "screenshots/fw_god_" + ability + "_map_before.png"));
         });
         b.wait(60).cmd("/fw cooldowns").hud(true).playerView().wait(5).screenshot("god_" + ability + "_before");
-        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastAt(ability, 0.5, 80, 0.5)));
+        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastAt(ability, ox + 0.5, 80, oz + 0.5)));
         int prev = 0;
-        boolean watching = false;
+        double[] current = null;
         for (String tt : times) {
             int at = Integer.parseInt(tt.trim());
             b.wait(Math.max(1, at - prev));
-            if (at < com.fantasyweapons.weapons.god.DivineSummoning.TICKS) {
+            double[] cam = null;
+            for (double[] c : cams) if (at >= c[0]) cam = c;
+            if (at < com.fantasyweapons.weapons.god.DivineSummoning.TICKS && cam == null) {
                 // the summoning, from beside the caster
-                b.hud(false).viewAt(7, 2.5, -9, 0, 2.5, 0);
-            } else if (!watching) {
-                watching = true;
+                b.hud(false).viewAt(9, 4, -12, 0, 2.5, 0);
+            } else if (cam != null && cam != current) {
+                double[] c = cam;
                 b.hud(false).run(mc -> {
-                    var cam = new net.minecraft.world.entity.decoration.ArmorStand(net.minecraft.world.entity.EntityType.ARMOR_STAND, mc.level);
-                    double ex = 0.5 - vx, ey = 70 - (vy + cam.getEyeHeight()), ez = 0.5 - vz;
+                    var stand = new net.minecraft.world.entity.decoration.ArmorStand(net.minecraft.world.entity.EntityType.ARMOR_STAND, mc.level);
+                    double ex = c[4] - c[1], ey = c[5] - (c[2] + stand.getEyeHeight()), ez = c[6] - c[3];
                     float yaw = (float) (Math.toDegrees(Math.atan2(ez, ex)) - 90);
                     float pitch = (float) -Math.toDegrees(Math.atan2(ey, Math.sqrt(ex * ex + ez * ez)));
-                    cam.moveTo(vx, vy, vz, yaw, pitch);
-                    cam.setYHeadRot(yaw);
-                    cam.setInvisible(true);
+                    stand.moveTo(c[1], c[2], c[3], yaw, pitch);
+                    stand.setYHeadRot(yaw);
+                    stand.setInvisible(true);
                     mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
-                    mc.setCameraEntity(cam);
+                    mc.setCameraEntity(stand);
                 });
             }
+            current = cam;
             b.screenshot("god_" + ability + "_" + String.format("%04d", at));
             int when = at;
             b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("god: t={} {}", when, com.fantasyweapons.world.wreck.WorldWreck.stats()));
             prev = at;
         }
-        b.playerView();
-        if (parts.length > 4) {
+        b.playerView().wait(100);
+        if (parts.length > 4 && !parts[4].isEmpty()) {
             String[] views = parts[4].split(";");
             for (int i = 0; i < views.length; i++) {
                 String[] v = views[i].split(",");
-                b.cmd("/tp @s " + v[0] + " " + v[1] + " " + v[2] + " " + v[3] + " " + v[4]).run(mc -> {
+                b.cmd("/tp @s " + (ox + Double.parseDouble(v[0])) + " " + v[1] + " " + (oz + Double.parseDouble(v[2])) + " " + v[3] + " " + v[4]).run(mc -> {
                     mc.player.getAbilities().flying = true;
                     mc.player.onUpdateAbilities();
-                }).wait(80).screenshot("god_" + ability + "_after" + i);
+                }).wait(100).screenshot("god_" + ability + "_after" + i);
             }
         }
+        // the land round the target from above, once the views have loaded it
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> DevMaps.dump(srv.overworld(), (int) ox, (int) oz, mapRadius, new java.io.File(mc.gameDirectory, "screenshots/fw_god_" + ability + "_map_after.png")));
+        }).wait(10);
+    }
+
+    /** DEVELOPMENT ONLY: finds dry land for filming - logs spots on a grid with how much of the land within 600 blocks is sea. */
+    private static void scout(ScreenshotDirector.Builder b) {
+        onServer(b, sp -> {
+            var level = sp.serverLevel();
+            for (int gx = -12000; gx <= 12000; gx += 1500) {
+                for (int gz = -12000; gz <= 12000; gz += 1500) {
+                    int wet = 0, n = 0;
+                    java.util.Map<String, Integer> kinds = new java.util.HashMap<>();
+                    for (int dx = -600; dx <= 600; dx += 100) {
+                        for (int dz = -600; dz <= 600; dz += 100) {
+                            var biome = level.getBiome(new net.minecraft.core.BlockPos(gx + dx, 64, gz + dz));
+                            String name = biome.unwrapKey().map(k -> k.location().getPath()).orElse("?");
+                            n++;
+                            if (name.contains("ocean") || name.contains("river") || name.contains("beach") || name.contains("swamp") || name.contains("frozen")) wet++;
+                            kinds.merge(name, 1, Integer::sum);
+                        }
+                    }
+                    if (wet <= n / 12) com.fantasyweapons.FantasyWeapons.LOGGER.warn("scout: {} {} wet {}/{} {}", gx, gz, wet, n, kinds);
+                }
+            }
+        });
+        b.wait(20);
     }
 
     /** DEVELOPMENT ONLY: counts the blocks in which the client's chunks round the middle differ from the server's. */

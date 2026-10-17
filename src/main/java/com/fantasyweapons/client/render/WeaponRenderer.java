@@ -69,6 +69,16 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
         }
     }
 
+    /** Models with see-through parts (the Weapon of God's radiant edge), drawn translucent so those parts blend. */
+    private static final java.util.Set<String> TRANSLUCENT = java.util.Set.of("weapon_of_god");
+
+    @Override
+    public RenderType getRenderType(FantasyWeaponItem animatable, net.minecraft.resources.ResourceLocation texture, @Nullable MultiBufferSource bufferSource,
+                                    float partialTick) {
+        if (TRANSLUCENT.contains(animatable.definition().geoName())) return RenderType.entityTranslucent(texture);
+        return super.getRenderType(animatable, texture, bufferSource, partialTick);
+    }
+
     @Override
     public void actuallyRender(PoseStack poseStack, FantasyWeaponItem animatable, BakedGeoModel model, @Nullable RenderType renderType, MultiBufferSource bufferSource,
                                @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {

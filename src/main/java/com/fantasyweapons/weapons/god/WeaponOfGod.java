@@ -11,8 +11,8 @@ import com.fantasyweapons.weapon.WeaponDefinition;
 import static com.fantasyweapons.ability.AbilityText.Upgrades;
 
 /**
- * THE WEAPON OF GOD — the Great Sword of Obliteration and the Spell Book of Absolute Domination laid on the Worldforge
- * together, and what came out: a class of its own, The Last Fragment of Brilliant Light. Each of its six powers is the
+ * THE WEAPON OF GOD, a divine scythe — the Great Sword of Obliteration and the Spell Book of Absolute Domination fused
+ * together on the Legendary Upgrading Table: a class of its own, The Last Fragment of Brilliant Light. Each of its six powers is the
  * sword's and the book's power of one element at once; its last three are its own. Every one is summoned slowly
  * ({@link DivineSummoning}) and must rest a long time after.
  * <pre>
@@ -54,7 +54,7 @@ public final class WeaponOfGod {
                 .unlock(1).levels(5, 20).cost(3, 2)
                 .node(x, y, parents)
                 .upgrades(Upgrades.create().damagePerLevel(0.18).cooldownPerLevel(0.05).build())
-                .animations("charge", "heavy_attack", "recovery");
+                .animations("charge", "ability_activation", "ability_execution");
     }
 
     public static WeaponDefinition create() {
@@ -65,7 +65,7 @@ public final class WeaponOfGod {
                 .element(Element.DIVINITY)
                 .rarity(Rarity.BRILLIANT_LIGHT)
                 .geo("weapon_of_god")
-                .type(WeaponClass.GREATSWORD)
+                .type(WeaponClass.SCYTHE)
                 .damage(54f, 2.8f)
                 .crit(0.2f, 2.6f)
                 .theme(0xFFE29A, 0xFFFFFF)

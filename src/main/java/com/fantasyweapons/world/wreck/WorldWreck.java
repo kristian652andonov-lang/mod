@@ -39,16 +39,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class WorldWreck {
     /** Keeps a chunk loaded until its rewrite is done. */
     private static final TicketType<ChunkPos> TICKET = TicketType.create("fantasyweapons_wreck", Comparator.comparingLong(ChunkPos::toLong), 400);
-    /** Give up on a chunk that will not load (in ticks of retries). */
-    private static final int MAX_WAIT = 600;
+    /** Give up on a chunk that will not load (or be generated) within this many ticks of first being wanted. */
+    private static final int MAX_WAIT = 1200;
 
-    private record Task(ResourceKey<Level> dimension, int x, int z, long due, long order, long seed, ChunkShaper shaper, int waited, Batch batch) {
+    /**
+     * @param waited how many times it found its chunk not yet loaded
+     * @param since  when it first found its chunk not loaded (-1: not yet)
+     */
+    private record Task(ResourceKey<Level> dimension, int x, int z, long due, long order, long seed, ChunkShaper shaper, int waited, long since, Batch batch) {
         Task at(long when) {
-            return new Task(dimension, x, z, when, order, seed, shaper, waited, batch);
+            return new Task(dimension, x, z, when, order, seed, shaper, waited, since, batch);
         }
 
-        Task retry(long when) {
-            return new Task(dimension, x, z, when, order, seed, shaper, waited + 10, batch);
+        Task retry(long when, long now) {
+            return new Task(dimension, x, z, when, order, seed, shaper, waited + 1, since < 0 ? now : since, batch);
         }
     }
 
@@ -112,6 +116,8 @@ public final class WorldWreck {
     private static int rewritten;
     /** Chunks whose relight finished, and chunks whose light was sent to at least one player (for diagnostics). */
     private static int relit, resent;
+    /** Jobs given up on: their chunk would not load in time, or its level went away (for diagnostics). */
+    private static int dropped, untouched;
 
     /** DEVELOPMENT ONLY (GameTests): every task runs the moment it is due, without the time budget. */
     public static volatile boolean unbudgeted;
@@ -145,7 +151,7 @@ public final class WorldWreck {
     /** Rewrites the chunk at chunk coordinates {@code (cx, cz)} after {@code delay} ticks. Does nothing when destruction is off. */
     public static void submit(ServerLevel level, int cx, int cz, int delay, long seed, ChunkShaper shaper) {
         if (!enabled() || testServer(level)) return;
-        FRESH.add(new Task(level.dimension(), cx, cz, clock + Math.max(0, delay), order++, seed, shaper, 0, null));
+        FRESH.add(new Task(level.dimension(), cx, cz, clock + Math.max(0, delay), order++, seed, shaper, 0, -1, null));
     }
 
     /** Keeps a chunk loaded (and loads it) for the next 20 seconds, so a job due later finds it ready. */
@@ -196,7 +202,7 @@ public final class WorldWreck {
     }
 
     public static String stats() {
-        return rewritten + " rewritten, " + relit + " relit, " + resent + " resent, " + pending() + " pending";
+        return rewritten + " rewritten, " + relit + " relit, " + resent + " resent, " + pending() + " pending, " + dropped + " dropped, " + untouched + " untouched";
     }
 
     /** Worker threads: every core but the two the game needs for itself, at least one ({@code destruction.threads}). */
@@ -236,13 +242,13 @@ public final class WorldWreck {
             batch.size = FRESH.size();
             batch.due = Long.MAX_VALUE;
             for (Task t : FRESH) batch.due = Math.min(batch.due, t.due());
-            for (Task t : FRESH) QUEUE.add(new Task(t.dimension(), t.x(), t.z(), batch.due, t.order(), t.seed(), t.shaper(), 0, batch));
+            for (Task t : FRESH) QUEUE.add(new Task(t.dimension(), t.x(), t.z(), batch.due, t.order(), t.seed(), t.shaper(), 0, -1, batch));
         } else {
             for (Task t : FRESH) {
                 Batch alone = new Batch();
                 alone.size = 1;
                 alone.due = t.due();
-                QUEUE.add(new Task(t.dimension(), t.x(), t.z(), t.due(), t.order(), t.seed(), t.shaper(), 0, alone));
+                QUEUE.add(new Task(t.dimension(), t.x(), t.z(), t.due(), t.order(), t.seed(), t.shaper(), 0, -1, alone));
             }
         }
         FRESH.clear();
@@ -251,6 +257,7 @@ public final class WorldWreck {
     /** A task given up on (its chunk will not load): its batch no longer waits for it. */
     private static void drop(Task t) {
         t.batch().size--;
+        dropped++;
     }
 
     /**
@@ -330,13 +337,15 @@ public final class WorldWreck {
             }
             LevelChunk chunk = level.getChunkSource().getChunkNow(t.x(), t.z());
             if (chunk == null) {
-                if (!load || t.waited() >= MAX_WAIT) {
+                // (a task waiting for its chunk is looked at again every tick it is in reach of AHEAD: its wait is
+                // measured in ticks, not in tries)
+                if (!load || (t.since() >= 0 && clock - t.since() >= MAX_WAIT)) {
                     drop(t);
                     continue;
                 }
                 ChunkPos pos = new ChunkPos(t.x(), t.z());
-                if (t.waited() % 200 == 0) level.getChunkSource().addRegionTicket(TICKET, pos, 0, pos);
-                later.add(t.retry(Math.max(t.due(), clock + 10)));
+                if (t.waited() % 100 == 0) level.getChunkSource().addRegionTicket(TICKET, pos, 0, pos);
+                later.add(t.retry(Math.max(t.due(), clock + 10), clock));
                 continue;
             }
             WreckChunk edit = new WreckChunk(level, chunk, t.seed());
@@ -378,7 +387,10 @@ public final class WorldWreck {
 
     /** Puts a worked-out rewrite into its chunk, sends it to the players who see it and relights the column. */
     private static void land(ServerLevel level, LevelChunk chunk, WreckChunk edit) {
-        if (edit.changed() == 0) return;
+        if (edit.changed() == 0) {
+            untouched++;
+            return;
+        }
         rewritten++;
         edit.apply(chunk);
         send(level, chunk, edit);

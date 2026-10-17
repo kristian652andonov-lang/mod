@@ -50,6 +50,9 @@ public final class DivineSummoning {
         Cataclysm.fx(level, p, FxPayload.of(FxIds.DIVINE_SUMMON).caster(p.getId()).pos(at).point(held.feet()).scale((float) size)
                 .power(TICKS).level(color(held.ability().id())).entities(java.util.List.of(Math.max(0, index))).seed(Kit.seed(level)).build());
         Kit.active(held, TICKS);
+        // the land it will strike starts loading now, so it is there to be destroyed when the power comes
+        double reach = Math.min(600, size + 48);
+        for (var c : com.fantasyweapons.weapons.ultimate.ShufflePlan.region(at, reach)) com.fantasyweapons.world.wreck.WorldWreck.hold(level, c.x, c.z);
         AreaEffectManager.add(new Summoning(held, at, power));
         level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 6f, 0.5f);
         return true;

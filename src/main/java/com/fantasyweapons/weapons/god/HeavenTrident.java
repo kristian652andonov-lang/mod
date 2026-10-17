@@ -27,7 +27,7 @@ public final class HeavenTrident {
     /** How high over the target the sky opens, and how steeply the trident falls from it (degrees above level). */
     public static final double HEIGHT = 320, PITCH = 66;
     /** How long the trident is, from the tips of its prongs to the end of its shaft. */
-    public static final double LENGTH = 230;
+    public static final double LENGTH = 330;
 
     private HeavenTrident() {
     }
@@ -111,7 +111,7 @@ public final class HeavenTrident {
                 for (double s = 0; s < LENGTH; s += 24) {
                     Vec3 p = tips.subtract(dir.scale(s));
                     if (p.subtract(sky).dot(dir) < 0) break;
-                    for (LivingEntity e : Cataclysm.victims(level, owner, p, s < 60 ? 34 : 14)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.LIGHT);
+                    for (LivingEntity e : Cataclysm.victims(level, owner, p, s < 140 ? 64 : 22)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.LIGHT);
                 }
             }
             if (age == strike) land(owner);

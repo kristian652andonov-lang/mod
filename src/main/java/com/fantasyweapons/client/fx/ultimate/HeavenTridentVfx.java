@@ -22,7 +22,7 @@ public class HeavenTridentVfx extends Vfx {
     private static final int WHITE = 0xFFFFFF, PALE = 0xFFF4D6, GOLD = 0xFFD970, AMBER = 0xFFB43A, DEEP = 0xE8A21E;
     private static final Vec3 X = new Vec3(1, 0, 0), Z = new Vec3(0, 0, 1), UP = new Vec3(0, 1, 0);
     /** The opening's radius when fully open, and how many points its jagged edge has. */
-    private static final float OPENING = 150;
+    private static final float OPENING = 190;
     private static final int RIM = 56, CLOUDS = 60, RAYS = 18, SHARDS = 40;
 
     private final Vec3 target, sky, f, u, v;
@@ -44,8 +44,14 @@ public class HeavenTridentVfx extends Vfx {
         this.u = side.lengthSqr() < 1e-6 ? X : side.normalize();
         this.v = u.cross(f).normalize();
         RandomSource r = RandomSource.create(seed);
+        // a torn edge: wide lobes, small ragged teeth along them, and here and there a crack running back into the sky
         jag = new float[RIM];
-        for (int i = 0; i < RIM; i++) jag[i] = (i % 2 == 0 ? 0.78f : 0.94f) + r.nextFloat() * 0.2f;
+        double p1 = r.nextDouble() * 6.283, p2 = r.nextDouble() * 6.283;
+        for (int i = 0; i < RIM; i++) {
+            double an = i * Math.PI * 2 / RIM;
+            jag[i] = (float) (0.86 + 0.08 * Math.sin(an * 3 + p1) + 0.05 * Math.sin(an * 7 + p2)) + (r.nextFloat() - 0.5f) * 0.06f;
+            if (r.nextFloat() < 0.12f) jag[i] += 0.22f + r.nextFloat() * 0.2f;
+        }
         cloudAng = new float[CLOUDS];
         cloudDist = new float[CLOUDS];
         cloudSpin = new float[CLOUDS];
@@ -101,12 +107,20 @@ public class HeavenTridentVfx extends Vfx {
             float j = jag[i] * (0.95f + 0.05f * (float) Math.sin(t * 0.3f + i));
             rim[i] = c.add(u.scale(Math.cos(an) * ru * j)).add(v.scale(Math.sin(an) * rv * j));
         }
-        // the light inside: white at its heart, gold at its torn edge
+        // the light inside: a soft wash of gold, brighter toward the heart, so the edge reads as torn
         for (int i = 0; i < RIM; i++) {
             Vec3 p0 = rim[i], p1 = rim[(i + 1) % RIM];
-            ctx.quad(core, c, c, p0, p1, 0, 0, 1, 1, Colors.alpha(a, WHITE), Colors.alpha(a, WHITE), Colors.alpha(a * 0.85f, GOLD), Colors.alpha(a * 0.85f, GOLD));
+            ctx.quad(core, c, c, p0, p1, 0, 0, 1, 1, Colors.alpha(a * 0.4f, PALE), Colors.alpha(a * 0.4f, PALE), Colors.alpha(a * 0.16f, GOLD), Colors.alpha(a * 0.16f, GOLD));
         }
+        // heaven beyond it: light turning in a slow whirl, rays from its heart, and a white heart
+        Vec3 eu = u.scale(ru * 0.92), ev = v.scale(rv * 0.92);
+        var swirl = ctx.additive(VfxTextures.SWIRL);
+        ctx.plane(swirl, c.subtract(f.scale(1)), rotate(eu, ev, t * 0.006f), rotate(ev, eu.scale(-1), t * 0.006f), Colors.alpha(a * 0.55f, GOLD));
+        ctx.plane(swirl, c.subtract(f.scale(1.5)), rotate(eu, ev, -t * 0.004f + 1).scale(0.7), rotate(ev, eu.scale(-1), -t * 0.004f + 1).scale(0.7), Colors.alpha(a * 0.45f, PALE));
+        var flashTex = ctx.additive(VfxTextures.FLASH);
+        ctx.plane(flashTex, c.subtract(f.scale(2)), rotate(eu, ev, t * 0.002f), rotate(ev, eu.scale(-1), t * 0.002f), Colors.alpha(a * 0.6f, WHITE));
         var glow = ctx.additive(VfxTextures.GLOW);
+        ctx.disc(glow, c.subtract(f.scale(2.5)), u, v, Math.min(ru, rv) * 0.7f, 0, Colors.alpha(a * 0.7f, WHITE));
         ctx.disc(glow, c.subtract(f.scale(2)), u, v, ru * 2.2f, 0, Colors.alpha(a * 0.45f, GOLD));
         ctx.disc(glow, c.subtract(f.scale(3)), u, v, ru * 4.2f, 0, Colors.alpha(a * 0.18f, AMBER));
         // the torn edge, crackling
@@ -169,42 +183,48 @@ public class HeavenTridentVfx extends Vfx {
         var body = ctx.translucent(VfxTextures.WHITE);
         var add = ctx.additive(VfxTextures.WHITE);
         // the middle prong, the two side prongs bending in to the head, and their barbs
-        prism(ctx, body, add, tips, 0, 0, 0f, 62, 0, 4.6f, out, a);
+        float k = 2.2f;
+        prism(ctx, body, add, tips, 0, 0, 0f, 62 * k, 0, 4.6f * k, out, a);
         for (int side = -1; side <= 1; side += 2) {
-            prism(ctx, body, add, tips, 14, side * 26, 0f, 40, side * 22, 3.4f, out, a);
-            prism(ctx, body, add, tips, 40, side * 22, 3.4f, 62, side * 18, 3.8f, out, a);
+            prism(ctx, body, add, tips, 14 * k, side * 26 * k, 0f, 40 * k, side * 22 * k, 3.4f * k, out, a);
+            prism(ctx, body, add, tips, 40 * k, side * 22 * k, 3.4f * k, 62 * k, side * 18 * k, 3.8f * k, out, a);
             // a barb on each side prong, its point turned back and out
-            prism(ctx, body, add, tips, 30, side * 23.5f, 2.2f, 40, side * 30, 0f, out, a);
+            prism(ctx, body, add, tips, 30 * k, side * 23.5f * k, 2.2f * k, 40 * k, side * 30 * k, 0f, out, a);
         }
-        prism(ctx, body, add, tips, 30, 0, 2f, 38, 7, 0f, out, a);
-        prism(ctx, body, add, tips, 30, 0, 2f, 38, -7, 0f, out, a);
+        prism(ctx, body, add, tips, 30 * k, 0, 2f * k, 38 * k, 7 * k, 0f, out, a);
+        prism(ctx, body, add, tips, 30 * k, 0, 2f * k, 38 * k, -7 * k, 0f, out, a);
         // the head across the prongs, the collar, the shaft and its rings, the pommel
-        bar(ctx, body, add, tips, 64, -26, 26, 4.8f, out, a);
-        prism(ctx, body, add, tips, 66, 0, 7f, 76, 0, 5f, out, a);
-        prism(ctx, body, add, tips, 76, 0, 3.4f, L - 14, 0, 3.4f, out, a);
-        for (float s = 100; s < L - 20; s += 32) prism(ctx, body, add, tips, s, 0, 4.4f, s + 4, 0, 4.4f, out, a);
-        prism(ctx, body, add, tips, L - 14, 0, 3.4f, L - 7, 0, 7f, out, a);
-        prism(ctx, body, add, tips, L - 7, 0, 7f, L, 0, 0f, out, a);
+        bar(ctx, body, add, tips, 64 * k, -26 * k, 26 * k, 4.8f * k, out, a);
+        prism(ctx, body, add, tips, 66 * k, 0, 7f * k, 76 * k, 0, 5f * k, out, a);
+        prism(ctx, body, add, tips, 76 * k, 0, 3.4f * k, L - 14 * k, 0, 3.4f * k, out, a);
+        for (float s = 100 * k; s < L - 20 * k; s += 30) prism(ctx, body, add, tips, s, 0, 4.4f * k, s + 4 * k, 0, 4.4f * k, out, a);
+        prism(ctx, body, add, tips, L - 14 * k, 0, 3.4f * k, L - 7 * k, 0, 7f * k, out, a);
+        prism(ctx, body, add, tips, L - 7 * k, 0, 7f * k, L, 0, 0f, out, a);
         // its glow
         var glow = ctx.additive(VfxTextures.GLOW);
         for (float s = 0; s < L; s += 18) {
             if (s > out) break;
             Vec3 p = tips.subtract(f.scale(s));
-            ctx.billboard(glow, p, s < 70 ? 70 : 34, 0, Colors.alpha(a * 0.35f, GOLD));
+            ctx.billboard(glow, p, s < 150 ? 150 : 70, 0, Colors.alpha(a * 0.3f, GOLD));
         }
-        ctx.billboard(ctx.additive(VfxTextures.FLASH), tips, 40, t * 0.05f, Colors.alpha(a * 0.8f, WHITE));
+        ctx.billboard(ctx.additive(VfxTextures.FLASH), tips, 80, t * 0.05f, Colors.alpha(a * 0.8f, WHITE));
         // falling: a trail of light behind it, rings of air bursting off its prongs
         float fall = clamp01((t - open - emerge) / (strike - open - emerge));
         if (fall > 0) {
             Vec3 butt = tips.subtract(f.scale(L));
             ctx.softBeam(ctx.additive(VfxTextures.BEAM_SOFT), sky, butt, 30, Colors.alpha(a * 0.5f * fall, PALE), 0, 1, 0.05f, 0.02f);
             var ring = ctx.additive(VfxTextures.RING);
-            for (int k = 0; k < 6; k++) {
-                float s = ((t * 0.12f) + k / 6f) % 1f;
+            for (int n = 0; n < 6; n++) {
+                float s = ((t * 0.12f) + n / 6f) % 1f;
                 Vec3 at = tips.subtract(f.scale(20 + s * 160));
                 ctx.ring(ring, at, u, v, 24 + 70 * s, 30 + 76 * s, 48, Colors.alpha(a * fall * (1 - s) * 0.7f, WHITE));
             }
         }
+    }
+
+    /** The axis {@code a} turned by {@code ang} toward {@code b} (both axes of one ellipse). */
+    private static Vec3 rotate(Vec3 a, Vec3 b, float ang) {
+        return a.scale(Math.cos(ang)).add(b.scale(Math.sin(ang)));
     }
 
     /** A point on the trident: {@code s} back from the tips, {@code l} out to the side. */
@@ -276,11 +296,18 @@ public class HeavenTridentVfx extends Vfx {
         // the flash, and the dome of light swelling over the crater
         float flash = clamp01(1 - s / 14f);
         if (flash > 0) ctx.billboard(glow, g.add(0, 30, 0), radius * (1.2f + 2.5f * (1 - flash)), 0, Colors.alpha(flash, WHITE));
-        float dome = clamp01(s / 30f);
-        float domeA = (1 - clamp01((s - 10) / 50f));
+        float dome = clamp01(s / 18f);
+        float domeA = (1 - clamp01((s - 4) / 30f));
         if (domeA > 0) {
             ctx.squash = ctx.squashFor(target, VfxContext.viewReach() * 0.8);
-            ctx.sphere(ctx.additive(VfxTextures.WHITE), g, radius * 1.1f * easeOut(dome), 18, 36, Colors.alpha(domeA * 0.55f, GOLD), true);
+            ctx.sphere(ctx.additive(VfxTextures.WHITE), g, radius * 1.1f * easeOut(dome), 18, 36, Colors.alpha(domeA * 0.28f, PALE), true);
+            var ringTex = ctx.additive(VfxTextures.RING);
+            for (int k = 0; k < 3; k++) {
+                float p = clamp01((s - k * 4) / 26f);
+                if (p <= 0 || p >= 1) continue;
+                ctx.ring(ringTex, g.add(0, 20 + k * 40, 0), X, Z, radius * (0.4f + 1.2f * easeOut(p)), radius * (0.43f + 1.25f * easeOut(p)), 96,
+                        Colors.alpha((1 - p) * 0.8f, k == 0 ? WHITE : GOLD));
+            }
             ctx.squash = 1;
         }
         // shockwaves racing out across the land
