@@ -107,6 +107,24 @@ public final class AbilityDefinition {
         return new Builder(id, kind);
     }
 
+    /**
+     * An unbound copy of this ability with some params' defaults changed ({@code name, value} pairs), for a power that
+     * casts it as a part of itself (the Weapon of God's powers): its executor reads the new values, and it has no config
+     * entries of its own.
+     */
+    public AbilityDefinition variant(Object... overrides) {
+        Builder b = new Builder(id, kind).name(name).description(description).executor(executor);
+        b.params.putAll(params);
+        b.remote = remote;
+        for (int i = 0; i + 1 < overrides.length; i += 2) {
+            String key = (String) overrides[i];
+            double value = ((Number) overrides[i + 1]).doubleValue();
+            AbilityParam old = params.get(key);
+            b.params.put(key, old == null ? AbilityParam.of(key, value, "") : new AbilityParam(key, value, old.min(), Math.max(old.max(), value), old.comment()));
+        }
+        return new AbilityDefinition(b);
+    }
+
     /** Called once by {@link WeaponDefinition} when the weapon is built. */
     public void bind(WeaponDefinition weapon) {
         if (this.weapon != null) throw new IllegalStateException("Ability " + id + " already bound");
@@ -119,7 +137,7 @@ public final class AbilityDefinition {
 
     /** Globally unique key, e.g. {@code fantasyweapons:voidfang/void_blink}. */
     public ResourceLocation key() {
-        return ResourceLocation.fromNamespaceAndPath(FantasyWeapons.MOD_ID, weapon.id() + "/" + id);
+        return ResourceLocation.fromNamespaceAndPath(FantasyWeapons.MOD_ID, (weapon == null ? "part" : weapon.id()) + "/" + id);
     }
 
     public ResourceLocation icon() {

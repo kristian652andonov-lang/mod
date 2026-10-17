@@ -221,10 +221,25 @@ final class FWAdvancements implements AdvancementProvider.AdvancementGenerator {
         deed("from_afar", ender, Items.FILLED_MAP, "Dominion Sight", GOLD,
                 "Bring a power down on a far place through the targeting map", AdvancementType.GOAL,
                 b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named("from_afar")));
-        deed("absolute", ender, Items.NETHER_STAR, "Absolute", VIOLET, "Hold both ultimate weapons", AdvancementType.CHALLENGE, b -> {
+        AdvancementHolder absolute = deed("absolute", ender, Items.NETHER_STAR, "Absolute", VIOLET, "Hold both Calamity-class weapons", AdvancementType.CHALLENGE, b -> {
             b.addCriterion("sword", has(sword));
             b.addCriterion("book", has(book));
         });
+        // ---- the Weapon of God ----
+        Item god = ModItems.WEAPONS.get(com.fantasyweapons.weapons.god.WeaponOfGod.ID).get();
+        AdvancementHolder light = deed("brilliant_light", absolute, god, "The Last Fragment of Brilliant Light", GOLD,
+                "Forge the Weapon of God from both calamities", AdvancementType.CHALLENGE, b -> b.addCriterion("has", has(god)));
+        AdvancementHolder divine = deed("divine_power", light, Items.BEACON, "Wrath of God", GOLD,
+                "Summon a power of the Weapon of God", AdvancementType.CHALLENGE, b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named("divine")));
+        deed("trident_from_heaven", divine, Items.TRIDENT, "Trident from Heaven", GOLD,
+                "Bring the trident down out of the sky", AdvancementType.CHALLENGE,
+                b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named(com.fantasyweapons.weapons.god.WeaponOfGod.TRIDENT)));
+        deed("dimension_breakage", divine, Items.END_CRYSTAL, "Dimension Breakage", VIOLET,
+                "Fold the world into a cube and let the tesseract end it", AdvancementType.CHALLENGE,
+                b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named(com.fantasyweapons.weapons.god.WeaponOfGod.BREAKAGE)));
+        deed("six_gods", divine, Items.NETHER_STAR, "Combined Power of the 6 Gods", VIOLET,
+                "Call down the beam of every colour", AdvancementType.CHALLENGE,
+                b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named(com.fantasyweapons.weapons.god.WeaponOfGod.SIX_GODS)));
         deed("every_regalia", regalia, ModItems.ARMOR.get(ArmorSet.LUMINARCH).get(ArmorItem.Type.CHESTPLATE).get(), "Robes of Every Element", VIOLET,
                 "Wear every one of the Mage's six regalia", AdvancementType.CHALLENGE, b -> {
                     for (ArmorSet set : ArmorSet.values()) if (set.regalia()) b.addCriterion(set.id(), ModTriggers.FULL_SET.get().named(set.id()));

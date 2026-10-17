@@ -265,4 +265,24 @@ public final class FxIds {
     public static final ResourceLocation ARCH_DRAGON = FantasyWeapons.id("obliteration/arch_dragon");
     /** 4th Dimension Ascension: pos = target, scale = radius, power = delay ticks, level = the level's bottom, entities = [height]. */
     public static final ResourceLocation FOURTH_DIMENSION = FantasyWeapons.id("obliteration/fourth_dimension");
+
+    // ---- the Weapon of God ----
+    /**
+     * A power of the Weapon of God being summoned: pos = where it will land, points = [the caster's feet], scale = how wide
+     * it lands, power = ticks, level = its colour, entities = [its power's index: 0-5 the six powers, 6 trident, 7 the six
+     * gods, 8 dimension breakage].
+     */
+    public static final ResourceLocation DIVINE_SUMMON = FantasyWeapons.id("god/summon");
+    /**
+     * Trident from Heaven: pos = where it strikes, points = [the opening in the sky], scale = radius, power = ticks until it
+     * strikes, level = ticks the opening takes to tear open.
+     */
+    public static final ResourceLocation HEAVEN_TRIDENT = FantasyWeapons.id("god/trident");
+    /** Combined Power of the 6 Gods: pos = ground at the target, scale = radius, power = ticks until the beam, level = beam ticks. */
+    public static final ResourceLocation SIX_GODS = FantasyWeapons.id("god/six_gods");
+    /**
+     * Dimension Breakage: pos = ground at the target, scale = radius, power = ticks until space breaks, level = ticks the
+     * tesseract holds before the end, points = [the cube's lowest corner, its highest], entities = [the world's lowest y].
+     */
+    public static final ResourceLocation DIMENSION_BREAKAGE = FantasyWeapons.id("god/dimension_breakage");
 }

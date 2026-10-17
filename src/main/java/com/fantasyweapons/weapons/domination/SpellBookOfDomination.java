@@ -42,7 +42,7 @@ public final class SpellBookOfDomination {
                 .lore("Every spell ever written was bound into one book, and the book learned that it no longer had to ask. It does not cast; it commands. Light, void, fire, stone, root and ice kneel when it opens, and the land below obeys or is erased.",
                         "the Codex of Endings")
                 .element(Element.DOMINION)
-                .rarity(Rarity.APOCALYPTIC)
+                .rarity(Rarity.CALAMITY)
                 .geo("codex_omega")
                 .type(WeaponClass.TOME)
                 .damage(18f, 1.8f)

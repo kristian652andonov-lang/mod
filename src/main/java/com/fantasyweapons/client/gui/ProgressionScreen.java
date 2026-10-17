@@ -229,7 +229,7 @@ public class ProgressionScreen extends Screen {
         x = stat(g, x, ty, "Damage", String.format("%,.0f", dmg), 0xF0A080, ease);
         x = stat(g, x, ty, "Mastery", Math.round(ProgressionMath.mastery(def, data) * 100) + "%", UiDraw.ARCANE, ease);
         x = stat(g, x, ty, "Element", def.element().displayName(), def.element().primary(), ease);
-        x = stat(g, x, ty, "Rarity", def.rarity().displayName(), def.rarity().color(), ease);
+        x = stat(g, x, ty, def.rarity().classTier() ? "Class" : "Rarity", def.rarity().shortName(), def.rarity().color(), ease);
         if (form != null) stat(g, x, ty, UiDraw.titleCase(form.label()), form.displayName(), form.themePrimary(), ease);
         g.pose().popPose();
     }

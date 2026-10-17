@@ -43,6 +43,7 @@ public final class UltimateFx {
         FxDispatcher.register(FxIds.ARCH_DRAGON, UltimateFx::archDragon);
         FxDispatcher.register(FxIds.FOURTH_DIMENSION, UltimateFx::fourthDimension);
         FxDispatcher.register(FxIds.GREAT_SLASH_CUT, p -> VfxManager.add(new GreatSlashVfx.Cut(p.pos(), p.dir(), p.scale())));
+        GodFx.register();
     }
 
     /** How far the viewer is from a point (blocks), or a long way if there is no player. */

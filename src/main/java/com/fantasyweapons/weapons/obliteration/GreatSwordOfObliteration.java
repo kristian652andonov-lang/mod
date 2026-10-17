@@ -42,7 +42,7 @@ public final class GreatSwordOfObliteration {
                 .lore("Twenty-five legends were thrown into the altar's fire and only this came out. It does not cut what it strikes; it decides that the thing was never there. The ground forgets its shape around it, and the sky is afraid to be above it.",
                         "the Last Page of the World")
                 .element(Element.OBLITERATION)
-                .rarity(Rarity.APOCALYPTIC)
+                .rarity(Rarity.CALAMITY)
                 .geo("worldreaver")
                 .type(WeaponClass.GREATSWORD)
                 .damage(36f, 2.6f)

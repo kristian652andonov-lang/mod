@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:divine_power",
+  "criteria": {
+    "cast": {
+      "conditions": {
+        "name": "trident_from_heaven"
+      },
+      "trigger": "fantasyweapons:ability_cast"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Bring the trident down out of the sky",
+      "translate": "advancements.fantasyweapons.trident_from_heaven.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:trident"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "Trident from Heaven",
+      "translate": "advancements.fantasyweapons.trident_from_heaven.title"
+    }
+  },
+  "requirements": [
+    [
+      "cast"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -21,7 +21,9 @@ public enum Element {
     LIGHT("Light", 0xFFE58A, 0x3A2A08, 0xFFFDF0),
     // the ultimate weapons: every power at once
     OBLITERATION("Obliteration", 0xFF2B3A, 0x140004, 0xFFF0F0),
-    DOMINION("Dominion", 0xF5C542, 0x0A0612, 0xFFFFFF);
+    DOMINION("Dominion", 0xF5C542, 0x0A0612, 0xFFFFFF),
+    // the Weapon of God: both of them, and the light they came from
+    DIVINITY("Divinity", 0xFFE9A0, 0x0B0716, 0xFFFFFF);
 
     private final String displayName;
     private final int primary;

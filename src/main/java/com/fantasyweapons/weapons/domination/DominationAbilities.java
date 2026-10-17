@@ -315,6 +315,8 @@ public final class DominationAbilities {
         if (sight.lengthSqr() < 1e-4) sight = new Vec3(1, 0, 0);
         sight = sight.normalize();
         Vec3 dir = new Vec3(-sight.z, 0, sight.x);
+        // turned further (the Weapon of God tears several canyons across each other)
+        if (ctx.ability().hasParam("turn")) dir = dir.yRot((float) Math.toRadians(ctx.param("turn")));
         double length = ctx.param("length"), width = ctx.param("width");
         int duration = Math.max(60, (int) Math.round(ctx.param("duration") * 20));
         long seed = Kit.seed(ctx.level());

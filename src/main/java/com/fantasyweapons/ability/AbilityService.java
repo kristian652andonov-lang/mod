@@ -344,7 +344,9 @@ public final class AbilityService {
         else com.fantasyweapons.combat.ImpactHits.arm(player, ability);
         try {
             // the ultimate weapons' powers gather first, then strike
-            if (def.rarity().ultimate() && com.fantasyweapons.weapons.ultimate.Cataclysm.gathers(ability.id()))
+            if (def.rarity() == com.fantasyweapons.weapon.Rarity.BRILLIANT_LIGHT)
+                ok = com.fantasyweapons.weapons.god.DivineSummoning.begin(ctx, ability.executor());
+            else if (def.rarity().ultimate() && com.fantasyweapons.weapons.ultimate.Cataclysm.gathers(ability.id()))
                 ok = com.fantasyweapons.weapons.ultimate.Cataclysm.windup(ctx, ability.executor());
             else ok = ability.executor().execute(ctx);
         } catch (AbilityFailedException e) {
@@ -367,6 +369,12 @@ public final class AbilityService {
                 // a power of one of the two ultimate weapons
                 com.fantasyweapons.advancement.ModTriggers.ABILITY_CAST.get().trigger(player, "apocalyptic");
                 com.fantasyweapons.quest.QuestService.event(player, "apocalyptic");
+            }
+            if (def.rarity() == com.fantasyweapons.weapon.Rarity.BRILLIANT_LIGHT) {
+                // a power of the Weapon of God, and which
+                com.fantasyweapons.advancement.ModTriggers.ABILITY_CAST.get().trigger(player, "divine");
+                com.fantasyweapons.advancement.ModTriggers.ABILITY_CAST.get().trigger(player, ability.id());
+                com.fantasyweapons.quest.QuestService.event(player, "divine");
             }
             WeaponAnimations.trigger(player, stack, FantasyWeaponItem.castTrigger(ability, def.form(data)));
         } else {

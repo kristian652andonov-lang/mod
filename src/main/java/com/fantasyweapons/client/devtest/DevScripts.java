@@ -123,6 +123,7 @@ final class DevScripts {
                 else if (name.equals("targetmap")) targetMap(b);
                 else if (name.equals("worldforge")) worldforge(b);
                 else if (name.startsWith("remote:")) remote(b, name.substring(7));
+                else if (name.startsWith("god:")) god(b, name.substring(4));
                 else if (name.startsWith("local:")) local(b, name.substring(6));
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
                 else if (name.startsWith("fphold:")) fpHold(b, name.substring(7).split(","));
@@ -436,6 +437,72 @@ final class DevScripts {
                 .cmd("/tp @s 190 120 0 90 15").wait(60).screenshot("remote_" + ability + "_after_b");
     }
 
+
+    /**
+     * A power of the Weapon of God (fwterrain world): {@code ability/distance/ticks,.../vx,vy,vz[/aftermath x,y,z;...]}. The caster
+     * stands on the ground {@code distance} blocks south of the target (0, 0) facing it and casts through the map; the
+     * summoning is filmed from beside them (ticks under {@link com.fantasyweapons.weapons.god.DivineSummoning#TICKS}), the power
+     * from a camera at {@code vx, vy, vz} looking at the target; then views of what is left.
+     */
+    private static void god(ScreenshotDirector.Builder b, String spec) {
+        String[] parts = spec.split("/");
+        String ability = parts[0];
+        double dist = parts.length > 1 ? Double.parseDouble(parts[1]) : 330;
+        String[] times = parts.length > 2 ? parts[2].split(",") : new String[]{"20", "100", "190", "260", "340", "420"};
+        String[] vantage = parts.length > 3 ? parts[3].split(",") : new String[]{"90", "150", "-230"};
+        double vx = Double.parseDouble(vantage[0]), vy = Double.parseDouble(vantage[1]), vz = Double.parseDouble(vantage[2]);
+        b.wait(40).cmd("/fw class set berserker").closeScreen().wait(5).closeScreen()
+                .cmd("/gamemode creative").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/gamerule doMobSpawning false")
+                .cmd("/kill @e[type=!player]").cmd("/clear @s").cmd("/fw give " + com.fantasyweapons.weapons.god.WeaponOfGod.ID + " 1")
+                .cmd("/tp @s 0.5 200 " + (-dist + 0.5) + " 0 0").wait(260).slot(0).closeScreen();
+        onServer(b, sp -> {
+            var level = sp.serverLevel();
+            int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, 0, (int) Math.floor(-dist));
+            sp.getAbilities().flying = false;
+            sp.onUpdateAbilities();
+            sp.teleportTo(level, 0.5, y, -dist + 0.5, 0, -8);
+        });
+        b.wait(60).cmd("/fw cooldowns").hud(true).playerView().wait(5).screenshot("god_" + ability + "_before");
+        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastAt(ability, 0.5, 80, 0.5)));
+        int prev = 0;
+        boolean watching = false;
+        for (String tt : times) {
+            int at = Integer.parseInt(tt.trim());
+            b.wait(Math.max(1, at - prev));
+            if (at < com.fantasyweapons.weapons.god.DivineSummoning.TICKS) {
+                // the summoning, from beside the caster
+                b.hud(false).viewAt(7, 2.5, -9, 0, 2.5, 0);
+            } else if (!watching) {
+                watching = true;
+                b.hud(false).run(mc -> {
+                    var cam = new net.minecraft.world.entity.decoration.ArmorStand(net.minecraft.world.entity.EntityType.ARMOR_STAND, mc.level);
+                    double ex = 0.5 - vx, ey = 70 - (vy + cam.getEyeHeight()), ez = 0.5 - vz;
+                    float yaw = (float) (Math.toDegrees(Math.atan2(ez, ex)) - 90);
+                    float pitch = (float) -Math.toDegrees(Math.atan2(ey, Math.sqrt(ex * ex + ez * ez)));
+                    cam.moveTo(vx, vy, vz, yaw, pitch);
+                    cam.setYHeadRot(yaw);
+                    cam.setInvisible(true);
+                    mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                    mc.setCameraEntity(cam);
+                });
+            }
+            b.screenshot("god_" + ability + "_" + String.format("%04d", at));
+            int when = at;
+            b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("god: t={} {}", when, com.fantasyweapons.world.wreck.WorldWreck.stats()));
+            prev = at;
+        }
+        b.playerView();
+        if (parts.length > 4) {
+            String[] views = parts[4].split(";");
+            for (int i = 0; i < views.length; i++) {
+                String[] v = views[i].split(",");
+                b.cmd("/tp @s " + v[0] + " " + v[1] + " " + v[2] + " " + v[3] + " " + v[4]).run(mc -> {
+                    mc.player.getAbilities().flying = true;
+                    mc.player.onUpdateAbilities();
+                }).wait(80).screenshot("god_" + ability + "_after" + i);
+            }
+        }
+    }
 
     /** DEVELOPMENT ONLY: counts the blocks in which the client's chunks round the middle differ from the server's. */
     private static void compare(net.minecraft.client.Minecraft mc, net.minecraft.server.level.ServerLevel ow) {

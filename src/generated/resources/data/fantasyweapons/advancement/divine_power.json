@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:brilliant_light",
+  "criteria": {
+    "cast": {
+      "conditions": {
+        "name": "divine"
+      },
+      "trigger": "fantasyweapons:ability_cast"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Summon a power of the Weapon of God",
+      "translate": "advancements.fantasyweapons.divine_power.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:beacon"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "Wrath of God",
+      "translate": "advancements.fantasyweapons.divine_power.title"
+    }
+  },
+  "requirements": [
+    [
+      "cast"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

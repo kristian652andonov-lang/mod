@@ -62,14 +62,14 @@ public final class ClassGear {
         return need == PlayerClass.NONE || player.isCreative() || player.getTags().contains(ANY_CLASS) || ClassService.of(player) == need;
     }
 
-    /** The Great Sword of Obliteration answers to every warrior class (assassin, berserker and paladin), not to one. */
+    /** The Great Sword of Obliteration answers to every warrior class (assassin, berserker and paladin), not to one (the Weapon of God answers to all). */
     public static boolean warriors(ItemStack stack) {
         return stack.getItem() instanceof FantasyWeaponItem w && warriors(w.definition().id());
     }
 
     public static boolean warriors(String weaponId) {
         var def = com.fantasyweapons.weapon.Weapons.get(weaponId);
-        return def != null && def.rarity().ultimate() && !def.weaponClass().magic();
+        return def != null && def.rarity() == com.fantasyweapons.weapon.Rarity.CALAMITY && !def.weaponClass().magic();
     }
 
     public static boolean isWarrior(PlayerClass c) {
@@ -78,6 +78,8 @@ public final class ClassGear {
 
     /** Whether a weapon is gear of class {@code c} (the warriors' sword belongs to all three of them). */
     public static boolean answersTo(String weaponId, PlayerClass c) {
+        var def = com.fantasyweapons.weapon.Weapons.get(weaponId);
+        if (def != null && def.rarity() == com.fantasyweapons.weapon.Rarity.BRILLIANT_LIGHT) return c != PlayerClass.NONE;
         return warriors(weaponId) ? isWarrior(c) : ofWeapon(weaponId) == c;
     }
 

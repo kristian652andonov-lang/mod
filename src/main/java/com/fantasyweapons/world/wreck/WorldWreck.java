@@ -132,6 +132,11 @@ public final class WorldWreck {
         return level.getServer() instanceof net.minecraft.gametest.framework.GameTestServer;
     }
 
+    /** Whether jobs submitted in this level will really be done (destruction on, and not the GameTest server). */
+    public static boolean active(ServerLevel level) {
+        return enabled() && !testServer(level);
+    }
+
     /** A destruction radius scaled by the server's {@code destruction.radius_scale}. */
     public static double radius(double radius) {
         return radius * ServerConfig.DESTRUCTION_RADIUS_SCALE.getOrDefault();

@@ -184,6 +184,24 @@ public final class Quests {
                 () -> stack(Items.WITHER_SKELETON_SKULL, 1))
                 .count("apocalyptic", 12, "Unleash 12 powers of the ultimate weapons", () -> stack(Items.TNT, 1))
                 .reward(Items.NETHER_STAR, 3).reward(Items.NETHERITE_BLOCK, 1).xp(15000).requires("world_ender").group(group).build());
+        // the Weapon of God, forged from both calamities
+        String god = com.fantasyweapons.weapons.god.WeaponOfGod.ID;
+        Supplier<ItemStack> godIcon = () -> stack(ModItems.WEAPONS.get(god).get(), 1);
+        list.add(quest("both_calamities", Chapter.WEAPONS, "Absolute", "Hold both Calamity-class weapons: the Great Sword of Obliteration and the "
+                + "Spell Book of Absolute Domination.", () -> stack(Items.NETHER_STAR, 1))
+                .collect(() -> ModItems.WEAPONS.get(sword).get(), 1, "Hold the Great Sword of Obliteration")
+                .collect(() -> ModItems.WEAPONS.get(book).get(), 1, "Hold the Spell Book of Absolute Domination")
+                .reward(Items.NETHER_STAR, 4).reward(Items.BEACON, 2).xp(20000).requires("forge_" + book).group(group).build());
+        list.add(quest("forge_" + god, Chapter.WEAPONS, "The Last Fragment", "Lay both calamities on the Worldforge together, with the thirteen "
+                + "cores and the rarest treasures of the world, and forge the Weapon of God: The Last Fragment of Brilliant Light.", godIcon)
+                .collect(() -> ModItems.WEAPONS.get(god).get(), 1, "Hold the Weapon of God")
+                .reward(Items.NETHER_STAR, 8).reward(Items.ENCHANTED_GOLDEN_APPLE, 8).xp(50000).requires("both_calamities").group(group).build());
+        list.add(quest("divine_summoning", Chapter.WEAPONS, "Brilliant Light", "Summon one of the powers of the Weapon of God.", godIcon)
+                .count("divine", 1, "Summon a power of the Weapon of God", () -> stack(Items.BEACON, 1))
+                .reward(Items.TOTEM_OF_UNDYING, 4).reward(Items.NETHERITE_BLOCK, 2).xp(20000).requires("forge_" + god).group(group).build());
+        list.add(quest("every_power_of_god", Chapter.WEAPONS, "Every Power of God", "Summon the powers of the Weapon of God nine times.", godIcon)
+                .count("divine", 9, "Summon 9 powers of the Weapon of God", () -> stack(Items.BEACON, 1))
+                .reward(Items.NETHER_STAR, 8).reward(Items.NETHERITE_BLOCK, 4).xp(60000).requires("divine_summoning").group(group).build());
     }
 
     private static void armor(List<Quest> list) {

@@ -69,6 +69,8 @@ public final class Weapons {
         // the two ultimate weapons, forged from all twenty-five on the Worldforge
         add(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.create());
         add(com.fantasyweapons.weapons.domination.SpellBookOfDomination.create());
+        // the Weapon of God, forged from both of them
+        add(com.fantasyweapons.weapons.god.WeaponOfGod.create());
     }
 
     /** The 13 legendary blades, without the mage's focuses. */
@@ -86,9 +88,14 @@ public final class Weapons {
         return all().stream().filter(d -> !d.rarity().ultimate()).toList();
     }
 
-    /** The Great Sword of Obliteration and the Spell Book of Absolute Domination. */
+    /** The world-breaking weapons: the two calamities and the Weapon of God. */
     public static List<WeaponDefinition> ultimates() {
         return all().stream().filter(d -> d.rarity().ultimate()).toList();
+    }
+
+    /** The two Calamity-class weapons: the Great Sword of Obliteration and the Spell Book of Absolute Domination. */
+    public static List<WeaponDefinition> calamities() {
+        return all().stream().filter(d -> d.rarity() == Rarity.CALAMITY).toList();
     }
 
     private Weapons() {

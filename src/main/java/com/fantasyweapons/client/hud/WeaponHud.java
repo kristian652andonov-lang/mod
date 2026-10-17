@@ -122,7 +122,7 @@ public final class WeaponHud {
         UiDraw.text(g, def.displayName(), 9, 6 + (0.95f - nameScale) * 4.5f, Colors.alpha(a, UiDraw.GOLD_LIGHT), nameScale, true);
         UiDraw.button(g, W - 8 - lvW, 4, lvW, 12, 0, a);
         UiDraw.title(g, lv, W - 8 - lvW / 2, 6.5f, Colors.alpha(a, UiDraw.GOLD_LIGHT), 0.7f);
-        String sub = def.rarity().displayName() + " · " + def.element().displayName();
+        String sub = def.rarity().shortName() + " · " + def.element().displayName();
         UiDraw.text(g, sub, 9, 16, Colors.alpha(a, Colors.lerpRgb(rarity, UiDraw.INK_MUTED, 0.35f)), 0.55f, false);
         WeaponForm form = def.form(data);
         if (form != null) {

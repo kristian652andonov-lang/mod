@@ -68,11 +68,16 @@ public final class QuestGameTests {
         for (String id : new String[] {"raise_worldforge", "first_rite", "world_ender", "dominion_sight", "end_of_days"}) {
             if (Quests.get(id) == null) h.fail("no quest " + id);
         }
-        for (WeaponDefinition def : Weapons.ultimates()) {
+        for (WeaponDefinition def : Weapons.calamities()) {
             Quest q = Quests.get("forge_" + def.id());
             if (q == null) h.fail("no quest forge_" + def.id());
             else if (!"first_rite".equals(q.requires())) h.fail("forge_" + def.id() + " opens after " + q.requires());
         }
+        // the Weapon of God: hold both calamities, forge it, then summon its powers
+        Quest god = Quests.get("forge_" + com.fantasyweapons.weapons.god.WeaponOfGod.ID);
+        if (god == null) h.fail("no quest for the Weapon of God");
+        else if (!"both_calamities".equals(god.requires())) h.fail("the Weapon of God's quest opens after " + god.requires());
+        for (String id : new String[] {"both_calamities", "divine_summoning", "every_power_of_god"}) if (Quests.get(id) == null) h.fail("no quest " + id);
         h.succeed();
     }
 

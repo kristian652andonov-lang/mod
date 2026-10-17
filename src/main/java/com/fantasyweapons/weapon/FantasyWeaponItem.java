@@ -222,8 +222,14 @@ public class FantasyWeaponItem extends Item implements GeoItem {
         int ink = mix(0xD8C9A8, theme, 0.15f), faded = mix(theme, 0x9C8862, 0.5f), gold = mix(theme, 0xFFFFFF, 0.3f);
         // epithet, kind, and a line of runes engraved along the blade
         tooltip.add(Component.literal(def.title()).withStyle(s -> s.withColor(light).withItalic(true)));
-        tooltip.add(Component.literal(def.rarity().displayName() + " " + def.weaponClass().displayName() + " of " + def.element().displayName())
-                .withStyle(s -> s.withColor(theme)));
+        if (def.rarity().classTier()) {
+            // a class of its own: named on its own line, in its own colour
+            tooltip.add(Component.literal("\u2726 " + def.rarity().displayName() + " \u2726").withStyle(s -> s.withColor(def.rarity().color()).withBold(true)));
+            tooltip.add(Component.literal(def.weaponClass().displayName() + " of " + def.element().displayName()).withStyle(s -> s.withColor(theme)));
+        } else {
+            tooltip.add(Component.literal(def.rarity().displayName() + " " + def.weaponClass().displayName() + " of " + def.element().displayName())
+                    .withStyle(s -> s.withColor(theme)));
+        }
         com.fantasyweapons.playerclass.ClassGear.tooltip(com.fantasyweapons.SidedHooks.get().clientPlayer(), stack, tooltip);
         String runes = (def.displayName() + " " + def.title()).toLowerCase().replaceAll("[^a-z ]", "");
         tooltip.add(Component.literal(runes.length() > 30 ? runes.substring(0, 30) : runes)

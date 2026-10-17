@@ -539,10 +539,11 @@ public final class CodexBook {
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("The Rites");
-            c.para("Its grid is eleven by eleven, and it forges only the two ultimate weapons. Each rite takes all twenty-five "
-                    + "legendary weapons, a core of every material and the rarest treasures of the world.", PageCanvas.INK, 0.5f);
+            c.para("Its grid is eleven by eleven, and it forges only the ultimate weapons: the two of the Calamity class, each "
+                    + "from all twenty-five legendary weapons, a core of every material and the rarest treasures of the world - and "
+                    + "the Weapon of God, from both of them.", PageCanvas.INK, 0.5f);
             c.para("Lay the rite as on the table, then press Forge. It works for " + com.fantasyweapons.forge.WorldforgeRecipe.DEFAULT_TIME / 20 / 60
-                    + " minutes; when it is done, lightning falls and the whole world hears.", PageCanvas.INK, 0.5f);
+                    + " minutes, the Weapon of God's fifteen; when it is done, lightning falls and the whole world hears.", PageCanvas.INK, 0.5f);
             c.gap(2);
             for (WeaponDefinition def : Weapons.ultimates()) {
                 float y = c.y;
@@ -664,6 +665,12 @@ public final class CodexBook {
             String kind = def.weaponClass().displayName() + " · " + def.element().displayName();
             c.centered(kind, c.y, PageCanvas.RED, 0.6f);
             c.y += 7;
+            if (def.rarity().classTier()) {
+                // a class of its own
+                String tier = def.rarity().displayName();
+                c.centered(tier, c.y, PageCanvas.GOLD, Math.min(0.55f, c.inner() / Math.max(1f, c.width(tier, 1f))));
+                c.y += 6.5f;
+            }
             String stats = String.format(Locale.ROOT, def.weaponClass().magic() ? "%.0f damage · %.1f bolts a second" : "%.0f damage · %.1f swings a second",
                     def.baseDamage(), def.weaponClass().attackSpeed());
             c.centered(stats, c.y, PageCanvas.FADED, 0.5f);
@@ -739,8 +746,9 @@ public final class CodexBook {
                     c.y += 6.5f;
                 }
                 c.gap(2);
-                c.para(def.weaponClass().magic() ? "Only a Mage can wield it." : "Any warrior can wield it: an Assassin, a Berserker or a Paladin.",
-                        PageCanvas.FADED, 0.48f);
+                c.para(def.rarity() == com.fantasyweapons.weapon.Rarity.BRILLIANT_LIGHT ? "Every class can wield it; each of its powers is summoned slowly, "
+                                + "and rests a long time after." : def.weaponClass().magic() ? "Only a Mage can wield it."
+                                : "Any warrior can wield it: an Assassin, a Berserker or a Paladin.", PageCanvas.FADED, 0.48f);
                 c.para("What it destroys stays destroyed.", PageCanvas.RED, 0.5f);
                 return;
             }

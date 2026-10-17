@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:absolute",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:the_weapon_of_god"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Weapon of God from both calamities",
+      "translate": "advancements.fantasyweapons.brilliant_light.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:the_weapon_of_god"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "The Last Fragment of Brilliant Light",
+      "translate": "advancements.fantasyweapons.brilliant_light.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -474,7 +474,9 @@ public final class FWGameTests {
                 String name = "ability_" + def.id() + "_" + a.id();
                 // an ultimate weapon's ability reaches hundreds of blocks: it runs alone, or it would hit the other tests
                 String batch = def.rarity().ultimate() ? "ultimate_" + a.id() : "abilities";
-                tests.add(new TestFunction(batch, name, FantasyWeapons.MOD_ID + ":" + ARENA, def.rarity().ultimate() ? 600 : 240, 0, true, h -> abilityTest(h, def, a)));
+                // the Weapon of God's powers are summoned for ten seconds before they begin
+                int timeout = def.rarity() == com.fantasyweapons.weapon.Rarity.BRILLIANT_LIGHT ? 1000 : def.rarity().ultimate() ? 600 : 240;
+                tests.add(new TestFunction(batch, name, FantasyWeapons.MOD_ID + ":" + ARENA, timeout, 0, true, h -> abilityTest(h, def, a)));
             }
         }
         return tests;

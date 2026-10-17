@@ -1,0 +1,95 @@
+{
+  "type": "fantasyweapons:worldforging",
+  "forging_time": 18000,
+  "key": {
+    "!": {
+      "item": "minecraft:totem_of_undying"
+    },
+    "#": {
+      "item": "minecraft:netherite_block"
+    },
+    "$": {
+      "item": "minecraft:enchanted_golden_apple"
+    },
+    "%": {
+      "item": "minecraft:echo_shard"
+    },
+    "&": {
+      "item": "minecraft:dragon_breath"
+    },
+    "*": {
+      "item": "minecraft:nether_star"
+    },
+    "+": {
+      "item": "minecraft:heavy_core"
+    },
+    "@": {
+      "item": "minecraft:end_crystal"
+    },
+    "A": {
+      "item": "fantasyweapons:void_core"
+    },
+    "B": {
+      "item": "fantasyweapons:solarite_core"
+    },
+    "C": {
+      "item": "fantasyweapons:frostheart_crystal"
+    },
+    "D": {
+      "item": "fantasyweapons:bloodstone_core"
+    },
+    "E": {
+      "item": "fantasyweapons:thundercryst_core"
+    },
+    "F": {
+      "item": "fantasyweapons:necrostone_heart"
+    },
+    "G": {
+      "item": "fantasyweapons:soulshard_core"
+    },
+    "H": {
+      "item": "fantasyweapons:verdant_heart"
+    },
+    "I": {
+      "item": "fantasyweapons:eclipse_core"
+    },
+    "J": {
+      "item": "fantasyweapons:astralite_core"
+    },
+    "K": {
+      "item": "fantasyweapons:aetherite_core"
+    },
+    "L": {
+      "item": "fantasyweapons:titanstone_core"
+    },
+    "M": {
+      "item": "fantasyweapons:infernite_core"
+    },
+    "S": {
+      "item": "fantasyweapons:great_sword_of_obliteration"
+    },
+    "T": {
+      "item": "fantasyweapons:spell_book_of_absolute_domination"
+    },
+    "~": {
+      "item": "minecraft:beacon"
+    }
+  },
+  "pattern": [
+    "*    ~    *",
+    " $   @   $ ",
+    "  #ABCDE#  ",
+    "   %&+&%   ",
+    "~ F!#*#!G ~",
+    "@ H S*T I @",
+    "~ J!#*#!K ~",
+    "   %&+&%   ",
+    "  #L   M#  ",
+    " $   @   $ ",
+    "*    ~    *"
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:the_weapon_of_god"
+  }
+}

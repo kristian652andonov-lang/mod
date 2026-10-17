@@ -25,7 +25,7 @@
   "display": {
     "announce_to_chat": false,
     "description": {
-      "fallback": "Hold both ultimate weapons",
+      "fallback": "Hold both Calamity-class weapons",
       "translate": "advancements.fantasyweapons.absolute.description"
     },
     "frame": "challenge",

@@ -259,6 +259,11 @@ public final class WreckChunk {
         return out;
     }
 
+    /** A copy of one section's blocks of a loaded chunk as they are now (call on the main thread). */
+    public static PalettedContainer<BlockState> section(LevelChunk chunk, int index) {
+        return own(chunk.getSections()[index].getStates());
+    }
+
     /** A copy of every section's blocks of a loaded chunk as they are now (call on the main thread). */
     @SuppressWarnings("unchecked")
     public static PalettedContainer<BlockState>[] snapshot(LevelChunk chunk) {
