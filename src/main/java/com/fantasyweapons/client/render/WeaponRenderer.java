@@ -114,7 +114,8 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
      * first- and third-person holds differ, so each view has its own table.
      */
     private static final java.util.Map<String, Float> TP_FACING = java.util.Map.of("doomcleaver", 180f, "gravebite", 180f, "bloomfall", 180f);
-    private static final java.util.Map<String, Float> FP_FACING = java.util.Map.of("starforge", 180f, "soulreaper", 180f, "eclipse_reaper", 180f);
+    private static final java.util.Map<String, Float> FP_FACING = java.util.Map.of("starforge", 180f, "soulreaper", 180f, "eclipse_reaper", 180f,
+            "the_weapon_of_god", 180f);
     /**
      * Forms whose model carries its business end on the other side of the handle from the weapon's base form (Eclipse
      * Reaper's dark blade grows out of the far side of the staff): turned round in both views so it faces the same way.

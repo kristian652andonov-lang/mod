@@ -44,7 +44,7 @@ public final class SetHud {
         // on a narrow screen it would run into the hotbar (and the off-hand slot beside it): lift it above the hearts
         if (x0 + W * scale > g.guiWidth() / 2f - 91 - 30) y0 = g.guiHeight() - 62 - H * scale;
         // the weapon panel sits bottom left: stack the plaque above it
-        if (anchor == ClientConfig.HudAnchor.BOTTOM_LEFT) y0 -= (WeaponHud.H + 10) * scale;
+        if (anchor == ClientConfig.HudAnchor.BOTTOM_LEFT) y0 -= (WeaponHud.shownHeight() + 10) * scale;
         float a = alpha;
         int color = shown.material().color();
         float t = nowMs / 1000f;

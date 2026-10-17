@@ -33,6 +33,14 @@ import java.util.List;
 public final class WeaponHud {
     public static final int W = 176;
     public static final int H = 96;
+    /**
+     * The ability strip: as many icons fit in a row as leave room for the key hints beside it; a weapon with more (the
+     * Weapon of God's nine) lays them out in two rows, and the panel grows a row taller to hold them.
+     */
+    private static final int STRIP_PER_ROW = 6;
+    private static final float STRIP_R = 5.5f, STRIP_STEP = STRIP_R * 2 + 3;
+    /** The panel's height as last drawn, for what stacks above it. */
+    private static int shownHeight = H;
     private static final ResourceLocation LOCK = FantasyWeapons.id("textures/gui/lock.png");
 
     private static ItemStack shownStack = ItemStack.EMPTY;
@@ -46,6 +54,21 @@ public final class WeaponHud {
     private static long castFlashAt;
 
     private WeaponHud() {
+    }
+
+    /** How many rows {@code def}'s ability strip takes. */
+    private static int stripRows(WeaponDefinition def) {
+        return Math.max(1, (def.castables().size() + STRIP_PER_ROW - 1) / STRIP_PER_ROW);
+    }
+
+    /** The panel's height for {@code def}: a row taller for each extra row of abilities. */
+    public static int height(WeaponDefinition def) {
+        return H + (stripRows(def) - 1) * (int) STRIP_STEP;
+    }
+
+    /** The height of the panel as it is shown now (what sits above it moves up with it). */
+    public static int shownHeight() {
+        return shownHeight;
     }
 
     public static void render(GuiGraphics g, DeltaTracker delta) {
@@ -78,6 +101,8 @@ public final class WeaponHud {
 
     private static void renderPanel(GuiGraphics g, WeaponDefinition def, WeaponData data, float dt, long nowMs) {
         float scale = (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0) * UiScale.hud();
+        int h = height(def);
+        shownHeight = h;
         int sw = g.guiWidth(), sh = g.guiHeight();
         ClientConfig.HudAnchor anchor = ClientConfig.SPEC.isLoaded() ? ClientConfig.HUD_ANCHOR.get() : ClientConfig.HudAnchor.BOTTOM_RIGHT;
         float x0 = switch (anchor) {
@@ -85,7 +110,7 @@ public final class WeaponHud {
             case BOTTOM_LEFT, TOP_LEFT -> 8;
         };
         float y0 = switch (anchor) {
-            case BOTTOM_RIGHT, BOTTOM_LEFT -> sh - H * scale - 8;
+            case BOTTOM_RIGHT, BOTTOM_LEFT -> sh - h * scale - 8;
             case TOP_RIGHT, TOP_LEFT -> 22;
         };
         x0 += ClientConfig.get(ClientConfig.HUD_OFFSET_X, 0);
@@ -111,7 +136,7 @@ public final class WeaponHud {
         float fullPulse = full ? 0.5f + 0.5f * (float) Math.sin(t * 9) : 0;
 
         // ---- frame ----
-        UiDraw.panel(g, 0, 0, W, H, theme, a);
+        UiDraw.panel(g, 0, 0, W, h, theme, a);
         if (full || castFlash > 0) UiDraw.glow(g, 26, 66, 70, Colors.alpha(a * Math.max(fullPulse * 0.5f, castFlash * 0.6f), themeLight));
 
         // ---- header: name, rarity and element, level plaque ----
@@ -226,9 +251,13 @@ public final class WeaponHud {
 
         // name, rank and state
         int nameColor = castFlash > 0 ? Colors.lerpRgb(UiDraw.INK, 0xFFFFFF, castFlash) : UiDraw.INK;
-        UiDraw.text(g, sel.name(), 44, 50, Colors.alpha(a, nameColor), 0.78f, true);
         int lvl = data.abilityLevel(sel);
-        UiDraw.text(g, "Rank " + lvl, 44 + UiDraw.font().width(sel.name()) * 0.78f + 4, 51.5f, Colors.alpha(a, UiDraw.ARCANE), 0.55f, false);
+        String rank = "Rank " + lvl;
+        // a long name (the Weapon of God's) shrinks so its rank still fits inside the panel
+        float rankW = UiDraw.font().width(rank) * 0.55f + 4;
+        float nameS = Math.max(0.55f, Math.min(0.78f, (W - 9 - 44 - rankW) / Math.max(1f, UiDraw.font().width(sel.name()))));
+        UiDraw.text(g, sel.name(), 44, 50 + (0.78f - nameS) * 4, Colors.alpha(a, nameColor), nameS, true);
+        UiDraw.text(g, rank, 44 + UiDraw.font().width(sel.name()) * nameS + 4, 51.5f, Colors.alpha(a, UiDraw.ARCANE), 0.55f, false);
         UiDraw.text(g, UiDraw.titleCase(state.label()), 44, 59.5f, Colors.alpha(a, stateColor), 0.62f, false);
 
         float bx = 44, by = 68, bw = W - 53, bh = 3;
@@ -264,8 +293,12 @@ public final class WeaponHud {
 
     private static void renderStrip(GuiGraphics g, WeaponDefinition def, WeaponData data, AbilityDefinition sel, float a, int theme, int light) {
         List<AbilityDefinition> castables = def.castables();
-        float r = 5.5f, x = 44 + r, y = 79;
-        for (AbilityDefinition ab : castables) {
+        float r = STRIP_R, y0 = 79;
+        // in rows of as even a length as they can be (the Weapon of God's nine: five above, four below)
+        int rows = stripRows(def), perRow = (castables.size() + rows - 1) / rows;
+        for (int i = 0; i < castables.size(); i++) {
+            AbilityDefinition ab = castables.get(i);
+            float x = 44 + r + (i % perRow) * STRIP_STEP, y = y0 + (i / perRow) * STRIP_STEP;
             boolean unlocked = data.isUnlocked(ab);
             boolean isSel = ab == sel;
             AbilityState st = unlocked ? ClientState.state(def, data, ab) : AbilityState.LOCKED;
@@ -281,8 +314,8 @@ public final class WeaponHud {
                 UiDraw.rect(g, x - in, y - in + in * 2 * (1 - rem / (float) tot), x + in, y + in, Colors.alpha(a * 0.6f, 0x000000));
             }
             UiDraw.medallion(g, x, y, r, Colors.alpha(a, isSel ? 0xFFF4D0 : unlocked ? 0xC8BCA8 : 0x7A7068));
-            x += r * 2 + 3;
         }
+        float y = y0;
         // key hints in the free space beside the icons, two short lines, drawn above everything else in the panel
         // so no part of the frame can ever cover them
         g.pose().pushPose();

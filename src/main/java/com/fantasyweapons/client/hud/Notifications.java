@@ -145,7 +145,7 @@ public final class Notifications {
         }
         float hud = UiScale.hud(), panel = (float) ClientConfig.get(ClientConfig.HUD_SCALE, 1.0) * hud;
         float px = sw - WeaponHud.W * panel / 2f - 8 * hud;
-        float py = sh - WeaponHud.H * panel - 22 * hud;
+        float py = sh - WeaponHud.shownHeight() * panel - 22 * hud;
         POPUPS.removeIf(p -> now - p.start() > 1600);
         int i = 0;
         for (Popup p : POPUPS) {
