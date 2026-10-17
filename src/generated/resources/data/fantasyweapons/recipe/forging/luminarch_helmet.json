@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1800,
+  "key": {
+    "A": {
+      "item": "minecraft:white_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:solarite_core"
+    }
+  },
+  "pattern": [
+    "  ARRRA  ",
+    "  RRARR  ",
+    "  R   R  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:luminarch_helmet"
+  }
+}

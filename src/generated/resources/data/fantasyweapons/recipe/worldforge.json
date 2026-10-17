@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "E": {
+      "item": "minecraft:dragon_egg"
+    },
+    "H": {
+      "item": "minecraft:heavy_core"
+    },
+    "N": {
+      "item": "minecraft:netherite_block"
+    },
+    "S": {
+      "item": "minecraft:nether_star"
+    },
+    "T": {
+      "item": "fantasyweapons:legendary_crafting_table"
+    }
+  },
+  "pattern": [
+    "NSN",
+    "HTH",
+    "NEN"
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:worldforge"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "feature": "fantasyweapons:bloodstone_ore",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 10
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "max_inclusive": {
+          "absolute": 117
+        },
+        "min_inclusive": {
+          "absolute": 10
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

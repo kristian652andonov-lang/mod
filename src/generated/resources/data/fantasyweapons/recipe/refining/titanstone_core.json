@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:cobbled_deepslate"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:titanstone"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:titanstone_core"
+  }
+}

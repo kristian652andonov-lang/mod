@@ -1,0 +1,26 @@
+{
+  "targets": ["held", "swap", "out"],
+  "passes": [
+    {
+      "name": "fantasyweapons:impact_hold",
+      "intarget": "minecraft:main",
+      "outtarget": "swap",
+      "auxtargets": [{"name": "HeldSampler", "id": "held"}]
+    },
+    {
+      "name": "blit",
+      "intarget": "swap",
+      "outtarget": "held"
+    },
+    {
+      "name": "fantasyweapons:impact",
+      "intarget": "held",
+      "outtarget": "out"
+    },
+    {
+      "name": "blit",
+      "intarget": "out",
+      "outtarget": "minecraft:main"
+    }
+  ]
+}

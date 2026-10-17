@@ -1,0 +1,31 @@
+{
+  "criteria": {
+    "tick": {
+      "trigger": "minecraft:tick"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "fantasyweapons:textures/gui/advancements/backgrounds/legends.png",
+    "description": {
+      "fallback": "Thirteen legendary weapons wait to be forged. Your Wayfarer's Codex knows the way.",
+      "translate": "advancements.fantasyweapons.root.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:wayfarers_codex"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#7A4E0E",
+      "fallback": "Legends of the Forge",
+      "translate": "advancements.fantasyweapons.root.title"
+    }
+  },
+  "requirements": [
+    [
+      "tick"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "minecraft:frozen_peaks",
+  "features": "fantasyweapons:frostheart_ore",
+  "step": "underground_ores"
+}

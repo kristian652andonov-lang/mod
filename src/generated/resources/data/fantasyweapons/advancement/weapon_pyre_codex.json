@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:pyre_codex"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Bind the Pyre Codex",
+      "translate": "advancements.fantasyweapons.weapon_pyre_codex.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:pyre_codex"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF6A1A",
+      "fallback": "The Pyre Opens",
+      "translate": "advancements.fantasyweapons.weapon_pyre_codex.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

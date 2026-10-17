@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:popped_chorus_fruit"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:astralite"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:astralite_core"
+  }
+}

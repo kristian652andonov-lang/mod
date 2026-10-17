@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 5400,
+  "key": {
+    "A": {
+      "item": "minecraft:glowstone"
+    },
+    "C": {
+      "item": "minecraft:gold_block"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:solarite_core"
+    }
+  },
+  "pattern": [
+    "    R    ",
+    "   RRR   ",
+    "  RRRRR  ",
+    "   RRR   ",
+    "   RRR   ",
+    " AARCRAA ",
+    "    H    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:solaris"
+  }
+}

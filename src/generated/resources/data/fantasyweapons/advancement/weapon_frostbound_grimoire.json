@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostbound_grimoire"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Bind the Frostbound Grimoire",
+      "translate": "advancements.fantasyweapons.weapon_frostbound_grimoire.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:frostbound_grimoire"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#7FE8FF",
+      "fallback": "The Book That Keeps",
+      "translate": "advancements.fantasyweapons.weapon_frostbound_grimoire.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

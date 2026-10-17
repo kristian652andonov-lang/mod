@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3000,
+  "key": {
+    "A": {
+      "item": "minecraft:nether_brick"
+    },
+    "R": {
+      "item": "fantasyweapons:infernite_core"
+    }
+  },
+  "pattern": [
+    " AR   RA ",
+    " RRR RRR ",
+    "  RRARR  ",
+    "  ARRRA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:infernochain_chestplate"
+  }
+}

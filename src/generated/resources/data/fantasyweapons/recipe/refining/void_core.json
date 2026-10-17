@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:ender_pearl"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:void_crystal"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:void_core"
+  }
+}

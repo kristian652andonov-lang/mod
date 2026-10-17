@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:divine_power",
+  "criteria": {
+    "cast": {
+      "conditions": {
+        "name": "dimension_breakage"
+      },
+      "trigger": "fantasyweapons:ability_cast"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Fold the world into a cube and let the tesseract end it",
+      "translate": "advancements.fantasyweapons.dimension_breakage.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:end_crystal"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Dimension Breakage",
+      "translate": "advancements.fantasyweapons.dimension_breakage.title"
+    }
+  },
+  "requirements": [
+    [
+      "cast"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

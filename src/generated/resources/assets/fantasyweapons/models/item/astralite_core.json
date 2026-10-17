@@ -1,0 +1,103 @@
+{
+  "parent": "minecraft:builtin/entity",
+  "display": {
+    "firstperson_righthand": {
+      "rotation": [
+        0,
+        45,
+        0
+      ],
+      "scale": [
+        0.676,
+        0.676,
+        0.676
+      ],
+      "translation": [
+        0.002,
+        -1.497,
+        -0.005
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        180,
+        0
+      ],
+      "scale": [
+        0.744,
+        0.744,
+        0.744
+      ],
+      "translation": [
+        -0.005,
+        -5.497,
+        0.002
+      ]
+    },
+    "ground": {
+      "scale": [
+        0.473,
+        0.473,
+        0.473
+      ],
+      "translation": [
+        0.003,
+        -1.998,
+        -0.001
+      ]
+    },
+    "gui": {
+      "rotation": [
+        20,
+        225,
+        0
+      ],
+      "scale": [
+        0.913,
+        0.913,
+        0.913
+      ],
+      "translation": [
+        0.004,
+        -6.16,
+        -1.777
+      ]
+    },
+    "head": {
+      "rotation": [
+        0,
+        180,
+        0
+      ],
+      "scale": [
+        0.676,
+        0.676,
+        0.676
+      ],
+      "translation": [
+        -0.005,
+        7.003,
+        0.002
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        75,
+        45,
+        0
+      ],
+      "scale": [
+        0.473,
+        0.473,
+        0.473
+      ],
+      "translation": [
+        0.001,
+        1.598,
+        -3.38
+      ]
+    }
+  },
+  "gui_light": "side"
+}

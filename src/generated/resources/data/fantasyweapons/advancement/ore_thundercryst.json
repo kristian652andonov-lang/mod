@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:thundercryst"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Thundercryst high in the windswept hills",
+      "translate": "advancements.fantasyweapons.ore_thundercryst.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:thundercryst"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#3FF0FF",
+      "fallback": "Caught Lightning",
+      "translate": "advancements.fantasyweapons.ore_thundercryst.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

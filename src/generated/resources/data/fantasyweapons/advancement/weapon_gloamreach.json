@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:gloamreach"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Gloamreach",
+      "translate": "advancements.fantasyweapons.weapon_gloamreach.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:gloamreach"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#B04DFF",
+      "fallback": "The Long Dusk",
+      "translate": "advancements.fantasyweapons.weapon_gloamreach.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

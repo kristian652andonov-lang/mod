@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:necrostone_shard"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Necrostone in the Deep Dark, by the ancient cities",
+      "translate": "advancements.fantasyweapons.ore_necrostone_shard.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:necrostone_shard"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#5DFF7A",
+      "fallback": "Grave Matters",
+      "translate": "advancements.fantasyweapons.ore_necrostone_shard.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

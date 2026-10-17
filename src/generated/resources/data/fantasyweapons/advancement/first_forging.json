@@ -1,0 +1,31 @@
+{
+  "parent": "fantasyweapons:legendary_table",
+  "criteria": {
+    "forged": {
+      "trigger": "fantasyweapons:forge_started"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Lay a legendary pattern on the table and start forging it",
+      "translate": "advancements.fantasyweapons.first_forging.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "minecraft:anvil"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF8A3D",
+      "fallback": "The Hammer Falls",
+      "translate": "advancements.fantasyweapons.first_forging.title"
+    }
+  },
+  "requirements": [
+    [
+      "forged"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

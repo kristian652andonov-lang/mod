@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:gray_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:soulshard_core"
+    }
+  },
+  "pattern": [
+    "  ARRRA  ",
+    "  RRARR  ",
+    "  RR RR  ",
+    "  RA AR  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:soulreaper_leggings"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:first_blood",
+  "criteria": {
+    "kills": {
+      "conditions": {
+        "kills": 100
+      },
+      "trigger": "fantasyweapons:weapon_milestone"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Slay a hundred foes with one legendary weapon",
+      "translate": "advancements.fantasyweapons.centurion.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:skeleton_skull"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF5050",
+      "fallback": "Centurion",
+      "translate": "advancements.fantasyweapons.centurion.title"
+    }
+  },
+  "requirements": [
+    [
+      "kills"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

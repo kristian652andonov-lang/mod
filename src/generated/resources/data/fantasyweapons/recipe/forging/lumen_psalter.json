@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3000,
+  "key": {
+    "A": {
+      "item": "minecraft:gold_ingot"
+    },
+    "C": {
+      "item": "minecraft:glowstone"
+    },
+    "H": {
+      "item": "minecraft:leather"
+    },
+    "R": {
+      "item": "fantasyweapons:solarite_core"
+    }
+  },
+  "pattern": [
+    "         ",
+    "   ARA   ",
+    "  RRHRR  ",
+    "  RRCRR  ",
+    "  RRHRR  ",
+    "   ARA   ",
+    "         ",
+    "         ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:lumen_psalter"
+  }
+}

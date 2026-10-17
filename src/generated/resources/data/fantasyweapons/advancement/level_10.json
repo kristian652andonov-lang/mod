@@ -1,0 +1,34 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "level": {
+      "conditions": {
+        "level": 10
+      },
+      "trigger": "fantasyweapons:weapon_milestone"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Raise a legendary weapon to level 10",
+      "translate": "advancements.fantasyweapons.level_10.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "minecraft:experience_bottle"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#E6DCC2",
+      "fallback": "Blooded",
+      "translate": "advancements.fantasyweapons.level_10.title"
+    }
+  },
+  "requirements": [
+    [
+      "level"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

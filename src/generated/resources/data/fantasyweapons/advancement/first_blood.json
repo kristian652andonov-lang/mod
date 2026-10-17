@@ -1,0 +1,34 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "kill": {
+      "conditions": {
+        "kills": 1
+      },
+      "trigger": "fantasyweapons:weapon_milestone"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Slay a foe with a legendary weapon",
+      "translate": "advancements.fantasyweapons.first_blood.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "minecraft:iron_sword"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF5050",
+      "fallback": "First Blood",
+      "translate": "advancements.fantasyweapons.first_blood.title"
+    }
+  },
+  "requirements": [
+    [
+      "kill"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

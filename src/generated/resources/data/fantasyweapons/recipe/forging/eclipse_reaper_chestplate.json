@@ -1,0 +1,25 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3000,
+  "key": {
+    "A": {
+      "item": "minecraft:gold_ingot"
+    },
+    "B": {
+      "item": "minecraft:obsidian"
+    },
+    "R": {
+      "item": "fantasyweapons:eclipse_core"
+    }
+  },
+  "pattern": [
+    " AR   RB ",
+    " RRR RRR ",
+    "  RRARR  ",
+    "  ARRRB  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:eclipse_reaper_chestplate"
+  }
+}

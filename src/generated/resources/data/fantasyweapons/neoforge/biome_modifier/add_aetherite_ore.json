@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:meadow",
+    "minecraft:cherry_grove"
+  ],
+  "features": "fantasyweapons:aetherite_ore",
+  "step": "underground_ores"
+}

@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:first_ability",
+  "criteria": {
+    "cast": {
+      "conditions": {
+        "name": "ultimate"
+      },
+      "trigger": "fantasyweapons:ability_cast"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Unleash a legendary weapon's ultimate",
+      "translate": "advancements.fantasyweapons.ultimate.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:end_crystal"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Cataclysm",
+      "translate": "advancements.fantasyweapons.ultimate.title"
+    }
+  },
+  "requirements": [
+    [
+      "cast"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

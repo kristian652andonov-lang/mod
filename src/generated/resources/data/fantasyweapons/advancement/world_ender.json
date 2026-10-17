@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:first_rite",
+  "criteria": {
+    "cast": {
+      "conditions": {
+        "name": "apocalyptic"
+      },
+      "trigger": "fantasyweapons:ability_cast"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Unleash a power of an ultimate weapon",
+      "translate": "advancements.fantasyweapons.world_ender.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:tnt"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF5050",
+      "fallback": "World Ender",
+      "translate": "advancements.fantasyweapons.world_ender.title"
+    }
+  },
+  "requirements": [
+    [
+      "cast"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

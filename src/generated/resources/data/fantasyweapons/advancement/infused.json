@@ -1,0 +1,31 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "infused": {
+      "trigger": "fantasyweapons:infused"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Infuse a legendary weapon with its refined cores",
+      "translate": "advancements.fantasyweapons.infused.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:void_core"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#6FD8F0",
+      "fallback": "Infused",
+      "translate": "advancements.fantasyweapons.infused.title"
+    }
+  },
+  "requirements": [
+    [
+      "infused"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

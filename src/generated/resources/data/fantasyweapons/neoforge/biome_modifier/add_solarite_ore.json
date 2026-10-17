@@ -1,0 +1,11 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:badlands",
+    "minecraft:eroded_badlands",
+    "minecraft:wooded_badlands",
+    "minecraft:desert"
+  ],
+  "features": "fantasyweapons:solarite_ore",
+  "step": "underground_ores"
+}

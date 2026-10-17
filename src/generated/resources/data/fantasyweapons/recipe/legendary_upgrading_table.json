@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": {
+      "item": "minecraft:anvil"
+    },
+    "C": {
+      "item": "minecraft:copper_block"
+    },
+    "E": {
+      "item": "minecraft:experience_bottle"
+    },
+    "G": {
+      "item": "minecraft:grindstone"
+    },
+    "N": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "S": {
+      "item": "minecraft:smithing_table"
+    }
+  },
+  "pattern": [
+    "CEC",
+    "ASG",
+    "NCN"
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:legendary_upgrading_table"
+  }
+}

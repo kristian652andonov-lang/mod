@@ -1,0 +1,29 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1200,
+  "key": {
+    "A": {
+      "item": "minecraft:bone_block"
+    },
+    "C": {
+      "item": "minecraft:echo_shard"
+    },
+    "H": {
+      "item": "minecraft:bone"
+    },
+    "R": {
+      "item": "fantasyweapons:necrostone_heart"
+    }
+  },
+  "pattern": [
+    "    R    ",
+    "   RCR   ",
+    "    H    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:necrostone_shovel"
+  }
+}

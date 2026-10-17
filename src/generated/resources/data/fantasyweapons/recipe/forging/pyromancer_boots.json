@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1200,
+  "key": {
+    "A": {
+      "item": "minecraft:red_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:infernite_core"
+    }
+  },
+  "pattern": [
+    "  R   R  ",
+    " RR   RR ",
+    " AR   RA "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:pyromancer_boots"
+  }
+}

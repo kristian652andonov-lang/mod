@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:red_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:infernite_core"
+    }
+  },
+  "pattern": [
+    "  ARRRA  ",
+    "  RRARR  ",
+    "  RR RR  ",
+    "  RA AR  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:pyromancer_leggings"
+  }
+}

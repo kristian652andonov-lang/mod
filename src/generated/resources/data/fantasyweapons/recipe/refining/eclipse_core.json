@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:phantom_membrane"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:eclipsite"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:eclipse_core"
+  }
+}
