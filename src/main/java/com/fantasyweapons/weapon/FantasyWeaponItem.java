@@ -99,7 +99,12 @@ public class FantasyWeaponItem extends Item implements GeoItem {
             }
             RawAnimation cast = RawAnimation.begin();
             List<String> seq = ability.castAnimations().isEmpty() ? List.of("ability_activation", "ability_execution") : ability.castAnimations();
-            for (String s : seq) cast.thenPlay(def.anim(s));
+            // a summoned power holds its last pose while it is summoned, until it is released (RELEASE)
+            boolean summoned = def.rarity() == Rarity.BRILLIANT_LIGHT;
+            for (int i = 0; i < seq.size(); i++) {
+                if (summoned && i == seq.size() - 1) cast.thenPlayAndHold(def.anim(seq.get(i)));
+                else cast.thenPlay(def.anim(seq.get(i)));
+            }
             main.triggerableAnim("cast:" + ability.id(), cast);
             ability.formCastAnimations().forEach((form, anims) -> {
                 RawAnimation formCast = RawAnimation.begin();
@@ -107,8 +112,14 @@ public class FantasyWeaponItem extends Item implements GeoItem {
                 main.triggerableAnim("cast:" + ability.id() + "@" + form, formCast);
             });
         }
+        if (def.rarity() == Rarity.BRILLIANT_LIGHT) {
+            main.triggerableAnim(RELEASE, RawAnimation.begin().thenPlay(def.anim("ability_execution")).thenPlay(def.anim("recovery")));
+        }
         controllers.add(main);
     }
+
+    /** The trigger a summoned power plays when it is released. */
+    public static final String RELEASE = "release";
 
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {

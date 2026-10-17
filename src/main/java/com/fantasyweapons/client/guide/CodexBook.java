@@ -539,11 +539,11 @@ public final class CodexBook {
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("The Rites");
-            c.para("Its grid is eleven by eleven, and it forges only the ultimate weapons: the two of the Calamity class, each "
-                    + "from all twenty-five legendary weapons, a core of every material and the rarest treasures of the world - and "
-                    + "the Weapon of God, from both of them.", PageCanvas.INK, 0.5f);
+            c.para("Its grid is eleven by eleven, and it forges only the two weapons of the Calamity class, each from all "
+                    + "twenty-five legendary weapons, a core of every material and the rarest treasures of the world. The Weapon of "
+                    + "God is fused from the two on the Upgrading Table.", PageCanvas.INK, 0.5f);
             c.para("Lay the rite as on the table, then press Forge. It works for " + com.fantasyweapons.forge.WorldforgeRecipe.DEFAULT_TIME / 20 / 60
-                    + " minutes, the Weapon of God's fifteen; when it is done, lightning falls and the whole world hears.", PageCanvas.INK, 0.5f);
+                    + " minutes; when it is done, lightning falls and the whole world hears.", PageCanvas.INK, 0.5f);
             c.gap(2);
             for (WeaponDefinition def : Weapons.ultimates()) {
                 float y = c.y;
@@ -600,6 +600,8 @@ public final class CodexBook {
                     + "tool's refined material, and choose what to raise.", PageCanvas.INK, 0.52f);
             c.para("Each step costs cores and experience levels, paid at once; the table works for "
                     + com.fantasyweapons.tool.UpgradingTableBlockEntity.DURATION / 20 + " seconds.", PageCanvas.INK, 0.52f);
+            c.para("With both Calamity weapons on it - the sword in the vise, the book in the cup - it fuses them into the Weapon of God.",
+                    PageCanvas.FADED, 0.5f);
         });
         page(c -> {
             c.y = PageCanvas.TOP;
@@ -711,7 +713,40 @@ public final class CodexBook {
                 }
             });
         }
-        if (def.rarity().ultimate()) {
+        if (def.rarity() == com.fantasyweapons.weapon.Rarity.BRILLIANT_LIGHT) {
+            page(c -> {
+                c.y = PageCanvas.TOP;
+                c.heading("The Fusion");
+                // the sword and the book, and what they become
+                float y = c.y + 2, mid = PageCanvas.W / 2f;
+                c.item(weapon(Weapons.get(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID)), mid - 34, y, 15);
+                c.text("+", mid - 16.5f, y + 4, PageCanvas.FADED, 0.8f);
+                c.item(weapon(Weapons.get(com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID)), mid - 9, y, 15);
+                c.text("→", mid + 8.5f, y + 4, PageCanvas.FADED, 0.8f);
+                c.item(weapon(def), mid + 16, y, 15);
+                c.y = y + 20;
+                c.para("Fused on the Legendary Upgrading Table: the Great Sword of Obliteration in its vise, the Spell Book of "
+                        + "Absolute Domination in its cup. Press Fuse.", PageCanvas.INK, 0.5f);
+                c.para("It costs " + com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_LEVELS + " experience levels and takes "
+                        + com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_DURATION / 20 + " seconds, and the Weapon of God keeps the "
+                        + "higher of the two calamities' levels.", PageCanvas.INK, 0.5f);
+            });
+            page(c -> {
+                c.y = PageCanvas.TOP;
+                c.heading("The Summoning");
+                c.para("Its powers are not cast; they are summoned. You rise into the air and are held there, beyond harm, while the sky "
+                        + "darkens and the power is called down - " + com.fantasyweapons.weapons.god.DivineSummoning.TICKS / 20 + " seconds - and "
+                        + "only then does it fall where you chose.", PageCanvas.INK, 0.5f);
+                c.gap(1);
+                for (AbilityDefinition a : def.abilities()) {
+                    if (!c.fits(7)) break;
+                    String rest = Math.round(a.param("cooldown") / 60) + " min rest";
+                    c.text(a.name(), PageCanvas.MARGIN, c.y, PageCanvas.GOLD, 0.46f);
+                    c.text(rest, PageCanvas.W - PageCanvas.MARGIN - c.width(rest, 0.42f), c.y + 0.5f, PageCanvas.FADED, 0.42f);
+                    c.y += 6.2f;
+                }
+            });
+        } else if (def.rarity().ultimate()) {
             var rite = FantasyWeapons.id("worldforging/" + def.id());
             page(c -> {
                 c.y = PageCanvas.TOP;

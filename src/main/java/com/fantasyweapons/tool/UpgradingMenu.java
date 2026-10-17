@@ -20,7 +20,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * The Legendary Upgrading Table's screen: the vise (a legendary tool) and the copper cup (its refined material), the three
  * things it can raise with what each next step costs, and the player's inventory. Choosing one is a menu button (its
- * {@link UpgradeTrack} ordinal); the tool and the cup can't be taken while the table works.
+ * {@link UpgradeTrack} ordinal); the tool and the cup can't be taken while the table works. With the two calamities on
+ * it, the screen offers the fusion instead.
  */
 public class UpgradingMenu extends AbstractContainerMenu {
     public static final int WIDTH = 246, HEIGHT = 232;
@@ -91,8 +92,22 @@ public class UpgradingMenu extends AbstractContainerMenu {
         return t >= 0 && t < UpgradeTrack.values().length ? UpgradeTrack.values()[t] : null;
     }
 
+    /** Whether the table is fusing the two calamities. */
+    public boolean fusing() {
+        return data.get(1) == UpgradingTableBlockEntity.FUSE;
+    }
+
     public float progress() {
-        return working() ? Math.min(1f, data.get(0) / (float) UpgradingTableBlockEntity.DURATION) : 0;
+        return working() ? Math.min(1f, data.get(0) / (float) UpgradingTableBlockEntity.duration(data.get(1))) : 0;
+    }
+
+    /**
+     * Whether the screen shows the fusion rather than the tool upgrades: a calamity is on the table, the fusion is under
+     * way, or the Weapon of God it made lies in the vise.
+     */
+    public boolean fusion() {
+        return fusing() || UpgradingTableBlockEntity.isSword(tool()) || UpgradingTableBlockEntity.isGod(tool())
+                || tool().isEmpty() && UpgradingTableBlockEntity.isBook(catalyst());
     }
 
     public ItemStack tool() {
@@ -103,10 +118,12 @@ public class UpgradingMenu extends AbstractContainerMenu {
         return slots.get(UpgradingTableBlockEntity.CATALYST).getItem();
     }
 
-    /** A button: raise the {@link UpgradeTrack} of that ordinal. */
+    /** A button: raise the {@link UpgradeTrack} of that ordinal, or ({@link UpgradingTableBlockEntity#FUSE}) fuse. */
     @Override
     public boolean clickMenuButton(Player player, int id) {
-        if (table == null || id < 0 || id >= UpgradeTrack.values().length) return false;
+        if (table == null) return false;
+        if (id == UpgradingTableBlockEntity.FUSE) return table.startFusion(player) == UpgradingTableBlockEntity.Check.READY;
+        if (id < 0 || id >= UpgradeTrack.values().length) return false;
         return table.start(player, UpgradeTrack.values()[id]) == UpgradingTableBlockEntity.Check.READY;
     }
 

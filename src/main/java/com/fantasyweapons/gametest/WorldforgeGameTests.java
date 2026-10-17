@@ -207,20 +207,16 @@ public final class WorldforgeGameTests {
     @GameTest(template = ARENA, batch = "worldforge")
     public static void theRitesForgeTheUltimates(GameTestHelper h) {
         var all = WorldforgeRecipe.ordered(h.getLevel());
-        if (all.size() != 3) h.fail(all.size() + " rites");
+        if (all.size() != 2) h.fail(all.size() + " rites");
         java.util.Set<net.minecraft.world.item.Item> legends = new java.util.HashSet<>();
         for (var def : com.fantasyweapons.weapon.Weapons.legendaries()) legends.add(ModItems.WEAPONS.get(def.id()).get());
         var sword = ModItems.WEAPONS.get(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID).get();
         var book = ModItems.WEAPONS.get(com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID).get();
-        var god = ModItems.WEAPONS.get(com.fantasyweapons.weapons.god.WeaponOfGod.ID).get();
         for (var r : all) {
             java.util.Set<net.minecraft.world.item.Item> used = new java.util.HashSet<>();
             for (var ing : r.value().pattern().ingredients()) for (var s : ing.getItems()) used.add(s.getItem());
             var made = r.value().result().getItem();
-            if (made.equals(god)) {
-                // the Weapon of God is forged from both calamities
-                if (!used.contains(sword) || !used.contains(book)) h.fail(r.id() + " does not take both calamities");
-            } else if (made.equals(sword) || made.equals(book)) {
+            if (made.equals(sword) || made.equals(book)) {
                 if (!used.containsAll(legends)) h.fail(r.id() + " does not take every legend");
             } else {
                 h.fail(r.id() + " makes " + r.value().result());

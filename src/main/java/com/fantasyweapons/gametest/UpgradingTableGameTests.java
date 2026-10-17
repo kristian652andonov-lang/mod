@@ -138,6 +138,46 @@ public final class UpgradingTableGameTests {
         h.succeed();
     }
 
+    private static ItemStack weapon(String id, int level) {
+        ItemStack stack = new ItemStack(ModItems.WEAPONS.get(id).get());
+        var def = com.fantasyweapons.weapon.Weapons.get(id);
+        stack.set(ModComponents.WEAPON_DATA.get(), com.fantasyweapons.progression.ExpService.withLevels(def,
+                com.fantasyweapons.progression.WeaponData.EMPTY, level - 1));
+        return stack;
+    }
+
+    /**
+     * The Great Sword of Obliteration in the vise and the Spell Book of Absolute Domination in the cup fuse into the Weapon of
+     * God: paid for in levels at once, done in a minute, and the new weapon keeps the higher of the two levels.
+     */
+    @GameTest(template = ARENA, timeoutTicks = UpgradingTableBlockEntity.FUSE_DURATION + 60)
+    public static void theTwoCalamitiesFuseIntoTheWeaponOfGod(GameTestHelper h) {
+        UpgradingTableBlockEntity be = table(h);
+        ServerPlayer p = player(h, UpgradingTableBlockEntity.FUSE_LEVELS - 1);
+        String sword = com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID, book = com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID;
+        h.assertTrue(UpgradingTableBlockEntity.accepts(UpgradingTableBlockEntity.TOOL, weapon(sword, 1)), "the vise takes the sword");
+        h.assertTrue(UpgradingTableBlockEntity.accepts(UpgradingTableBlockEntity.CATALYST, weapon(book, 1)), "the cup takes the book");
+        h.assertTrue(!UpgradingTableBlockEntity.accepts(UpgradingTableBlockEntity.TOOL, weapon("voidfang", 1)), "the vise refuses other weapons");
+        be.items().setStackInSlot(UpgradingTableBlockEntity.TOOL, weapon(sword, 40));
+        h.assertTrue(be.startFusion(p) == Check.NO_BOOK, "the book is missing");
+        be.items().setStackInSlot(UpgradingTableBlockEntity.CATALYST, weapon(book, 70));
+        h.assertTrue(be.startFusion(p) == Check.FEW_LEVELS, "one level short");
+        p.setExperienceLevels(UpgradingTableBlockEntity.FUSE_LEVELS + 5);
+        h.assertTrue(be.startFusion(p) == Check.READY, "the fusion should start");
+        h.assertTrue(p.experienceLevel == 5, "it should take " + UpgradingTableBlockEntity.FUSE_LEVELS + " levels, left " + p.experienceLevel);
+        h.assertTrue(be.fusing() && h.getBlockState(CORE).getValue(UpgradingTableBlock.WORKING), "the table should be at work");
+        h.assertTrue(be.start(p, UpgradeTrack.AREA) == Check.BUSY, "a working table takes no second order");
+        h.runAfterDelay(UpgradingTableBlockEntity.FUSE_DURATION + 2, () -> {
+            ItemStack made = be.items().getStackInSlot(UpgradingTableBlockEntity.TOOL);
+            h.assertTrue(made.is(ModItems.WEAPONS.get(com.fantasyweapons.weapons.god.WeaponOfGod.ID).get()), "the vise should hold the Weapon of God, holds " + made);
+            int level = com.fantasyweapons.weapon.FantasyWeaponItem.data(made).level();
+            h.assertTrue(level == 70, "it should keep the higher level (70), has " + level);
+            h.assertTrue(be.items().getStackInSlot(UpgradingTableBlockEntity.CATALYST).isEmpty(), "the book should be gone into it");
+            h.assertTrue(!be.working() && !h.getBlockState(CORE).getValue(UpgradingTableBlock.WORKING), "the table should be idle again");
+            h.succeed();
+        });
+    }
+
     /** A table broken while it works finishes the step (it was paid for) and drops the raised tool and the cup's cores. */
     @GameTest(template = ARENA)
     public static void breakingAWorkingTableFinishesTheStepAndDropsItAll(GameTestHelper h) {

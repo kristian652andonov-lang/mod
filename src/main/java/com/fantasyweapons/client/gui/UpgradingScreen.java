@@ -22,11 +22,15 @@ import net.minecraft.world.item.ItemStack;
  * The Legendary Upgrading Table's screen, copper and experience-green on dark metal like the table: the vise (the tool,
  * large) and the cup (its refined material) on the left; on the right the three things the table raises - mining area,
  * Fortune, Efficiency - each with where it stands, what the next step makes of it, what that costs (cores and levels,
- * green when there is enough) and a button to raise it; while the table works, the step under way fills its row.
+ * green when there is enough) and a button to raise it; while the table works, the step under way fills its row. With
+ * the Great Sword of Obliteration in the vise, the three rows give way to the fusion: the sword and the book becoming the
+ * Weapon of God, its cost and a button to begin.
  */
 public class UpgradingScreen extends AbstractContainerScreen<UpgradingMenu> {
     private static final int COPPER = 0xE58A55, COPPER_LIGHT = 0xFFC79E, XP = 0x9CF06A, XP_DARK = 0x3E8A2A, LINE = 0x8C6A55, BAD = 0xE8746A;
     private static final int BUTTON_W = 42, BUTTON_H = 14;
+    /** The calamities' colours and the Weapon of God's. */
+    private static final int SWORD = 0xFF3A44, BOOK = 0xB57CFF, LIGHT = 0xFFF0B0;
 
     public UpgradingScreen(UpgradingMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -60,7 +64,78 @@ public class UpgradingScreen extends AbstractContainerScreen<UpgradingMenu> {
             }
         }
         ItemStack tool = menu.tool();
+        if (menu.fusion()) {
+            fusion(g, mouseX, mouseY, time);
+            return;
+        }
         for (UpgradeTrack t : UpgradeTrack.values()) row(g, t, tool, mouseX, mouseY, time);
+    }
+
+    private int fuseButtonY() {
+        return topPos + UpgradingMenu.ROWS_Y + 3 * UpgradingMenu.ROW_H - 4 - BUTTON_H - 5;
+    }
+
+    /** The fusion, in place of the three rows: the sword and the book, what they become, the cost and the button. */
+    private void fusion(GuiGraphics g, int mouseX, int mouseY, float time) {
+        int rx = leftPos + UpgradingMenu.ROWS_X, ry = topPos + UpgradingMenu.ROWS_Y, rw = UpgradingMenu.ROW_W, rh = 3 * UpgradingMenu.ROW_H - 4;
+        boolean fusing = menu.fusing();
+        float p = menu.progress();
+        UiDraw.rect(g, rx, ry, rx + rw, ry + rh, Colors.alpha(0.42f, fusing ? 0x1A1408 : 0x000000));
+        UiDraw.border(g, rx, ry, rx + rw, ry + rh, 1, Colors.alpha(0.6f, fusing ? 0xB89A50 : LINE));
+        float pulse = 0.35f + 0.2f * (float) Math.sin(time * (fusing ? 0.25f + 0.5f * p : 0.12f));
+        UiDraw.glowBorder(g, rx, ry, rx + rw, ry + rh, LIGHT, fusing ? pulse + 0.3f * p : pulse * 0.6f, 5);
+        UiDraw.textCentered(g, "Divine Fusion", rx + rw / 2f, ry + 4, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.75f, true);
+        // the sword + the book -> the Weapon of God
+        ItemStack sword = menu.tool(), book = menu.catalyst();
+        boolean hasSword = com.fantasyweapons.tool.UpgradingTableBlockEntity.isSword(sword), hasBook = com.fantasyweapons.tool.UpgradingTableBlockEntity.isBook(book);
+        int iy = ry + 17, cx = rx + rw / 2;
+        boolean made = com.fantasyweapons.tool.UpgradingTableBlockEntity.isGod(sword);
+        ItemStack godStack = made ? sword : new ItemStack(ModItems.WEAPONS.get(com.fantasyweapons.weapons.god.WeaponOfGod.ID).get());
+        if (made) {
+            // done: the Weapon of God alone, in full light
+            icon(g, godStack, cx, iy, LIGHT, 1f, time);
+            UiDraw.glowBorder(g, cx - 12, iy - 4, cx + 12, iy + 20, LIGHT, pulse, 4);
+            UiDraw.textCentered(g, "The Weapon of God", cx, iy + 25, Colors.alpha(1f, LIGHT), 0.72f, true);
+            UiDraw.textCentered(g, "The Last Fragment of Brilliant Light", cx, iy + 34, Colors.alpha(0.85f, UiDraw.INK_MUTED), 0.55f, false);
+            UiDraw.textCentered(g, "Fused", cx, fuseButtonY() + 4, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.75f, true);
+            return;
+        }
+        ItemStack swordIcon = fusing || hasSword ? sword : new ItemStack(ModItems.WEAPONS.get(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID).get());
+        ItemStack bookIcon = fusing || hasBook ? book : new ItemStack(ModItems.WEAPONS.get(com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID).get());
+        if (swordIcon.isEmpty()) swordIcon = new ItemStack(ModItems.WEAPONS.get(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID).get());
+        if (bookIcon.isEmpty()) bookIcon = new ItemStack(ModItems.WEAPONS.get(com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID).get());
+        icon(g, swordIcon, cx - 62, iy, SWORD, fusing || hasSword ? 1f : 0.35f, time);
+        UiDraw.textCentered(g, "+", cx - 37, iy + 5, Colors.alpha(1f, UiDraw.INK_MUTED), 0.9f, true);
+        icon(g, bookIcon, cx - 20, iy, BOOK, fusing || hasBook ? 1f : 0.35f, time);
+        UiDraw.textCentered(g, "→", cx + 10, iy + 5, Colors.alpha(1f, fusing ? LIGHT : UiDraw.INK_MUTED), 0.9f, true);
+        icon(g, godStack, cx + 40, iy, LIGHT, fusing ? 0.4f + 0.6f * p : hasSword && hasBook ? 0.8f : 0.35f, time);
+        UiDraw.textCentered(g, "The Weapon of God", cx, iy + 25, Colors.alpha(1f, LIGHT), 0.72f, true);
+        UiDraw.textCentered(g, "The Last Fragment of Brilliant Light", cx, iy + 34, Colors.alpha(0.85f, UiDraw.INK_MUTED), 0.55f, false);
+        int bx = buttonX(), by = fuseButtonY();
+        if (fusing) {
+            UiDraw.bar(g, rx + 8, by + 3, rw - 16, 7, p, 0x6E5A28, LIGHT, 1f, time / 20f);
+            if (p > 0 && p < 1) UiDraw.barTip(g, rx + 8, by + 3, rw - 16, 7, rx + 8 + (rw - 16) * p, LIGHT, time);
+            return;
+        }
+        int levels = com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_LEVELS;
+        boolean enough = minecraft.player.getAbilities().instabuild || minecraft.player.experienceLevel >= levels;
+        UiDraw.text(g, levels + " levels", rx + 8, by + 1, Colors.alpha(1f, enough ? XP : BAD), 0.66f, true);
+        UiDraw.text(g, com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_DURATION / 20 + " s", rx + 8, by + 9, Colors.alpha(1f, UiDraw.INK_MUTED), 0.6f, false);
+        boolean ready = !menu.working() && com.fantasyweapons.tool.UpgradingTableBlockEntity.checkFusion(sword, book, minecraft.player)
+                == UpgradingTableBlockEntity.Check.READY;
+        boolean hover = mouseX >= bx && mouseX < bx + BUTTON_W && mouseY >= by && mouseY < by + BUTTON_H;
+        UiDraw.button(g, bx, by, BUTTON_W, BUTTON_H, hover && ready ? 1 : 0, ready ? 1f : 0.45f);
+        UiDraw.textCentered(g, "Fuse", bx + BUTTON_W / 2f, by + 4, Colors.alpha(ready ? 1f : 0.6f, ready ? UiDraw.GOLD_LIGHT : UiDraw.INK_MUTED), 0.7f, true);
+    }
+
+    /** An item of the fusion on a glowing sigil, faded to {@code alpha} when it is not on the table yet. */
+    private void icon(GuiGraphics g, ItemStack stack, int x, int y, int color, float alpha, float time) {
+        UiDraw.sigil(g, x, y + 8, 13, color, time, alpha);
+        g.pose().pushPose();
+        g.pose().translate(x - 8, y, 0);
+        g.renderFakeItem(stack, 0, 0);
+        g.pose().popPose();
+        if (alpha < 0.5f) UiDraw.rect(g, x - 9, y - 1, x + 9, y + 17, Colors.alpha(0.55f, 0x000000));
     }
 
     private int rowY(UpgradeTrack t) {
@@ -152,12 +227,23 @@ public class UpgradingScreen extends AbstractContainerScreen<UpgradingMenu> {
         if (tool.getItem() instanceof LegendaryTool lt) {
             UiDraw.textCentered(g, lt.material().refinedName(), UpgradingMenu.CATALYST_X + 8, UpgradingMenu.CATALYST_Y + 22,
                     Colors.alpha(1f, lt.material().color()), 0.55f, true);
+        } else if (menu.fusion()) {
+            UiDraw.textCentered(g, "Spell Book", UpgradingMenu.CATALYST_X + 8, UpgradingMenu.CATALYST_Y + 22, Colors.alpha(1f, BOOK), 0.55f, true);
         }
         // what the table is doing, or what it needs
         float cx = UpgradingMenu.ROWS_X + UpgradingMenu.ROW_W / 2f;
         int ly = UpgradingMenu.ROWS_Y + 3 * UpgradingMenu.ROW_H + 2;
         UpgradeTrack under = menu.track();
-        if (under != null) {
+        if (menu.fusing()) {
+            float left = (1 - menu.progress()) * UpgradingTableBlockEntity.FUSE_DURATION / 20f;
+            UiDraw.textCentered(g, String.format("Fusing the Weapon of God   %.0fs", Math.ceil(left)), cx, ly, Colors.alpha(1f, LIGHT), 0.72f, true);
+        } else if (UpgradingTableBlockEntity.isGod(tool)) {
+            UiDraw.textCentered(g, "Take the Weapon of God from the vise", cx, ly, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.68f, false);
+        } else if (menu.fusion()) {
+            var c = UpgradingTableBlockEntity.checkFusion(tool, menu.catalyst(), minecraft.player);
+            boolean ready = c == UpgradingTableBlockEntity.Check.READY;
+            UiDraw.textCentered(g, ready ? "Fuse the two calamities" : c.message, cx, ly, ready ? Colors.alpha(1f, UiDraw.GOLD_LIGHT) : muted, 0.68f, false);
+        } else if (under != null) {
             float left = (1 - menu.progress()) * UpgradingTableBlockEntity.DURATION / 20f;
             UiDraw.textCentered(g, String.format("Raising %s   %.0fs", under.displayName(), Math.ceil(left)), cx, ly, Colors.alpha(1f, XP), 0.72f, true);
         } else if (!(tool.getItem() instanceof LegendaryTool)) {
@@ -181,6 +267,15 @@ public class UpgradingScreen extends AbstractContainerScreen<UpgradingMenu> {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         ItemStack tool = menu.tool();
+        if (button == 0 && !menu.working() && menu.fusion() && !UpgradingTableBlockEntity.isGod(tool)) {
+            int bx = buttonX(), by = fuseButtonY();
+            if (mouseX >= bx && mouseX < bx + BUTTON_W && mouseY >= by && mouseY < by + BUTTON_H) {
+                if (UpgradingTableBlockEntity.checkFusion(tool, menu.catalyst(), minecraft.player) != UpgradingTableBlockEntity.Check.READY) return true;
+                minecraft.gameMode.handleInventoryButtonClick(menu.containerId, UpgradingTableBlockEntity.FUSE);
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1f, 0.6f));
+                return true;
+            }
+        }
         if (button == 0 && !menu.working() && tool.getItem() instanceof LegendaryTool) {
             int bx = buttonX();
             for (UpgradeTrack t : UpgradeTrack.values()) {

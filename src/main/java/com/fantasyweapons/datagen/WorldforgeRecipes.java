@@ -18,7 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The Worldforge's rites: two that each forge a calamity, and the Weapon of God's, from both. A calamity's takes every
+ * The Worldforge's rites, one for each calamity (the Weapon of God is fused from the two on the Legendary Upgrading
+ * Table). Each takes every
  * legendary weapon there is - the thirteen blades (a to m), the six staffs
  * (n to s) and the six spellbooks (t to y) - and a refined core of each of the thirteen materials (A to M), with the
  * hardest trophies of every dimension: nether stars (*), netherite blocks (#), a heavy core (+), totems of undying (!),
@@ -55,30 +56,12 @@ final class WorldforgeRecipes {
             "&    #    &",
             "*@$  #  $@*"};
 
-    /**
-     * The Weapon of God's rite: both calamities (S, the sword; T, the book) side by side at its heart round a nether star,
-     * the thirteen cores round them, and the rite laid out as a sun.
-     */
-    static final String[] GOD = {
-            "*    ~    *",
-            " $   @   $ ",
-            "  #ABCDE#  ",
-            "   %&+&%   ",
-            "~ F!#*#!G ~",
-            "@ H S*T I @",
-            "~ J!#*#!K ~",
-            "   %&+&%   ",
-            "  #L   M#  ",
-            " $   @   $ ",
-            "*    ~    *"};
-
-    /** The ultimate weapons take ten minutes to forge; the Weapon of God fifteen. */
-    static final int TIME = 12000, GOD_TIME = 18000;
+    /** The ultimate weapons take ten minutes to forge. */
+    static final int TIME = 12000;
 
     static void build(RecipeOutput out) {
         accept(out, GreatSwordOfObliteration.ID, SWORD);
         accept(out, SpellBookOfDomination.ID, BOOK);
-        accept(out, com.fantasyweapons.weapons.god.WeaponOfGod.ID, GOD, GOD_TIME);
     }
 
     static Map<Character, ItemLike> key() {
@@ -101,16 +84,11 @@ final class WorldforgeRecipes {
         key.put('^', Items.WITHER_SKELETON_SKULL);
         key.put('~', Items.BEACON);
         key.put('?', Items.ENCHANTED_BOOK);
-        key.put('S', ModItems.WEAPONS.get(GreatSwordOfObliteration.ID).get());
-        key.put('T', ModItems.WEAPONS.get(SpellBookOfDomination.ID).get());
         return key;
     }
 
     private static void accept(RecipeOutput out, String weapon, String[] rows) {
-        accept(out, weapon, rows, TIME);
-    }
-
-    private static void accept(RecipeOutput out, String weapon, String[] rows, int time) {
+        int time = TIME;
         Map<Character, Ingredient> used = new LinkedHashMap<>();
         String all = String.join("", rows);
         key().forEach((ch, item) -> {

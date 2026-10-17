@@ -39,8 +39,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class WorldWreck {
     /** Keeps a chunk loaded until its rewrite is done. */
     private static final TicketType<ChunkPos> TICKET = TicketType.create("fantasyweapons_wreck", Comparator.comparingLong(ChunkPos::toLong), 400);
-    /** Give up on a chunk that will not load (or be generated) within this many ticks of first being wanted. */
-    private static final int MAX_WAIT = 1200;
+    /** Give up on a chunk that will not load (or be generated) within this many ticks of being due. */
+    private static final int MAX_WAIT = 2400;
 
     /**
      * @param waited how many times it found its chunk not yet loaded
@@ -338,8 +338,9 @@ public final class WorldWreck {
             LevelChunk chunk = level.getChunkSource().getChunkNow(t.x(), t.z());
             if (chunk == null) {
                 // (a task waiting for its chunk is looked at again every tick it is in reach of AHEAD: its wait is
-                // measured in ticks, not in tries)
-                if (!load || (t.since() >= 0 && clock - t.since() >= MAX_WAIT)) {
+                // measured in ticks, not in tries, and from when it was due - a far chunk that has to be generated
+                // first may take a while, and its ticket keeps it coming)
+                if (!load || (t.since() >= 0 && clock - Math.max(t.since(), t.batch().due) >= MAX_WAIT)) {
                     drop(t);
                     continue;
                 }

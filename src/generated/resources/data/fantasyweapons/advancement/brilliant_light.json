@@ -15,7 +15,7 @@
   "display": {
     "announce_to_chat": false,
     "description": {
-      "fallback": "Forge the Weapon of God from both calamities",
+      "fallback": "Fuse both calamities into the Weapon of God",
       "translate": "advancements.fantasyweapons.brilliant_light.description"
     },
     "frame": "challenge",

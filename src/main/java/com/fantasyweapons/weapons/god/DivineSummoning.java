@@ -51,11 +51,23 @@ public final class DivineSummoning {
                 .power(TICKS).level(color(held.ability().id())).entities(java.util.List.of(Math.max(0, index))).seed(Kit.seed(level)).build());
         Kit.active(held, TICKS);
         // the land it will strike starts loading now, so it is there to be destroyed when the power comes
-        double reach = Math.min(600, size + 48);
-        for (var c : com.fantasyweapons.weapons.ultimate.ShufflePlan.region(at, reach)) com.fantasyweapons.world.wreck.WorldWreck.hold(level, c.x, c.z);
+        for (var c : com.fantasyweapons.weapons.ultimate.ShufflePlan.region(at, reach(held.ability()))) {
+            com.fantasyweapons.world.wreck.WorldWreck.hold(level, c.x, c.z);
+        }
         AreaEffectManager.add(new Summoning(held, at, power));
         level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 6f, 0.5f);
         return true;
+    }
+
+    /**
+     * How far from where a power lands the land it touches reaches: its radius, the trident's cracks round its crater, the
+     * slashes and canyons that run out of it - all of it is loaded while the power is summoned.
+     */
+    public static double reach(com.fantasyweapons.ability.AbilityDefinition a) {
+        double size = a.hasParam("radius") ? a.param("radius") : 160;
+        double extent = a.id().equals(WeaponOfGod.TRIDENT) ? size * 1.6 + 12 : size;
+        if (a.hasParam("length")) extent = Math.max(extent, a.param("length"));
+        return Math.min(640, extent + 48);
     }
 
     /** The caster held aloft while the power comes; then it is loosed. */
@@ -80,6 +92,7 @@ public final class DivineSummoning {
             if (age != TICKS) return;
             owner.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 100, 0, false, false));
             owner.removeEffect(MobEffects.LEVITATION);
+            com.fantasyweapons.weapon.WeaponAnimations.trigger(owner, ctx.stack(), com.fantasyweapons.weapon.FantasyWeaponItem.RELEASE);
             try {
                 power.execute(ctx);
             } catch (RuntimeException e) {

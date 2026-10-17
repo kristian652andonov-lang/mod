@@ -192,8 +192,9 @@ public final class Quests {
                 .collect(() -> ModItems.WEAPONS.get(sword).get(), 1, "Hold the Great Sword of Obliteration")
                 .collect(() -> ModItems.WEAPONS.get(book).get(), 1, "Hold the Spell Book of Absolute Domination")
                 .reward(Items.NETHER_STAR, 4).reward(Items.BEACON, 2).xp(20000).requires("forge_" + book).group(group).build());
-        list.add(quest("forge_" + god, Chapter.WEAPONS, "The Last Fragment", "Lay both calamities on the Worldforge together, with the thirteen "
-                + "cores and the rarest treasures of the world, and forge the Weapon of God: The Last Fragment of Brilliant Light.", godIcon)
+        list.add(quest("forge_" + god, Chapter.WEAPONS, "The Last Fragment", "Lay the Great Sword of Obliteration in the vise of the Legendary "
+                + "Upgrading Table and the Spell Book of Absolute Domination in its cup, and fuse them into the Weapon of God: The Last Fragment "
+                + "of Brilliant Light.", godIcon)
                 .collect(() -> ModItems.WEAPONS.get(god).get(), 1, "Hold the Weapon of God")
                 .reward(Items.NETHER_STAR, 8).reward(Items.ENCHANTED_GOLDEN_APPLE, 8).xp(50000).requires("both_calamities").group(group).build());
         list.add(quest("divine_summoning", Chapter.WEAPONS, "Brilliant Light", "Summon one of the powers of the Weapon of God.", godIcon)

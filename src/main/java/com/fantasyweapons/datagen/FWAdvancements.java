@@ -228,7 +228,7 @@ final class FWAdvancements implements AdvancementProvider.AdvancementGenerator {
         // ---- the Weapon of God ----
         Item god = ModItems.WEAPONS.get(com.fantasyweapons.weapons.god.WeaponOfGod.ID).get();
         AdvancementHolder light = deed("brilliant_light", absolute, god, "The Last Fragment of Brilliant Light", GOLD,
-                "Forge the Weapon of God from both calamities", AdvancementType.CHALLENGE, b -> b.addCriterion("has", has(god)));
+                "Fuse both calamities into the Weapon of God", AdvancementType.CHALLENGE, b -> b.addCriterion("has", has(god)));
         AdvancementHolder divine = deed("divine_power", light, Items.BEACON, "Wrath of God", GOLD,
                 "Summon a power of the Weapon of God", AdvancementType.CHALLENGE, b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named("divine")));
         deed("trident_from_heaven", divine, Items.TRIDENT, "Trident from Heaven", GOLD,

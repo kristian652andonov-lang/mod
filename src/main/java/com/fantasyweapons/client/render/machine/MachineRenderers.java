@@ -171,7 +171,13 @@ public final class MachineRenderers {
                     if (stack.isEmpty()) return;
                     pose.pushPose();
                     net.minecraft.world.item.ItemDisplayContext ctx;
-                    if (bone.getName().equals(TOOL)) {
+                    if (bone.getName().equals(TOOL) && stack.getItem() instanceof com.fantasyweapons.weapon.FantasyWeaponItem) {
+                        // a calamity (or the Weapon of God it becomes), laid flat at its item-frame size
+                        pose.translate(0, 0.05, 0);
+                        pose.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90));
+                        pose.scale(1.1f, 1.1f, 1.1f);
+                        ctx = net.minecraft.world.item.ItemDisplayContext.FIXED;
+                    } else if (bone.getName().equals(TOOL)) {
                         // held by its grip, as in the hand, at about 0.6 of its size
                         pose.mulPose(LAID);
                         pose.scale(0.6f, 0.6f, 0.6f);

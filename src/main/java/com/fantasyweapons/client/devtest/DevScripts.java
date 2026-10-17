@@ -69,6 +69,8 @@ final class DevScripts {
                 else if (name.equals("oreicons")) oreIcons(b);
                 else if (name.equals("tools")) tools(b);
                 else if (name.equals("upgrader")) upgrader(b);
+                else if (name.equals("fusion")) fusion(b);
+                else if (name.equals("godui")) godUi(b);
                 else if (name.equals("toolbook")) toolBook(b);
                 else if (name.equals("toolcodex")) bookPages(b);
                 else if (name.equals("toolpowers")) toolPowers(b);
@@ -482,7 +484,16 @@ final class DevScripts {
                 .cmd("/tp @s " + (ox + 0.5) + " 200 " + (oz - dist + 0.5) + " 0 0").wait(400).slot(0).closeScreen();
         onServer(b, sp -> {
             var level = sp.serverLevel();
-            int fx = (int) Math.floor(ox), fz = (int) Math.floor(oz - dist);
+            int fz = (int) Math.floor(oz - dist), fx = (int) Math.floor(ox);
+            // dry ground for the caster: along the line across, the nearest spot not under water
+            for (int step = 0; step <= 48; step++) {
+                int x = (int) Math.floor(ox) + (step % 2 == 0 ? 1 : -1) * (step + 1) / 2 * 8;
+                int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, fz);
+                if (level.getFluidState(new net.minecraft.core.BlockPos(x, top - 1, fz)).isEmpty()) {
+                    fx = x;
+                    break;
+                }
+            }
             int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, fx, fz);
             // a clearing round the caster, so the summoning can be seen
             net.minecraft.core.BlockPos.MutableBlockPos m = new net.minecraft.core.BlockPos.MutableBlockPos();
@@ -497,10 +508,35 @@ final class DevScripts {
             }
             sp.getAbilities().flying = false;
             sp.onUpdateAbilities();
-            sp.teleportTo(level, ox + 0.5, y, oz - dist + 0.5, 0, -8);
+            sp.teleportTo(level, fx + 0.5, y, fz + 0.5, (float) Math.toDegrees(Math.atan2(-(ox - fx), oz - fz)), -8);
             DevMaps.dump(level, (int) ox, (int) oz, mapRadius, new java.io.File(net.minecraft.client.Minecraft.getInstance().gameDirectory,
                     "screenshots/fw_god_" + ability + "_map_before.png"));
         });
+        // the land the power will touch, generated before it is cast (a fresh far place takes a while here)
+        double reach = com.fantasyweapons.weapons.god.DivineSummoning.reach(com.fantasyweapons.weapon.Weapons.get(com.fantasyweapons.weapons.god.WeaponOfGod.ID)
+                .ability(ability));
+        java.util.List<net.minecraft.world.level.ChunkPos> region = com.fantasyweapons.weapons.ultimate.ShufflePlan.region(new net.minecraft.world.phys.Vec3(ox, 0, oz), reach);
+        int[] loaded = {0};
+        long[] asked = {0};
+        b.until(mc -> {
+            var srv = mc.getSingleplayerServer();
+            long now = mc.level.getGameTime();
+            if (now - asked[0] >= 20) {
+                asked[0] = now;
+                srv.execute(() -> {
+                    var level = srv.overworld();
+                    int n = 0;
+                    for (var c : region) {
+                        com.fantasyweapons.world.wreck.WorldWreck.hold(level, c.x, c.z);
+                        if (level.getChunkSource().getChunkNow(c.x, c.z) != null) n++;
+                    }
+                    loaded[0] = n;
+                    if (now % 400 < 20) com.fantasyweapons.FantasyWeapons.LOGGER.warn("god: land loaded {}/{}", n, region.size());
+                });
+            }
+            return loaded[0] >= region.size();
+        }, 12000);
+        b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("god: land ready {}/{}", loaded[0], region.size()));
         b.wait(60).cmd("/fw cooldowns").hud(true).playerView().wait(5).screenshot("god_" + ability + "_before");
         b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastAt(ability, ox + 0.5, 80, oz + 0.5)));
         int prev = 0;
@@ -1879,6 +1915,84 @@ final class DevScripts {
                 }
             });
         }).wait(15).screenshot("upgrader_menu_after").closeScreen();
+    }
+
+    /**
+     * The Weapon of God's fusion: the table built with the Great Sword of Obliteration in its vise and the Spell Book of
+     * Absolute Domination in its cup; its menu offering the fusion; the fusion filmed through its minute; the menu after.
+     */
+    private static void fusion(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/tp @s 0.5 -60 -2.5 0 20").wait(30).hud(false);
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> {
+                var level = srv.overworld();
+                var core = new net.minecraft.core.BlockPos(0, -60, 0);
+                var block = com.fantasyweapons.registry.ModBlocks.UPGRADING_TABLE.get();
+                level.setBlock(core, block.defaultBlockState().setValue(com.fantasyweapons.machine.MachineCoreBlock.FACING, net.minecraft.core.Direction.NORTH), 3);
+                block.placeParts(level, core, net.minecraft.core.Direction.NORTH);
+                if (level.getBlockEntity(core) instanceof com.fantasyweapons.tool.UpgradingTableBlockEntity be) {
+                    be.items().setStackInSlot(com.fantasyweapons.tool.UpgradingTableBlockEntity.TOOL, new net.minecraft.world.item.ItemStack(
+                            com.fantasyweapons.registry.ModItems.WEAPONS.get(com.fantasyweapons.weapons.obliteration.GreatSwordOfObliteration.ID).get()));
+                    be.items().setStackInSlot(com.fantasyweapons.tool.UpgradingTableBlockEntity.CATALYST, new net.minecraft.world.item.ItemStack(
+                            com.fantasyweapons.registry.ModItems.WEAPONS.get(com.fantasyweapons.weapons.domination.SpellBookOfDomination.ID).get()));
+                }
+            });
+        }).wait(30);
+        b.viewAt(0.2, 1.1, -1.9, 0, 1.1, 0.5).wait(20).screenshot("fusion_idle_front");
+        b.viewAt(1.6, 1.6, -1.4, 0, 1.0, 0.5).wait(5).screenshot("fusion_idle_side").playerView();
+        b.hud(true).run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> {
+                var sp = srv.getPlayerList().getPlayers().get(0);
+                if (srv.overworld().getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 0)) instanceof com.fantasyweapons.tool.UpgradingTableBlockEntity be) {
+                    sp.openMenu(be, buf -> buf.writeBlockPos(be.getBlockPos()));
+                }
+            });
+        }).wait(15).screenshot("fusion_menu");
+        b.run(mc -> {
+            if (mc.player.containerMenu instanceof com.fantasyweapons.tool.UpgradingMenu m) {
+                mc.gameMode.handleInventoryButtonClick(m.containerId, com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE);
+            }
+        }).wait(200).screenshot("fusion_menu_working").closeScreen().hud(false);
+        b.viewAt(0.2, 1.3, -2.3, 0, 1.2, 0.5);
+        int[] at = {320, 600, 900, 1150, 1199, 1203};
+        int prev = 200;
+        for (int t : at) {
+            b.wait(t - prev).screenshot("fusion_working_" + t);
+            prev = t;
+        }
+        b.wait(1240 - prev).screenshot("fusion_done").playerView().hud(true);
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> {
+                var sp = srv.getPlayerList().getPlayers().get(0);
+                if (srv.overworld().getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 0)) instanceof com.fantasyweapons.tool.UpgradingTableBlockEntity be) {
+                    sp.openMenu(be, buf -> buf.writeBlockPos(be.getBlockPos()));
+                }
+            });
+        }).wait(15).screenshot("fusion_menu_after").closeScreen();
+    }
+
+    /** The Weapon of God's tooltip, its Codex pages (and the rites page), and its quests. */
+    private static void godUi(ScreenshotDirector.Builder b) {
+        String god = com.fantasyweapons.weapons.god.WeaponOfGod.ID;
+        b.wait(40).cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set mage").closeScreen().wait(5).closeScreen()
+                .cmd("/fw give " + god + " 100").wait(60).slot(0);
+        b.run(mc -> mc.setScreen(new TooltipPreviewScreen(mc.player.getMainHandItem()))).wait(10).screenshot("godui_tooltip").closeScreen().wait(5);
+        b.cmd("/clear @s").cmd("/give @s fantasyweapons:wayfarers_codex").wait(20).slot(0).hud(true).wait(10)
+                .run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(110);
+        for (int i = 0; i < 2; i++) {
+            int n = i;
+            b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("ultimates") + n, false))
+                    .wait(16).screenshot("godui_rites_" + n);
+        }
+        for (int i = 0; i < 9; i++) {
+            int n = i;
+            b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("weapon_" + god) + n, false))
+                    .wait(16).screenshot("godui_codex_" + n);
+        }
+        b.closeScreen().wait(10);
     }
 
     /** The upgrading menu in survival (some steps too dear), mid-work and done; then the Codex's contents and tools chapter. */

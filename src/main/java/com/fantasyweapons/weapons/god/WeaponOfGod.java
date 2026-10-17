@@ -54,7 +54,7 @@ public final class WeaponOfGod {
                 .unlock(1).levels(5, 20).cost(3, 2)
                 .node(x, y, parents)
                 .upgrades(Upgrades.create().damagePerLevel(0.18).cooldownPerLevel(0.05).build())
-                .animations("charge", "ability_activation", "ability_execution");
+                .animations("charge", "ability_activation");
     }
 
     public static WeaponDefinition create() {

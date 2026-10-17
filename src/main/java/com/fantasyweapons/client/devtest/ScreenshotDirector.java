@@ -49,6 +49,10 @@ public final class ScreenshotDirector {
         PerfProbe.start();
     }
 
+    /** A condition the script waits on (up to {@code gateLeft} more ticks) before its next step. */
+    private static java.util.function.BooleanSupplier gate;
+    private static int gateLeft;
+
     private static void tick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
@@ -58,6 +62,10 @@ public final class ScreenshotDirector {
         if (wait > 0) {
             wait--;
             return;
+        }
+        if (gate != null) {
+            if (!gate.getAsBoolean() && gateLeft-- > 0) return;
+            gate = null;
         }
         Step s = STEPS.get(index++);
         try {
@@ -75,6 +83,14 @@ public final class ScreenshotDirector {
         public Builder wait(int ticks) {
             nextDelay += ticks;
             return this;
+        }
+
+        /** Waits until {@code done} holds (checked every tick), but no longer than {@code most} ticks. */
+        public Builder until(java.util.function.Predicate<Minecraft> done, int most) {
+            return run(mc -> {
+                gate = () -> done.test(mc);
+                gateLeft = most;
+            });
         }
 
         public Builder run(Consumer<Minecraft> action) {
