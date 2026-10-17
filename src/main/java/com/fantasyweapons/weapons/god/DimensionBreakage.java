@@ -43,6 +43,8 @@ public final class DimensionBreakage {
     public static final int HALF = 7;
     /** Radius of the ground left standing under the caster, if they are inside the radius. */
     private static final double SAFE = 12;
+    /** Ticks before space breaks that the cube is built from the land (and worked out). */
+    private static final int BUILD = 120;
 
     private DimensionBreakage() {
     }
@@ -136,6 +138,9 @@ public final class DimensionBreakage {
             if (age < delay + hold && age % 100 == 0) {
                 for (ChunkPos p : region) WorldWreck.hold(level, p.x, p.z);
             }
+            // the cube is built from the land as it stands a few seconds before space breaks, and worked out from then,
+            // so the land is folded the moment it breaks
+            if (age == Math.max(1, delay - BUILD)) build();
             if (age == delay) fold(owner);
             // the end is worked out long before it comes (once the fold is under way), so it lands all at once
             if (age == delay + Math.max(10, hold - 560)) {
@@ -145,13 +150,21 @@ public final class DimensionBreakage {
             if (age == delay + hold) explode(owner);
         }
 
-        /** Space breaks: the land is folded into the cube, and what was on it is crushed. */
+        /** Space breaks: the land is folded into the cube (worked out since {@link #build}), and what was on it is crushed. */
         private void fold(ServerPlayer owner) {
             int minY = level.getMinBuildHeight();
             for (LivingEntity e : Cataclysm.victims(level, owner, pos, radius)) Cataclysm.annihilate(owner, weapon(owner), e, damage, Element.VOID);
             Cataclysm.frames(level, owner, cube.heart(minY), radius * 2, 0x9B4DFF, 0x30E8FF);
             level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 60f, 0.3f);
+        }
+
+        /**
+         * The cube: pieces of the land outside it (the loaded part) cut out and turned to make its walls and its top, set
+         * going now to land as space breaks, sweeping out from the middle; the rest of the land within the radius torn up.
+         */
+        private void build() {
             if (!WorldWreck.active(level)) return;
+            int breaks = delay - age;
             RandomSource r = RandomSource.create(seed ^ 0xD1CEL);
             // the land outside the cube, the loaded part of it, to build the cube from
             List<ChunkPos> outside = new ArrayList<>();
@@ -178,13 +191,13 @@ public final class DimensionBreakage {
             for (var e : tiles.entrySet()) {
                 int cx = ChunkPos.getX(e.getKey()), cz = ChunkPos.getZ(e.getKey());
                 int lag = (int) (Math.hypot(cx * 16 + 8 - pos.x, cz * 16 + 8 - pos.z) / 24);
-                WorldWreck.submit(level, cx, cz, lag, seed, spare(DivineShapes.fold(e.getValue(), cube.top() + 1)));
+                WorldWreck.submit(level, cx, cz, breaks + lag, seed, spare(DivineShapes.fold(e.getValue(), cube.top() + 1)));
             }
             ChunkShaper torn = spare(DivineShapes.torn(Math.floorMod(seed, 997L)));
             for (ChunkPos p : region) {
                 if (cube.holds(p.x, p.z)) continue;
                 int lag = (int) (Math.hypot(p.getMiddleBlockX() - pos.x, p.getMiddleBlockZ() - pos.z) / 24);
-                WorldWreck.submit(level, p.x, p.z, lag, seed + 1, torn);
+                WorldWreck.submit(level, p.x, p.z, breaks + lag, seed + 1, torn);
             }
         }
 
