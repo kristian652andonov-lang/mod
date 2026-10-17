@@ -68,6 +68,21 @@ public final class FWTags {
                 tag(ORE_ITEMS).add(ModItems.ORES.get(m).get());
             }
             tag(Tags.Items.ORES).addTag(ORE_ITEMS);
+            // legendary tools: tools like any other of their kind (for what keys on pickaxes, axes and shovels), and take
+            // books of the enchantments a mining tool takes (those they already carry are turned away by the items)
+            for (Material m : Material.values()) {
+                for (var kind : com.fantasyweapons.tool.ToolKind.values()) {
+                    Item tool = ModItems.tool(m, kind);
+                    tag(switch (kind) {
+                        case PICKAXE -> net.minecraft.tags.ItemTags.PICKAXES;
+                        case SHOVEL -> net.minecraft.tags.ItemTags.SHOVELS;
+                        case AXE -> net.minecraft.tags.ItemTags.AXES;
+                    }).add(tool);
+                    tag(net.minecraft.tags.ItemTags.MINING_ENCHANTABLE).add(tool);
+                    tag(net.minecraft.tags.ItemTags.MINING_LOOT_ENCHANTABLE).add(tool);
+                    tag(Tags.Items.MINING_TOOL_TOOLS).add(tool);
+                }
+            }
             // armor: enchantable like any armor
             for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
                 for (var e : ModItems.ARMOR.get(set).entrySet()) {

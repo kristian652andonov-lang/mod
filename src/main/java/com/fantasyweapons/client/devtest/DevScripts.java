@@ -67,6 +67,7 @@ final class DevScripts {
                 else if (name.equals("deeds")) deeds(b);
                 else if (name.equals("quests")) quests(b);
                 else if (name.equals("oreicons")) oreIcons(b);
+                else if (name.equals("tools")) tools(b);
                 else if (name.equals("classpages")) classPages(b);
                 else if (name.equals("gear")) gear(b);
                 else if (name.equals("forgefx")) forgeFx(b);
@@ -1636,6 +1637,45 @@ final class DevScripts {
     }
 
     /** The inventory's journal and class buttons, and gear tooltips telling whether the player's class can use it. */
+    /** The legendary tools: every icon beside vanilla tools, a tooltip, and a pickaxe, shovel and axe held in first and third person. */
+    private static void tools(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").wait(20).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10);
+        b.run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("tools")) {
+            @Override
+            public void render(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+                super.render(g, mx, my, pt);
+                var kinds = com.fantasyweapons.tool.ToolKind.values();
+                net.minecraft.world.item.Item[] vanilla = {net.minecraft.world.item.Items.NETHERITE_PICKAXE, net.minecraft.world.item.Items.NETHERITE_SHOVEL,
+                        net.minecraft.world.item.Items.NETHERITE_AXE};
+                for (int k = 0; k < kinds.length; k++) {
+                    int y = 12 + k * 22;
+                    g.renderFakeItem(new net.minecraft.world.item.ItemStack(vanilla[k]), 6, y);
+                    int i = 0;
+                    for (var m : com.fantasyweapons.material.Material.values()) {
+                        com.fantasyweapons.client.hud.UiDraw.rect(g, 30 + i * 20, y, 46 + i * 20, y + 16, 0x30FFFFFF);
+                        g.renderFakeItem(new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.tool(m, kinds[k])), 30 + i * 20, y);
+                        i++;
+                    }
+                }
+                var stack = new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.tool(com.fantasyweapons.material.Material.VOID_CRYSTAL,
+                        com.fantasyweapons.tool.ToolKind.PICKAXE));
+                g.renderTooltip(font, stack, 20, 100);
+                var maxed = stack.copy();
+                maxed.set(com.fantasyweapons.registry.ModComponents.TOOL_UPGRADES.get(), com.fantasyweapons.tool.ToolUpgrades.MAX);
+                g.renderTooltip(font, maxed, width / 2 + 10, 100);
+            }
+        })).wait(10).screenshot("tools_icons").closeScreen().wait(5);
+        String[] held = {"void_crystal_pickaxe", "solarite_shovel", "infernite_axe", "netherite_pickaxe", "netherite_shovel", "netherite_axe"};
+        for (String id : held) b.cmd("/give @s " + (id.startsWith("netherite") ? "minecraft:" : "fantasyweapons:") + id);
+        b.cmd("/tp @s 0 -60 0 0 10").wait(20);
+        for (int i = 0; i < held.length; i++) {
+            b.slot(i).wait(15).hud(true).camera(net.minecraft.client.CameraType.FIRST_PERSON).screenshot("tools_fp_" + held[i]).hud(false)
+                    .viewFrom(-0.9, 0.5, 1.7, 1.0).wait(5).screenshot("tools_front_" + held[i])
+                    .viewFrom(-1.9, 0.6, 0.1, 1.0).wait(5).screenshot("tools_side_" + held[i]).playerView();
+        }
+        b.hud(true).camera(net.minecraft.client.CameraType.FIRST_PERSON).slot(0).swing().wait(3).screenshot("tools_fp_swing");
+    }
+
     private static void gear(ScreenshotDirector.Builder b) {
         b.cmd("/gamemode survival").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set none").cmd("/fw quest reset")
                 .cmd("/fw quest complete first_page").cmd("/give @s fantasyweapons:voidfang").cmd("/give @s fantasyweapons:solaris_chestplate")

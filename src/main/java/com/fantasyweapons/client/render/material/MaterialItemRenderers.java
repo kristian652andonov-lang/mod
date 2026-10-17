@@ -20,6 +20,14 @@ public final class MaterialItemRenderers {
         return r;
     }
 
+    /** The legendary tools ({@code geo/item/<material>_<tool>}), held by the grip like any tool. */
+    @SuppressWarnings("unchecked")
+    public static <T extends net.minecraft.world.item.Item & com.fantasyweapons.tool.LegendaryTool> GeoItemRenderer<T> tool(com.fantasyweapons.tool.LegendaryTool tool) {
+        GeoItemRenderer<T> r = new GeoItemRenderer<>(new DefaultedItemGeoModel<>(FantasyWeapons.id(tool.asset())));
+        r.addRenderLayer(new AutoGlowingGeoLayer<>(r));
+        return r;
+    }
+
     /**
      * Ore blocks as items, drawn with the block's model ({@code geo/block/<weapon>_ore}). In the inventory they look like
      * any other block, so the fragments that float above some of them in the world are left out there.

@@ -7,7 +7,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class FWNetwork {
-    public static final String VERSION = "3";
+    public static final String VERSION = "4";
 
     private FWNetwork() {
     }
@@ -29,6 +29,11 @@ public final class FWNetwork {
                 ctx.enqueueWork(() -> AbilityService.handleUpgrade((ServerPlayer) ctx.player(), p.slot(), p.weapon(), p.ability(), p.toMax())));
         r.playToServer(C2SPayloads.SelectAbility.TYPE, C2SPayloads.SelectAbility.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> AbilityService.handleSelect((ServerPlayer) ctx.player(), p.slot(), p.weapon(), p.ability())));
+
+        r.playToServer(C2SPayloads.ToolAbility.TYPE, C2SPayloads.ToolAbility.CODEC, (p, ctx) ->
+                ctx.enqueueWork(() -> com.fantasyweapons.tool.ToolAbilities.use((ServerPlayer) ctx.player())));
+        r.playToClient(com.fantasyweapons.tool.OreSightPayload.TYPE, com.fantasyweapons.tool.OreSightPayload.CODEC, (p, ctx) ->
+                ctx.enqueueWork(() -> SidedHooks.get().handleOreSight(p)));
 
         r.playToClient(FxPayload.TYPE, FxPayload.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> SidedHooks.get().handleFx(p)));

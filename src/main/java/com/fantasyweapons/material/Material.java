@@ -147,6 +147,21 @@ public enum Material {
         return weapon + "_refined";
     }
 
+    /** Prefix of the material's tools' ids and asset names, e.g. {@code void_crystal} for {@code void_crystal_pickaxe}. */
+    public String toolPrefix() {
+        return name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** The name its tools go by, e.g. "Void Crystal" (the Frostheart Crystal's tools are just "Frostheart"). */
+    public String toolName() {
+        StringBuilder out = new StringBuilder();
+        for (String word : toolPrefix().split("_")) {
+            if (!out.isEmpty()) out.append(' ');
+            out.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return out.toString();
+    }
+
     /** How many of a raw material, and of its additive, one refining takes. */
     public static final int REFINE_COUNT = 8;
 

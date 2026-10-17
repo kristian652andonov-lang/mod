@@ -57,6 +57,14 @@ public interface SidedHooks {
     }
 
     /** Blocks the world's destruction changed arrived from the server. */
+    default void handleOreSight(com.fantasyweapons.tool.OreSightPayload payload) {
+    }
+
+    /** The name of the key the abilities are on (for tooltips). */
+    default String abilityKeyName() {
+        return "R";
+    }
+
     default void handleWreck(com.fantasyweapons.network.WreckPayload payload) {
     }
 

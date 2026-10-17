@@ -32,6 +32,9 @@ public final class ModTabs {
                     output.accept(ModItems.RAW.get(m).get());
                     output.accept(ModItems.REFINED.get(m).get());
                 }
+                for (var m : com.fantasyweapons.material.Material.values()) {
+                    for (var kind : com.fantasyweapons.tool.ToolKind.values()) output.accept(ModItems.tool(m, kind));
+                }
                 for (var set : com.fantasyweapons.armor.ArmorSet.values()) {
                     for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) output.accept(ModItems.ARMOR.get(set).get(type).get());
                 }

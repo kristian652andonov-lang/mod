@@ -97,6 +97,10 @@ public final class ClientSetup {
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.gui.InventoryButtons::onInit);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPre);
         NeoForge.EVENT_BUS.addListener(ClientSetup::onClientTickPost);
+        // the square a legendary tool digs: outlined, and cracking all together
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.tool.AreaMiningClient::onHighlight);
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.tool.AreaMiningClient::tick);
+        NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.tool.OreSight::render);
         NeoForge.EVENT_BUS.addListener(VfxManager::render);
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.SkyDarkness::onRenderStage);
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.fx.SkyDarkness::onFogColor);
@@ -132,6 +136,7 @@ public final class ClientSetup {
     private static int[] materialTooltipColors(net.minecraft.world.item.ItemStack stack) {
         if (stack.getItem() instanceof com.fantasyweapons.material.MaterialItem m) return com.fantasyweapons.material.MaterialLore.tooltipColors(m.material());
         if (stack.getItem() instanceof com.fantasyweapons.material.MaterialOreItem o) return com.fantasyweapons.material.MaterialLore.tooltipColors(o.material());
+        if (stack.getItem() instanceof com.fantasyweapons.tool.LegendaryTool t) return com.fantasyweapons.material.MaterialLore.tooltipColors(t.material());
         return null;
     }
 
@@ -188,10 +193,21 @@ public final class ClientSetup {
         com.fantasyweapons.client.fx.ArmorFx.clear();
         com.fantasyweapons.client.render.ChainTracker.clear();
         com.fantasyweapons.client.fx.InfernochainFx.clear();
+        com.fantasyweapons.client.tool.OreSight.clear();
     }
 
     /** Client implementation of the common → client bridge. */
     static final class Hooks implements SidedHooks {
+        @Override
+        public void handleOreSight(com.fantasyweapons.tool.OreSightPayload payload) {
+            com.fantasyweapons.client.tool.OreSight.show(payload);
+        }
+
+        @Override
+        public String abilityKeyName() {
+            return com.fantasyweapons.client.input.KeyBindings.ABILITY.getTranslatedKeyMessage().getString();
+        }
+
         @Override
         public void handleWreck(com.fantasyweapons.network.WreckPayload payload) {
             com.fantasyweapons.client.wreck.WreckSync.apply(payload);
@@ -239,6 +255,7 @@ public final class ClientSetup {
                     if (renderer == null) {
                         if (item instanceof com.fantasyweapons.material.MaterialItem m) renderer = MaterialItemRenderers.material(m);
                         else if (item instanceof com.fantasyweapons.material.MaterialOreItem o) renderer = MaterialItemRenderers.ore(o);
+                        else if (item instanceof com.fantasyweapons.tool.LegendaryTool t) renderer = MaterialItemRenderers.tool(t);
                         else if (item instanceof com.fantasyweapons.refinery.ArcaneRefineryItem) {
                             renderer = com.fantasyweapons.client.render.machine.MachineRenderers.item("arcane_refinery");
                         } else if (item instanceof com.fantasyweapons.forge.LegendaryCraftingTableItem) {

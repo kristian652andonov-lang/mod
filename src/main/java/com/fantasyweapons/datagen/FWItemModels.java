@@ -32,6 +32,13 @@ public class FWItemModels extends ItemModelProvider {
             geoItem(m.rawId(), GeoBounds.of("geo/item/" + m.rawAsset() + ".geo.json"), 20, 225, 10f, 3.5f);
             geoItem(m.refinedId(), GeoBounds.of("geo/item/" + m.refinedAsset() + ".geo.json"), 20, 225, 10f, 3.5f);
         }
+        for (Material m : Material.values()) {
+            for (var kind : com.fantasyweapons.tool.ToolKind.values()) {
+                String name = m.toolPrefix() + "_" + kind.id();
+                tool(name, GeoBounds.of("geo/item/" + name + ".geo.json"));
+            }
+        }
+        geoItem("legendary_upgrading_table", GeoBounds.of("geo/block/legendary_upgrading_table.geo.json"), 30, 225, 9f, 0f);
         geoItem("arcane_refinery", GeoBounds.of("geo/block/arcane_refinery.geo.json"), 30, 225, 9f, 0f);
         geoItem("legendary_crafting_table", GeoBounds.of("geo/block/legendary_crafting_table.geo.json"), 30, 225, 9f, 0f);
         geoItem("worldforge", GeoBounds.of("geo/block/worldforge_core.geo.json"), 30, 225, 9f, 0f);
@@ -89,9 +96,46 @@ public class FWItemModels extends ItemModelProvider {
 
     /** The inventory view: scaled so the model's outline on screen spans {@link #GUI_SIZE}, centred on the slot. */
     private static void gui(ItemModelBuilder.TransformsBuilder t, GeoBounds b, float pitch, float yaw) {
-        float[] p = b.projected(pitch, yaw, 0);
-        float s = GUI_SIZE / Math.max(p[0], p[1]);
-        t.transform(ItemDisplayContext.GUI).rotation(pitch, yaw, 0).translation(round(-p[2] * s), round(-p[3] * s), round(-p[4] * s)).scale(round(s)).end();
+        gui(t, b, pitch, yaw, 0, GUI_SIZE);
+    }
+
+    private static void gui(ItemModelBuilder.TransformsBuilder t, GeoBounds b, float pitch, float yaw, float roll, float size) {
+        float[] p = b.projected(pitch, yaw, roll);
+        float s = size / Math.max(p[0], p[1]);
+        t.transform(ItemDisplayContext.GUI).rotation(pitch, yaw, roll).translation(round(-p[2] * s), round(-p[3] * s), round(-p[4] * s)).scale(round(s)).end();
+    }
+
+    /** How the legendary tools' models are scaled against a vanilla tool's sprite in the hand. */
+    static final float TOOL_SCALE = 0.62f;
+
+    /**
+     * A legendary tool, held by its grip (the model's origin) the way a vanilla tool is held: its handle is laid along the
+     * diagonal a vanilla tool's sprite is drawn on, with the grip where the sprite's is, and then turned and placed by
+     * the vanilla handheld transforms. In the inventory and item frames it lies on that diagonal too, head up to the right,
+     * a little turned so its depth shows.
+     */
+    void tool(String name, GeoBounds b) {
+        ItemModelBuilder model = getBuilder(name).parent(new ModelFile.UncheckedModelFile("builtin/entity")).guiLight(BlockModel.GuiLight.FRONT);
+        var t = model.transforms();
+        float size = b.maxSize();
+        gui(t, b, 0, 20, -45, 16.5f);
+        held(t, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, new Vector3f(0, -90, 55), new Vector3f(0, 4, 0.5f), 0.85f);
+        held(t, ItemDisplayContext.FIRST_PERSON_RIGHT_HAND, new Vector3f(0, -90, 25), new Vector3f(1.13f, 3.2f, 1.13f), 0.68f);
+        place(t, ItemDisplayContext.FIXED, b, 13f / size, 0, 180, -45, 0);
+        place(t, ItemDisplayContext.GROUND, b, 8f / size, 0, 0, 0, 1.5f);
+        place(t, ItemDisplayContext.HEAD, b, 10f / size, 0, 180, 0, 12f);
+    }
+
+    /** Where a vanilla tool sprite's grip lies, from the sprite's centre (pixels). */
+    private static final Vector3f SPRITE_GRIP = new Vector3f(-5.5f, -5.5f, 0);
+
+    /** A held view: the vanilla handheld transform {@code rot}, {@code move}, {@code scale}, applied to the tool laid on the sprite's diagonal. */
+    private static void held(ItemModelBuilder.TransformsBuilder t, ItemDisplayContext ctx, Vector3f rot, Vector3f move, float scale) {
+        Quaternionf vanilla = new Quaternionf().rotationXYZ((float) Math.toRadians(rot.x), (float) Math.toRadians(rot.y), (float) Math.toRadians(rot.z));
+        Vector3f grip = vanilla.transform(new Vector3f(SPRITE_GRIP)).mul(scale).add(move);
+        // the transform turns X, then Y, then Z, applied innermost last: laying the tool on the diagonal first is one more
+        // turn about Z
+        t.transform(ctx).rotation(rot.x, rot.y, rot.z - 45).translation(round(grip.x), round(grip.y), round(grip.z)).scale(round(scale * TOOL_SCALE)).end();
     }
 
     /** Scales the model by {@code s}, turns it and moves its centre to the middle of the slot (plus {@code lift}). */

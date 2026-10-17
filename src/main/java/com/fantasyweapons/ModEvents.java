@@ -36,6 +36,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onEntityTick);
         bus.addListener(ModEvents::onLevelTick);
         bus.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post e) -> com.fantasyweapons.world.wreck.WorldWreck.tick(e.getServer()));
+        bus.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post e) -> com.fantasyweapons.tool.ToolAbilities.tick(e.getServer()));
         bus.addListener(ModEvents::onLogout);
         bus.addListener(ModEvents::onServerStopped);
         bus.addListener(ModEvents::onCommands);
@@ -47,6 +48,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onCrafted);
         bus.addListener(com.fantasyweapons.advancement.Deeds::onEarned);
         bus.addListener(com.fantasyweapons.quest.QuestService::onBreak);
+        com.fantasyweapons.tool.AreaMining.register(bus);
         bus.addListener(com.fantasyweapons.playerclass.ClassService::onLogin);
         bus.addListener(com.fantasyweapons.playerclass.ClassService::onRespawn);
         bus.addListener(com.fantasyweapons.guide.CodexGift::onLogin);
@@ -117,6 +119,7 @@ public final class ModEvents {
 
     private static void onServerStopped(ServerStoppedEvent event) {
         AreaEffectManager.clear();
+        com.fantasyweapons.tool.ToolAbilities.clear();
         com.fantasyweapons.world.wreck.WorldWreck.clear();
     }
 

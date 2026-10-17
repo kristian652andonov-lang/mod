@@ -25,6 +25,8 @@ public final class ModItems {
     public static final Map<Material, DeferredItem<MaterialItem>> REFINED = new EnumMap<>(Material.class);
     public static final Map<com.fantasyweapons.armor.ArmorSet, Map<net.minecraft.world.item.ArmorItem.Type, DeferredItem<com.fantasyweapons.armor.FantasyArmorItem>>> ARMOR =
             new EnumMap<>(com.fantasyweapons.armor.ArmorSet.class);
+    /** Each legendary material's pickaxe, shovel and axe. */
+    public static final Map<Material, Map<com.fantasyweapons.tool.ToolKind, DeferredItem<Item>>> TOOLS = new EnumMap<>(Material.class);
 
     public static final DeferredItem<com.fantasyweapons.refinery.ArcaneRefineryItem> ARCANE_REFINERY = REGISTER.register("arcane_refinery",
             () -> new com.fantasyweapons.refinery.ArcaneRefineryItem(ModBlocks.ARCANE_REFINERY.get(), new Item.Properties().rarity(Rarity.RARE)));
@@ -64,6 +66,27 @@ public final class ModItems {
             }
             ARMOR.put(set, pieces);
         }
+        // legendary tools: never wear out, never burn, and start at 3x3, Fortune III and Efficiency V (a tool without upgrades is at those)
+        for (Material m : Material.values()) {
+            Map<com.fantasyweapons.tool.ToolKind, DeferredItem<Item>> tools = new EnumMap<>(com.fantasyweapons.tool.ToolKind.class);
+            for (var kind : com.fantasyweapons.tool.ToolKind.values()) {
+                tools.put(kind, REGISTER.register(m.toolPrefix() + "_" + kind.id(), () -> {
+                    Item.Properties p = new Item.Properties().rarity(Rarity.EPIC).fireResistant()
+                            .component(net.minecraft.core.component.DataComponents.UNBREAKABLE, new net.minecraft.world.item.component.Unbreakable(true));
+                    return switch (kind) {
+                        case PICKAXE -> new com.fantasyweapons.tool.LegendaryPickaxeItem(m, p);
+                        case SHOVEL -> new com.fantasyweapons.tool.LegendaryShovelItem(m, p);
+                        case AXE -> new com.fantasyweapons.tool.LegendaryAxeItem(m, p);
+                    };
+                }));
+            }
+            TOOLS.put(m, tools);
+        }
+    }
+
+    /** The legendary tool of {@code m} of kind {@code kind}. */
+    public static Item tool(Material m, com.fantasyweapons.tool.ToolKind kind) {
+        return TOOLS.get(m).get(kind).get();
     }
 
     private ModItems() {

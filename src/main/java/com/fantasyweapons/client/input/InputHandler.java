@@ -14,6 +14,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
  */
 public final class InputHandler {
     private static boolean abilityWasDown;
+    /** Whether the ability key was down last tick while a legendary tool was held. */
+    private static boolean toolKeyWasDown;
 
     private InputHandler() {
     }
@@ -75,6 +77,10 @@ public final class InputHandler {
             return;
         }
         ItemStack held = ClientState.heldWeapon(mc.player);
+        // a legendary tool's power: once a press
+        boolean toolDown = KeyBindings.ABILITY.isDown() && mc.screen == null && mc.player.getMainHandItem().getItem() instanceof com.fantasyweapons.tool.LegendaryTool;
+        if (toolDown && !toolKeyWasDown) PacketDistributor.sendToServer(new C2SPayloads.ToolAbility());
+        toolKeyWasDown = toolDown;
         boolean down = KeyBindings.ABILITY.isDown() && mc.screen == null && !held.isEmpty();
         if (down && !abilityWasDown && com.fantasyweapons.client.gui.TargetMapScreen.openFor(held)) {
             // a remote ability: it is cast on the targeting map instead (the key is not held down meanwhile)

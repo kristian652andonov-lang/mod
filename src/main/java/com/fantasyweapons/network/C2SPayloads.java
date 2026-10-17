@@ -27,6 +27,17 @@ public final class C2SPayloads {
         }
     }
 
+    /** The ability key pressed holding a legendary tool: its power (the server checks it has rested). */
+    public record ToolAbility() implements CustomPacketPayload {
+        public static final Type<ToolAbility> TYPE = new Type<>(FantasyWeapons.id("tool_ability"));
+        public static final StreamCodec<ByteBuf, ToolAbility> CODEC = StreamCodec.unit(new ToolAbility());
+
+        @Override
+        public Type<ToolAbility> type() {
+            return TYPE;
+        }
+    }
+
     /** A staff's or spellbook's click: loose a bolt (the server checks the focus has recovered). */
     public record CastBolt() implements CustomPacketPayload {
         public static final Type<CastBolt> TYPE = new Type<>(FantasyWeapons.id("cast_bolt"));
