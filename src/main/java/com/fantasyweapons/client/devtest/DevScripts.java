@@ -68,6 +68,15 @@ final class DevScripts {
                 else if (name.equals("quests")) quests(b);
                 else if (name.equals("oreicons")) oreIcons(b);
                 else if (name.equals("tools")) tools(b);
+                else if (name.equals("upgrader")) upgrader(b);
+                else if (name.equals("toolpowers")) toolPowers(b);
+                else if (name.equals("oresight")) {
+                    b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/give @s fantasyweapons:void_crystal_pickaxe")
+                            .cmd("/fill -9 -60 6 9 -46 13 stone").cmd("/setblock 2 -57 9 fantasyweapons:solarite_ore").cmd("/setblock -2 -58 8 fantasyweapons:infernite_ore")
+                            .cmd("/tp @s 0.5 -60 2.5 0 0").wait(30).slot(0).wait(5).hud(true);
+                    b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.ToolAbility()));
+                    b.wait(40).screenshot("oresight_40");
+                }
                 else if (name.equals("classpages")) classPages(b);
                 else if (name.equals("gear")) gear(b);
                 else if (name.equals("forgefx")) forgeFx(b);
@@ -1637,6 +1646,101 @@ final class DevScripts {
     }
 
     /** The inventory's journal and class buttons, and gear tooltips telling whether the player's class can use it. */
+    /** Runs {@code action} with the single player on the server thread. */
+    private static void onServer(ScreenshotDirector.Builder b, java.util.function.Consumer<net.minecraft.server.level.ServerPlayer> action) {
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> action.accept(srv.getPlayerList().getPlayers().get(0)));
+        });
+    }
+
+    /**
+     * The legendary tools' powers in a built scene: a fully upgraded pickaxe's 13x13 outline on a stone wall, Ore Sight
+     * showing ores buried behind it, the wall dug; Timberfall on a grove of oaks; Earthshaper on mounds of earth.
+     */
+    private static void toolPowers(ScreenshotDirector.Builder b) {
+        String max = "[fantasyweapons:tool_upgrades={reach:6,fortune:10,efficiency:10}]";
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/clear @s")
+                .cmd("/give @s fantasyweapons:void_crystal_pickaxe" + max).cmd("/give @s fantasyweapons:verdant_axe").cmd("/give @s fantasyweapons:titanstone_shovel" + max)
+                .cmd("/fill -12 -60 -30 12 -40 30 air").cmd("/fill -9 -60 6 9 -46 13 stone")
+                .cmd("/setblock 2 -55 9 fantasyweapons:solarite_ore").cmd("/setblock -4 -58 11 fantasyweapons:infernite_ore")
+                .cmd("/setblock 5 -50 8 fantasyweapons:void_crystal_ore").cmd("/setblock -6 -52 12 fantasyweapons:frostheart_ore")
+                .cmd("/setblock 0 -59 13 fantasyweapons:verdant_ore").wait(20)
+                .cmd("/tp @s 0.5 -60 2.5 0 -8").wait(30).slot(0).wait(10).hud(true).screenshot("powers_outline");
+        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.ToolAbility()));
+        b.wait(10).screenshot("powers_sight_10").wait(20).screenshot("powers_sight_30").wait(60).screenshot("powers_sight_90");
+        b.viewAt(-4, 6, -2, 0, -4, 9).hud(false).wait(5).screenshot("powers_sight_above").playerView().hud(true);
+        onServer(b, sp -> sp.gameMode.destroyBlock(new net.minecraft.core.BlockPos(0, -59, 6)));
+        b.wait(20).screenshot("powers_dug");
+        // a grove behind the player, felled by Timberfall
+        b.cmd("/fill -12 -60 -14 12 -61 -2 grass_block").cmd("/place feature minecraft:oak -6 -59 -6").cmd("/place feature minecraft:oak 4 -59 -9")
+                .cmd("/place feature minecraft:birch -9 -59 -12").cmd("/place feature minecraft:oak 9 -59 -5").cmd("/place feature minecraft:fancy_oak 0 -59 -13")
+                .cmd("/tp @s 0.5 -60 2.5 180 5").wait(30).slot(1).wait(10).hud(false).screenshot("powers_grove");
+        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.ToolAbility()));
+        b.wait(2).screenshot("powers_timber_2").wait(4).screenshot("powers_timber_6").wait(30).screenshot("powers_timber_36");
+        // mounds of earth, levelled by Earthshaper
+        b.cmd("/fill 6 -60 -4 13 -57 4 dirt").cmd("/fill -12 -60 -3 -7 -56 3 sand").cmd("/fill -4 -60 -9 3 -58 -6 gravel")
+                .cmd("/tp @s 0.5 -60 0.5 0 30").wait(20).slot(2).wait(5).viewAt(0, 9, -12, 0, 0, 0).wait(5).screenshot("powers_mounds");
+        b.run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.ToolAbility()));
+        b.wait(3).screenshot("powers_earth_3").wait(30).screenshot("powers_earth_33").playerView();
+    }
+
+    /**
+     * The Legendary Upgrading Table: built in front of the player with a Void Crystal pickaxe in its vise and Void Cores in
+     * its cup, idle; its menu; an upgrade of the mining area from the menu, filmed through its pulses; the menu and the tool
+     * after it.
+     */
+    private static void upgrader(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/tp @s 0.5 -60 -2.5 0 20").wait(30).hud(false);
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> {
+                var level = srv.overworld();
+                var core = new net.minecraft.core.BlockPos(0, -60, 0);
+                var block = com.fantasyweapons.registry.ModBlocks.UPGRADING_TABLE.get();
+                level.setBlock(core, block.defaultBlockState().setValue(com.fantasyweapons.machine.MachineCoreBlock.FACING, net.minecraft.core.Direction.NORTH), 3);
+                block.placeParts(level, core, net.minecraft.core.Direction.NORTH);
+                if (level.getBlockEntity(core) instanceof com.fantasyweapons.tool.UpgradingTableBlockEntity be) {
+                    be.items().setStackInSlot(com.fantasyweapons.tool.UpgradingTableBlockEntity.TOOL, new net.minecraft.world.item.ItemStack(
+                            com.fantasyweapons.registry.ModItems.tool(com.fantasyweapons.material.Material.VOID_CRYSTAL, com.fantasyweapons.tool.ToolKind.PICKAXE)));
+                    be.items().setStackInSlot(com.fantasyweapons.tool.UpgradingTableBlockEntity.CATALYST, new net.minecraft.world.item.ItemStack(
+                            com.fantasyweapons.registry.ModItems.REFINED.get(com.fantasyweapons.material.Material.VOID_CRYSTAL).get(), 12));
+                }
+            });
+        }).wait(30);
+        b.viewAt(0.2, 1.1, -1.9, 0, 1.1, 0.5).wait(20).screenshot("upgrader_idle_front");
+        b.viewAt(1.6, 1.6, -1.4, 0, 1.0, 0.5).wait(5).screenshot("upgrader_idle_side").playerView();
+        b.hud(true).run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> {
+                var sp = srv.getPlayerList().getPlayers().get(0);
+                if (srv.overworld().getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 0)) instanceof com.fantasyweapons.tool.UpgradingTableBlockEntity be) {
+                    sp.openMenu(be, buf -> buf.writeBlockPos(be.getBlockPos()));
+                }
+            });
+        }).wait(15).screenshot("upgrader_menu");
+        b.run(mc -> {
+            if (mc.player.containerMenu instanceof com.fantasyweapons.tool.UpgradingMenu m) mc.gameMode.handleInventoryButtonClick(m.containerId, 0);
+        }).wait(40).screenshot("upgrader_menu_working").closeScreen().hud(false);
+        b.viewAt(0.2, 1.1, -1.9, 0, 1.1, 0.5);
+        int[] at = {60, 88, 110, 128, 168, 200};
+        int prev = 40;
+        for (int t : at) {
+            b.wait(t - prev).screenshot("upgrader_working_" + t);
+            prev = t;
+        }
+        b.wait(260 - prev).screenshot("upgrader_done").playerView().hud(true);
+        b.run(mc -> {
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> {
+                var sp = srv.getPlayerList().getPlayers().get(0);
+                if (srv.overworld().getBlockEntity(new net.minecraft.core.BlockPos(0, -60, 0)) instanceof com.fantasyweapons.tool.UpgradingTableBlockEntity be) {
+                    sp.openMenu(be, buf -> buf.writeBlockPos(be.getBlockPos()));
+                }
+            });
+        }).wait(15).screenshot("upgrader_menu_after").closeScreen();
+    }
+
     /** The legendary tools: every icon beside vanilla tools, a tooltip, and a pickaxe, shovel and axe held in first and third person. */
     private static void tools(ScreenshotDirector.Builder b) {
         b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").wait(20).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10);

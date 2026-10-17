@@ -20,6 +20,9 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<com.fantasyweapons.forge.WorldforgeMenu>> WORLDFORGE = REGISTER.register("worldforge",
             () -> new MenuType<>(com.fantasyweapons.forge.WorldforgeMenu::new, net.minecraft.world.flag.FeatureFlags.DEFAULT_FLAGS));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<com.fantasyweapons.tool.UpgradingMenu>> UPGRADING = REGISTER.register("legendary_upgrading_table",
+            () -> IMenuTypeExtension.create(com.fantasyweapons.tool.UpgradingMenu::new));
+
     private ModMenus() {
     }
 }

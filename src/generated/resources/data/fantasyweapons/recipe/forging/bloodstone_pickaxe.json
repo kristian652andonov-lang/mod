@@ -1,0 +1,29 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1800,
+  "key": {
+    "A": {
+      "item": "minecraft:redstone_block"
+    },
+    "C": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:bloodstone_core"
+    }
+  },
+  "pattern": [
+    "  RRCRR  ",
+    " R  H  R ",
+    "    H    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:bloodstone_pickaxe"
+  }
+}

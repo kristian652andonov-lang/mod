@@ -1,0 +1,29 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1800,
+  "key": {
+    "A": {
+      "item": "minecraft:glowstone"
+    },
+    "C": {
+      "item": "minecraft:gold_block"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:solarite_core"
+    }
+  },
+  "pattern": [
+    "   RR    ",
+    "  RRC    ",
+    "   RH    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:solarite_axe"
+  }
+}

@@ -34,6 +34,9 @@ public final class ModItems {
     public static final DeferredItem<com.fantasyweapons.forge.LegendaryCraftingTableItem> LEGENDARY_CRAFTING_TABLE = REGISTER.register("legendary_crafting_table",
             () -> new com.fantasyweapons.forge.LegendaryCraftingTableItem(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), new Item.Properties().rarity(Rarity.EPIC)));
 
+    public static final DeferredItem<com.fantasyweapons.tool.UpgradingTableItem> UPGRADING_TABLE = REGISTER.register("legendary_upgrading_table",
+            () -> new com.fantasyweapons.tool.UpgradingTableItem(ModBlocks.UPGRADING_TABLE.get(), new Item.Properties().rarity(Rarity.EPIC)));
+
     public static final DeferredItem<com.fantasyweapons.forge.WorldforgeItem> WORLDFORGE = REGISTER.register("worldforge",
             () -> new com.fantasyweapons.forge.WorldforgeItem(ModBlocks.WORLDFORGE.get(), new Item.Properties().rarity(Rarity.EPIC).fireResistant()));
 

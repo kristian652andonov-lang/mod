@@ -32,9 +32,10 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * The core of a machine three blocks wide and two high (the Arcane Refinery, the Legendary Crafting Table): the bottom
- * middle block, which owns the block entity and draws the whole machine with its GeckoLib model. The other five blocks
- * are {@link MachinePartBlock}s; the machine is placed facing the player when there is room for all six and taken apart
+ * The core of a machine three blocks wide and two high (the Arcane Refinery, the Legendary Crafting Table), or of a smaller
+ * one made of some of those blocks (the Legendary Upgrading Table, one wide and two high): the bottom middle block, which
+ * owns the block entity and draws the whole machine with its GeckoLib model. The other blocks ({@link #parts()}) are
+ * {@link MachinePartBlock}s; the machine is placed facing the player when there is room for all of them and taken apart
  * as a whole.
  */
 public abstract class MachineCoreBlock extends BaseEntityBlock {
@@ -42,12 +43,22 @@ public abstract class MachineCoreBlock extends BaseEntityBlock {
     private final Supplier<? extends MachinePartBlock> parts;
     /** Per facing (2D data value), for each block of the machine (the parts' first, the core's last): its outline and its collision. */
     private final Supplier<VoxelShape[][][]> shapes = Suppliers.memoize(this::bakeShapes);
-    /** How far past the machine's own blocks an outline may follow the model (its lips and overhangs). */
-    private static final double OVERHANG = 0.25;
+    /** All five blocks round the core: a machine three wide and two high. */
+    private static final List<MachinePart> ALL = List.of(MachinePart.values());
 
     protected MachineCoreBlock(Properties properties, Supplier<? extends MachinePartBlock> parts) {
         super(properties);
         this.parts = parts;
+    }
+
+    /** The machine's blocks besides its core: by default all five, three wide and two high. */
+    public List<MachinePart> parts() {
+        return ALL;
+    }
+
+    /** How far past the machine's own blocks an outline may follow the model (its lips and overhangs). */
+    protected double overhang() {
+        return 0.25;
     }
 
     /**
@@ -64,36 +75,41 @@ public abstract class MachineCoreBlock extends BaseEntityBlock {
      * machine's other blocks nor above or below, so shadows cast on it stay true.
      */
     public VoxelShape outline(Direction facing, @Nullable MachinePart part) {
-        return shapes.get()[facing.get2DDataValue()][part == null ? MachinePart.values().length : part.ordinal()][0];
+        VoxelShape[] shape = shapes.get()[facing.get2DDataValue()][part == null ? MachinePart.values().length : part.ordinal()];
+        // a part this machine doesn't have (its part block still has a state for it)
+        return shape == null ? net.minecraft.world.phys.shapes.Shapes.empty() : shape[0];
     }
 
     /** What of the machine is solid inside its block at {@code part} ({@code null}: the core). */
     public VoxelShape collision(Direction facing, @Nullable MachinePart part) {
-        return shapes.get()[facing.get2DDataValue()][part == null ? MachinePart.values().length : part.ordinal()][1];
+        VoxelShape[] shape = shapes.get()[facing.get2DDataValue()][part == null ? MachinePart.values().length : part.ordinal()];
+        return shape == null ? net.minecraft.world.phys.shapes.Shapes.empty() : shape[1];
     }
 
     private VoxelShape[][][] bakeShapes() {
         List<AABB> north = northBoxes();
         VoxelShape[][][] baked = new VoxelShape[4][MachinePart.values().length + 1][];
+        double overhang = overhang();
         for (int f = 0; f < 4; f++) {
             Direction facing = Direction.from2DDataValue(f);
-            Direction right = facing.getClockWise();
+            java.util.Set<BlockPos> cells = new java.util.HashSet<>();
+            cells.add(BlockPos.ZERO);
+            for (MachinePart part : parts()) cells.add(part.from(BlockPos.ZERO, facing));
             for (int i = 0; i <= MachinePart.values().length; i++) {
                 MachinePart part = i == MachinePart.values().length ? null : MachinePart.values()[i];
+                if (part != null && !parts().contains(part)) continue;
                 BlockPos at = part == null ? BlockPos.ZERO : part.from(BlockPos.ZERO, facing);
                 List<AABB> local = new ArrayList<>(north.size());
                 for (AABB box : north) local.add(turn(box, facing).move(-at.getX(), -at.getY(), -at.getZ()));
-                // the outline may reach out of the block on the machine's open sides: its front and back, and the far
-                // side of an end block
-                int side = part == null ? 0 : part.side();
+                // the outline may reach out of the block on the machine's open sides: those with none of the machine's
+                // blocks beyond them
                 double x0 = 0, z0 = 0, x1 = 1, z1 = 1;
                 for (Direction d : Direction.Plane.HORIZONTAL) {
-                    boolean open = d.getAxis() != right.getAxis() || (d == right ? side == 1 : side == -1);
-                    if (!open) continue;
-                    if (d == Direction.WEST) x0 = -OVERHANG;
-                    else if (d == Direction.EAST) x1 = 1 + OVERHANG;
-                    else if (d == Direction.NORTH) z0 = -OVERHANG;
-                    else z1 = 1 + OVERHANG;
+                    if (cells.contains(at.relative(d))) continue;
+                    if (d == Direction.WEST) x0 = -overhang;
+                    else if (d == Direction.EAST) x1 = 1 + overhang;
+                    else if (d == Direction.NORTH) z0 = -overhang;
+                    else z1 = 1 + overhang;
                 }
                 baked[f][i] = new VoxelShape[]{ModelShape.cell(local, x0, z0, x1, z1), ModelShape.cell(local)};
             }
@@ -149,7 +165,7 @@ public abstract class MachineCoreBlock extends BaseEntityBlock {
         BlockPos pos = ctx.getClickedPos();
         Level level = ctx.getLevel();
         if (pos.getY() + 1 >= level.getMaxBuildHeight()) return null;
-        for (MachinePart part : MachinePart.values()) {
+        for (MachinePart part : parts()) {
             if (!level.getBlockState(part.from(pos, facing)).canBeReplaced(ctx)) return null;
         }
         return defaultBlockState().setValue(FACING, facing);
@@ -163,12 +179,12 @@ public abstract class MachineCoreBlock extends BaseEntityBlock {
     /** Puts the five parts around a core at {@code core}. */
     public void placeParts(Level level, BlockPos core, Direction facing) {
         MachinePartBlock block = parts.get();
-        for (MachinePart part : MachinePart.values()) {
+        for (MachinePart part : parts()) {
             // placed without shape updates so the half-built structure does not take itself apart
             level.setBlock(part.from(core, facing), block.defaultBlockState().setValue(MachinePartBlock.FACING, facing).setValue(MachinePartBlock.PART, part),
                     Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
         }
-        for (MachinePart part : MachinePart.values()) level.blockUpdated(part.from(core, facing), block);
+        for (MachinePart part : parts()) level.blockUpdated(part.from(core, facing), block);
     }
 
     /**
@@ -180,7 +196,7 @@ public abstract class MachineCoreBlock extends BaseEntityBlock {
         Direction facing = state.getValue(FACING);
         if (intact(level, pos, facing)) return;
         boolean room = pos.getY() + 1 < level.getMaxBuildHeight();
-        for (MachinePart part : MachinePart.values()) {
+        for (MachinePart part : parts()) {
             BlockState s = level.getBlockState(part.from(pos, facing));
             room &= s.canBeReplaced() || (s.getBlock() == parts.get() && s.getValue(MachinePartBlock.FACING) == facing && s.getValue(MachinePartBlock.PART) == part);
         }
@@ -196,7 +212,7 @@ public abstract class MachineCoreBlock extends BaseEntityBlock {
     public boolean intact(BlockGetter level, BlockPos core, Direction facing) {
         BlockState c = level.getBlockState(core);
         if (c.getBlock() != this || c.getValue(FACING) != facing) return false;
-        for (MachinePart part : MachinePart.values()) {
+        for (MachinePart part : parts()) {
             BlockState s = level.getBlockState(part.from(core, facing));
             if (s.getBlock() != parts.get() || s.getValue(MachinePartBlock.FACING) != facing || s.getValue(MachinePartBlock.PART) != part) return false;
         }

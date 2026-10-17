@@ -50,7 +50,7 @@ public final class OreSight {
     }
 
     public static void render(RenderLevelStageEvent e) {
-        if (e.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || positions == null) return;
+        if (e.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || positions == null) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             positions = null;
@@ -69,13 +69,16 @@ public final class OreSight {
         Matrix4f m = pose.last().pose();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
 
+        // seen through everything: the render types' "always" depth test leaves the depth test as it finds it, and here
+        // it is on
+        com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
         VertexConsumer fill = buffers.getBuffer(FWRenderTypes.XRAY_FILL);
         for (int i = 0; i < positions.length; i++) {
             float appear = appear(i, wave);
             if (appear <= 0) continue;
             int c = color(i);
             float pulse = 0.7f + 0.3f * (float) Math.sin(age * 0.2f + distances[i] * 0.35f);
-            box(fill, m, box(i, cam), c, 0.2f * appear * fade * pulse);
+            box(fill, m, box(i, cam), c, 0.28f * appear * fade * pulse);
         }
         buffers.endBatch(FWRenderTypes.XRAY_FILL);
 
@@ -104,6 +107,7 @@ public final class OreSight {
             }
         }
         buffers.endBatch(FWRenderTypes.XRAY_LINES);
+        com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
     }
 
     /** How far ore {@code i} has lit up as the wave passed it (0 before, 1 a few blocks after). */

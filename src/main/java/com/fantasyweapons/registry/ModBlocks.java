@@ -53,6 +53,12 @@ public final class ModBlocks {
     public static final DeferredBlock<com.fantasyweapons.forge.WorldforgePartBlock> WORLDFORGE_PART = REGISTER.register("worldforge_part",
             () -> new com.fantasyweapons.forge.WorldforgePartBlock(worldforgeProperties().noLootTable().lightLevel(s -> com.fantasyweapons.forge.WorldforgePartBlock.solid(s) ? 2 : 0)));
 
+    /** The Legendary Upgrading Table: an anvil's toughness, mined with a pickaxe, softly lit by its gems (brighter while it works). */
+    public static final DeferredBlock<com.fantasyweapons.tool.UpgradingTableBlock> UPGRADING_TABLE = REGISTER.register("legendary_upgrading_table",
+            () -> new com.fantasyweapons.tool.UpgradingTableBlock(tableProperties().lightLevel(s -> s.getValue(com.fantasyweapons.tool.UpgradingTableBlock.WORKING) ? 12 : 6)));
+    public static final DeferredBlock<MachinePartBlock> UPGRADING_TABLE_PART = REGISTER.register("legendary_upgrading_table_part",
+            () -> new MachinePartBlock(tableProperties().noLootTable().lightLevel(s -> 3), ModBlocks.UPGRADING_TABLE));
+
     static {
         // it was a plain block called the Legendary Forge before it had its model
         REGISTER.addAlias(FantasyWeapons.id("legendary_forge"), FantasyWeapons.id("legendary_crafting_table"));

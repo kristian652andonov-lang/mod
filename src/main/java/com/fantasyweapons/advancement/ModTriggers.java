@@ -23,6 +23,11 @@ public final class ModTriggers {
     public static final DeferredHolder<CriterionTrigger<?>, NamedTrigger> FORGE_STARTED = REGISTER.register("forge_started", NamedTrigger::new);
     /** A weapon was infused with refined cores (by weapon id). */
     public static final DeferredHolder<CriterionTrigger<?>, NamedTrigger> INFUSED = REGISTER.register("infused", NamedTrigger::new);
+    /**
+     * Something done with a legendary tool (by name: "upgrade" at the table, "maxed" when a tool is fully upgraded, and
+     * its powers "ore_sight", "timberfall" and "earthshaper").
+     */
+    public static final DeferredHolder<CriterionTrigger<?>, NamedTrigger> TOOL = REGISTER.register("legendary_tool", NamedTrigger::new);
     /** The Wayfarer's Codex was opened. */
     public static final DeferredHolder<CriterionTrigger<?>, NamedTrigger> CODEX_OPENED = REGISTER.register("codex_opened", NamedTrigger::new);
 

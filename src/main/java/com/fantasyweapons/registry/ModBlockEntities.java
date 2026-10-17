@@ -31,6 +31,11 @@ public final class ModBlockEntities {
             REGISTER.register("worldforge", () -> BlockEntityType.Builder.of(com.fantasyweapons.forge.WorldforgeBlockEntity::new,
                     ModBlocks.WORLDFORGE.get()).build(null));
 
+    @SuppressWarnings("DataFlowIssue")
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<com.fantasyweapons.tool.UpgradingTableBlockEntity>> UPGRADING_TABLE =
+            REGISTER.register("legendary_upgrading_table", () -> BlockEntityType.Builder.of(com.fantasyweapons.tool.UpgradingTableBlockEntity::new,
+                    ModBlocks.UPGRADING_TABLE.get()).build(null));
+
     private ModBlockEntities() {
     }
 }

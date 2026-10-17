@@ -138,6 +138,57 @@ public final class MachineRenderers {
         }
     }
 
+    /**
+     * The Legendary Upgrading Table: the tool in its vise lies flat on the rune plate at the model's tool bone, head
+     * towards the grindstone, its grip where the vise closes (and jolts with the bone at each pulse); its refined material
+     * stands in the copper cup at the catalyst bone.
+     */
+    public static final class UpgradingTable extends Block<com.fantasyweapons.tool.UpgradingTableBlockEntity> {
+        private static final String TOOL = "legendary_upgrading_table_tool_slot", CUP = "legendary_upgrading_table_catalyst_slot";
+        /**
+         * The tool laid down: its handle (up its model) towards the grindstone, the face of its head up. In the model's
+         * render space (x mirrored) the grindstone is towards -x.
+         */
+        private static final org.joml.Quaternionf LAID = new org.joml.Quaternionf().setFromNormalized(new org.joml.Matrix3f(0, 0, -1, -1, 0, 0, 0, 1, 0));
+
+        public UpgradingTable() {
+            super("legendary_upgrading_table");
+            addRenderLayer(new software.bernie.geckolib.renderer.layer.BlockAndItemGeoLayer<>(this) {
+                @Override
+                protected net.minecraft.world.item.ItemStack getStackForBone(software.bernie.geckolib.cache.object.GeoBone bone,
+                                                                              com.fantasyweapons.tool.UpgradingTableBlockEntity be) {
+                    return switch (bone.getName()) {
+                        case TOOL -> be.items().getStackInSlot(com.fantasyweapons.tool.UpgradingTableBlockEntity.TOOL);
+                        case CUP -> be.items().getStackInSlot(com.fantasyweapons.tool.UpgradingTableBlockEntity.CATALYST);
+                        default -> null;
+                    };
+                }
+
+                @Override
+                protected void renderStackForBone(PoseStack pose, software.bernie.geckolib.cache.object.GeoBone bone, net.minecraft.world.item.ItemStack stack,
+                                                  com.fantasyweapons.tool.UpgradingTableBlockEntity be, MultiBufferSource buffers, float partialTick,
+                                                  int light, int overlay) {
+                    if (stack.isEmpty()) return;
+                    pose.pushPose();
+                    net.minecraft.world.item.ItemDisplayContext ctx;
+                    if (bone.getName().equals(TOOL)) {
+                        // held by its grip, as in the hand, at about 0.6 of its size
+                        pose.mulPose(LAID);
+                        pose.scale(0.6f, 0.6f, 0.6f);
+                        ctx = net.minecraft.world.item.ItemDisplayContext.NONE;
+                    } else {
+                        pose.translate(0, 0.1, 0);
+                        pose.scale(0.38f, 0.38f, 0.38f);
+                        ctx = net.minecraft.world.item.ItemDisplayContext.FIXED;
+                    }
+                    net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(stack, ctx, light, overlay, pose, buffers, be.getLevel(),
+                            (int) be.getBlockPos().asLong());
+                    pose.popPose();
+                }
+            });
+        }
+    }
+
     public static <T extends Item & GeoAnimatable> GeoItemRenderer<T> item(String model) {
         GeoItemRenderer<T> r = new GeoItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(model)));
         r.addRenderLayer(new AutoGlowingGeoLayer<>(r));

@@ -95,7 +95,14 @@ public final class ToolAbilities {
             case AXE -> timberfall(player, level);
             case SHOVEL -> earthshaper(player, level, LegendaryTools.upgrades(stack));
         };
-        if (used) player.getCooldowns().addCooldown(stack.getItem(), cooldown(tool.kind()));
+        if (!used) return;
+        player.getCooldowns().addCooldown(stack.getItem(), cooldown(tool.kind()));
+        com.fantasyweapons.quest.QuestService.event(player, "tool_power");
+        com.fantasyweapons.advancement.ModTriggers.TOOL.get().trigger(player, switch (tool.kind()) {
+            case PICKAXE -> "ore_sight";
+            case AXE -> "timberfall";
+            case SHOVEL -> "earthshaper";
+        });
     }
 
     // ------------------------------------------------------------------------------------------------------------

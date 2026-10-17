@@ -36,6 +36,7 @@ public class FWBlockLoot extends BlockLootSubProvider {
         }
         dropSelf(ModBlocks.ARCANE_REFINERY.get());
         dropSelf(ModBlocks.LEGENDARY_CRAFTING_TABLE.get());
+        dropSelf(ModBlocks.UPGRADING_TABLE.get());
         dropSelf(ModBlocks.WORLDFORGE.get());
     }
 

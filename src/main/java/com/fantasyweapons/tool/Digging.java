@@ -66,6 +66,7 @@ public final class Digging {
             else DIGGING.set(outer);
         }
         drop(gather, at);
+        if (broken > 0 && !player.isCreative()) com.fantasyweapons.quest.QuestService.event(player, "dig_area", broken);
         return broken;
     }
 

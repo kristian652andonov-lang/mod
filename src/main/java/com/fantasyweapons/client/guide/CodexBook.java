@@ -9,6 +9,9 @@ import com.fantasyweapons.forge.ForgeRecipe;
 import com.fantasyweapons.material.Material;
 import com.fantasyweapons.progression.ProgressionMath;
 import com.fantasyweapons.registry.ModItems;
+import com.fantasyweapons.tool.ToolAbilities;
+import com.fantasyweapons.tool.ToolKind;
+import com.fantasyweapons.tool.UpgradeTrack;
 import com.fantasyweapons.weapon.WeaponDefinition;
 import com.fantasyweapons.weapon.Weapons;
 import net.minecraft.Util;
@@ -54,6 +57,7 @@ public final class CodexBook {
         table();
         weapons();
         ultimates();
+        tools();
         mastery();
         deeds();
         if (pages.size() % 2 == 1) page(c -> ornament(c, "Fin"));
@@ -206,7 +210,7 @@ public final class CodexBook {
         c.gap(2);
         String[][] entries = {{"The Path of Legends", "path"}, {"Legendary Ores", "ores"}, {"The Arcane Refinery", "refinery"},
                 {"The Crafting Table", "table"}, {"The Thirteen Weapons", "weapons"}, {"Armor of Legend", "armor"},
-                {"The Mage's Arts", "mage"}, {"The Ultimate Weapons", "ultimates"}, {"Mastery", "mastery"}, {"Deeds", "deeds"}};
+                {"The Mage's Arts", "mage"}, {"The Ultimate Weapons", "ultimates"}, {"Legendary Tools", "tools"}, {"Mastery", "mastery"}, {"Deeds", "deeds"}};
         for (String[] e : entries) {
             int page = anchors.getOrDefault(e[1], 0) + 1;
             float s = 0.68f;
@@ -550,6 +554,73 @@ public final class CodexBook {
             }
         });
         for (WeaponDefinition def : Weapons.ultimates()) weapon(def, null);
+    }
+
+    // ---- tools ----
+
+    /** The legendary pickaxes, shovels and axes, their powers, and the Upgrading Table that raises them. */
+    private void tools() {
+        chapter("Legendary Tools", "tools");
+        ItemStack pickaxe = new ItemStack(ModItems.tool(Material.SOLARITE, ToolKind.PICKAXE)),
+                shovel = new ItemStack(ModItems.tool(Material.FROSTHEART, ToolKind.SHOVEL)),
+                axe = new ItemStack(ModItems.tool(Material.TITANSTONE, ToolKind.AXE));
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("Legendary Tools");
+            c.para("A pickaxe, a shovel and an axe of each of the thirteen materials. They never break and no fire burns them.",
+                    PageCanvas.INK, 0.52f);
+            step(c, 1, "Pickaxe", "Digs stone and ore in a square round the block it strikes.", pickaxe);
+            step(c, 2, "Shovel", "Digs earth, sand, gravel and snow in the same square.", shovel);
+            step(c, 3, "Axe", "Fells a whole tree at a stroke, leaves and all; other wood in the square.", axe);
+            c.para("New, each digs 3x3 with Fortune III and Efficiency V. Sneak to dig one block.", PageCanvas.FADED, 0.5f);
+        });
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("Forging the Tools");
+            forge(c, FantasyWeapons.id("forging/" + Material.SOLARITE.toolPrefix() + "_" + ToolKind.PICKAXE.id()), 9.4f, true);
+            c.para("Forged on the Legendary Crafting Table from the material's cores, a weapon's catalyst, handle and accent. "
+                    + "Each material's tools take its own.", PageCanvas.INK, 0.5f);
+        });
+        String key = KeyBindings.ABILITY.getTranslatedKeyMessage().getString();
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("Their Powers");
+            c.para("Press [" + key + "] with a tool in hand to wake its power. Each must rest a while after.", PageCanvas.INK, 0.52f);
+            step(c, 1, "Ore Sight", "Every legendary ore within " + ToolAbilities.SIGHT_RADIUS + " blocks shines through the stone for "
+                    + ToolAbilities.SIGHT_TICKS / 20 + " seconds. Rests " + ToolAbilities.SIGHT_COOLDOWN / 20 + " s.", pickaxe);
+            step(c, 2, "Timberfall", "Fells every tree within " + ToolAbilities.TIMBER_RADIUS + " blocks, its wood falling at your feet. Rests "
+                    + ToolAbilities.TIMBER_COOLDOWN / 20 + " s.", axe);
+            step(c, 3, "Earthshaper", "Levels the earth around you down to your feet, wider as its square grows. Rests "
+                    + ToolAbilities.EARTH_COOLDOWN / 20 + " s.", shovel);
+        });
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("The Upgrading Table");
+            craftingGrid(c, FantasyWeapons.id("legendary_upgrading_table"), new ItemStack(ModItems.UPGRADING_TABLE.get()));
+            c.para("A copper bench with a grindstone and a lens. Clamp a legendary tool in its vise, fill its copper cup with that "
+                    + "tool's refined material, and choose what to raise.", PageCanvas.INK, 0.52f);
+            c.para("Each step costs cores and experience levels, paid at once; the table works for "
+                    + com.fantasyweapons.tool.UpgradingTableBlockEntity.DURATION / 20 + " seconds.", PageCanvas.INK, 0.52f);
+        });
+        page(c -> {
+            c.y = PageCanvas.TOP;
+            c.heading("What It Raises");
+            for (UpgradeTrack track : UpgradeTrack.values()) {
+                c.text(track.displayName() + ": " + track.describe(track.min()) + " to " + track.describe(track.max()),
+                        PageCanvas.MARGIN, c.y, PageCanvas.RED, 0.56f);
+                c.y += 6.5f;
+                // each step: what it reaches, its cores and levels, two to a line
+                int steps = track.max() - track.min();
+                for (int i = 0; i < steps; i++) {
+                    int level = track.min() + i;
+                    float x = PageCanvas.MARGIN + 2 + (i % 2) * (c.inner() / 2);
+                    c.text(track.describe(level + 1) + "  " + track.cores(level) + " cores, " + track.levels(level) + " lv",
+                            x, c.y, PageCanvas.INK, 0.45f);
+                    if (i % 2 == 1 || i == steps - 1) c.y += 5.2f;
+                }
+                c.y += 2.5f;
+            }
+        });
     }
 
     /** What a focus's bolt leaves on the foes it strikes. */

@@ -1,0 +1,29 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1200,
+  "key": {
+    "A": {
+      "item": "minecraft:glowstone"
+    },
+    "C": {
+      "item": "minecraft:clock"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:eclipse_core"
+    }
+  },
+  "pattern": [
+    "    R    ",
+    "   RCR   ",
+    "    H    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:eclipsite_shovel"
+  }
+}

@@ -248,6 +248,18 @@ final class ForgeRecipes {
             if (t.second() != null) key.put('B', t.second());
             accept(out, def.id(), rows, key, ModItems.WEAPONS.get(def.id()).get(), weaponTime(def.weaponClass()));
         }
+        // the tools: their heads of the material's refined cores round its weapon's catalyst, on its weapon's handle
+        for (Material m : Material.values()) {
+            Theme t = WEAPONS.get(m.weapon());
+            for (var kind : com.fantasyweapons.tool.ToolKind.values()) {
+                Map<Character, ItemLike> key = new LinkedHashMap<>();
+                key.put('R', ModItems.REFINED.get(m).get());
+                key.put('C', t.catalyst());
+                key.put('A', t.accent());
+                key.put('H', t.handle());
+                accept(out, m.toolPrefix() + "_" + kind.id(), shape(kind), key, ModItems.tool(m, kind), toolTime(kind));
+            }
+        }
         for (ArmorSet set : ArmorSet.values()) {
             ItemLike[] binding = ARMOR.get(set);
             for (ArmorItem.Type type : ArmorSet.PIECES) {
@@ -259,6 +271,35 @@ final class ForgeRecipes {
                 accept(out, set.itemId(type), rows, key, ModItems.ARMOR.get(set).get(type).get(), armorTime(type));
             }
         }
+    }
+
+    /** The tool shapes (R refined, C catalyst, H handle, A accent): six cores for a pickaxe's head, five an axe's, three a shovel's. */
+    static String[] shape(com.fantasyweapons.tool.ToolKind kind) {
+        return switch (kind) {
+            case PICKAXE -> new String[]{
+                    "  RRCRR  ",
+                    " R  H  R ",
+                    "    H    ",
+                    "    H    ",
+                    "    A    "};
+            case AXE -> new String[]{
+                    "   RR    ",
+                    "  RRC    ",
+                    "   RH    ",
+                    "    H    ",
+                    "    A    "};
+            case SHOVEL -> new String[]{
+                    "    R    ",
+                    "   RCR   ",
+                    "    H    ",
+                    "    H    ",
+                    "    A    "};
+        };
+    }
+
+    /** How long a tool takes at the table, in ticks: a minute and a half, a minute for a shovel. */
+    static int toolTime(com.fantasyweapons.tool.ToolKind kind) {
+        return (kind == com.fantasyweapons.tool.ToolKind.SHOVEL ? 60 : 90) * 20;
     }
 
     /** Accents right of the middle become the second accent. */

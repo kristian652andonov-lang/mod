@@ -27,6 +27,7 @@ public class FWBlockStates extends BlockStateProvider {
         machine(ModBlocks.ARCANE_REFINERY.get(), ModBlocks.REFINERY_PART.get(), "arcane_refinery");
         machine(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get(), "legendary_crafting_table");
         machine(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get(), "worldforge");
+        machine(ModBlocks.UPGRADING_TABLE.get(), ModBlocks.UPGRADING_TABLE_PART.get(), "legendary_upgrading_table");
     }
 
     private void machine(net.minecraft.world.level.block.Block core, net.minecraft.world.level.block.Block part, String name) {

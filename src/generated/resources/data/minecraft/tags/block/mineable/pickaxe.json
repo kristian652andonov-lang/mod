@@ -18,6 +18,8 @@
     "fantasyweapons:legendary_crafting_table",
     "fantasyweapons:legendary_crafting_table_part",
     "fantasyweapons:worldforge",
-    "fantasyweapons:worldforge_part"
+    "fantasyweapons:worldforge_part",
+    "fantasyweapons:legendary_upgrading_table",
+    "fantasyweapons:legendary_upgrading_table_part"
   ]
 }

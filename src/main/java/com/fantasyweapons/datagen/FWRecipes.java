@@ -54,7 +54,15 @@ public class FWRecipes extends RecipeProvider {
                 .define('T', ModItems.LEGENDARY_CRAFTING_TABLE.get()).define('E', Items.DRAGON_EGG)
                 .unlockedBy("has_legendary_crafting_table", has(ModItems.LEGENDARY_CRAFTING_TABLE.get()))
                 .save(out);
-        // the legendary weapons and armor are forged on its 9x9 grid
+        // the Legendary Upgrading Table: a smithing table between an anvil and a grindstone, copper round it, experience
+        // over it and netherite under it (the artist's suggested recipe)
+        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.UPGRADING_TABLE.get())
+                .pattern("CEC").pattern("ASG").pattern("NCN")
+                .define('C', Items.COPPER_BLOCK).define('E', Items.EXPERIENCE_BOTTLE).define('A', Items.ANVIL)
+                .define('S', Items.SMITHING_TABLE).define('G', Items.GRINDSTONE).define('N', Items.NETHERITE_INGOT)
+                .unlockedBy("has_smithing_table", has(Items.SMITHING_TABLE))
+                .save(out);
+        // the legendary weapons, armor and tools are forged on its 9x9 grid
         ForgeRecipes.build(out);
         // and the two ultimate weapons on the Worldforge's 11x11
         WorldforgeRecipes.build(out);

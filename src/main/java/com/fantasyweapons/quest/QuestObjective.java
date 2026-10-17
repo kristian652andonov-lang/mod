@@ -61,6 +61,24 @@ public sealed interface QuestObjective {
         }
     }
 
+    /** Holds {@code target} items that pass {@code test} (any legendary tool, say). */
+    record Holds(java.util.function.Predicate<ItemStack> test, int target, String label, Supplier<ItemStack> iconOf) implements QuestObjective {
+        @Override
+        public ItemStack icon() {
+            return iconOf.get();
+        }
+
+        @Override
+        public int have(Player player) {
+            int n = 0;
+            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                ItemStack s = player.getInventory().getItem(i);
+                if (test.test(s)) n += s.getCount();
+            }
+            return n;
+        }
+    }
+
     /** Has a legendary weapon (that one, or any when {@code weapon} is null) at level {@code target} or above. */
     record Reach(String weapon, int target, String label, Supplier<ItemStack> iconOf) implements QuestObjective {
         @Override

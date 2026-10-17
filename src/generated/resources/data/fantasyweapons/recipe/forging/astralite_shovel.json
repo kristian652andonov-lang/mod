@@ -1,0 +1,29 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1200,
+  "key": {
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "C": {
+      "item": "minecraft:end_crystal"
+    },
+    "H": {
+      "item": "minecraft:end_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:astralite_core"
+    }
+  },
+  "pattern": [
+    "    R    ",
+    "   RCR   ",
+    "    H    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:astralite_shovel"
+  }
+}

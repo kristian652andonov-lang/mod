@@ -171,6 +171,20 @@ final class FWAdvancements implements AdvancementProvider.AdvancementGenerator {
                 "Cast one of a legendary weapon's abilities", AdvancementType.TASK, b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().any()));
         deed("ultimate", unleashed, Items.END_CRYSTAL, "Cataclysm", VIOLET,
                 "Unleash a legendary weapon's ultimate", AdvancementType.GOAL, b -> b.addCriterion("cast", ModTriggers.ABILITY_CAST.get().named("ultimate")));
+        // the legendary tools
+        AdvancementHolder tools = deed("legendary_tool", hammer, ModItems.tool(Material.VOID_CRYSTAL, com.fantasyweapons.tool.ToolKind.PICKAXE), "Tools of Legend", ARCANE,
+                "Forge a legendary pickaxe, shovel or axe", AdvancementType.TASK, b -> b.addCriterion("has", InventoryChangeTrigger.TriggerInstance.hasItems(
+                        net.minecraft.advancements.critereon.ItemPredicate.Builder.item().of(FWTags.LEGENDARY_TOOLS))));
+        AdvancementHolder honed = deed("tool_upgraded", tools, ModItems.UPGRADING_TABLE.get(), "Honed", EMBER,
+                "Upgrade a legendary tool at the Legendary Upgrading Table", AdvancementType.TASK, b -> b.addCriterion("upgrade", ModTriggers.TOOL.get().named("upgrade")));
+        deed("tool_perfected", honed, ModItems.tool(Material.ASTRALITE, com.fantasyweapons.tool.ToolKind.PICKAXE), "Perfected", VIOLET,
+                "Raise a legendary tool to 13x13, Fortune X and Efficiency X", AdvancementType.CHALLENGE, b -> b.addCriterion("maxed", ModTriggers.TOOL.get().named("maxed")));
+        deed("ore_sight", tools, ModItems.tool(Material.SOLARITE, com.fantasyweapons.tool.ToolKind.PICKAXE), "The Seer", GOLD,
+                "See the legendary ores through the stone with a pickaxe's Ore Sight", AdvancementType.TASK, b -> b.addCriterion("power", ModTriggers.TOOL.get().named("ore_sight")));
+        deed("timberfall", tools, ModItems.tool(Material.VERDANT, com.fantasyweapons.tool.ToolKind.AXE), "Timber!", GOLD,
+                "Fell every tree around you with an axe's Timberfall", AdvancementType.TASK, b -> b.addCriterion("power", ModTriggers.TOOL.get().named("timberfall")));
+        deed("earthshaper", tools, ModItems.tool(Material.TITANSTONE, com.fantasyweapons.tool.ToolKind.SHOVEL), "Earthshaper", GOLD,
+                "Level the land around you with a shovel's Earthshaper", AdvancementType.TASK, b -> b.addCriterion("power", ModTriggers.TOOL.get().named("earthshaper")));
         deed("infused", reborn, ModItems.REFINED.get(Material.VOID_CRYSTAL).get(), "Infused", ARCANE,
                 "Infuse a legendary weapon with its refined cores", AdvancementType.TASK, b -> b.addCriterion("infused", ModTriggers.INFUSED.get().any()));
 

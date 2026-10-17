@@ -25,6 +25,8 @@ public final class FWTags {
     public static final TagKey<Item> REFINED_MATERIALS = TagKey.create(Registries.ITEM, FantasyWeapons.id("refined_materials"));
     public static final TagKey<Block> ORES = TagKey.create(Registries.BLOCK, FantasyWeapons.id("ores"));
     public static final TagKey<Item> ORE_ITEMS = TagKey.create(Registries.ITEM, FantasyWeapons.id("ores"));
+    /** Every legendary pickaxe, shovel and axe. */
+    public static final TagKey<Item> LEGENDARY_TOOLS = TagKey.create(Registries.ITEM, FantasyWeapons.id("legendary_tools"));
 
     private FWTags() {
     }
@@ -48,6 +50,8 @@ public final class FWTags {
             tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get());
             tag(BlockTags.NEEDS_STONE_TOOL).add(ModBlocks.LEGENDARY_CRAFTING_TABLE.get(), ModBlocks.LEGENDARY_CRAFTING_TABLE_PART.get());
             tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get());
+            tag(BlockTags.MINEABLE_WITH_PICKAXE).add(ModBlocks.UPGRADING_TABLE.get(), ModBlocks.UPGRADING_TABLE_PART.get());
+            tag(BlockTags.NEEDS_STONE_TOOL).add(ModBlocks.UPGRADING_TABLE.get(), ModBlocks.UPGRADING_TABLE_PART.get());
             tag(BlockTags.NEEDS_DIAMOND_TOOL).add(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get());
             tag(BlockTags.WITHER_IMMUNE).add(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get());
             tag(BlockTags.DRAGON_IMMUNE).add(ModBlocks.WORLDFORGE.get(), ModBlocks.WORLDFORGE_PART.get());
@@ -81,6 +85,7 @@ public final class FWTags {
                     tag(net.minecraft.tags.ItemTags.MINING_ENCHANTABLE).add(tool);
                     tag(net.minecraft.tags.ItemTags.MINING_LOOT_ENCHANTABLE).add(tool);
                     tag(Tags.Items.MINING_TOOL_TOOLS).add(tool);
+                    tag(LEGENDARY_TOOLS).add(tool);
                 }
             }
             // armor: enchantable like any armor

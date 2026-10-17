@@ -60,6 +60,7 @@ public final class Quests {
         hunts(list);
         journeys(list);
         mastery(list);
+        tools(list);
         Map<String, Quest> map = new LinkedHashMap<>();
         for (Quest q : list) map.put(q.id(), q);
         all = Collections.unmodifiableList(list);
@@ -266,6 +267,37 @@ public final class Quests {
                 .reward(Items.COPPER_BLOCK, 4).reward(Items.PACKED_ICE, 16).xp(150).build());
     }
 
+    /** The legendary tools and the table that upgrades them. */
+    private static void tools(List<Quest> list) {
+        Supplier<ItemStack> pick = () -> stack(ModItems.tool(Material.VOID_CRYSTAL, com.fantasyweapons.tool.ToolKind.PICKAXE), 1);
+        Supplier<ItemStack> table = () -> stack(ModItems.UPGRADING_TABLE.get(), 1);
+        QuestGroup group = new QuestGroup("legendary_tools", "Legendary Tools", pick);
+        list.add(quest("tools_of_legend", Chapter.MASTERY, "Tools of Legend", "Forge a legendary pickaxe, shovel or axe at the Legendary Crafting Table: "
+                + "it digs a 3x3 square (an axe fells whole trees) with Fortune III and Efficiency V from the start.", pick)
+                .holds(s -> s.getItem() instanceof com.fantasyweapons.tool.LegendaryTool, 1, "Hold a legendary tool", pick)
+                .reward(Items.DIAMOND, 4).reward(Items.EXPERIENCE_BOTTLE, 16).xp(300).requires("trophy_table").group(group).build());
+        list.add(quest("upgrade_bench", Chapter.MASTERY, "The Upgrader's Bench", "Build a Legendary Upgrading Table: a smithing table between an anvil "
+                + "and a grindstone, in copper, over netherite.", table)
+                .collect(() -> ModItems.UPGRADING_TABLE.get(), 1, "Hold a Legendary Upgrading Table")
+                .reward(Items.COPPER_BLOCK, 8).reward(Items.EXPERIENCE_BOTTLE, 24).xp(300).requires("tools_of_legend").group(group).build());
+        list.add(quest("honed", Chapter.MASTERY, "Honed", "Lay a legendary tool in the table's vise and its refined material in the cup, and raise "
+                + "its mining area, Fortune or Efficiency.", table)
+                .count("tool_upgrade", 1, "Upgrade a legendary tool", table)
+                .reward(Items.EXPERIENCE_BOTTLE, 32).reward(Items.DIAMOND, 3).xp(500).requires("upgrade_bench").group(group).build());
+        list.add(quest("earth_movers", Chapter.MASTERY, "Earth Movers", "Use the powers of the legendary tools: Ore Sight, Timberfall and Earthshaper.",
+                () -> stack(Items.GRASS_BLOCK, 1))
+                .count("tool_power", 10, "Use a legendary tool's power 10 times", () -> stack(Items.GRASS_BLOCK, 1))
+                .reward(Items.DIAMOND, 3).reward(Items.GOLDEN_APPLE, 2).xp(400).requires("tools_of_legend").group(group).build());
+        list.add(quest("excavator", Chapter.MASTERY, "Excavator", "Dig, fell and level the land with the legendary tools: their squares, felled trees and powers.",
+                () -> stack(Items.STONE, 1))
+                .count("dig_area", 5000, "Dig 5,000 blocks with a legendary tool", () -> stack(Items.STONE, 1))
+                .reward(Items.NETHERITE_SCRAP, 4).reward(Items.EXPERIENCE_BOTTLE, 32).xp(1000).requires("tools_of_legend").group(group).build());
+        list.add(quest("perfected", Chapter.MASTERY, "Perfected", "Raise a legendary tool as far as it goes: a 13x13 square, Fortune X and Efficiency X.",
+                () -> stack(ModItems.tool(Material.ASTRALITE, com.fantasyweapons.tool.ToolKind.PICKAXE), 1))
+                .count("tool_maxed", 1, "Fully upgrade a legendary tool", () -> stack(ModItems.tool(Material.ASTRALITE, com.fantasyweapons.tool.ToolKind.PICKAXE), 1))
+                .reward(Items.NETHER_STAR, 1).reward(Items.NETHERITE_INGOT, 2).xp(3000).requires("honed").group(group).build());
+    }
+
     private static void mastery(List<Quest> list) {
         list.add(quest("unleashed", Chapter.MASTERY, "Unleashed", "Cast one of a legendary weapon's abilities.", () -> stack(Items.BLAZE_POWDER, 1))
                 .count("ability", 1, "Cast an ability", () -> stack(Items.BLAZE_POWDER, 1))
@@ -333,6 +365,11 @@ public final class Quests {
 
         Builder collect(Supplier<? extends ItemLike> item, int target, String label) {
             objectives.add(new QuestObjective.Collect(item, target, label));
+            return this;
+        }
+
+        Builder holds(java.util.function.Predicate<ItemStack> test, int target, String label, Supplier<ItemStack> icon) {
+            objectives.add(new QuestObjective.Holds(test, target, label, icon));
             return this;
         }
 
