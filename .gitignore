@@ -1,0 +1,26 @@
+# Gradle / build
+.gradle/
+build/
+out/
+run/
+runs/
+logs/
+*.log
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Never commit private credentials
+**/secrets.properties
