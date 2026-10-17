@@ -213,14 +213,14 @@ public final class CodexBook {
                 {"The Mage's Arts", "mage"}, {"The Ultimate Weapons", "ultimates"}, {"Legendary Tools", "tools"}, {"Mastery", "mastery"}, {"Deeds", "deeds"}};
         for (String[] e : entries) {
             int page = anchors.getOrDefault(e[1], 0) + 1;
-            float s = 0.68f;
+            float s = 0.64f;
             c.link(e[0], PageCanvas.MARGIN, c.y, s, go(e[1]));
             String n = String.valueOf(page);
             c.text(n, PageCanvas.W - PageCanvas.MARGIN - c.width(n, s), c.y, PageCanvas.FADED, s);
             // dotted leader
             float from = PageCanvas.MARGIN + c.width(e[0], s) + 2, to = PageCanvas.W - PageCanvas.MARGIN - c.width(n, s) - 2;
-            for (float x = from; x < to; x += 2.5f) c.fill(x, c.y + 5, x + 0.7f, c.y + 5.7f, 0x883A2614);
-            c.y += 9.6f;
+            for (float x = from; x < to; x += 2.5f) c.fill(x, c.y + 4.7f, x + 0.7f, c.y + 5.4f, 0x883A2614);
+            c.y += 8.4f;
         }
         c.gap(2);
         c.para("Click a chapter to turn to it.", PageCanvas.FADED, 0.5f);
@@ -560,26 +560,24 @@ public final class CodexBook {
 
     /** The legendary pickaxes, shovels and axes, their powers, and the Upgrading Table that raises them. */
     private void tools() {
-        chapter("Legendary Tools", "tools");
+        chapter("Tools", "tools");
         ItemStack pickaxe = new ItemStack(ModItems.tool(Material.SOLARITE, ToolKind.PICKAXE)),
                 shovel = new ItemStack(ModItems.tool(Material.FROSTHEART, ToolKind.SHOVEL)),
                 axe = new ItemStack(ModItems.tool(Material.TITANSTONE, ToolKind.AXE));
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("Legendary Tools");
-            c.para("A pickaxe, a shovel and an axe of each of the thirteen materials. They never break and no fire burns them.",
-                    PageCanvas.INK, 0.52f);
-            step(c, 1, "Pickaxe", "Digs stone and ore in a square round the block it strikes.", pickaxe);
-            step(c, 2, "Shovel", "Digs earth, sand, gravel and snow in the same square.", shovel);
-            step(c, 3, "Axe", "Fells a whole tree at a stroke, leaves and all; other wood in the square.", axe);
+            c.para("A pickaxe, a shovel and an axe of each of the thirteen materials. They never break.", PageCanvas.INK, 0.52f);
+            step(c, 1, "Pickaxe", "Digs stone and ore in a square.", pickaxe);
+            step(c, 2, "Shovel", "Digs earth, sand and snow in a square.", shovel);
+            step(c, 3, "Axe", "Fells a whole tree at a stroke.", axe);
             c.para("New, each digs 3x3 with Fortune III and Efficiency V. Sneak to dig one block.", PageCanvas.FADED, 0.5f);
         });
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("Forging the Tools");
-            forge(c, FantasyWeapons.id("forging/" + Material.SOLARITE.toolPrefix() + "_" + ToolKind.PICKAXE.id()), 9.4f, true);
-            c.para("Forged on the Legendary Crafting Table from the material's cores, a weapon's catalyst, handle and accent. "
-                    + "Each material's tools take its own.", PageCanvas.INK, 0.5f);
+            forge(c, FantasyWeapons.id("forging/" + Material.SOLARITE.toolPrefix() + "_" + ToolKind.PICKAXE.id()), 8f, true);
+            c.para("Forged on the Legendary Crafting Table; each material's tools take its own cores.", PageCanvas.INK, 0.48f);
         });
         String key = KeyBindings.ABILITY.getTranslatedKeyMessage().getString();
         page(c -> {
@@ -614,7 +612,8 @@ public final class CodexBook {
                 for (int i = 0; i < steps; i++) {
                     int level = track.min() + i;
                     float x = PageCanvas.MARGIN + 2 + (i % 2) * (c.inner() / 2);
-                    c.text(track.describe(level + 1) + "  " + track.cores(level) + " cores, " + track.levels(level) + " lv",
+                    int n = track.cores(level);
+                    c.text(track.describe(level + 1) + "  " + n + (n == 1 ? " core, " : " cores, ") + track.levels(level) + " lv",
                             x, c.y, PageCanvas.INK, 0.45f);
                     if (i % 2 == 1 || i == steps - 1) c.y += 5.2f;
                 }

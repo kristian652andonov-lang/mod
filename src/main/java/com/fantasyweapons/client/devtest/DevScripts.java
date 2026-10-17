@@ -69,6 +69,8 @@ final class DevScripts {
                 else if (name.equals("oreicons")) oreIcons(b);
                 else if (name.equals("tools")) tools(b);
                 else if (name.equals("upgrader")) upgrader(b);
+                else if (name.equals("toolbook")) toolBook(b);
+                else if (name.equals("toolcodex")) bookPages(b);
                 else if (name.equals("toolpowers")) toolPowers(b);
                 else if (name.equals("oresight")) {
                     b.cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/give @s fantasyweapons:void_crystal_pickaxe")
@@ -1739,6 +1741,44 @@ final class DevScripts {
                 }
             });
         }).wait(15).screenshot("upgrader_menu_after").closeScreen();
+    }
+
+    /** The upgrading menu in survival (some steps too dear), mid-work and done; then the Codex's contents and tools chapter. */
+    private static void toolBook(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode survival").cmd("/time set noon").cmd("/clear @s").cmd("/experience set @s 12 levels").cmd("/tp @s 0.5 -60 -2.5 0 20").wait(30);
+        onServer(b, sp -> {
+            var level = sp.serverLevel();
+            var core = new net.minecraft.core.BlockPos(0, -60, 0);
+            var block = com.fantasyweapons.registry.ModBlocks.UPGRADING_TABLE.get();
+            level.setBlock(core, block.defaultBlockState().setValue(com.fantasyweapons.machine.MachineCoreBlock.FACING, net.minecraft.core.Direction.NORTH), 3);
+            block.placeParts(level, core, net.minecraft.core.Direction.NORTH);
+            if (level.getBlockEntity(core) instanceof com.fantasyweapons.tool.UpgradingTableBlockEntity be) {
+                var tool = new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.tool(com.fantasyweapons.material.Material.SOLARITE,
+                        com.fantasyweapons.tool.ToolKind.PICKAXE));
+                tool.set(com.fantasyweapons.registry.ModComponents.TOOL_UPGRADES.get(), new com.fantasyweapons.tool.ToolUpgrades(1, 6, 10));
+                be.items().setStackInSlot(com.fantasyweapons.tool.UpgradingTableBlockEntity.TOOL, tool);
+                be.items().setStackInSlot(com.fantasyweapons.tool.UpgradingTableBlockEntity.CATALYST, new net.minecraft.world.item.ItemStack(
+                        com.fantasyweapons.registry.ModItems.REFINED.get(com.fantasyweapons.material.Material.SOLARITE).get(), 5));
+                sp.openMenu(be, buf -> buf.writeBlockPos(be.getBlockPos()));
+            }
+        });
+        b.wait(15).screenshot("toolbook_menu");
+        b.run(mc -> {
+            if (mc.player.containerMenu instanceof com.fantasyweapons.tool.UpgradingMenu m) mc.gameMode.handleInventoryButtonClick(m.containerId, 0);
+        }).wait(60).screenshot("toolbook_working").wait(200).screenshot("toolbook_done").closeScreen();
+        bookPages(b);
+    }
+
+    /** The Codex's contents and its tools chapter. */
+    private static void bookPages(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/give @s fantasyweapons:wayfarers_codex").wait(10).slot(0).hud(true)
+                .run(mc -> mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)).wait(110).screenshot("toolbook_contents");
+        for (int i = 0; i < 3; i++) {
+            int k = i;
+            b.run(mc -> com.fantasyweapons.client.guide.Codex.turnTo(com.fantasyweapons.client.guide.Codex.book().spreadOf("tools") + k, false)).wait(18)
+                    .screenshot("toolbook_" + k);
+        }
+        b.closeScreen().wait(20);
     }
 
     /** The legendary tools: every icon beside vanilla tools, a tooltip, and a pickaxe, shovel and axe held in first and third person. */

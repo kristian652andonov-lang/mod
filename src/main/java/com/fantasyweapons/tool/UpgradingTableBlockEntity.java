@@ -192,11 +192,11 @@ public class UpgradingTableBlockEntity extends BlockEntity implements GeoBlockEn
 
     /** The upgrade under way done at once (the table broken mid-upgrade). */
     public void finishNow() {
-        if (working()) apply();
+        if (working()) apply(false);
     }
 
     private void finish(ServerLevel level) {
-        apply();
+        apply(true);
         Vec3 plate = spot(0, 18, -0.8);
         level.playSound(null, plate.x, plate.y, plate.z, SoundEvents.PLAYER_LEVELUP, SoundSource.BLOCKS, 1f, 1.2f);
         level.playSound(null, plate.x, plate.y, plate.z, SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 0.8f, 1.5f);
@@ -204,7 +204,8 @@ public class UpgradingTableBlockEntity extends BlockEntity implements GeoBlockEn
         level.sendParticles(ParticleTypes.END_ROD, plate.x, plate.y + 0.2, plate.z, 16, 0.25, 0.4, 0.25, 0.04);
     }
 
-    private void apply() {
+    /** Raises the tool; {@code standing}: the table stays, and goes back to idle (not while it is being broken). */
+    private void apply(boolean standing) {
         ItemStack tool = items.getStackInSlot(TOOL);
         if (track >= 0 && track < UpgradeTrack.values().length && tool.getItem() instanceof LegendaryTool) {
             UpgradeTrack t = UpgradeTrack.values()[track];
@@ -224,6 +225,7 @@ public class UpgradingTableBlockEntity extends BlockEntity implements GeoBlockEn
         upgrader = null;
         track = -1;
         progress = 0;
+        if (!standing) return;
         setWorking(false);
         setChanged();
         sync();

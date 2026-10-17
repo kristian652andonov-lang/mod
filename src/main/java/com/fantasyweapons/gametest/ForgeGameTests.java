@@ -87,14 +87,15 @@ public final class ForgeGameTests {
     }
 
     /**
-     * Every weapon's and armor piece's pattern, laid anywhere on the grid, shows what it makes (which is forged, not
+     * Every weapon's, armor piece's and tool's pattern, laid anywhere on the grid, shows what it makes (which is forged, not
      * taken): Forge takes the grid's items, and after the recipe's time - a minute to five - it waits in the Forged slot.
      */
     @GameTest(template = ARENA, timeoutTicks = 400)
     public static void forgesEveryWeaponAndPiece(GameTestHelper h) {
         ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
         var recipes = h.getLevel().getRecipeManager().getAllRecipesFor(ModRecipes.FORGING.get());
-        int expected = com.fantasyweapons.weapon.Weapons.legendaries().size() + com.fantasyweapons.armor.ArmorSet.values().length * 4;
+        int expected = com.fantasyweapons.weapon.Weapons.legendaries().size() + com.fantasyweapons.armor.ArmorSet.values().length * 4
+                + ModItems.TOOLS.values().stream().mapToInt(java.util.Map::size).sum();
         if (recipes.size() != expected) h.fail("expected " + expected + " forge recipes, found " + recipes.size());
         LegendaryCraftingMenu menu = open(h, p);
         LegendaryCraftingTableBlockEntity table = table(h);
