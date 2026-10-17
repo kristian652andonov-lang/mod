@@ -69,6 +69,10 @@ public class GirlfriendModel extends GeoModel<GirlfriendEntity> {
         if (hairFront != null) hairFront.setPosZ(hairFront.getPosZ() + gf.getOutfitType().hairFrontPush);
 
         antiSnap(gf, state.getAnimationTick());
+        // Our edits are per-frame overlays. Clear the "changed" markers they set, otherwise GeckoLib treats every
+        // bone as animated and never eases bones the current clips leave alone back to rest (e.g. the body would
+        // stay rotated after a lying clip ends).
+        for (GeoBone b : getAnimationProcessor().getRegisteredBones()) b.resetStateChanges();
     }
 
     private void antiSnap(GirlfriendEntity gf, double tick) {

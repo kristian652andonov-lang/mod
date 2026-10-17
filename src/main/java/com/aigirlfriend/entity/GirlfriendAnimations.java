@@ -68,6 +68,7 @@ public final class GirlfriendAnimations {
         fb("interaction.head_on_shoulder", "interaction.sit_together");
         fb("interaction.cuddle_sitting", "interaction.head_on_shoulder");
         fb("action.wake_up", "action.stretch");
+        fb("pose.wake_up", "pose.sleep");
         fb("pose.lie_down", "pose.sleep");
         fb("interaction.cuddle_bed", "pose.sleep");
         fb("interaction.sleep_together", "pose.sleep");
@@ -122,8 +123,15 @@ public final class GirlfriendAnimations {
 
     private static final Map<String, RawAnimation> CHAINS = new HashMap<>();
 
-    private static RawAnimation lieThenSleep(String lie, String sleep) {
-        return CHAINS.computeIfAbsent(lie + ">" + sleep, k -> RawAnimation.begin().thenPlay(lie).thenLoop(sleep));
+    private static RawAnimation hold(String name) {
+        return CHAINS.computeIfAbsent("hold:" + name, k -> RawAnimation.begin().thenPlayAndHold(name));
+    }
+
+    /** Length of a loaded animation in ticks (0 if unknown). */
+    private static double length(String name) {
+        BakedAnimations file = GeckoLibCache.getBakedAnimations().get(ANIMATION_FILE);
+        var a = file == null ? null : file.getAnimation(name);
+        return a == null ? 0 : a.length();
     }
 
     private static RawAnimation once(String name) {
@@ -134,6 +142,7 @@ public final class GirlfriendAnimations {
     public static final class ClientState {
         int lastGestureSeq = Integer.MIN_VALUE;
         int gestureEndTick;
+        int sleepStartTick = Integer.MIN_VALUE;
         /** Anti-snap filter state (see GirlfriendModel). */
         public double lastPoseTick;
         public java.util.Map<String, float[]> lastPose;
@@ -162,14 +171,24 @@ public final class GirlfriendAnimations {
     }
 
     private static PlayState main(GirlfriendEntity gf, AnimationState<GirlfriendEntity> state) {
+        if (!gf.isSleeping()) gf.animState.sleepStartTick = Integer.MIN_VALUE;
         String anim;
         if (gf.isFainted()) anim = "pose.fainted";
+        else if (gf.isSleeping() && gf.hasFlag(GirlfriendEntity.FLAG_WAKING)) anim = "pose.wake_up";
         else if (gf.isSleeping()) {
-            // lie down first, then breathe in her sleep
+            // lie down first, then breathe in her sleep. Switched by time instead of a GeckoLib queue: a queued
+            // follow-up clip transitions from a stale snapshot, which made her pop back up for a moment.
             String lie = resolve("pose.lie_down"), sleep = resolve("pose.sleep");
             if (sleep == null) return PlayState.STOP;
+            ClientState cs = gf.animState;
+            double lieTicks = lie == null || lie.equals(sleep) ? 0 : length(lie);
+            if (cs.sleepStartTick == Integer.MIN_VALUE) {
+                // already asleep when she came into view: skip the lying-down part
+                cs.sleepStartTick = gf.tickCount < 5 ? gf.tickCount - (int) lieTicks - 1 : gf.tickCount;
+            }
             state.getController().setAnimationSpeed(speed());
-            return state.setAndContinue(lie != null && !lie.equals(sleep) ? lieThenSleep(lie, sleep) : loop(sleep));
+            if (gf.tickCount - cs.sleepStartTick < lieTicks / speed()) return state.setAndContinue(hold(lie));
+            return state.setAndContinue(loop(sleep));
         }
         else if (gf.isCarried()) anim = "pose.carried";
         else if (gf.isOnLap()) anim = "pose.lap_sit";
@@ -192,6 +211,12 @@ public final class GirlfriendAnimations {
             else if (tired) anim = "move.idle_tired";
             else if (gf.hasFlag(GirlfriendEntity.FLAG_SAD)) anim = "move.idle_sad";
             else anim = "move.idle";
+        }
+        if (anim.equals("pose.wake_up")) {
+            String resolved = resolve(anim);
+            if (resolved == null) return PlayState.STOP;
+            state.getController().setAnimationSpeed(speed());
+            return state.setAndContinue(hold(resolved));
         }
         return play(state, anim, true);
     }

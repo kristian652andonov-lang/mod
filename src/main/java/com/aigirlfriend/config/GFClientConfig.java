@@ -57,12 +57,12 @@ public final class GFClientConfig {
 
         b.comment("Fine-tune where her model sits relative to you, to match your own model/animations (visual only).").push("poseTuning");
         CARRY_FORWARD = b.comment("Carried: blocks in front of you.").defineInRange("carryForward", 0.42, -1.0, 2.0);
-        CARRY_HEIGHT = b.comment("Carried: height of her feet above yours.").defineInRange("carryHeight", 0.62, -1.0, 2.5);
+        CARRY_HEIGHT = b.comment("Carried: height of her model origin above your feet (the carried clip itself lifts her body 8 px).").defineInRange("carryHeight", -0.12, -1.0, 2.5);
         CARRY_YAW = b.comment("Carried: her facing relative to yours, in degrees (90 = across your arms).").defineInRange("carryYaw", 90.0, -180.0, 180.0);
-        LAP_FORWARD = b.comment("Lap sitting: blocks in front of you.").defineInRange("lapForward", 0.22, -1.0, 2.0);
-        LAP_HEIGHT = b.comment("Lap sitting: height of her feet above yours (you are seated).").defineInRange("lapHeight", 0.05, -1.0, 2.0);
+        LAP_FORWARD = b.comment("Lap sitting: blocks in front of you.").defineInRange("lapForward", 0.28, -1.0, 2.0);
+        LAP_HEIGHT = b.comment("Lap sitting: height of her model origin above yours (you are seated); 0.42 rests her thighs on yours.").defineInRange("lapHeight", 0.42, -1.0, 2.0);
         LAP_YAW = b.comment("Lap sitting: her facing relative to yours (0 = same way, 90 = sideways).").defineInRange("lapYaw", 90.0, -180.0, 180.0);
-        SEAT_HEIGHT = b.comment("Seats: how far her feet hang below the seat surface (her hip height).").defineInRange("seatHeight", 0.70, 0.0, 1.5);
+        SEAT_HEIGHT = b.comment("Seats: how far below the seat surface her feet origin sits (the sitting clip already lowers her hips).").defineInRange("seatHeight", 0.24, 0.0, 1.5);
         b.pop();
         SPEC = b.build();
     }

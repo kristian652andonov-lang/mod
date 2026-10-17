@@ -156,10 +156,7 @@ public class LeadToBedGoal extends Goal {
 
     private void lieDown() {
         if (bed == null || owner == null) return;
-        Direction facing = SleepHelper.facing(gf.level(), bed);
-        boolean right = facing != null && gf.position().subtract(Vec3.atCenterOf(bed))
-                .dot(new Vec3(facing.getClockWise().getStepX(), 0, facing.getClockWise().getStepZ())) >= 0;
-        gf.startSleepingBeside(bed, SleepHelper.besidePosition(gf.level(), bed, right));
+        gf.startSleepingBeside(bed, SleepHelper.besidePosition(gf.level(), bed));
         gf.controller().waitingBed = bed;
         gf.controller().waitingBedSince = gf.level().getGameTime();
         gf.controller().say(DialogueTrigger.GOODNIGHT, java.util.Map.of("waiting", "1"));

@@ -104,6 +104,8 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
     public static final int FLAG_LEADING = 1 << 9;
     public static final int FLAG_SAD = 1 << 10;
     public static final int FLAG_SHY = 1 << 11;
+    /** Sitting up in bed before getting out (client plays the in-bed wake-up clip). */
+    public static final int FLAG_WAKING = 1 << 12;
 
     private final CompanionData data = new CompanionData();
     private final InteractionManager interactions = new InteractionManager(this);

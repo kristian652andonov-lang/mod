@@ -521,9 +521,9 @@
    "bones": {
     "right_arm": {
      "rotation": [
-      -35,
-      -25,
-      -78
+      -12,
+      -15,
+      -66
      ]
     },
     "left_arm": {
@@ -548,9 +548,9 @@
    "bones": {
     "right_arm": {
      "rotation": [
-      -35,
-      -25,
-      -78
+      -14,
+      -15,
+      -70
      ]
     },
     "left_arm": {
@@ -569,6 +569,114 @@
     }
    },
    "loop": true
+  },
+  "animation.player.arm_around_right": {
+   "animation_length": 4.0,
+   "bones": {
+    "right_arm": {
+     "rotation": [
+      -12,
+      -15,
+      -66
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -30,
+      -10,
+      0
+     ]
+    },
+    "head": {
+     "rotation": [
+      8,
+      0,
+      10
+     ]
+    }
+   },
+   "loop": true
+  },
+  "animation.player.arm_around_left": {
+   "animation_length": 4.0,
+   "loop": true,
+   "bones": {
+    "left_arm": {
+     "rotation": [
+      -12,
+      15,
+      66
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -30,
+      10,
+      0
+     ]
+    },
+    "head": {
+     "rotation": [
+      8,
+      0,
+      -10
+     ]
+    }
+   }
+  },
+  "animation.player.cuddle_sitting_right": {
+   "animation_length": 4.0,
+   "bones": {
+    "right_arm": {
+     "rotation": [
+      -14,
+      -15,
+      -70
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -60,
+      -38,
+      0
+     ]
+    },
+    "head": {
+     "rotation": [
+      14,
+      10,
+      12
+     ]
+    }
+   },
+   "loop": true
+  },
+  "animation.player.cuddle_sitting_left": {
+   "animation_length": 4.0,
+   "loop": true,
+   "bones": {
+    "left_arm": {
+     "rotation": [
+      -14,
+      15,
+      70
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -60,
+      38,
+      0
+     ]
+    },
+    "head": {
+     "rotation": [
+      14,
+      -10,
+      -12
+     ]
+    }
+   }
   },
   "animation.player.carry": {
    "animation_length": 3.0,

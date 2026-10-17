@@ -7,6 +7,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
@@ -72,6 +73,27 @@ public class SeatEntity extends Entity {
     }
 
     @Override
+    protected void positionRider(Entity passenger, Entity.MoveFunction callback) {
+        super.positionRider(passenger, callback);
+        clampRotation(passenger);
+    }
+
+    @Override
+    public void onPassengerTurned(Entity passenger) {
+        clampRotation(passenger);
+    }
+
+    /** Like a boat: the sitter's body faces the way the seat faces, and the head can turn about 105 degrees. */
+    private void clampRotation(Entity passenger) {
+        passenger.setYBodyRot(getYRot());
+        float rel = Mth.wrapDegrees(passenger.getYRot() - getYRot());
+        float clamped = Mth.clamp(rel, -105f, 105f);
+        passenger.yRotO += clamped - rel;
+        passenger.setYRot(passenger.getYRot() + clamped - rel);
+        passenger.setYHeadRot(passenger.getYRot());
+    }
+
+    @Override
     protected Vec3 getPassengerAttachmentPoint(Entity entity, EntityDimensions dimensions, float partialTick) {
         return Vec3.ZERO;
     }
@@ -113,13 +135,5 @@ public class SeatEntity extends Entity {
     @Override
     public boolean canChangeDimensions(Level from, Level to) {
         return false;
-    }
-
-    @Override
-    protected void positionRider(Entity passenger, MoveFunction callback) {
-        super.positionRider(passenger, callback);
-        if (passenger instanceof GirlfriendEntity) {
-            passenger.setYRot(getYRot());
-        }
     }
 }

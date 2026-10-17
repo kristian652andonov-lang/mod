@@ -117,12 +117,49 @@ RENAME = {
     "lie_down": ["pose.lie_down"],
     "sleep": ["pose.sleep"],
     "cuddle": ["interaction.cuddle_bed", "interaction.sleep_together"],
-    "stretch": ["action.stretch"],
-    "wake_up": ["action.wake_up"],
+    "stretch": ["action.stretch", "action.wake_up"],
+    # in-game review: the pack's wake-up starts lying down, so it plays while she is still in bed (sitting up);
+    # she gets out of bed when it ends and stretches (action.wake_up)
+    "wake_up": ["pose.wake_up"],
 }
 
 # Adjustments found during in-game review (applied on top of the pack's clips).
 TWEAKS = {}
+
+# Pack clips that start later in-game (seconds cut from the front). She is already placed on the bed when the
+# lie-down starts, so the standing part of the pack clip made her stand on the mattress first.
+TRIM = {"pose.lie_down": 1.0}
+# Pack clips cut at the end (seconds kept); they hold their last frame.
+CUT = {"pose.wake_up": 1.6}
+
+
+def _key_value(k):
+    return k["post"] if isinstance(k, dict) else k
+
+
+def trim(anim, start):
+    """Cuts `start` seconds off the front of a clip, interpolating each channel's value at the cut."""
+    length = float(anim["animation_length"])
+    for chans in anim["bones"].values():
+        for chan, frames in list(chans.items()):
+            if not isinstance(frames, dict) or not frames:
+                continue
+            times = sorted(frames, key=float)
+            before = [t for t in times if float(t) <= start]
+            after = [t for t in times if float(t) > start]
+            if before and after:
+                t0, t1 = float(before[-1]), float(after[0])
+                v0, v1 = _key_value(frames[before[-1]]), _key_value(frames[after[0]])
+                f = (start - t0) / (t1 - t0)
+                first = [a + (b - a) * f for a, b in zip(v0, v1)]
+            else:
+                first = _key_value(frames[(before or after)[-1 if before else 0]])
+            out = {"0.0": r(first)}
+            for t in after:
+                out[f"{float(t) - start:.4g}"] = frames[t]
+            chans[chan] = out
+    anim["animation_length"] = round(length - start, 4)
+    return anim
 
 
 def pack_clips():
@@ -133,10 +170,37 @@ def pack_clips():
         short = full.split(".")[-1]
         for name in RENAME.get(short, []):
             a = json.loads(json.dumps(anim))
+            if name in TRIM:
+                trim(a, TRIM[name])
+            if name in CUT:
+                cut(a, CUT[name])
             for bone, chans in TWEAKS.get(name, {}).items():
                 a["bones"].setdefault(bone, {}).update(chans)
             out[name] = a
     return out
+
+
+def cut(anim, end):
+    """Keeps only the first `end` seconds of a clip (interpolating the last key) and holds the last frame."""
+    for chans in anim["bones"].values():
+        for chan, frames in list(chans.items()):
+            if not isinstance(frames, dict) or not frames:
+                continue
+            times = sorted(frames, key=float)
+            keep = {t: frames[t] for t in times if float(t) <= end}
+            later = [t for t in times if float(t) > end]
+            if later and keep:
+                t0 = max(keep, key=float)
+                if float(t0) < end:
+                    v0, v1 = _key_value(frames[t0]), _key_value(frames[later[0]])
+                    f = (end - float(t0)) / (float(later[0]) - float(t0))
+                    keep[f"{end:.4g}"] = r([a + (b - a) * f for a, b in zip(v0, v1)])
+            elif later:
+                keep = {"0.0": _key_value(frames[later[0]])}
+            chans[chan] = keep
+    anim["animation_length"] = end
+    anim["loop"] = "hold_on_last_frame"
+    return anim
 
 
 # ------------------------------------------------------------------------------------------------ authored clips
@@ -145,27 +209,28 @@ def authored():
     breathe = lambda length, base=0.0, amp=1.0: rot(osc(length, [base, 0, 0], [amp, 0, 0]))
 
     # ---- idles
+    # in-game review: head bows add up with the chest lean, so keep them small
     A["move.idle_tired"] = clip(5.0, {
-        "chest": breathe(5.0, 7, 1.5), "waist": rot(keys([(0, [3, 0, 0])])),
-        "head": rot(osc(5.0, [16, 0, 0], [4, 0, 3])),
-        "right_arm": rot(keys([(0, [-6, 0, 4])])), "left_arm": rot(keys([(0, [-6, 0, -4])])),
-        "right_forearm": rot(keys([(0, [-8, 0, 0])])), "left_forearm": rot(keys([(0, [-8, 0, 0])])),
+        "chest": breathe(5.0, 4, 1.2), "waist": rot(keys([(0, [2, 0, 0])])),
+        "head": rot(osc(5.0, [8, 0, 0], [2, 0, 1.5])),
+        "right_arm": rot(keys([(0, [-4, 0, 3])])), "left_arm": rot(keys([(0, [-4, 0, -3])])),
+        "right_forearm": rot(keys([(0, [-6, 0, 0])])), "left_forearm": rot(keys([(0, [-6, 0, 0])])),
     })
     A["move.idle_sad"] = clip(5.0, {
-        "chest": breathe(5.0, 9, 1.2), "head": rot(osc(5.0, [22, 0, 0], [2, 4, 0])),
+        "chest": breathe(5.0, 5, 1.0), "head": rot(osc(5.0, [12, 0, 0], [1.5, 3, 0])),
         "right_arm": rot(keys([(0, [-18, -16, 2])])), "left_arm": rot(keys([(0, [-18, 16, -2])])),
         "right_forearm": rot(keys([(0, [-34, 0, -10])])), "left_forearm": rot(keys([(0, [-34, 0, 10])])),
     })
     A["move.idle_scared"] = clip(0.8, {
-        "waist": rot(keys([(0, [6, 0, 0])])), "chest": rot(osc(0.4, [10, 0, 0], [0, 0, 1.2], steps=4)),
-        "head": rot(osc(0.8, [6, 0, 0], [0, 6, 0], steps=6)),
+        "waist": rot(keys([(0, [3, 0, 0])])), "chest": rot(osc(0.4, [6, 0, 0], [0, 0, 1.2], steps=4)),
+        "head": rot(osc(0.8, [3, 0, 0], [0, 6, 0], steps=6)),
         "right_arm": rot(keys([(0, [-48, -22, 6])])), "left_arm": rot(keys([(0, [-48, 22, -6])])),
         "right_forearm": rot(keys([(0, [-96, 0, -18])])), "left_forearm": rot(keys([(0, [-96, 0, 18])])),
         "right_leg": rot(keys([(0, [0, 0, 3])])), "left_leg": rot(keys([(0, [0, 0, -3])])),
     })
     A["move.hide"] = clip(0.8, {
-        "body": pos(keys([(0, [0, -3, 0])])), "waist": rot(keys([(0, [16, 0, 0])])), "chest": rot(osc(0.4, [12, 0, 0], [0, 0, 1], steps=4)),
-        "head": rot(keys([(0, [14, 0, 0])])),
+        "body": pos(keys([(0, [0, -3, 0])])), "waist": rot(keys([(0, [10, 0, 0])])), "chest": rot(osc(0.4, [7, 0, 0], [0, 0, 1], steps=4)),
+        "head": rot(keys([(0, [2, 0, 0])])),
         "right_arm": rot(keys([(0, [-128, -20, 10])])), "left_arm": rot(keys([(0, [-128, 20, -10])])),
         "right_forearm": rot(keys([(0, [-70, 0, -20])])), "left_forearm": rot(keys([(0, [-70, 0, 20])])),
         "right_leg": rot(keys([(0, [-28, 0, 0])])), "left_leg": rot(keys([(0, [-28, 0, 0])])),
@@ -274,21 +339,28 @@ def authored():
 
     # ---- gestures (start and end at rest)
     G = {}
+    # remade after in-game review: the forward-raised arm folded the forearm across her face. Now the upper arm is
+    # raised out to the side, the forearm points up beside her head and waves side to side (with the upper arm
+    # raised ~85 deg, forearm +Z ~ 180 - that angle points it straight up)
     G["action.wave"] = gesture(2.0, {
-        "right_arm": rot([(0.3, [-150, 0, 14]), (1.7, [-150, 0, 14])]),
-        "right_forearm": rot([(0.3, [-24, 0, -22]), (0.6, [-24, 0, 22]), (0.9, [-24, 0, -22]), (1.2, [-24, 0, 22]), (1.5, [-24, 0, -18]), (1.75, [-10, 0, 0])]),
+        "right_arm": rot([(0.3, [-14, 0, 84]), (1.7, [-14, 0, 84])]),
+        "right_forearm": rot([(0.3, [-8, 0, 96]), (0.55, [-8, 0, 74]), (0.8, [-8, 0, 112]), (1.05, [-8, 0, 74]),
+                              (1.3, [-8, 0, 112]), (1.55, [-8, 0, 84]), (1.75, [-4, 0, 40])]),
+        "chest": rot([(0.3, [0, 0, -3]), (1.7, [0, 0, -3])]),
         "head": rot([(0.3, [0, 0, 7]), (1.7, [0, 0, 7])]),
     })
     G["action.wave_goodbye"] = gesture(2.6, {
-        "right_arm": rot([(0.4, [-140, 0, 20]), (2.2, [-140, 0, 20])]),
-        "right_forearm": rot([(0.4, [-20, 0, -26]), (0.8, [-20, 0, 26]), (1.2, [-20, 0, -26]), (1.6, [-20, 0, 26]), (2.0, [-20, 0, -10])]),
+        "right_arm": rot([(0.4, [-20, 0, 92]), (2.2, [-20, 0, 92])]),
+        "right_forearm": rot([(0.4, [-8, 0, 88]), (0.75, [-8, 0, 66]), (1.1, [-8, 0, 108]), (1.45, [-8, 0, 66]),
+                              (1.8, [-8, 0, 108]), (2.1, [-8, 0, 78]), (2.35, [-4, 0, 36])]),
+        "chest": rot([(0.4, [0, 0, -4]), (2.2, [0, 0, -4])]),
         "head": rot([(0.4, [6, 0, 9]), (2.2, [6, 0, 9])]),
     })
     G["action.yawn"] = gesture(2.6, {
         "right_arm": rot([(0.5, [-112, -30, 0]), (1.9, [-112, -30, 0])]),
         "right_forearm": rot([(0.5, [-108, 0, -12]), (1.9, [-108, 0, -12])]),
-        "left_arm": rot([(0.5, [-10, 0, -40]), (1.9, [-10, 0, -40])]),
-        "left_forearm": rot([(0.5, [-80, 0, 0]), (1.9, [-80, 0, 0])]),
+        "left_arm": rot([(0.5, [-8, 0, -8]), (1.9, [-8, 0, -8])]),
+        "left_forearm": rot([(0.5, [-20, 0, 0]), (1.9, [-20, 0, 0])]),
         "head": rot([(0.6, [-18, 0, 0]), (1.8, [-20, 0, 4])]),
         "chest": rot([(0.6, [-6, 0, 0]), (1.8, [-6, 0, 0])]),
     })
@@ -308,8 +380,8 @@ def authored():
         "chest": rot([(0.8, [0, 10, 0]), (1.6, [0, 10, 0]), (2.4, [0, -10, 0]), (3.0, [0, -10, 0])]),
     })
     G["action.look_at_animal"] = gesture(4.0, {
-        "waist": rot([(0.6, [12, 0, 0]), (3.4, [12, 0, 0])]),
-        "chest": rot([(0.6, [14, 0, 0]), (3.4, [14, 0, 0])]),
+        "waist": rot([(0.6, [8, 0, 0]), (3.4, [8, 0, 0])]),
+        "chest": rot([(0.6, [8, 0, 0]), (3.4, [8, 0, 0])]),
         "head": rot([(0.6, [6, 0, 14]), (2.0, [8, 0, -10]), (3.4, [6, 0, 14])]),
         "right_arm": rot([(0.6, [-24, -22, 0]), (3.4, [-24, -22, 0])]),
         "left_arm": rot([(0.6, [-24, 22, 0]), (3.4, [-24, 22, 0])]),
@@ -334,8 +406,8 @@ def authored():
         "head": rot([(0.3, [-10, 0, 0]), (2.6, [-8, 0, 0])]),
     })
     G["action.sad"] = gesture(4.0, {
-        "head": rot([(0.8, [24, 0, 0]), (3.2, [26, 0, 4])]),
-        "chest": rot([(0.8, [10, 0, 0]), (3.2, [10, 0, 0])]),
+        "head": rot([(0.8, [14, 0, 0]), (3.2, [16, 0, 4])]),
+        "chest": rot([(0.8, [6, 0, 0]), (3.2, [6, 0, 0])]),
         "right_arm": rot([(0.8, [-16, -14, 0]), (3.2, [-16, -14, 0])]),
         "left_arm": rot([(0.8, [-16, 14, 0]), (3.2, [-16, 14, 0])]),
         "right_forearm": rot([(0.8, [-40, 0, -12]), (3.2, [-40, 0, -12])]),
@@ -359,7 +431,7 @@ def authored():
         "left_arm": rot([(0.4, [22, -14, 0]), (2.2, [22, -14, 0])]),
         "right_forearm": rot([(0.4, [-30, 0, 0]), (2.2, [-30, 0, 0])]),
         "left_forearm": rot([(0.4, [-30, 0, 0]), (2.2, [-30, 0, 0])]),
-        "head": rot([(0.4, [18, 0, 12]), (1.3, [20, 0, 16]), (2.2, [18, 0, 12])]),
+        "head": rot([(0.4, [12, 0, 12]), (1.3, [14, 0, 16]), (2.2, [12, 0, 12])]),
         "chest": rot([(0.4, [4, 8, 0]), (1.0, [4, -6, 0]), (1.6, [4, 8, 0]), (2.2, [4, 0, 0])]),
         "right_leg": rot([(0.6, [0, 0, -4]), (2.0, [0, 0, -4])]),
     })
@@ -367,11 +439,14 @@ def authored():
         "chest": rot([(0.1, [-14, 0, 0])]), "head": rot([(0.1, [-16, 0, 0])]),
         "right_arm": rot([(0.1, [-30, -20, 10])]), "left_arm": rot([(0.1, [-30, 20, -10])]),
     })
+    # remade after in-game review: straight arms looked robotic; now a protective guard with bent elbows
     G["action.defend"] = gesture(0.9, {
-        "right_arm": rot([(0.15, [-86, -8, 0]), (0.5, [-86, -8, 0])]),
-        "left_arm": rot([(0.15, [-86, 8, 0]), (0.5, [-86, 8, 0])]),
-        "chest": rot([(0.15, [10, 0, 0]), (0.5, [6, 0, 0])]),
-        "head": rot([(0.15, [-8, 0, 0])]),
+        "right_arm": rot([(0.15, [-92, -24, 6]), (0.55, [-88, -22, 6])]),
+        "left_arm": rot([(0.15, [-92, 24, -6]), (0.55, [-88, 22, -6])]),
+        "right_forearm": rot([(0.15, [-64, 0, -12]), (0.55, [-60, 0, -12])]),
+        "left_forearm": rot([(0.15, [-64, 0, 12]), (0.55, [-60, 0, 12])]),
+        "chest": rot([(0.15, [8, 0, 0]), (0.55, [6, 0, 0])]),
+        "head": rot([(0.15, [6, 0, 0]), (0.55, [4, 0, 0])]),
     })
     G["action.talk"] = gesture(2.2, {
         "right_arm": rot([(0.4, [-30, -12, 6]), (1.1, [-22, -6, 10]), (1.8, [-30, -12, 6])]),
@@ -404,8 +479,8 @@ def authored():
         "head": rot([(0.5, [-4, 0, 8]), (2.1, [-4, 0, 8])]),
     })
     G["action.relieved"] = gesture(2.6, {
-        "chest": rot([(0.6, [12, 0, 0]), (2.0, [10, 0, 0])]),
-        "head": rot([(0.6, [16, 0, 0]), (2.0, [12, 0, 0])]),
+        "chest": rot([(0.6, [7, 0, 0]), (2.0, [5, 0, 0])]),
+        "head": rot([(0.6, [9, 0, 0]), (2.0, [6, 0, 0])]),
         "right_arm": rot([(0.6, [-38, -34, 0]), (2.0, [-38, -34, 0])]),
         "right_forearm": rot([(0.6, [-74, 0, -24]), (2.0, [-74, 0, -24])]),
     })

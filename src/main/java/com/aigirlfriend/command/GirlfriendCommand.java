@@ -138,7 +138,8 @@ public final class GirlfriendCommand {
         dbg.then(Commands.literal("reset_cooldowns").executes(ctx -> {
             GirlfriendEntity gf = nearest(ctx);
             gf.controller().lastInitiativeTick = 0;
-            feedback(ctx, "Initiative cooldown reset");
+            gf.interactions().clearCooldowns();
+            feedback(ctx, "Initiative and interaction cooldowns reset");
             return 1;
         }));
         return dbg;

@@ -50,6 +50,9 @@ public class GirlfriendRenderer extends GeoEntityRenderer<GirlfriendEntity> {
         for (String name : HIDEABLE) model.getBone(name).ifPresent(b -> b.setHidden(hidden.contains(name)));
     }
 
+    private static final float SLEEP_HEAD_SHIFT = 0.95f;
+    private static final float SLEEP_DROP = 0.28f;
+
     /** Sleeping clips lay her on her side themselves (head toward model +X): only align her with the bed. */
     @Override
     protected void applyRotations(GirlfriendEntity gf, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTick, float nativeScale) {
@@ -62,15 +65,35 @@ public class GirlfriendRenderer extends GeoEntityRenderer<GirlfriendEntity> {
                 default -> 270f;
             };
             poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
+            // GeckoLib already moved her towards the foot like a vanilla sleeper; the clips lie her down around her
+            // hips instead, so slide her back up to the pillow and down onto the mattress (model +X = bed head)
+            poseStack.translate(SLEEP_HEAD_SHIFT, -SLEEP_DROP, 0);
+            // the clips lie her on her right side, facing the bed's counter-clockwise side; when her partner is on
+            // the other side (e.g. she took the bed to his left), mirror her so she still faces him
+            if (bed != null && bed.getAxis().isHorizontal() && partnerOnBackSide(gf, bed)) poseStack.scale(1f, 1f, -1f);
             return;
         }
+        if (gf.getVehicle() instanceof net.minecraft.world.entity.player.Player) {
+            // like vanilla, GeckoLib renders a passenger of a living entity with the vehicle's body rotation, so the
+            // carried / lap facing offset has to be added here
+            boolean lap = gf.getSyncedInteraction() == com.aigirlfriend.interaction.InteractionType.LAP_SIT;
+            rotationYaw += (float) (lap ? com.aigirlfriend.entity.PoseTuning.lapYaw(true) : com.aigirlfriend.entity.PoseTuning.carryYaw(true));
+        }
         super.applyRotations(gf, poseStack, ageInTicks, rotationYaw, partialTick, nativeScale);
+    }
+
+    private static boolean partnerOnBackSide(GirlfriendEntity gf, Direction bed) {
+        net.minecraft.world.entity.Entity partner = gf.level().getEntity(gf.getSyncedPartnerId());
+        if (partner == null) return false;
+        Direction facing = bed.getCounterClockWise();
+        double dot = (partner.getX() - gf.getX()) * facing.getStepX() + (partner.getZ() - gf.getZ()) * facing.getStepZ();
+        return dot < -0.05;
     }
 
     @Override
     public void render(GirlfriendEntity gf, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         super.render(gf, entityYaw, partialTick, poseStack, bufferSource, packedLight);
-        if (gf.isInvisible()) return;
+        if (gf.isInvisible() || !Minecraft.renderNames()) return; // F1 hides names and bubbles like vanilla nametags
         double distSq = entityRenderDispatcher.distanceToSqr(gf);
         if (distSq > 32 * 32) return;
         float y = gf.getBbHeight() + 0.45f;

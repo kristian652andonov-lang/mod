@@ -80,9 +80,10 @@ public final class SeatManager {
         float yaw = seatYaw(state, fallbackYaw);
         double ox = 0, oz = 0;
         if (state.getBlock() instanceof StairBlock) {
+            // sit on the low step, in front of the stair's tall back half
             Direction back = state.getValue(StairBlock.FACING);
-            ox = back.getStepX() * 0.12;
-            oz = back.getStepZ() * 0.12;
+            ox = -back.getStepX() * 0.14;
+            oz = -back.getStepZ() * 0.14;
         }
         Vec3 seatPos = new Vec3(pos.getX() + 0.5 + ox, pos.getY() + h, pos.getZ() + 0.5 + oz);
         if (entity.isPassenger()) entity.stopRiding();

@@ -49,12 +49,15 @@ public final class SleepHelper {
         return null;
     }
 
-    /** Where she lies when sharing one bed: shifted towards one edge so both fit. */
-    public static Vec3 besidePosition(Level level, BlockPos head, boolean rightSide) {
+    /**
+     * Where she lies when sharing one bed: beside the middle, on the bed's clockwise side. Her sleeping clips lay her
+     * on her right side facing the counter-clockwise side, so from there she faces the person in the middle.
+     */
+    public static Vec3 besidePosition(Level level, BlockPos head) {
         Direction facing = facing(level, head);
         if (facing == null) facing = Direction.NORTH;
-        Direction side = rightSide ? facing.getClockWise() : facing.getCounterClockWise();
-        return new Vec3(head.getX() + 0.5 + side.getStepX() * 0.42, head.getY() + 0.6875, head.getZ() + 0.5 + side.getStepZ() * 0.42);
+        Direction side = facing.getClockWise();
+        return new Vec3(head.getX() + 0.5 + side.getStepX() * 0.34, head.getY() + 0.6875, head.getZ() + 0.5 + side.getStepZ() * 0.34);
     }
 
     public static Vec3 findStandUpPosition(LivingEntity entity, BlockPos bed) {

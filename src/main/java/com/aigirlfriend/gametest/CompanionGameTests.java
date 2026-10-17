@@ -46,6 +46,16 @@ import java.util.Map;
 public final class CompanionGameTests {
     private CompanionGameTests() {}
 
+    /** Lays out a known test platform: a solid floor at relative y = 0 and free space above it. */
+    private static void floor(GameTestHelper h) {
+        for (int x = 0; x < 9; x++) {
+            for (int z = 0; z < 9; z++) {
+                h.setBlock(new BlockPos(x, 0, z), net.minecraft.world.level.block.Blocks.SMOOTH_STONE);
+                for (int y = 1; y < 5; y++) h.setBlock(new BlockPos(x, y, z), net.minecraft.world.level.block.Blocks.AIR);
+            }
+        }
+    }
+
     private static GirlfriendEntity spawnCompanion(GameTestHelper h, BlockPos pos) {
         GirlfriendEntity gf = h.spawn(ModEntities.GIRLFRIEND.get(), pos);
         gf.ensureInitialized();
@@ -62,6 +72,14 @@ public final class CompanionGameTests {
         return p;
     }
 
+    private static String solidAround(GameTestHelper h, BlockPos center) {
+        StringBuilder sb = new StringBuilder();
+        for (BlockPos p : BlockPos.betweenClosed(center.offset(-1, 0, -1), center.offset(1, 2, 1))) {
+            if (!h.getLevel().getBlockState(p).getCollisionShape(h.getLevel(), p).isEmpty()) sb.append(p.subtract(center)).append(h.getLevel().getBlockState(p).getBlock()).append(';');
+        }
+        return sb.toString();
+    }
+
     private static void removePlayer(GameTestHelper h, ServerPlayer p) {
         h.getLevel().getServer().getPlayerList().remove(p);
     }
@@ -69,6 +87,7 @@ public final class CompanionGameTests {
     // 1. identity and relationship survive save/load
     @GameTest(template = "platform")
     public static void persistenceRoundTrip(GameTestHelper h) {
+        floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 4));
         ServerPlayer owner = player(h, new BlockPos(2, 1, 2));
         gf.controller().claim(owner);
@@ -103,6 +122,7 @@ public final class CompanionGameTests {
     // 8. default cycle: 3 days long, first full day menstrual
     @GameTest(template = "platform")
     public static void cycleDefaults(GameTestHelper h) {
+        floor(h);
         h.assertTrue(CycleState.lengthTicks() == 72000L, "cycle length should be 3 days, was " + CycleState.lengthTicks());
         h.assertTrue(CycleState.phaseAt(0) == CyclePhase.MENSTRUAL, "day 1 start must be menstrual");
         h.assertTrue(CycleState.phaseAt(23999) == CyclePhase.MENSTRUAL, "day 1 end must be menstrual");
@@ -118,6 +138,7 @@ public final class CompanionGameTests {
     // 10. local dialogue works for every trigger and intent without AI
     @GameTest(template = "platform")
     public static void localDialogueCoversEverything(GameTestHelper h) {
+        floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 4));
         Map<String, String> vars = new HashMap<>();
         vars.put("item", "Poppy");
@@ -143,6 +164,7 @@ public final class CompanionGameTests {
     // 10. talking without an AI provider still produces a reply (synchronously, never blocking)
     @GameTest(template = "platform")
     public static void talkingFallsBackToLocalDialogue(GameTestHelper h) {
+        floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 4));
         ServerPlayer owner = player(h, new BlockPos(2, 1, 2));
         gf.controller().claim(owner);
@@ -158,14 +180,18 @@ public final class CompanionGameTests {
     // 3. she notices hostile mobs and becomes afraid
     @GameTest(template = "platform", timeoutTicks = 200)
     public static void detectsHostileMobs(GameTestHelper h) {
+        floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(2, 1, 2));
-        Zombie z = h.spawn(EntityType.ZOMBIE, new BlockPos(6, 1, 6));
+        Zombie z = h.spawn(EntityType.ZOMBIE, new BlockPos(6, 1, 5));
+        // keep it from burning in daylight
+        z.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.LEATHER_HELMET));
         h.succeedWhen(() -> h.assertTrue(gf.isScared() && gf.controller().fear.mainThreat == z, "not scared yet, fear=" + gf.getFear()));
     }
 
     // 5 + 6. needs and day evaluation give understandable causes
     @GameTest(template = "platform")
     public static void dailyMoodHasCauses(GameTestHelper h) {
+        floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 4));
         CompanionData d = gf.data();
         d.yesterday.reset(1);
@@ -193,6 +219,7 @@ public final class CompanionGameTests {
     // relationship progression needs variety and time
     @GameTest(template = "platform")
     public static void relationshipNeedsTimeAndVariety(GameTestHelper h) {
+        floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 4));
         var r = gf.data().relationship;
         float first = r.gain("hug", 10f, 1f, 5);
@@ -213,6 +240,7 @@ public final class CompanionGameTests {
     // sitting on a stair works and the seat cleans itself up
     @GameTest(template = "platform", timeoutTicks = 100)
     public static void sitsOnStairs(GameTestHelper h) {
+        floor(h);
         BlockPos stair = new BlockPos(4, 1, 4);
         h.setBlock(stair, Blocks.OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.NORTH));
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 6));
@@ -226,6 +254,7 @@ public final class CompanionGameTests {
     // 4 + 5. a synchronized hug starts, positions her, completes and rewards
     @GameTest(template = "platform", timeoutTicks = 200)
     public static void hugCompletes(GameTestHelper h) {
+        floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 5));
         ServerPlayer owner = player(h, new BlockPos(4, 1, 3));
         gf.controller().claim(owner);
@@ -234,7 +263,8 @@ public final class CompanionGameTests {
         boolean started = gf.interactions().start(InteractionType.HUG, owner, false);
         h.assertTrue(started, "hug did not start: " + gf.interactions().check(InteractionType.HUG, owner, false)
                 + " player=" + owner.position() + " gf=" + gf.position() + " below=" + h.getLevel().getBlockState(owner.blockPosition().below())
-                + " onGround=" + owner.onGround() + " level=" + (owner.level() == gf.level()));
+                + " onGround=" + owner.onGround() + " level=" + (owner.level() == gf.level()) + " around=" + solidAround(h, owner.blockPosition())
+                + " free=" + h.getLevel().noCollision(gf, gf.getBoundingBox().move(0, 0, -1.5)));
         h.assertTrue(gf.getSyncedInteraction() == InteractionType.HUG && gf.getSyncedPartnerId() == owner.getId(), "hug not synced");
         h.runAfterDelay(InteractionType.HUG.duration + 5, () -> {
             h.assertTrue(!gf.interactions().isActive(), "hug did not end");
@@ -249,6 +279,7 @@ public final class CompanionGameTests {
     // 4. carry and lap sitting mount and dismount cleanly; interrupting never leaves her stuck
     @GameTest(template = "platform", timeoutTicks = 100)
     public static void carryAndLapSit(GameTestHelper h) {
+        floor(h);
         GirlfriendEntity gf = spawnCompanion(h, new BlockPos(4, 1, 5));
         ServerPlayer owner = player(h, new BlockPos(4, 1, 3));
         gf.controller().claim(owner);
@@ -277,6 +308,7 @@ public final class CompanionGameTests {
     // duplicate prevention: one companion per player by default
     @GameTest(template = "platform")
     public static void spawnEggLimit(GameTestHelper h) {
+        floor(h);
         ServerPlayer owner = player(h, new BlockPos(2, 1, 2));
         var egg = ModItems.GIRLFRIEND_SPAWN_EGG.get();
         boolean first = egg.spawnFor(h.getLevel(), owner, h.absolutePos(new BlockPos(4, 1, 4)), new ItemStack(egg));

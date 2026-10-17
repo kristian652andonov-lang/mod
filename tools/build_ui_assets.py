@@ -558,8 +558,31 @@ P["forehead_kiss"] = anim(2.3, {"right_arm": {"rotation": [-70, 16, 0]}, "left_a
                                 "head": {"rotation": kf([(0, [0, 0, 0]), (0.5, [28, 0, 0]), (1.8, [28, 0, 0]), (2.3, [0, 0, 0])])}}, loop="hold")
 P["lean_support"] = anim(3.0, {"right_arm": {"rotation": [-20, -10, -70]}, "head": {"rotation": [6, 0, 8]}})
 P["sit_together"] = anim(4.0, {"right_arm": {"rotation": [-30, 10, 0]}, "left_arm": {"rotation": [-30, -10, 0]}})
-P["arm_around"] = anim(4.0, {"right_arm": {"rotation": [-35, -25, -78]}, "left_arm": {"rotation": [-30, -10, 0]}, "head": {"rotation": [8, 0, 10]}})
-P["cuddle_sitting"] = anim(4.0, {"right_arm": {"rotation": [-35, -25, -78]}, "left_arm": {"rotation": [-60, -38, 0]}, "head": {"rotation": [14, 10, 12]}})
+P["arm_around"] = anim(4.0, {"right_arm": {"rotation": [-12, -15, -66]}, "left_arm": {"rotation": [-30, -10, 0]}, "head": {"rotation": [8, 0, 10]}})
+P["cuddle_sitting"] = anim(4.0, {"right_arm": {"rotation": [-14, -15, -70]}, "left_arm": {"rotation": [-60, -38, 0]}, "head": {"rotation": [14, 10, 12]}})
+
+
+def mirror(a):
+    """Left/right mirror of a player clip (Bedrock: swap left/right bones, negate Y and Z rotations)."""
+    def flip(v):
+        if isinstance(v, list):
+            return [v[0], -v[1], -v[2]]
+        if isinstance(v, dict) and "post" in v:
+            return dict(v, post=flip(v["post"]))
+        return {t: flip(k) for t, k in v.items()}
+    out = {k: v for k, v in a.items() if k != "bones"}
+    out["bones"] = {}
+    for bone, chans in a["bones"].items():
+        name = bone.replace("right", "@").replace("left", "right").replace("@", "left")
+        out["bones"][name] = {c: (flip(v) if c == "rotation" else v) for c, v in chans.items()}
+    return out
+
+
+# in-game review: the arm around her must be on her side; "_right" = she sits on the player's right
+for _n in ("arm_around", "cuddle_sitting"):
+    P[_n + "_right"] = P[_n]
+    P[_n + "_left"] = mirror(P[_n])
+
 P["carry"] = anim(3.0, {"right_arm": {"rotation": [-58, 18, 0]}, "left_arm": {"rotation": [-58, -18, 0]}, "body": {"rotation": [-4, 0, 0]}})
 P["pet_hair"] = anim(1.6, {"right_arm": {"rotation": wave(1.6, 12, 1, base=[-130, 10, 0])}, "head": {"rotation": [18, 0, 0]}})
 P["pet_cheek"] = anim(2.0, {"right_arm": {"rotation": wave(2.0, 5, 0, base=[-80, 22, 0])}, "head": {"rotation": [14, 0, -8]}})

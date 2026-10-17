@@ -188,8 +188,7 @@ public final class CommonEvents {
             if (gf.interactions().current() == InteractionType.SLEEP_TOGETHER && player.getUUID().equals(partnerId(gf))) {
                 gf.controller().flushNeeds(true);
                 gf.interactions().stop(InteractionManager.StopReason.SLEEP);
-                if (gf.isSleeping()) gf.stopSleeping();
-                gf.controller().onWokeUp(true);
+                gf.controller().beginWakeUp(true);
             }
         }
     }

@@ -24,6 +24,8 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -108,6 +110,11 @@ public final class InteractionManager {
 
     private long now() {
         return gf.level().getGameTime();
+    }
+
+    /** Debug: makes every interaction available again immediately. */
+    public void clearCooldowns() {
+        cooldownUntil.clear();
     }
 
     public boolean onCooldown(InteractionType type) {
@@ -237,7 +244,8 @@ public final class InteractionManager {
             return false;
         }
         // seated sub-interactions swap in place without unseating anyone
-        if (current != null && current.isSeated() && type.isSeated() && player.getUUID().equals(partnerId)) {
+        if (current != null && current.isSeated() && type.isSeated() && player.getUUID().equals(partnerId)
+                && gf.isSeated() && SeatManager.isSeated(player)) {
             current = type;
             ticks = 0;
             selfInitiated = self;
@@ -342,9 +350,17 @@ public final class InteractionManager {
         if (!(player.getVehicle() instanceof SeatEntity playerSeat)) return false;
         if (gf.getVehicle() instanceof SeatEntity mine && mine.distanceTo(playerSeat) < 1.6) return true;
         float yaw = playerSeat.getYRot();
-        for (BlockPos p : SeatManager.seatsBeside(gf.level(), playerSeat.getSeatBlock(), yaw)) {
+        // best seat first: the same height as the player's (in-game: a floor block next to a bench used to win
+        // over the free half of the bench), then real chairs, then the closest
+        List<BlockPos> candidates = new ArrayList<>(SeatManager.seatsBeside(gf.level(), playerSeat.getSeatBlock(), yaw));
+        candidates.removeIf(p -> {
             double y1 = SeatManager.absoluteSeatY(gf.level(), p);
-            if (Double.isNaN(y1) || Math.abs(y1 - playerSeat.getY()) > 0.55) continue;
+            return Double.isNaN(y1) || Math.abs(y1 - playerSeat.getY()) > 0.55;
+        });
+        candidates.sort(java.util.Comparator.<BlockPos>comparingDouble(p -> Math.round(Math.abs(SeatManager.absoluteSeatY(gf.level(), p) - playerSeat.getY()) * 8))
+                .thenComparing(p -> SeatManager.isChairLike(gf.level().getBlockState(p)) ? 0 : 1)
+                .thenComparingDouble(p -> p.distSqr(playerSeat.getSeatBlock())));
+        for (BlockPos p : candidates) {
             if (SeatManager.sit(gf, p, yaw) != null) {
                 if (gf.getVehicle() instanceof SeatEntity s) s.setYRot(yaw);
                 pullSeatsTogether(player, 0.18);
@@ -375,8 +391,9 @@ public final class InteractionManager {
         float yaw = facing.getOpposite().toYRot();
         BlockPos foot = head.relative(facing.getOpposite());
         Vec3 mid = new Vec3((head.getX() + foot.getX()) / 2.0 + 0.5, head.getY() + 0.5625, (head.getZ() + foot.getZ()) / 2.0 + 0.5);
-        Direction side = facing.getClockWise();
-        Vec3 playerPos = mid.add(side.getStepX() * 0.24, 0, side.getStepZ() * 0.24);
+        Direction side = facing.getCounterClockWise();
+        // the lying pose pivots at the hips: 0.25 towards the foot puts the head on the pillow
+        Vec3 playerPos = mid.add(side.getStepX() * 0.12 - facing.getStepX() * 0.25, 0, side.getStepZ() * 0.12 - facing.getStepZ() * 0.25);
         if (player.isPassenger()) player.stopRiding();
         SeatEntity ps = SeatEntity.create(gf.level(), head, playerPos, yaw);
         if (!gf.level().addFreshEntity(ps)) return false;
@@ -385,7 +402,7 @@ public final class InteractionManager {
             return false;
         }
         if (gf.isPassenger()) gf.stopRiding();
-        gf.startSleepingBeside(head, SleepHelper.besidePosition(gf.level(), head, false));
+        gf.startSleepingBeside(head, SleepHelper.besidePosition(gf.level(), head));
         bed = head;
         return true;
     }
@@ -405,10 +422,7 @@ public final class InteractionManager {
             if (adjacent != null) {
                 gf.startSleeping(adjacent);
             } else {
-                Direction facing = SleepHelper.facing(level, head);
-                boolean right = facing != null && gf.position().subtract(Vec3.atCenterOf(head))
-                        .dot(new Vec3(facing.getClockWise().getStepX(), 0, facing.getClockWise().getStepZ())) >= 0;
-                gf.startSleepingBeside(head, SleepHelper.besidePosition(level, head, right));
+                gf.startSleepingBeside(head, SleepHelper.besidePosition(level, head));
             }
         }
         current = InteractionType.SLEEP_TOGETHER;

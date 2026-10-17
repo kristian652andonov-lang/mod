@@ -70,7 +70,7 @@ public final class PlayerPoseController {
         });
         for (Map.Entry<Integer, InteractionType> en : ACTIVE.entrySet()) {
             InteractionType t = en.getValue();
-            String anim = t.playerAnimation;
+            String anim = sided(t.playerAnimation, mc.level.getEntity(en.getKey()), PARTNERS.get(en.getKey()));
             State s = STATES.computeIfAbsent(en.getKey(), k -> new State());
             if (anim != null && !anim.equals(s.animation)) {
                 s.animation = anim;
@@ -88,6 +88,17 @@ public final class PlayerPoseController {
                 s.partner = null;
             }
         }
+    }
+
+    /** Picks the "_left"/"_right" variant of a player clip by which side of the player she is on, if it has one. */
+    @Nullable
+    private static String sided(@Nullable String anim, @Nullable Entity player, @Nullable GirlfriendEntity gf) {
+        if (anim == null || player == null || gf == null || PlayerAnimationLibrary.get(anim + "_right") == null) return anim;
+        float yaw = (player instanceof Player p ? p.yBodyRot : player.getYRot()) * Mth.DEG_TO_RAD;
+        double rx = -Mth.cos(yaw), rz = -Mth.sin(yaw);
+        boolean right = (gf.getX() - player.getX()) * rx + (gf.getZ() - player.getZ()) * rz >= 0;
+        String variant = anim + (right ? "_right" : "_left");
+        return PlayerAnimationLibrary.get(variant) != null ? variant : anim;
     }
 
     @Nullable
@@ -122,6 +133,10 @@ public final class PlayerPoseController {
 
     /** Applied at the end of HumanoidModel#setupAnim (before the player model copies limbs into its outer layers). */
     public static void applyToModel(HumanoidModel<?> model, Player player) {
+        // vanilla setupAnim never resets these, and the model is shared by every player: always start from neutral
+        // so nothing accumulates frame to frame or leaks onto other players (a head roll used to keep adding up)
+        model.head.zRot = 0f;
+        model.body.zRot = 0f;
         if (!enabled()) return;
         State s = STATES.get(player.getId());
         if (s == null || s.weight <= 0f || s.animation == null) return;
@@ -160,10 +175,11 @@ public final class PlayerPoseController {
             }
         }
         if (b.position != null) {
+            // x/z from the rest pose (vanilla does not reset them for every part); y on top of vanilla's reset y
             Vector3f p = b.position.sample(t);
-            part.x += p.x * w;
+            part.x = part.getInitialPose().x + p.x * w;
             part.y -= p.y * w;
-            part.z -= p.z * w;
+            part.z = part.getInitialPose().z - p.z * w;
         }
     }
 

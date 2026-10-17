@@ -111,6 +111,7 @@ public final class CompanionController {
             tickFaint();
             return;
         }
+        if (wakeTicks > 0 && --wakeTicks == 0) finishWakeUp();
         if (ticks % 10 == 0) threatTick();
         if (ticks % 5 == 0) gf.setExpression(currentExpression());
         if (ticks % 20 == 0) secondTick();
@@ -928,6 +929,33 @@ public final class CompanionController {
         NeedsSystem.update(gf, sleeping, sleeping ? 0f : activityLevel);
     }
 
+    /** Ticks of sitting up in bed before she gets out (matches the in-bed part of the wake-up clip). */
+    private static final int WAKE_SIT_UP_TICKS = 34;
+    private int wakeTicks;
+    private boolean wakeShared;
+
+    /** Wakes her up: she first sits up in bed (still lying in it), then gets out, stretches and greets. */
+    public void beginWakeUp(boolean sharedWithOwner) {
+        if (!gf.isSleeping()) {
+            onWokeUp(sharedWithOwner);
+            return;
+        }
+        if (wakeTicks > 0) return;
+        wakeTicks = WAKE_SIT_UP_TICKS;
+        wakeShared = sharedWithOwner;
+        gf.setFlag(GirlfriendEntity.FLAG_WAKING, true);
+    }
+
+    public boolean isWakingUp() {
+        return wakeTicks > 0;
+    }
+
+    private void finishWakeUp() {
+        gf.setFlag(GirlfriendEntity.FLAG_WAKING, false);
+        if (gf.isSleeping()) gf.stopSleeping();
+        onWokeUp(wakeShared);
+    }
+
     public void onWokeUp(boolean sharedWithOwner) {
         CompanionData d = data();
         d.today.add(LogKey.SLEPT, 1);
@@ -957,11 +985,10 @@ public final class CompanionController {
                 say(DialogueTrigger.SLEEP_DECLINED);
             }
         }
-        if (day && data().needs.energy > 45f) {
+        if (day && data().needs.energy > 45f && wakeTicks == 0) {
             flushNeeds(true);
-            gf.stopSleeping();
             waitingBed = null;
-            onWokeUp(false);
+            beginWakeUp(false);
         }
     }
 

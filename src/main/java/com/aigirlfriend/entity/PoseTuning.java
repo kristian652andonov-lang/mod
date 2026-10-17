@@ -20,10 +20,10 @@ public final class PoseTuning {
     }
 
     public static double carryForward(boolean c) { return get(c, GFClientConfig.CARRY_FORWARD::get, 0.42); }
-    public static double carryHeight(boolean c) { return get(c, GFClientConfig.CARRY_HEIGHT::get, 0.62); }
+    public static double carryHeight(boolean c) { return get(c, GFClientConfig.CARRY_HEIGHT::get, -0.12); }
     public static double carryYaw(boolean c) { return get(c, GFClientConfig.CARRY_YAW::get, 90.0); }
-    public static double lapForward(boolean c) { return get(c, GFClientConfig.LAP_FORWARD::get, 0.22); }
-    public static double lapHeight(boolean c) { return get(c, GFClientConfig.LAP_HEIGHT::get, 0.05); }
+    public static double lapForward(boolean c) { return get(c, GFClientConfig.LAP_FORWARD::get, 0.28); }
+    public static double lapHeight(boolean c) { return get(c, GFClientConfig.LAP_HEIGHT::get, 0.42); }
     public static double lapYaw(boolean c) { return get(c, GFClientConfig.LAP_YAW::get, 90.0); }
-    public static double seatHeight(boolean c) { return get(c, GFClientConfig.SEAT_HEIGHT::get, 0.70); }
+    public static double seatHeight(boolean c) { return get(c, GFClientConfig.SEAT_HEIGHT::get, 0.24); }
 }
