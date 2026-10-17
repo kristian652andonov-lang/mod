@@ -59,7 +59,15 @@ public final class GirlfriendCommand {
                 .then(Commands.literal("ai").executes(ctx -> {
                     ctx.getSource().sendSuccess(() -> Component.literal("AI: " + AIService.status()), false);
                     return 1;
-                }))
+                }).then(Commands.literal("download").requires(s -> s.hasPermission(2) || s.getServer().isSingleplayer()).executes(ctx -> {
+                    if (!AIService.builtin()) {
+                        ctx.getSource().sendFailure(Component.literal("The built-in brain is not selected (config: ai.brain = BUILTIN)."));
+                        return 0;
+                    }
+                    com.aigirlfriend.ai.BuiltinBrain.ensureStarted(true);
+                    ctx.getSource().sendSuccess(() -> Component.literal("AI: " + AIService.status()), false);
+                    return 1;
+                })))
                 .then(debug());
         d.register(root);
         d.register(Commands.literal("gf").redirect(d.getRoot().getChild("aigirlfriend")));

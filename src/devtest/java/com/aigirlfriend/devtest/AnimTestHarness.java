@@ -76,8 +76,10 @@ public final class AnimTestHarness {
         final String name;
         final Consumer<AnimTestHarness> setup;
         @Nullable BiConsumer<AnimTestHarness, Integer> perTick;
+        @Nullable BiConsumer<AnimTestHarness, Integer> perClientTick;
         final List<Cap> caps = new ArrayList<>();
         int clientFlags;
+        boolean gui;
 
         Shot(String name, Consumer<AnimTestHarness> setup) {
             this.name = name;
@@ -101,6 +103,17 @@ public final class AnimTestHarness {
 
         Shot flags(int flags) {
             this.clientFlags = flags;
+            return this;
+        }
+
+        /** Chat / name tag / speech bubble checks: GUI and bubbles visible. */
+        Shot gui() {
+            this.gui = true;
+            return this;
+        }
+
+        Shot clientTick(BiConsumer<AnimTestHarness, Integer> perClientTick) {
+            this.perClientTick = perClientTick;
             return this;
         }
     }
@@ -132,6 +145,8 @@ public final class AnimTestHarness {
         VIEWS.put("bed_foot", new View(Anchor.BED, 0, 2.8f, 2.0f, 0.55f));
         VIEWS.put("beds_top", new View(Anchor.BED2, 179, 0.5f, 3.4f, 0.5f));
         VIEWS.put("beds_foot", new View(Anchor.BED2, 0, 3.0f, 2.2f, 0.55f));
+        VIEWS.put("talk", new View(Anchor.HER, 15, 3.4f, 1.7f, 1.55f));
+        VIEWS.put("aim", new View(Anchor.HER, 0, 2.6f, 1.2f, 1.0f));
     }
 
     private final Minecraft mc = Minecraft.getInstance();
@@ -173,7 +188,7 @@ public final class AnimTestHarness {
             return;
         }
         if (mc.screen != null && readyAt >= 0 && ticks > readyAt - 40) mc.setScreen(null);
-        mc.options.hideGui = true;
+        mc.options.hideGui = shot == null || !shot.gui;
         if (readyAt < 0) {
             readyAt = ticks + 80;
             return;
@@ -193,6 +208,7 @@ public final class AnimTestHarness {
         }
         int t = ticks - shotStart;
         Shot s = shot;
+        if (s.perClientTick != null && t >= 0) s.perClientTick.accept(this, t);
         server().execute(() -> {
             keepStable();
             if (s.perTick != null && t >= 0) s.perTick.accept(this, t);
@@ -244,6 +260,55 @@ public final class AnimTestHarness {
         capIdx = 0;
         camSetFrame = -1;
         shotStart = ticks + 1;
+        GFClientConfig.SPEECH_BUBBLES.set(s.gui);
+        if (s.gui) mc.gui.getChat().clearMessages(false);
+    }
+
+    /** Logs every chat line the client receives (with the shot tick) so the reply order can be checked. */
+    @SubscribeEvent
+    public void onChat(net.neoforged.neoforge.client.event.ClientChatReceivedEvent event) {
+        if (shot == null) return;
+        index.add(String.format("CHAT %s t=%d %s: %s", shot.name, ticks - shotStart, event.isSystem() ? "system" : "player", event.getMessage().getString()));
+        if (!event.isSystem() || event.getMessage().getString().startsWith("<" + gfName + ">")) chatLines++;
+        if (event.getMessage().getString().startsWith("<" + gfName + ">")) {
+            herLines++;
+            lastHerAt = ticks - shotStart;
+        }
+    }
+
+    private volatile String gfName = "";
+    private int chatLines, herLines, sent, lastSentAt, lastHerAt;
+
+    /** The camera player (the real client) says something in chat, through the normal chat pipeline. */
+    void clientChat(String text) {
+        if (mc.player != null) mc.player.connection.sendChat(text);
+        AIGirlfriend.LOGGER.info("[animtest] client says: {}", text);
+    }
+
+    /**
+     * Makes the camera player (the real client) her owner so its chat reaches her. With {@code ai} the built-in brain
+     * is used (it must be in run/animtest/aigirlfriend/models), otherwise scripted lines only.
+     */
+    private void chatSetup(boolean ai) {
+        ServerPlayer viewer = null;
+        for (ServerPlayer p : server().getPlayerList().getPlayers()) if (p != tp) viewer = p;
+        if (viewer == null) return;
+        gf.setOwner(viewer.getUUID());
+        gf.data().history.clear();
+        com.aigirlfriend.config.GFConfig.AI_BRAIN.set(ai ? com.aigirlfriend.config.GFConfig.Brain.BUILTIN : com.aigirlfriend.config.GFConfig.Brain.OFF);
+        if (ai) com.aigirlfriend.ai.BuiltinBrain.ensureStarted(true);
+        gfName = gf.data().name;
+        placeHer(origin.getX() + 0.5, origin.getZ() + 0.5, 0f);
+    }
+
+    /** Sends the lines one by one, each shortly after her answer to the previous one (or after a timeout). */
+    private void converse(int t, String... lines) {
+        if (t < 10 || sent >= lines.length) return;
+        boolean answered = herLines >= sent && t >= lastHerAt + 40;
+        if (sent == 0 || answered || t >= lastSentAt + 1200) {
+            clientChat(lines[sent++]);
+            lastSentAt = t;
+        }
     }
 
     private void finish() {
@@ -361,9 +426,29 @@ public final class AnimTestHarness {
         gf.setDeltaMovement(Vec3.ZERO);
         gf.setOutfit(0);
         tpBodyFixed = true;
+        gf.setOwner(tp.getUUID());
+        clearLeaves();
+        chatLines = 0;
+        herLines = 0;
+        sent = 0;
+        lastSentAt = 0;
+        lastHerAt = 0;
         // park the player out of view unless the shot needs him
         movePlayer(origin.getX() + 0.5 + 30, origin.getY(), origin.getZ() + 30.5, 180f);
         placeHer(origin.getX() + 0.5, origin.getZ() + 0.5, 0f);
+    }
+
+    private void leafWall() {
+        // a band of leaves between the camera and her head / bubble, leaving her body visible
+        for (int x = -3; x <= 3; x++) for (int y = 2; y <= 4; y++) {
+            level.setBlock(origin.offset(x, y, 2), Blocks.OAK_LEAVES.defaultBlockState().setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true), 2);
+        }
+    }
+
+    private void clearLeaves() {
+        for (int x = -3; x <= 3; x++) for (int y = 2; y <= 4; y++) {
+            if (level.getBlockState(origin.offset(x, y, 2)).is(Blocks.OAK_LEAVES)) level.setBlock(origin.offset(x, y, 2), Blocks.AIR.defaultBlockState(), 2);
+        }
     }
 
     private void keepStable() {
@@ -633,6 +718,23 @@ public final class AnimTestHarness {
             h.tp.startSleeping(h.bed2Head);
             h.gf.interactions().startSleepTogether(h.tp, h.bed2Head);
         }).cap(20, "beds_top").cap(40, "beds_foot");
+
+        // chat, name tag and speech bubble checks (GUI visible)
+        shot("ui_nametag", h -> h.chatSetup(false)).gui().cap(20, "aim").cap(30, "aim");
+        shot("ui_bubble_leaves", h -> {
+            h.chatSetup(false);
+            h.leafWall();
+            com.aigirlfriend.dialogue.DialogueService.deliver(h.gf, "This bubble should stay readable even with leaves in the way!", com.aigirlfriend.companion.Emotion.NONE);
+        }).gui().cap(25, "talk").cap(45, "front");
+        shot("ui_chat_scripted", h -> h.chatSetup(false)).gui()
+                .clientTick((h, t) -> h.converse(t, "Iris, how are you?", "Iris, you look cute."))
+                .caps("talk", 12, 30, 60, 120, 200, 280);
+        shot("ui_chat_ai", h -> h.chatSetup(true)).gui()
+                .clientTick((h, t) -> {
+                    if (com.aigirlfriend.ai.BuiltinBrain.ready()) h.converse(t, "Hi Iris. How are you?", "You look cute.", "Iris, what's 15 times 3?",
+                            "Iris, can you tell me what a creeper is?", "Iris I love you");
+                })
+                .caps("talk", 20, 400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600);
     }
 
     private boolean walkToEast = true;

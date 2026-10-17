@@ -1,0 +1,11 @@
+{
+  "voice": {
+    "sounds": [
+      {
+        "name": "aigirlfriend:voice",
+        "stream": true,
+        "attenuation_distance": 20
+      }
+    ]
+  }
+}

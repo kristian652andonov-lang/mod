@@ -437,7 +437,7 @@ public final class LocalDialogueGenerator {
         reply(Intent.FAREWELL, romantic(), "Bye... I'll miss you.");
         reply(Intent.HOW_ARE_YOU,
                 "I'm feeling {mood_word} today. {cause}.",
-                "Honestly? {mood_word}. {cause}.");
+                "Honestly? Pretty {mood_word}. {cause}.");
         reply(Intent.HOW_ARE_YOU, hungry(), "I'm okay, but I'm really hungry. {cause}.");
         reply(Intent.HOW_ARE_YOU, tired(), "A bit tired, to be honest. Otherwise {mood_word}.");
         reply(Intent.HOW_ARE_YOU, c -> c.scaredRecently, "Still a little shaken from those monsters, but I'm okay with you here.");
@@ -543,9 +543,22 @@ public final class LocalDialogueGenerator {
         return names[r.nextInt(names.length)];
     }
 
+    /** What she says about her mood when nothing in particular caused it. */
+    private static String noCause(Mood m) {
+        return switch (m) {
+            case HAPPY, AFFECTIONATE, PLAYFUL, ENERGETIC -> "Being out here with you just puts me in a good mood";
+            case RELAXED -> "It's a calm, easy kind of day";
+            case SHY, EMBARRASSED -> "Don't ask me why, it's just one of those days";
+            case SLEEPY -> "I could really use a nap";
+            case INDEPENDENT -> "I feel like doing my own thing a bit";
+            case NEEDY, LONELY -> "I just want you close today";
+            default -> "I'm not even sure why";
+        };
+    }
+
     private static String fill(String s, DialogueContext c, RandomSource r) {
         String memory = c.reminisceSummary();
-        String cause = c.moodCauses.isEmpty() ? "I just feel that way" : c.moodCauses.get(0);
+        String cause = c.moodCauses.isEmpty() ? noCause(c.mood) : c.moodCauses.get(0);
         String out = s
                 .replace("{name}", c.name)
                 .replace("{player}", petName(c, r))

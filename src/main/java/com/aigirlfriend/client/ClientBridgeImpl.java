@@ -3,6 +3,7 @@ package com.aigirlfriend.client;
 import com.aigirlfriend.client.screen.InteractionWheelScreen;
 import com.aigirlfriend.client.screen.StatusScreen;
 import com.aigirlfriend.client.screen.TalkScreen;
+import com.aigirlfriend.client.voice.VoiceManager;
 import com.aigirlfriend.network.ClientBridge;
 import com.aigirlfriend.network.payload.OpenMenuPayload;
 import com.aigirlfriend.network.payload.SpeechPayload;
@@ -27,7 +28,7 @@ public final class ClientBridgeImpl implements ClientBridge {
     @Override
     public void speech(SpeechPayload payload) {
         ClientState.putSpeech(payload.entityId(), payload.text(), payload.emotion(), payload.typing(), payload.duration());
-        if (!payload.typing()) VoiceBlips.speak(payload.entityId(), payload.text());
+        if (!payload.typing()) VoiceManager.speak(payload.entityId(), payload.text(), payload.emotion());
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen instanceof StatusScreen || mc.screen instanceof TalkScreen) {
             // screens read the shared state every frame; nothing else to do

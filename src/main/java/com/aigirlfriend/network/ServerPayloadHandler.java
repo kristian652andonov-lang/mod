@@ -83,6 +83,11 @@ public final class ServerPayloadHandler {
         LAST_TALK.put(player.getUUID(), now);
         String msg = sanitize(p.message());
         if (msg.isEmpty()) return;
+        if (GFConfig.SPEECH_IN_CHAT.get()) {
+            // the talk screen is private, so echo the player's line to them: their chat log shows both sides
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("<" + player.getGameProfile().getName() + "> " + msg)
+                    .withStyle(net.minecraft.ChatFormatting.GRAY));
+        }
         DialogueService.playerSays(gf, player, msg);
     }
 

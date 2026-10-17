@@ -1,6 +1,5 @@
-package com.aigirlfriend.client;
+package com.aigirlfriend.client.voice;
 
-import com.aigirlfriend.config.GFClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -10,19 +9,21 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Optional "voice": soft, pitched blips while she speaks (one per word, like many games do).
- * Disabled by default and fully independent of text dialogue.
- */
-public final class VoiceBlips {
+/** The "blips" voice mode: soft, pitched blips while she speaks (one per word, like many games do). */
+final class VoiceBlips {
+    private static final float BASE_PITCH = 1.35f;
+
     private static final class Pending {
         final int entityId;
+        final float pitch, volume;
         int remaining;
         int cooldown;
 
-        Pending(int entityId, int words) {
+        Pending(int entityId, int words, float pitch, float volume) {
             this.entityId = entityId;
             this.remaining = words;
+            this.pitch = pitch;
+            this.volume = volume;
         }
     }
 
@@ -30,14 +31,17 @@ public final class VoiceBlips {
 
     private VoiceBlips() {}
 
-    public static void speak(int entityId, String text) {
-        if (!GFClientConfig.VOICE_ENABLED.get()) return;
+    static void speak(int entityId, String text, float pitchScale, float volume) {
         int words = Math.min(14, Math.max(1, text.split("\\s+").length));
         QUEUE.removeIf(p -> p.entityId == entityId);
-        QUEUE.add(new Pending(entityId, words));
+        QUEUE.add(new Pending(entityId, words, BASE_PITCH * pitchScale, volume));
     }
 
-    public static void tick() {
+    static void clear() {
+        QUEUE.clear();
+    }
+
+    static void tick() {
         if (QUEUE.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
@@ -53,10 +57,9 @@ public final class VoiceBlips {
                 it.remove();
                 continue;
             }
-            float base = GFClientConfig.VOICE_PITCH.get().floatValue();
-            float pitch = base + (mc.level.random.nextFloat() - 0.5f) * 0.25f;
+            float pitch = p.pitch + (mc.level.random.nextFloat() - 0.5f) * 0.25f;
             mc.level.playLocalSound(e.getX(), e.getEyeY(), e.getZ(), SoundEvents.NOTE_BLOCK_BIT.value(), SoundSource.NEUTRAL,
-                    GFClientConfig.VOICE_VOLUME.get().floatValue() * 0.35f, pitch, false);
+                    p.volume * 0.35f, pitch, false);
             p.cooldown = 3 + mc.level.random.nextInt(2);
         }
     }

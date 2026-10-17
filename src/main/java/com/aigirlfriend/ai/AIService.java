@@ -34,12 +34,21 @@ public final class AIService {
     private AIService() {}
 
     public static boolean enabled() {
-        return GFConfig.AI_ENABLED.get() && GFConfig.AI_PROVIDER.get() != GFConfig.AIProviderType.NONE;
+        return GFConfig.AI_BRAIN.get() != GFConfig.Brain.OFF;
+    }
+
+    public static boolean builtin() {
+        return GFConfig.AI_BRAIN.get() == GFConfig.Brain.BUILTIN;
     }
 
     /** False while disabled, saturated, backing off after repeated failures, or rate limited for this companion. */
     public static boolean available(UUID companion) {
         if (!enabled()) return false;
+        if (builtin()) {
+            // one local worker answers in order, so no rate limit, just a short queue
+            BuiltinBrain.ensureStarted(false);
+            return BuiltinBrain.ready() && IN_FLIGHT.get() < 3;
+        }
         if (System.currentTimeMillis() < failuresUntil) return false;
         if (IN_FLIGHT.get() >= GFConfig.AI_MAX_CONCURRENT.get()) return false;
         Long last = LAST_REQUEST.get(companion);
@@ -53,8 +62,8 @@ public final class AIService {
         double temperature = GFConfig.AI_TEMPERATURE.get();
         String endpoint = GFConfig.AI_ENDPOINT.get();
         String model = GFConfig.AI_MODEL.get();
-        return switch (GFConfig.AI_PROVIDER.get()) {
-            case NONE -> null;
+        return switch (GFConfig.AI_BRAIN.get()) {
+            case OFF, BUILTIN -> null;
             case OLLAMA -> new HttpProviders.Ollama(endpoint, model, timeout, maxTokens, temperature);
             case OPENAI_COMPATIBLE -> new HttpProviders.OpenAICompatible(endpoint, model, SecretStore.apiKey(), timeout, maxTokens, temperature);
             case ANTHROPIC -> {
@@ -79,6 +88,10 @@ public final class AIService {
                 onResult.accept(cached);
                 return;
             }
+        }
+        if (builtin()) {
+            generateBuiltin(companion, ctx, playerMessage, cacheKey, mainThread, onResult);
+            return;
         }
         AIProvider p = provider();
         if (p == null || !available(companion)) {
@@ -106,6 +119,61 @@ public final class AIService {
         });
     }
 
+    /** Built-in model: multi-turn chat whose earlier turns stay cached, so a reply only costs the new message. */
+    private static void generateBuiltin(UUID companion, DialogueContext ctx, @Nullable String playerMessage, @Nullable String cacheKey,
+                                        Consumer<Runnable> mainThread, Consumer<ResponseValidator.Result> onResult) {
+        if (!available(companion)) {
+            onResult.accept(null);
+            return;
+        }
+        LAST_REQUEST.put(companion, System.currentTimeMillis());
+        IN_FLIGHT.incrementAndGet();
+        var messages = PromptBuilder.chat(ctx, playerMessage);
+        float temperature = (float) Math.min(GFConfig.AI_TEMPERATURE.get(), 0.75);
+        String conversation = companion.toString();
+        BuiltinBrain.reply(conversation, messages, 72, temperature)
+                .thenCompose(text -> {
+                    ResponseValidator.Result first = usable(ResponseValidator.validate(text, ctx.name, ctx.playerName), ctx);
+                    if (first != null) return CompletableFuture.completedFuture(first);
+                    // invalid or a repeat of something she just said: one more try, a little more adventurous
+                    // (the prompt is still cached, so this only costs the new words)
+                    return BuiltinBrain.reply(conversation, messages, 72, Math.max(temperature, 0.95f))
+                            .thenApply(t -> usable(ResponseValidator.validate(t, ctx.name, ctx.playerName), ctx));
+                })
+                .orTimeout(Math.max(60, GFConfig.AI_TIMEOUT_SECONDS.get()), java.util.concurrent.TimeUnit.SECONDS)
+                .handle((result, error) -> {
+                    IN_FLIGHT.decrementAndGet();
+                    ResponseValidator.Result r = error == null ? result : null;
+                    if (error != null) AIGirlfriend.LOGGER.warn("Built-in brain failed: {}", error.toString());
+                    if (r != null && cacheKey != null) {
+                        synchronized (CACHE) {
+                            CACHE.put(cacheKey, r);
+                        }
+                    }
+                    mainThread.accept(() -> onResult.accept(r));
+                    return null;
+                });
+    }
+
+    /** After she said something: let the built-in brain read the conversation so far while the player answers. */
+    public static void prewarm(UUID companion, DialogueContext ctx) {
+        if (builtin() && BuiltinBrain.ready()) BuiltinBrain.prefill(companion.toString(), PromptBuilder.chatSoFar(ctx));
+    }
+
+    @Nullable
+    private static ResponseValidator.Result usable(@Nullable ResponseValidator.Result r, DialogueContext ctx) {
+        if (r == null) return null;
+        String norm = normalize(r.text());
+        for (var line : ctx.history) {
+            if (!line.fromPlayer() && normalize(line.text()).equals(norm)) return null;
+        }
+        return r;
+    }
+
+    private static String normalize(String s) {
+        return s.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z ]", "").trim();
+    }
+
     private static CompletableFuture<ResponseValidator.Result> attempt(AIProvider p, String system, String user, String name, int retriesLeft) {
         return p.complete(system, user).handle((text, err) -> {
             ResponseValidator.Result r = err == null ? ResponseValidator.validate(text, name) : null;
@@ -126,8 +194,22 @@ public final class AIService {
         }
     }
 
+    /** A short explanation for players while the built-in brain is not ready yet, or null. */
+    @Nullable
+    public static String brainNotice() {
+        if (!enabled() || !builtin() || BuiltinBrain.ready()) return null;
+        return switch (BuiltinBrain.state()) {
+            case DOWNLOADING -> "Her AI brain is downloading (" + Math.round(BuiltinBrain.progress() * 100) + "%). Until it is ready she uses simple scripted replies.";
+            case LOADING -> "Her AI brain is loading, give it a few seconds.";
+            case FAILED -> "Her AI brain could not start (" + BuiltinBrain.status() + "). She uses simple scripted replies; see /gf ai.";
+            default -> GFConfig.AI_BUILTIN_DOWNLOAD.get() ? null : "Her AI brain is not downloaded yet: run /gf ai download (about "
+                    + BuiltinBrain.downloadSize() + ", one time).";
+        };
+    }
+
     public static String status() {
-        if (!GFConfig.AI_ENABLED.get()) return "disabled (local dialogue)";
+        if (!enabled()) return "off (scripted dialogue only)";
+        if (builtin()) return BuiltinBrain.status() + (BuiltinBrain.busy() ? ", thinking" : "");
         AIProvider p = provider();
         if (p == null) return "no provider / missing API key (local dialogue)";
         String s = p.id() + ", in flight " + IN_FLIGHT.get();

@@ -17,6 +17,7 @@ import com.aigirlfriend.entity.GirlfriendEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.network.chat.Component;
@@ -90,6 +91,12 @@ public class GirlfriendRenderer extends GeoEntityRenderer<GirlfriendEntity> {
         return dot < -0.05;
     }
 
+    /** Vanilla's white name tag would double up with her own pink nameplate. */
+    @Override
+    public boolean shouldShowName(GirlfriendEntity gf) {
+        return false;
+    }
+
     @Override
     public void render(GirlfriendEntity gf, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         super.render(gf, entityYaw, partialTick, poseStack, bufferSource, packedLight);
@@ -144,11 +151,12 @@ public class GirlfriendRenderer extends GeoEntityRenderer<GirlfriendEntity> {
             FormattedCharSequence line = lines.get(i);
             float x = -font.width(line) / 2f;
             float ly = i * lineHeight;
-            font.drawInBatch(line, x, ly, textColor, false, m, buffers, Font.DisplayMode.NORMAL, (bgAlpha << 24) | 0x3A1F33, light);
+            // see-through: leaves or a ceiling between the camera and the bubble must not cut the text
+            font.drawInBatch(line, x, ly, textColor, false, m, buffers, Font.DisplayMode.SEE_THROUGH, (bgAlpha << 24) | 0x3A1F33, LightTexture.FULL_BRIGHT);
         }
         String name = gf.getCompanionName();
         float nx = -font.width(name) / 2f;
-        font.drawInBatch(name, nx, -lineHeight - 1, ((int) (255 * alpha) << 24) | 0xFFB6D9, false, m, buffers, Font.DisplayMode.NORMAL, 0, light);
+        font.drawInBatch(name, nx, -lineHeight - 1, ((int) (255 * alpha) << 24) | 0xFFB6D9, false, m, buffers, Font.DisplayMode.SEE_THROUGH, 0, LightTexture.FULL_BRIGHT);
         poseStack.popPose();
     }
 

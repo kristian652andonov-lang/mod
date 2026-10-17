@@ -90,6 +90,7 @@ public final class CommonEvents {
     @SubscribeEvent
     public void onServerTick(ServerTickEvent.Post event) {
         CompanionTransfer.tick(event.getServer());
+        DialogueService.tick(event.getServer());
     }
 
     // ------------------------------------------------------------------ entities
@@ -240,7 +241,8 @@ public final class CommonEvents {
             String name = gf.data().name;
             String lower = raw.toLowerCase();
             String n = name.toLowerCase();
-            boolean addressed = lower.startsWith("@" + n) || lower.matches(".*\\b" + java.util.regex.Pattern.quote(n) + "\\b.*");
+            boolean addressed = lower.startsWith("@" + n) || lower.matches(".*\\b" + java.util.regex.Pattern.quote(n) + "\\b.*")
+                    || inConversation(gf, player) || aloneWith(gf, player, radius);
             if (!addressed) continue;
             long now = player.level().getGameTime();
             Long last = LAST_CHAT.get(player.getUUID());
@@ -254,6 +256,20 @@ public final class CommonEvents {
             });
             return;
         }
+    }
+
+    /** They talked within the last minute: the next line is for her even without her name. */
+    private static boolean inConversation(GirlfriendEntity gf, ServerPlayer player) {
+        var recent = gf.data().history.recent(1);
+        return !recent.isEmpty() && player.level().getGameTime() - recent.get(0).gameTime() < 1200;
+    }
+
+    /** Nobody else is around to be talking to. */
+    private static boolean aloneWith(GirlfriendEntity gf, ServerPlayer player, double radius) {
+        for (ServerPlayer other : player.serverLevel().players()) {
+            if (other != player && !other.isSpectator() && other.distanceTo(gf) <= radius * 2) return false;
+        }
+        return true;
     }
 
     @SubscribeEvent(priority = EventPriority.HIGH)

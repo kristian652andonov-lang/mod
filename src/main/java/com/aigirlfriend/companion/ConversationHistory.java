@@ -21,6 +21,10 @@ public final class ConversationHistory {
         while (lines.size() > max) lines.removeFirst();
     }
 
+    public void clear() {
+        lines.clear();
+    }
+
     public List<Line> recent(int n) {
         List<Line> all = new ArrayList<>(lines);
         return all.subList(Math.max(0, all.size() - n), all.size());

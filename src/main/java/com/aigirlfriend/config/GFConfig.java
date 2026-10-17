@@ -28,8 +28,12 @@ public final class GFConfig {
     public static final ModConfigSpec.DoubleValue TRAIT_RANDOMNESS;
 
     // ---- ai ----
-    public static final ModConfigSpec.BooleanValue AI_ENABLED;
-    public static final ModConfigSpec.EnumValue<AIProviderType> AI_PROVIDER;
+    public static final ModConfigSpec.EnumValue<Brain> AI_BRAIN;
+    public static final ModConfigSpec.EnumValue<BuiltinModel> AI_BUILTIN_MODEL;
+    public static final ModConfigSpec.ConfigValue<String> AI_BUILTIN_PATH;
+    public static final ModConfigSpec.BooleanValue AI_BUILTIN_DOWNLOAD;
+    public static final ModConfigSpec.IntValue AI_BUILTIN_THREADS;
+    public static final ModConfigSpec.IntValue AI_BUILTIN_CONTEXT;
     public static final ModConfigSpec.ConfigValue<String> AI_ENDPOINT;
     public static final ModConfigSpec.ConfigValue<String> AI_MODEL;
     public static final ModConfigSpec.ConfigValue<String> AI_API_KEY_ENV;
@@ -154,12 +158,21 @@ public final class GFConfig {
         TRAIT_RANDOMNESS = b.comment("Random variation applied to each trait when she is created.").defineInRange("randomVariation", 0.2, 0.0, 0.5);
         b.pop();
 
-        b.comment("Conversational AI. Disabled by default; the built-in local dialogue system is always available as a fallback.",
-                "API keys are NEVER stored in this file: put the key in the environment variable named by apiKeyEnvVar,",
-                "or in config/aigirlfriend/secrets.properties as api_key=...").push("ai");
-        AI_ENABLED = b.comment("Allow external AI requests at all. When false the mod never touches the network.").define("enabled", false);
-        AI_PROVIDER = b.comment("OLLAMA (local), OPENAI_COMPATIBLE (LM Studio, llama.cpp server, OpenAI, OpenRouter, ...), ANTHROPIC, or NONE.")
-                .defineEnum("provider", AIProviderType.OLLAMA);
+        b.comment("Her conversational brain. BUILTIN runs a small open language model (Qwen2.5 Instruct, Apache-2.0) inside the game",
+                "on your CPU: no setup or account, works offline after a one-time download, never blocks the game. The scripted",
+                "dialogue is always used as a fallback. API keys for external providers are NEVER stored in this file: put the key",
+                "in the environment variable named by apiKeyEnvVar, or in config/aigirlfriend/secrets.properties as api_key=...").push("ai");
+        AI_BRAIN = b.comment("BUILTIN (default), OLLAMA (local server), OPENAI_COMPATIBLE (LM Studio, llama.cpp server, OpenAI, OpenRouter, ...),",
+                "ANTHROPIC, or OFF (scripted lines only, no network).").defineEnum("brain", Brain.BUILTIN);
+        AI_BUILTIN_MODEL = b.comment("Built-in model: AUTO (SMART on computers with 8+ CPU threads, else SMALL), SMALL (Qwen2.5 0.5B, 0.7 GB",
+                "download, fast but simple), SMART (Qwen2.5 1.5B, 1.1 GB, much better answers, about 3x slower), or CUSTOM (any",
+                "Qwen2-family ChatML GGUF file at builtinModelPath).").defineEnum("builtinModel", BuiltinModel.AUTO);
+        AI_BUILTIN_PATH = b.comment("GGUF file for builtinModel = CUSTOM (absolute, or relative to the game directory).").define("builtinModelPath", "");
+        AI_BUILTIN_DOWNLOAD = b.comment("Download the built-in model automatically the first time she needs it (one time, from huggingface.co,",
+                "checksum verified, saved in <game dir>/aigirlfriend/models). If false, use /gf ai download.").define("builtinAutoDownload", true);
+        AI_BUILTIN_THREADS = b.comment("CPU threads used while she is thinking (0 = automatic: half of your cores).").defineInRange("builtinThreads", 0, 0, 64);
+        AI_BUILTIN_CONTEXT = b.comment("Conversation memory of the built-in model in tokens (more = longer chats remembered, more RAM).")
+                .defineInRange("builtinContextTokens", 2048, 512, 8192);
         AI_ENDPOINT = b.comment("Base URL of the provider. Ollama: http://localhost:11434  OpenAI-compatible: http://localhost:1234/v1 or https://api.openai.com/v1  Anthropic: https://api.anthropic.com")
                 .define("endpoint", "http://localhost:11434");
         AI_MODEL = b.comment("Model name, e.g. llama3.1:8b for Ollama, or claude-opus-5-5 for Anthropic.").define("model", "llama3.1:8b");
@@ -180,7 +193,8 @@ public final class GFConfig {
         b.comment("Dialogue behaviour").push("dialogue");
         DIALOGUE_FREQUENCY = b.comment("Multiplier for how often she talks on her own. 0 = only when spoken to.").defineInRange("frequency", 1.0, 0.0, 4.0);
         DIALOGUE_MIN_SECONDS = b.comment("Minimum seconds between lines she starts herself.").defineInRange("minSecondsBetweenLines", 75, 10, 3600);
-        LISTEN_TO_CHAT = b.comment("Talk to her through normal chat by including her name (or starting with @name).").define("listenToChat", true);
+        LISTEN_TO_CHAT = b.comment("Talk to her through normal chat. When no other player is near, or you talked in the last minute,",
+                "everything you say nearby is for her; otherwise include her name (or start with @name).").define("listenToChat", true);
         CHAT_LISTEN_RADIUS = b.defineInRange("chatListenRadius", 20.0, 2.0, 128.0);
         SPEECH_RADIUS = b.comment("Players within this distance see her speech.").defineInRange("speechRadius", 24.0, 4.0, 128.0);
         SPEECH_IN_CHAT = b.comment("Also print her lines in the chat log.").define("speechInChat", true);
@@ -278,7 +292,9 @@ public final class GFConfig {
 
     private GFConfig() {}
 
-    public enum AIProviderType { NONE, OLLAMA, OPENAI_COMPATIBLE, ANTHROPIC }
+    public enum Brain { BUILTIN, OLLAMA, OPENAI_COMPATIBLE, ANTHROPIC, OFF }
+
+    public enum BuiltinModel { AUTO, SMALL, SMART, CUSTOM }
 
     public enum CycleClockMode { DAY_TIME, GAME_TIME }
 }

@@ -57,27 +57,44 @@ The mod is needed on both the server and every client. Players without it cannot
 
 ## Dialogue and AI
 
-She always works offline with a built-in local dialogue generator (context aware: mood, needs, time, weather,
-danger, relationship, memories). Optionally an AI model can write her lines:
+She has a real language model built in: by default (`ai.brain = BUILTIN`) the mod runs a small open model
+(Qwen2.5 Instruct, Apache-2.0) inside the game with its own pure-Java inference engine, so you can talk to her
+about anything (questions, jokes, feelings, Minecraft) with no account, key or extra program.
 
-| `provider` | Endpoint example | Key |
+* **First use**: the model is downloaded once from huggingface.co (checksum verified, resumable) to
+  `<game dir>/aigirlfriend/models/`. `builtinModel = AUTO` picks **SMART** (Qwen2.5 1.5B, 1.1 GB, much better
+  answers) on computers with 8+ CPU threads and **SMALL** (Qwen2.5 0.5B, 0.7 GB, faster but simpler) otherwise.
+  While it downloads she answers with scripted lines and tells you the progress. Set `builtinAutoDownload = false`
+  to download only with `/gf ai download`. `CUSTOM` + `builtinModelPath` loads any Qwen2-family ChatML GGUF file.
+* **Speed**: replies take a few seconds on a gaming PC (she shows "..." while thinking); it runs on background
+  threads (`builtinThreads`, default half of your cores) and never blocks the game. The conversation is cached,
+  so each reply only processes your new message.
+* **Talking**: in normal chat, everything you say near her is for her when no other player is around or you
+  talked in the last minute; otherwise include her name. The talk screen (keybind) works too.
+* Her character, relationship stage, mood and its causes, needs, the place, time, weather, recent events,
+  memories and promises are given to the model each turn; the model only writes speech. Gameplay effects
+  (commands like "follow me", hugs, promises, apologies, insults) are decided by the mod, never by the model.
+  Replies are checked (no "as an AI", links, commands or explicit content; repeats are retried) and fall back to
+  scripted lines on any problem.
+
+Other brains (`ai.brain`):
+
+| `brain` | Endpoint example | Key |
 |---|---|---|
-| `OLLAMA` (local, default) | `http://localhost:11434` | none |
+| `BUILTIN` (default) | in the game | none |
+| `OLLAMA` | `http://localhost:11434` | none |
 | `OPENAI_COMPATIBLE` (LM Studio, llama.cpp server, vLLM, OpenRouter, ...) | `http://localhost:1234/v1` | optional |
 | `ANTHROPIC` (Claude) | `https://api.anthropic.com` | required |
+| `OFF` | scripted lines only | none |
 
-* Enable with `ai.enabled = true` in `config/aigirlfriend-common.toml` (server side).
 * **API keys are never stored in the config.** Put them in the environment variable named by `apiKeyEnvVar`
   (default `AIGIRLFRIEND_API_KEY`) or in `config/aigirlfriend/secrets.properties` as `api_key=...`. That file is
   read only on the server; keep it private and do not distribute it.
-* Requests are asynchronous (the game never waits for them), rate limited, cached, validated (length, no commands,
-  no world changes) and retried; on any failure she uses a local line instead. The AI can only produce speech: it
-  never changes the world.
-* `/gf ai` shows the provider status.
+* `/gf ai` shows the brain status (download progress, loading, ready).
 
 ## Commands
 
-`/aigirlfriend` (alias `/gf`): `info`, `recall`, `restore`, `name <name>`, `memories`, `ai`, and (operators)
+`/aigirlfriend` (alias `/gf`): `info`, `recall`, `restore`, `name <name>`, `memories`, `ai`, `ai download`, and (operators)
 `debug stage|mood|evaluate_mood|needs|cycle|request|faint|reset_cooldowns`.
 
 ## Configuration guide
@@ -86,7 +103,7 @@ Common (server) config `config/aigirlfriend-common.toml`, grouped by section:
 
 * **general**: `maxCompanionsPerPlayer` (1), `restoreIdentityOnRespawn`, `names`, `outfitVariants`, `autoSleepwear`.
 * **personality**: default trait values (affection, shyness, playfulness, independence, confidence, sensitivity) and `randomVariation`.
-* **ai**: `enabled`, `provider`, `endpoint`, `model`, `apiKeyEnvVar`, `timeoutSeconds`, `maxResponseChars`, `maxTokens`, `temperature`, `anthropicEffort`, `maxConcurrentRequests`, `minSecondsBetweenRequests`, `retries`, `useForAmbientLines`, `cacheSize`, `contextMemories`.
+* **ai**: `brain`, `builtinModel`, `builtinModelPath`, `builtinAutoDownload`, `builtinThreads`, `builtinContextTokens`, `endpoint`, `model`, `apiKeyEnvVar`, `timeoutSeconds`, `maxResponseChars`, `maxTokens`, `temperature`, `anthropicEffort`, `maxConcurrentRequests`, `minSecondsBetweenRequests`, `retries`, `useForAmbientLines`, `cacheSize`, `contextMemories`.
 * **dialogue**: `frequency`, `minSecondsBetweenLines`, `listenToChat`, `chatListenRadius`, `speechRadius`, `speechInChat`, `conversationHistory`.
 * **memory**: `maxMemories`.
 * **follow**: `followStartDistance`, `followStopDistance`, `movementSpeed`, `teleportRecovery`, `teleportDistance`, `stuckSeconds`, `followThroughDimensions`, `maxSafeFall`.
@@ -153,7 +170,8 @@ Known limitations:
 ## Troubleshooting
 
 * **"Missing GeckoLib" / crash on start**: install GeckoLib 4.x for NeoForge 1.21.1.
-* **She does not answer with AI**: check `/gf ai`. For Ollama run `ollama serve` and `ollama pull llama3.1:8b`
+* **She does not answer with AI**: check `/gf ai`. The built-in brain needs its one-time download (needs internet;
+  `/gf ai download` retries it). For Ollama run `ollama serve` and `ollama pull llama3.1:8b`
   (or set `model`). For remote providers make sure the key is in the environment variable or `secrets.properties`
   on the **server**. Errors fall back to local lines, so she always talks.
 * **Interaction does not start**: the action bar says why (stage too low, cooldown, too far, she is scared, no

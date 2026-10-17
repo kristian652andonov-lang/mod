@@ -27,11 +27,24 @@ public final class ResponseValidator {
 
     @Nullable
     public static Result validate(@Nullable String raw, String name) {
+        return validate(raw, name, null);
+    }
+
+    /**
+     * @param playerName if given, a reply that starts by speaking as the player is rejected, and an unfinished
+     *                   last sentence (generation cut off by the token limit) is dropped
+     */
+    @Nullable
+    public static Result validate(@Nullable String raw, String name, @Nullable String playerName) {
         if (raw == null) return null;
         String s = raw.replace('\r', ' ').replace('\n', ' ').trim();
         // strip leaked thinking / role prefixes / quotes
         s = s.replaceAll("(?is)<think>.*?</think>", "").trim();
-        if (s.toLowerCase(Locale.ROOT).startsWith(name.toLowerCase(Locale.ROOT) + ":")) s = s.substring(name.length() + 1).trim();
+        String lower = s.toLowerCase(Locale.ROOT);
+        String n = name.toLowerCase(Locale.ROOT);
+        if (lower.startsWith(n + ":")) s = s.substring(name.length() + 1).trim();
+        else if (lower.startsWith(n + ", ")) s = capitalize(s.substring(name.length() + 2).trim()); // she addressed herself
+        if (playerName != null && !playerName.isEmpty() && s.toLowerCase(Locale.ROOT).startsWith(playerName.toLowerCase(Locale.ROOT) + ":")) return null;
         Emotion emotion = Emotion.NONE;
         Matcher m = TAG.matcher(s);
         if (m.find()) {
@@ -43,6 +56,7 @@ public final class ResponseValidator {
         s = s.replaceAll("[\\p{So}\\p{Cn}]", "").trim();
         if (s.length() < 2) return null;
         if (BAD.matcher(s).find() || EXPLICIT.matcher(s).find()) return null;
+        if (playerName != null) s = dropUnfinishedSentence(s);
         int max = GFConfig.AI_MAX_RESPONSE_CHARS.get();
         if (s.length() > max) {
             String cut = s.substring(0, max);
@@ -50,5 +64,16 @@ public final class ResponseValidator {
             s = end > max / 3 ? cut.substring(0, end + 1) : cut.trim() + "...";
         }
         return new Result(s, emotion);
+    }
+
+    private static String capitalize(String s) {
+        return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    private static String dropUnfinishedSentence(String s) {
+        char last = s.charAt(s.length() - 1);
+        if (".!?\"')~".indexOf(last) >= 0) return s;
+        int end = Math.max(s.lastIndexOf(". "), Math.max(s.lastIndexOf("! "), s.lastIndexOf("? ")));
+        return end > 8 ? s.substring(0, end + 1) : s;
     }
 }

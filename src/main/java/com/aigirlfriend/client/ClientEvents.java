@@ -4,6 +4,7 @@ import com.aigirlfriend.client.anim.PlayerPoseController;
 import com.aigirlfriend.client.hud.CompanionHud;
 import com.aigirlfriend.client.screen.StatusScreen;
 import com.aigirlfriend.client.screen.TalkScreen;
+import com.aigirlfriend.client.voice.VoiceManager;
 import com.aigirlfriend.config.GFClientConfig;
 import com.aigirlfriend.entity.GirlfriendEntity;
 import com.aigirlfriend.interaction.ActionType;
@@ -42,7 +43,7 @@ public final class ClientEvents {
     public void onTick(ClientTickEvent.Post event) {
         ClientState.clientTicks++;
         PlayerPoseController.tick();
-        VoiceBlips.tick();
+        VoiceManager.tick();
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) return;
@@ -179,6 +180,7 @@ public final class ClientEvents {
     public void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientState.clear();
         PlayerPoseController.clear();
+        VoiceManager.clear();
         pushedRoot.clear();
     }
 }

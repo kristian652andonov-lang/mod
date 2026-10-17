@@ -116,7 +116,7 @@ public final class DialogueContext {
         this.openPromises = promises;
         CompanionRequest r = d.request;
         this.request = r == null ? null : r.type.name();
-        this.history = d.history.recent(8);
+        this.history = d.history.recent(24);
         this.ownerNear = gf.controller().isOwnerNear();
     }
 

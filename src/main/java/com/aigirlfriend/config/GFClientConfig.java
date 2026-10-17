@@ -18,8 +18,11 @@ public final class GFClientConfig {
     public static final ModConfigSpec.BooleanValue HAND_PULL;
     public static final ModConfigSpec.DoubleValue HAND_PULL_STRENGTH;
     public static final ModConfigSpec.BooleanValue VOICE_ENABLED;
+    public static final ModConfigSpec.EnumValue<VoiceMode> VOICE_MODE;
     public static final ModConfigSpec.DoubleValue VOICE_VOLUME;
     public static final ModConfigSpec.DoubleValue VOICE_PITCH;
+    public static final ModConfigSpec.DoubleValue VOICE_RATE;
+    public static final ModConfigSpec.ConfigValue<String> VOICE_NAME;
     public static final ModConfigSpec.BooleanValue SOUNDS;
     public static final ModConfigSpec.DoubleValue CARRY_FORWARD;
     public static final ModConfigSpec.DoubleValue CARRY_HEIGHT;
@@ -48,10 +51,16 @@ public final class GFClientConfig {
         HAND_PULL_STRENGTH = b.defineInRange("handHoldPullStrength", 0.5, 0.0, 1.0);
         b.pop();
 
-        b.comment("Optional voice: soft voice blips while she talks. Independent from text dialogue.").push("sound");
-        VOICE_ENABLED = b.define("voiceEnabled", false);
-        VOICE_VOLUME = b.defineInRange("voiceVolume", 0.5, 0.0, 1.0);
-        VOICE_PITCH = b.defineInRange("voicePitch", 1.35, 0.5, 2.0);
+        b.comment("Her voice: she speaks her lines out loud from where she stands (uses the Voice/Speech volume slider).").push("sound");
+        VOICE_ENABLED = b.comment("Let her speak out loud.").define("speakAloud", true);
+        VOICE_MODE = b.comment("AUTO = your system's text-to-speech shaped into her voice, or her built-in synthesized voice if none is available;",
+                "SPEECH = system text-to-speech only; SYNTH = built-in synthesized voice only; BLIPS = soft blips per word; OFF = silent.")
+                .defineEnum("voiceMode", VoiceMode.AUTO);
+        VOICE_VOLUME = b.defineInRange("voiceVolume", 0.8, 0.0, 1.0);
+        VOICE_PITCH = b.comment("Her voice pitch (1.0 = her normal voice).").defineInRange("voicePitchScale", 1.0, 0.5, 2.0);
+        VOICE_RATE = b.comment("Her speaking speed (1.0 = normal).").defineInRange("voiceRate", 1.0, 0.5, 2.0);
+        VOICE_NAME = b.comment("Preferred system voice (name or part of it, e.g. Zira, Samantha, en-us+f3, slt). Empty = pick a female voice automatically.")
+                .define("systemVoice", "");
         SOUNDS = b.comment("Interaction sound effects (kiss, hug, gifts).").define("interactionSounds", true);
         b.pop();
 
@@ -70,4 +79,6 @@ public final class GFClientConfig {
     private GFClientConfig() {}
 
     public enum HudCorner { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
+
+    public enum VoiceMode { AUTO, SPEECH, SYNTH, BLIPS, OFF }
 }
