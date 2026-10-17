@@ -32,12 +32,74 @@ import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
  *   <li>a subtle breathing glow once the weapon is fully mastered</li>
  *   <li>hiding the in-hand model while the weapon is thrown (the thrown entity renders it instead)</li>
  * </ul>
+ * Big models are drawn as cheaply as they can be without looking any different (see {@link QuadCull}): faces with nothing
+ * on them are skipped, the glow passes draw only the faces that glow, bones the animation has shrunk to nothing are not
+ * drawn, a model's see-through part alone is drawn translucent (the rest as an ordinary cut-out model), and the heaviest
+ * models leave out their glow passes as inventory icons.
  */
 public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
+    /** Which pass is drawing: the model itself, a glow pass (only the faces that glow), or the see-through part alone. */
+    enum Pass { MAIN, GLOW, EDGE }
+
+    /** Models with a see-through part (the Weapon of God's radiant edge): that bone, drawn translucent on its own. */
+    private static final java.util.Map<String, String> TRANSLUCENT_BONE = java.util.Map.of("weapon_of_god", "radiant_edge");
+    /** Models with more cubes than this leave out their glow passes as inventory icons (16 pixels show no difference). */
+    private static final int HEAVY_CUBES = 500;
+    /** A bone scaled below this (on two axes or more) is hidden. */
+    private static final float HIDDEN_SCALE = 0.005f;
+    private static final java.util.Map<BakedGeoModel, Integer> CUBES = new java.util.IdentityHashMap<>();
+
+    private Pass pass = Pass.MAIN;
+    /** The model being drawn: its texture, its see-through bone (or null), and whether the pass is inside that bone. */
+    @Nullable
+    private net.minecraft.resources.ResourceLocation drawnTexture;
+    @Nullable
+    private String translucentBone;
+    private boolean insideTranslucent;
+    private boolean heavy;
+
     public WeaponRenderer() {
         super(new WeaponGeoModel());
-        addRenderLayer(new AutoGlowingGeoLayer<>(this));
+        addRenderLayer(new AutoGlowingGeoLayer<>(this) {
+            @Override
+            public void render(PoseStack poseStack, FantasyWeaponItem animatable, BakedGeoModel bakedModel, @Nullable RenderType renderType,
+                               MultiBufferSource bufferSource, @Nullable VertexConsumer buffer, float partialTick, int packedLight, int packedOverlay) {
+                if (iconOfHeavyModel()) return;
+                pass = Pass.GLOW;
+                try {
+                    super.render(poseStack, animatable, bakedModel, renderType, bufferSource, buffer, partialTick, packedLight, packedOverlay);
+                } finally {
+                    pass = Pass.MAIN;
+                }
+            }
+        });
         addRenderLayer(new ChargeGlowLayer(this));
+        addRenderLayer(new TranslucentBoneLayer(this));
+    }
+
+    /** DEVELOPMENT ONLY (screenshot director): icons drawn in full, glow and all (for capturing a picture of one). */
+    public static boolean fullIcons;
+    /** DEVELOPMENT ONLY (screenshot director): every face drawn in every pass, for measuring what the culling saves. */
+    public static boolean drawAllFaces;
+    /** DEVELOPMENT ONLY: time spent drawing weapons on this thread (nanoseconds) and how many draws, for measuring. */
+    public static long debugNanos, debugDraws;
+
+    /** Whether this draw is a heavy model as an inventory icon (its glow passes left out). */
+    private boolean iconOfHeavyModel() {
+        return heavy && renderPerspective == ItemDisplayContext.GUI && !fullIcons;
+    }
+
+    private static int cubes(BakedGeoModel model) {
+        return CUBES.computeIfAbsent(model, m -> {
+            int n = 0;
+            java.util.ArrayDeque<GeoBone> todo = new java.util.ArrayDeque<>(m.topLevelBones());
+            while (!todo.isEmpty()) {
+                GeoBone b = todo.pop();
+                n += b.getCubes().size();
+                todo.addAll(b.getChildBones());
+            }
+            return n;
+        });
     }
 
     @Override
@@ -61,29 +123,28 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
         if (tracked != null) ChainTracker.begin(tracked, ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND);
         LivingEntity holder = holder(stack, ctx);
         HangingPhysics.begin(holder == null ? -1 : holder.getId(), ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND);
+        long t0 = System.nanoTime();
         try {
             super.renderByItem(stack, ctx, pose, buffers, light, overlay);
         } finally {
+            debugNanos += System.nanoTime() - t0;
+            debugDraws++;
             if (tracked != null) ChainTracker.end();
             HangingPhysics.end();
         }
-    }
-
-    /** Models with see-through parts (the Weapon of God's radiant edge), drawn translucent so those parts blend. */
-    private static final java.util.Set<String> TRANSLUCENT = java.util.Set.of("weapon_of_god");
-
-    @Override
-    public RenderType getRenderType(FantasyWeaponItem animatable, net.minecraft.resources.ResourceLocation texture, @Nullable MultiBufferSource bufferSource,
-                                    float partialTick) {
-        if (TRANSLUCENT.contains(animatable.definition().geoName())) return RenderType.entityTranslucent(texture);
-        return super.getRenderType(animatable, texture, bufferSource, partialTick);
     }
 
     @Override
     public void actuallyRender(PoseStack poseStack, FantasyWeaponItem animatable, BakedGeoModel model, @Nullable RenderType renderType, MultiBufferSource bufferSource,
                                @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
         // the model's place in the world, for parts that hang and swing (bones are animated inside this call)
-        if (!isReRender) HangingPhysics.pose(poseStack.last().pose());
+        if (!isReRender) {
+            HangingPhysics.pose(poseStack.last().pose());
+            drawnTexture = getTextureLocation(animatable);
+            translucentBone = TRANSLUCENT_BONE.get(animatable.definition().geoName());
+            heavy = cubes(model) > HEAVY_CUBES;
+            insideTranslucent = false;
+        }
         super.actuallyRender(poseStack, animatable, model, renderType, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
     }
 
@@ -155,9 +216,63 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
     }
 
     @Override
+    public void renderRecursively(PoseStack poseStack, FantasyWeaponItem animatable, GeoBone bone, RenderType renderType, MultiBufferSource bufferSource,
+                                  VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, int colour) {
+        // a big model's bone the animation has shrunk to nothing (the radiant edge outside its clips) draws nothing, nor do its
+        // children (only big models: the lighter ones' hanging chains follow their bones even while hidden)
+        // (the artist hides parts by scaling them to a thousandth, too small to see on any model)
+        int flat = (Math.abs(bone.getScaleX()) < HIDDEN_SCALE ? 1 : 0) + (Math.abs(bone.getScaleY()) < HIDDEN_SCALE ? 1 : 0)
+                + (Math.abs(bone.getScaleZ()) < HIDDEN_SCALE ? 1 : 0);
+        if (heavy && flat >= 2) return;
+        boolean was = insideTranslucent;
+        if (!was && translucentBone != null && translucentBone.equals(bone.getName())) insideTranslucent = true;
+        try {
+            super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+        } finally {
+            insideTranslucent = was;
+        }
+    }
+
+    @Override
     public void renderCubesOfBone(PoseStack poseStack, GeoBone bone, VertexConsumer buffer, int packedLight, int packedOverlay, int colour) {
         if (ChainTracker.active()) ChainTracker.bone(bone, poseStack.last().pose());
+        // the see-through part is drawn by its own pass, and that pass draws nothing else
+        if (translucentBone != null && (pass == Pass.MAIN && insideTranslucent || pass == Pass.EDGE && !insideTranslucent)) return;
         super.renderCubesOfBone(poseStack, bone, buffer, packedLight, packedOverlay, colour);
+    }
+
+    @Override
+    public void createVerticesOfQuad(software.bernie.geckolib.cache.object.GeoQuad quad, Matrix4f poseState, org.joml.Vector3f normal, VertexConsumer buffer,
+                                     int packedLight, int packedOverlay, int colour) {
+        if (drawnTexture != null && !drawAllFaces) {
+            byte f = QuadCull.flags(drawnTexture, quad);
+            if ((f & (pass == Pass.GLOW ? QuadCull.GLOWS : QuadCull.SEEN)) == 0) return;
+        }
+        super.createVerticesOfQuad(quad, poseState, normal, buffer, packedLight, packedOverlay, colour);
+    }
+
+    /** The model's see-through part (the Weapon of God's radiant edge) alone, drawn translucent so it blends. */
+    static final class TranslucentBoneLayer extends GeoRenderLayer<FantasyWeaponItem> {
+        private final WeaponRenderer renderer;
+
+        TranslucentBoneLayer(WeaponRenderer renderer) {
+            super(renderer);
+            this.renderer = renderer;
+        }
+
+        @Override
+        public void render(PoseStack poseStack, FantasyWeaponItem animatable, BakedGeoModel bakedModel, @Nullable RenderType renderType,
+                           MultiBufferSource bufferSource, @Nullable VertexConsumer buffer, float partialTick, int packedLight, int packedOverlay) {
+            if (renderer.translucentBone == null) return;
+            RenderType see = RenderType.entityTranslucent(getTextureResource(animatable));
+            renderer.pass = Pass.EDGE;
+            try {
+                getRenderer().reRender(bakedModel, poseStack, bufferSource, animatable, see, bufferSource.getBuffer(see), partialTick,
+                        packedLight, packedOverlay, 0xFFFFFFFF);
+            } finally {
+                renderer.pass = Pass.MAIN;
+            }
+        }
     }
 
     /**
@@ -202,13 +317,18 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
             if (ProgressionMath.mastery(animatable.definition(), data) >= 0.9999f) {
                 intensity = Math.max(intensity, 0.16f + 0.1f * (float) Math.sin(Util.getMillis() / 600.0));
             }
-            if (intensity <= 0.02f) return;
+            if (intensity <= 0.02f || renderer.iconOfHeavyModel()) return;
             int theme = animatable.definition().themePrimary(data);
             int r = Math.round(((theme >> 16) & 255) * intensity), g = Math.round(((theme >> 8) & 255) * intensity), b = Math.round((theme & 255) * intensity);
             int color = 0xFF000000 | (r << 16) | (g << 8) | b;
             RenderType glow = RenderType.eyes(AutoGlowingTexture.getEmissiveResource(getTextureResource(animatable)));
-            getRenderer().reRender(bakedModel, poseStack, bufferSource, animatable, glow, bufferSource.getBuffer(glow), partialTick,
-                    0xF000F0, packedOverlay, color);
+            renderer.pass = Pass.GLOW;
+            try {
+                getRenderer().reRender(bakedModel, poseStack, bufferSource, animatable, glow, bufferSource.getBuffer(glow), partialTick,
+                        0xF000F0, packedOverlay, color);
+            } finally {
+                renderer.pass = Pass.MAIN;
+            }
         }
     }
 }

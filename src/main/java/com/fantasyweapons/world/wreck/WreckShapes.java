@@ -29,9 +29,14 @@ public final class WreckShapes {
      * A shaft erased from the sky through the bottom of the world, bedrock and all, so it opens on the void. Its edge is
      * not a clean circle: it wanders in and out, and the rim crumbles back where the ground tore. Its walls are seared
      * into big chunks of dark rock that jut out into the shaft, split by seams of glowing magma set back a block or two
-     * behind them; no lava is left in them, and water at the edge is left to pour in.
+     * behind them; no lava is left in them, and water at the edge is walled off by them instead of pouring into the void.
      */
     public static ChunkShaper shaft(Vec3 center, double radius) {
+        return shaft(center, radius, Wall.SEARED);
+    }
+
+    /** A {@link #shaft(Vec3, double)} whose walls are lined with {@code wall} instead of seared rock and magma. */
+    public static ChunkShaper shaft(Vec3 center, double radius, Wall lining) {
         double salt = Math.floorMod((long) Math.floor(center.x * 0.41 + center.z * 0.73), 991L);
         // how far the edge wanders in and out of the circle, and how deep the wall's relief goes
         double wander = Math.min(8, radius * 0.06), band = 4;
@@ -82,18 +87,23 @@ public final class WreckShapes {
                         if (d > surface + band) continue;
                         BlockState old = c.get(x, y, z);
                         if (old.is(Blocks.LAVA)) {
-                            c.set(x, y, z, BLACKSTONE);
+                            BlockState crust = lining.rock(cell[2], x, y, z);
+                            c.set(x, y, z, crust == null ? BLACKSTONE : crust);
                             continue;
                         }
-                        // water stays, and pours over the edge
-                        if (!old.getFluidState().isEmpty()) continue;
+                        // water in the wall is walled off with the wall's rock, so it does not stream into the void
+                        if (!old.getFluidState().isEmpty()) {
+                            BlockState dam = lining.rock(cell[2], x, y, z);
+                            c.set(x, y, z, dam == null ? lining.seam(cell[2], x, y, z) : dam);
+                            continue;
+                        }
                         if (!WreckChunk.terrain(old)) {
                             if (!old.isAir()) c.set(x, y, z, AIR);
                             continue;
                         }
-                        // the seam's face glows; behind it, and through every chunk, seared rock
-                        if (seam && d < surface + 1.2) c.set(x, y, z, MAGMA);
-                        else c.set(x, y, z, rock(cell[2]));
+                        // the seam's face glows; behind it, and through every chunk, the wall's rock
+                        BlockState put = seam && d < surface + 1.2 ? lining.seam(cell[2], x, y, z) : lining.rock(cell[2], x, y, z);
+                        c.set(x, y, z, put == null ? AIR : put);
                     }
                 }
             }
@@ -103,11 +113,6 @@ public final class WreckShapes {
     /** How far out a shaft's edge wanders in the direction (ca, sa): 0 in, 1 out. */
     private static double lobes(double ca, double sa, double salt) {
         return 0.65 * noise(ca * 12 + salt, sa * 12 + salt) + 0.35 * noise(ca * 36 + salt + 200, sa * 36 + salt + 200);
-    }
-
-    /** The rock a seared chunk is made of, by its own random value: mostly blackstone, some basalt, deepslate and netherrack. */
-    private static BlockState rock(double v) {
-        return v < 0.5 ? BLACKSTONE : v < 0.7 ? BASALT : v < 0.85 ? DEEPSLATE : NETHERRACK;
     }
 
     /**
@@ -148,10 +153,15 @@ public final class WreckShapes {
     /**
      * A sphere erased from the world, but nowhere a clean one: its edge wanders in and out, the rim crumbles where it
      * broke through the ground, and the bowl it leaves is lined with big chunks of obsidian, blackstone and deepslate
-     * jutting out of it, split by seams of crying obsidian set back behind them. Water at its edge pours in; lava there is
+     * jutting out of it, split by seams of crying obsidian set back behind them. Water at its edge is walled off; lava there is
      * crushed to blackstone.
      */
     public static ChunkShaper sphere(Vec3 center, double radius) {
+        return sphere(center, radius, Wall.OBSIDIAN);
+    }
+
+    /** A {@link #sphere(Vec3, double)} whose bowl is lined with {@code wall} instead of obsidian. */
+    public static ChunkShaper sphere(Vec3 center, double radius, Wall lining) {
         double salt = Math.floorMod((long) Math.floor(center.x * 0.29 + center.z * 0.83), 983L);
         double band = 3, reach = radius + ragReach(radius) + band + 10;
         // the rim strays inward by no more than this: anything nearer the middle is gone without working the rim out
@@ -213,12 +223,19 @@ public final class WreckShapes {
                         }
                         if (r > surface + band) continue;
                         BlockState old = c.get(x, y, z);
-                        if (old.is(Blocks.LAVA)) c.set(x, y, z, BLACKSTONE);
-                        else if (!old.getFluidState().isEmpty()) continue;
-                        else if (!WreckChunk.terrain(old)) {
+                        if (old.is(Blocks.LAVA)) {
+                            BlockState crust = lining.rock(cell[2], x, y, z);
+                            c.set(x, y, z, crust == null ? BLACKSTONE : crust);
+                        } else if (!old.getFluidState().isEmpty()) {
+                            // walled off with the bowl's rock, so it does not stream in
+                            BlockState dam = lining.rock(cell[2], x, y, z);
+                            c.set(x, y, z, dam == null ? lining.seam(cell[2], x, y, z) : dam);
+                        } else if (!WreckChunk.terrain(old)) {
                             if (!old.isAir()) c.set(x, y, z, AIR);
-                        } else if (seam && r < surface + 1.2) c.set(x, y, z, CRYING);
-                        else c.set(x, y, z, cell[2] < 0.45 ? OBSIDIAN : cell[2] < 0.8 ? BLACKSTONE : DEEPSLATE);
+                        } else {
+                            BlockState put = seam && r < surface + 1.2 ? lining.seam(cell[2], x, y, z) : lining.rock(cell[2], x, y, z);
+                            c.set(x, y, z, put == null ? AIR : put);
+                        }
                     }
                 }
             }
@@ -575,7 +592,7 @@ public final class WreckShapes {
                     if (across > w + 7 && !crack) continue;
                     int top = c.top(x, z), ground = Math.max(c.ground(x, z), c.minY() + 1);
                     if (across > w) {
-                        // the lip: crumbling (the sea on it left to pour in); a fissure splits back into the land
+                        // the lip: crumbling (the sea on it is sealed off where it meets the cut); a fissure splits back into the land
                         double edge = (across - w) / 7;
                         int bite = crack ? 6 + (int) (10 * (1 - edge)) : noise(x * 1.5 + salt, z * 1.5) > 0.35 + edge * 0.5 ? (int) (3 * (1 - edge)) + 1 : 0;
                         for (int y = top; y > ground - bite && y > c.minY(); y--) {
@@ -840,7 +857,7 @@ public final class WreckShapes {
                         double t = Math.abs(across + perY * (y + 0.5)) / half;
                         double q = Math.max(0, (ground - y) / deep);
                         if (t >= 1 - Math.pow(q, 1 / 1.2)) continue;
-                        // (water at its edges stays, and pours in)
+                        // (water at its edges stays, sealed off where it meets the cut)
                         if (t <= 0.85 || c.get(x, y, z).getFluidState().isEmpty()) c.clear(x, y, z);
                         floor = y;
                     }

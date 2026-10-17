@@ -71,6 +71,9 @@ final class DevScripts {
                 else if (name.equals("upgrader")) upgrader(b);
                 else if (name.equals("fusion")) fusion(b);
                 else if (name.equals("godui")) godUi(b);
+                else if (name.equals("icon")) icon(b, com.fantasyweapons.weapons.god.WeaponOfGod.ID);
+                else if (name.equals("godperf")) godPerf(b);
+                else if (name.equals("walls")) walls(b);
                 else if (name.equals("toolbook")) toolBook(b);
                 else if (name.equals("toolcodex")) bookPages(b);
                 else if (name.equals("toolpowers")) toolPowers(b);
@@ -1853,6 +1856,23 @@ final class DevScripts {
 
     /** The inventory's journal and class buttons, and gear tooltips telling whether the player's class can use it. */
     /** Runs {@code action} with the single player on the server thread. */
+    /** {@link #onServer}, the script waiting (up to five minutes) until the server has done it. */
+    private static void onServerAndWait(ScreenshotDirector.Builder b, java.util.function.Consumer<net.minecraft.server.level.ServerPlayer> action) {
+        boolean[] done = {false};
+        b.run(mc -> {
+            done[0] = false;
+            var srv = mc.getSingleplayerServer();
+            srv.execute(() -> {
+                try {
+                    action.accept(srv.getPlayerList().getPlayers().get(0));
+                } finally {
+                    done[0] = true;
+                }
+            });
+        });
+        b.until(mc -> done[0], 6000);
+    }
+
     private static void onServer(ScreenshotDirector.Builder b, java.util.function.Consumer<net.minecraft.server.level.ServerPlayer> action) {
         b.run(mc -> {
             var srv = mc.getSingleplayerServer();
@@ -2002,6 +2022,179 @@ final class DevScripts {
                 }
             });
         }).wait(15).screenshot("fusion_menu_after").closeScreen();
+    }
+
+    /**
+     * The Weapon of God held in first person, with its faces culled and then with every face drawn, and an empty hand,
+     * each for ten seconds (the frame times are in the perf lines between the markers); then the hotbar icon, and the
+     * charge pose from the front (the radiant edge, drawn translucent on its own).
+     */
+    private static void godPerf(ScreenshotDirector.Builder b) {
+        String god = com.fantasyweapons.weapons.god.WeaponOfGod.ID;
+        b.wait(40).cmd("/clear @s").cmd("/fw give " + god + " 1").cmd("/time set noon").wait(40).slot(0).look(0, 0)
+                .playerView().camera(CameraType.FIRST_PERSON).hud(true).wait(100);
+        b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("godperf: culled"));
+        cpu(b, "culled");
+        b.run(mc -> {
+            com.fantasyweapons.client.render.WeaponRenderer.drawAllFaces = true;
+            com.fantasyweapons.FantasyWeapons.LOGGER.warn("godperf: all faces");
+        });
+        cpu(b, "all faces");
+        b.run(mc -> com.fantasyweapons.client.render.WeaponRenderer.fullIcons = true);
+        cpu(b, "all faces + full icon");
+        b.run(mc -> {
+            com.fantasyweapons.client.render.WeaponRenderer.drawAllFaces = false;
+            com.fantasyweapons.client.render.WeaponRenderer.fullIcons = false;
+        });
+        b.run(mc -> {
+            com.fantasyweapons.client.render.WeaponRenderer.drawAllFaces = false;
+            com.fantasyweapons.FantasyWeapons.LOGGER.warn("godperf: empty hand");
+        }).slot(4).wait(200).run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("godperf: done")).slot(0).wait(20);
+        b.screenshot("godperf_fp");
+        b.hud(false).pin(-1, false, false, 0.8f, -1, -1).viewFrom(0.8, 0.5, 4.2).wait(20).screenshot("godperf_charge_front")
+                .viewFrom(4.2, 0.5, 0.6).wait(5).screenshot("godperf_charge_side").pin(-1, false, false, -1, -1, -1).playerView();
+    }
+
+    /**
+     * The Weapon of God's walls: three holes 40 blocks across cut into the land side by side - a shaft lined like Dimension
+     * Breakage's (rainbow), one like the Combined Power of the 6 Gods' (shattered) and a crater like Trident from Heaven's
+     * (golden) - in land with lakes and rivers, to see the walls and the water sealed off at them.
+     */
+    /** Logs the water beside open air (to the sides or below) round each of the wall holes, with where the first few are. */
+    /** The water beside air before the wall holes were cut (to tell what the cut left from what was there). */
+    private static final java.util.Set<Long> NATURAL_LEAKS = new java.util.HashSet<>();
+
+    private static void waterProbe(ScreenshotDirector.Builder b, String when, int bx, int bz, int r, int step, int[] ys) {
+        onServerAndWait(b, sp -> {
+            var level = sp.serverLevel();
+            net.minecraft.core.BlockPos.MutableBlockPos m = new net.minecraft.core.BlockPos.MutableBlockPos();
+            net.minecraft.core.Direction[] dirs = {net.minecraft.core.Direction.NORTH, net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.EAST,
+                    net.minecraft.core.Direction.WEST, net.minecraft.core.Direction.DOWN};
+            for (int i = 0; i < 3; i++) {
+                int x0 = bx + i * step, z0 = bz, leaks = 0, flowing = 0;
+                StringBuilder where = new StringBuilder();
+                for (int x = x0 - r - 20; x <= x0 + r + 20; x++) {
+                    for (int z = z0 - r - 20; z <= z0 + r + 20; z++) {
+                        for (int y = ys[i] - 60; y <= ys[i] + 20; y++) {
+                            var f = level.getFluidState(m.set(x, y, z));
+                            if (!f.is(net.minecraft.tags.FluidTags.WATER)) continue;
+                            if (!f.isSource()) flowing++;
+                            for (var d : dirs) {
+                                if (!level.getBlockState(m.set(x, y, z).move(d)).isAir()) continue;
+                                long key = net.minecraft.core.BlockPos.asLong(x, y, z);
+                                if (when.equals("before")) NATURAL_LEAKS.add(key);
+                                else if (NATURAL_LEAKS.contains(key)) break;
+                                if (leaks < 6) where.append(String.format(" [%d,%d,%d d=%.0f dy=%d open %s, %s]", x, y, z, Math.hypot(x - x0, z - z0), y - ys[i], d,
+                                        level.getFluidState(m.set(x, y, z)).isSource() ? "still" : "flowing"));
+                                leaks++;
+                                break;
+                            }
+                        }
+                    }
+                }
+                com.fantasyweapons.FantasyWeapons.LOGGER.warn("walls water {} hole {}: {} beside air, {} flowing;{}", when, i, leaks, flowing, where);
+            }
+        });
+    }
+
+    private static void walls(ScreenshotDirector.Builder b) {
+        int bx = 2200, bz = 6100, r = 40, step = 160;
+        int[] ys = new int[3];
+        b.wait(20).run(mc -> {
+            if (mc.player != null && !mc.player.isAlive()) mc.player.respawn();
+        }).wait(40).closeScreen().cmd("/gamemode creative").cmd("/time set noon").cmd("/weather clear")
+                .cmd("/tp @s " + (bx + step) + " 200 " + (bz - 90) + " 0 30").wait(300);
+        onServerAndWait(b, sp -> {
+            var level = sp.serverLevel();
+            for (int i = 0; i < 3; i++) {
+                int x0 = bx + i * step;
+                for (int cx = (x0 - r - 30) >> 4; cx <= (x0 + r + 30) >> 4; cx++) for (int cz = (bz - r - 40) >> 4; cz <= (bz + r + 30) >> 4; cz++) level.getChunk(cx, cz);
+                ys[i] = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR, x0, bz - r);
+            }
+        });
+        waterProbe(b, "before", bx, bz, r, step, ys);
+        onServerAndWait(b, sp -> {
+            var level = sp.serverLevel();
+            com.fantasyweapons.world.wreck.Wall[] walls = {com.fantasyweapons.world.wreck.Wall.RAINBOW, com.fantasyweapons.world.wreck.Wall.SHATTERED,
+                    com.fantasyweapons.world.wreck.Wall.GOLDEN};
+            for (int i = 0; i < 3; i++) {
+                int x0 = bx + i * step, z0 = bz;
+                for (int cx = (x0 - r - 30) >> 4; cx <= (x0 + r + 30) >> 4; cx++) for (int cz = (z0 - r - 40) >> 4; cz <= (z0 + r + 30) >> 4; cz++) level.getChunk(cx, cz);
+                int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR, x0, z0 - r);
+                ys[i] = y;
+                net.minecraft.world.phys.Vec3 c = new net.minecraft.world.phys.Vec3(x0 + 0.5, y, z0 + 0.5);
+                com.fantasyweapons.world.wreck.ChunkShaper shaper = i == 2 ? com.fantasyweapons.world.wreck.WreckShapes.sphere(c, r, walls[i])
+                        : com.fantasyweapons.world.wreck.WreckShapes.shaft(c, r, walls[i]);
+                for (int cx = (x0 - r - 30) >> 4; cx <= (x0 + r + 30) >> 4; cx++) {
+                    for (int cz = (z0 - r - 30) >> 4; cz <= (z0 + r + 30) >> 4; cz++) {
+                        com.fantasyweapons.world.wreck.WorldWreck.rewrite(level, level.getChunk(cx, cz), 7L + i, shaper);
+                    }
+                }
+            }
+        });
+        // water left touching open air round each hole (it would pour in): before the cut, right after it, and once it has had
+        // time to flow
+        b.wait(2);
+        waterProbe(b, "after", bx, bz, r, step, ys);
+        b.wait(200);
+        waterProbe(b, "later", bx, bz, r, step, ys);
+        b.wait(20);
+        String[] names = {"rainbow", "shattered", "golden"};
+        for (int i = 0; i < 3; i++) {
+            int x0 = bx + i * step, k = i;
+            // from outside, over the pond, looking across the hole at its far wall
+            onServerAndWait(b, sp -> {
+                sp.getAbilities().flying = true;
+                sp.onUpdateAbilities();
+                sp.teleportTo(sp.serverLevel(), x0 + 0.5, ys[k] + 22, bz - r - 30, 0, 28);
+            });
+            b.wait(80).hud(false).playerView().wait(5).screenshot("walls_" + names[i] + "_outside");
+            // from inside the hole, looking back at the near wall where the pond was cut through
+            onServerAndWait(b, sp -> sp.teleportTo(sp.serverLevel(), x0 + 0.5, ys[k] - 6, bz - 8, 180, 10));
+            b.wait(60).screenshot("walls_" + names[i] + "_inside");
+        }
+    }
+
+    /** Ten seconds of the weapons' drawing time on the render thread, logged as milliseconds per draw. */
+    private static void cpu(ScreenshotDirector.Builder b, String label) {
+        b.run(mc -> {
+            com.fantasyweapons.client.render.WeaponRenderer.debugNanos = 0;
+            com.fantasyweapons.client.render.WeaponRenderer.debugDraws = 0;
+        }).wait(200).run(mc -> {
+            long n = com.fantasyweapons.client.render.WeaponRenderer.debugNanos, d = Math.max(1, com.fantasyweapons.client.render.WeaponRenderer.debugDraws);
+            com.fantasyweapons.FantasyWeapons.LOGGER.warn("godcpu: {} -> {} draws, {} ms per draw", label, d, String.format("%.3f", n / 1e6 / d));
+        });
+    }
+
+    /**
+     * A weapon's inventory icon drawn large, glow and all, on flat magenta, for making a picture of it: the screen rectangle
+     * the icon's 16 pixels fill is logged.
+     */
+    private static void icon(ScreenshotDirector.Builder b, String weapon) {
+        b.wait(40).cmd("/clear @s").cmd("/fw give " + weapon + " 1").wait(40).slot(0).hud(false);
+        b.run(mc -> {
+            com.fantasyweapons.client.render.WeaponRenderer.fullIcons = true;
+            net.minecraft.world.item.ItemStack stack = mc.player.getMainHandItem().copy();
+            mc.setScreen(new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("icon")) {
+                @Override
+                public void render(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+                    g.fill(0, 0, width, height, 0xFFFF00FF);
+                    float s = Math.min(width, height) * 0.8f / 16f;
+                    float x = width / 2f - 8 * s, y = height / 2f - 8 * s;
+                    g.pose().pushPose();
+                    g.pose().translate(x, y, 0);
+                    g.pose().scale(s, s, 1);
+                    g.renderItem(stack, 0, 0);
+                    g.pose().popPose();
+                    double k = minecraft.getWindow().getGuiScale();
+                    com.fantasyweapons.FantasyWeapons.LOGGER.warn("icon rect {} {} {}", Math.round(x * k), Math.round(y * k), Math.round(16 * s * k));
+                }
+
+                @Override
+                public void renderBackground(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+                }
+            });
+        }).wait(20).screenshot("icon_" + weapon).closeScreen().run(mc -> com.fantasyweapons.client.render.WeaponRenderer.fullIcons = false);
     }
 
     /** The Weapon of God's tooltip, its Codex pages (and the rites page), and its quests. */

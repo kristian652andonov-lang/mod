@@ -144,7 +144,7 @@ public final class DimensionBreakage {
             if (age == delay) fold(owner);
             // the end is worked out long before it comes (once the fold is under way), so it lands all at once
             if (age == delay + Math.max(10, hold - 560)) {
-                ChunkShaper end = spare(WreckShapes.shaft(pos, radius));
+                ChunkShaper end = spare(WreckShapes.shaft(pos, radius, com.fantasyweapons.world.wreck.Wall.RAINBOW));
                 WorldWreck.disc(level, pos, radius + 20, seed + 9, d -> delay + hold - age - 1, end);
             }
             if (age == delay + hold) explode(owner);

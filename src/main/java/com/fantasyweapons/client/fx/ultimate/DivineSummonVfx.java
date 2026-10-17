@@ -218,7 +218,7 @@ public class DivineSummonVfx extends Vfx {
     /** Over the place it will strike: clouds turning in a vortex round a shaft of light, the ground marked. */
     private void drawTarget(VfxContext ctx, float t, float k, float a) {
         double reach = VfxContext.viewReach();
-        ctx.squash = ctx.squashFor(target, reach * 0.8);
+        ctx.squash = ctx.squashFor(target, Math.max(60, size * 0.7) + 150 + size * 0.15, reach * 0.8);
         Vec3 eye = target.add(0, 150 + size * 0.15, 0);
         float vr = Math.max(60, size * 0.7f) * (0.4f + 0.6f * easeOut(clamp01(t / 80f)));
         var mist = ctx.translucent(VfxTextures.MIST);

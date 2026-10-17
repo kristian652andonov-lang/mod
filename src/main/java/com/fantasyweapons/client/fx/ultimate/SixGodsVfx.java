@@ -59,7 +59,8 @@ public class SixGodsVfx extends Vfx {
             float dark = 0.88f * easeInOut(clamp01(t / (delay * 0.6f))) * (1 - clamp01((t - delay - beam) / 50f));
             if (dark > 0) com.fantasyweapons.client.fx.SkyDarkness.request(dark);
         }
-        ctx.squash = ctx.squashFor(sky, reach * 0.8);
+        // the whole of it in view, the six circles at its edge too, from however far off
+        ctx.squash = ctx.squashFor(sky, orbit + SMALL * 1.1, reach * 0.8);
         float a = clamp01(t / 16f) * (1 - easeIn(end)) * 0.85f;
         drawGreatCircle(ctx, t, a);
         for (int i = 0; i < 6; i++) drawSmallCircle(ctx, i, t, a);
@@ -326,7 +327,7 @@ public class SixGodsVfx extends Vfx {
     // ------------------------------------------------------------------------------------------------------------
 
     private void drawGround(VfxContext ctx, float t) {
-        ctx.squash = ctx.squashFor(ground, VfxContext.viewReach() * 0.85);
+        ctx.squash = ctx.squashFor(ground, radius, VfxContext.viewReach() * 0.85);
         Vec3 g = ground.add(0, 0.8, 0);
         float mark = clamp01((t - 10) / 40f) * (1 - clamp01((t - delay) / 6f));
         if (mark > 0) {

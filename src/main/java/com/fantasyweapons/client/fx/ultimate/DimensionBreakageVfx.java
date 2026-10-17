@@ -255,7 +255,7 @@ public class DimensionBreakageVfx extends Vfx {
         float k = easeOut(clamp01(e / 26f));
         float fade = 1 - clamp01((e - 18) / 50f);
         if (fade > 0) {
-            ctx.squash = ctx.squashFor(heart, VfxContext.viewReach() * 0.8);
+            ctx.squash = ctx.squashFor(heart, radius * 1.1, VfxContext.viewReach() * 0.8);
             var white = ctx.additive(VfxTextures.WHITE);
             float r = radius * 1.05f * k;
             Vec3 split = ctx.camLeft.scale(r * 0.02);
@@ -266,7 +266,7 @@ public class DimensionBreakageVfx extends Vfx {
             ctx.squash = 1;
         }
         // shockwaves over the land, split red and cyan
-        ctx.squash = ctx.squashFor(center, VfxContext.viewReach() * 0.85);
+        ctx.squash = ctx.squashFor(center, radius * 2.4, VfxContext.viewReach() * 0.85);
         var shock = ctx.additive(VfxTextures.SHOCKWAVE);
         for (int w = 0; w < 4; w++) {
             float s = (e - w * 6) / 50f;

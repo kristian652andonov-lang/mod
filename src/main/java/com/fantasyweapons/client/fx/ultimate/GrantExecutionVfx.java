@@ -72,7 +72,7 @@ public class GrantExecutionVfx extends Vfx {
         // so far away it fades a little into the sky
         float a = clamp01(t / 14f) * (1 - easeIn(end)) * 0.82f;
         if (a <= 0.01f) return;
-        ctx.squash = ctx.squashFor(sky, reach * 0.8);
+        ctx.squash = ctx.squashFor(sky, circle * 1.5, reach * 0.8);
         boolean firing = t >= delay && t < delay + beam;
         float flare = firing ? 1 : t >= delay + beam ? 1 - clamp01((t - delay - beam) / 25f) : 0;
         float open = easeOut(clamp01((t - 4) / 40f));

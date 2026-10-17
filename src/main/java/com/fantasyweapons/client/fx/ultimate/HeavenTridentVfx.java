@@ -299,7 +299,7 @@ public class HeavenTridentVfx extends Vfx {
         float dome = clamp01(s / 18f);
         float domeA = (1 - clamp01((s - 4) / 30f));
         if (domeA > 0) {
-            ctx.squash = ctx.squashFor(target, VfxContext.viewReach() * 0.8);
+            ctx.squash = ctx.squashFor(target, radius * 1.2, VfxContext.viewReach() * 0.8);
             ctx.sphere(ctx.additive(VfxTextures.WHITE), g, radius * 1.1f * easeOut(dome), 18, 36, Colors.alpha(domeA * 0.28f, PALE), true);
             var ringTex = ctx.additive(VfxTextures.RING);
             for (int k = 0; k < 3; k++) {

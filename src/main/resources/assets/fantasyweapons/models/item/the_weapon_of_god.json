@@ -1,142 +1,136 @@
 {
-  "parent": "builtin/entity",
-  "gui_light": "front",
-  "display": {
-    "thirdperson_righthand": {
-      "rotation": [
-        -45,
-        -90,
-        10
-      ],
-      "translation": [
-        0,
-        -1.92,
-        1.54
-      ],
-      "scale": [
-        0.6,
-        0.6,
-        0.6
-      ]
-    },
-    "thirdperson_lefthand": {
-      "rotation": [
-        -45,
-        90,
-        -10
-      ],
-      "translation": [
-        0,
-        -1.92,
-        1.54
-      ],
-      "scale": [
-        0.6,
-        0.6,
-        0.6
-      ]
-    },
-    "firstperson_righthand": {
-      "rotation": [
-        -35,
-        20,
-        25
-      ],
-      "translation": [
-        2.0,
-        -2.5,
-        0
-      ],
-      "scale": [
-        0.214,
-        0.214,
-        0.214
-      ]
-    },
-    "firstperson_lefthand": {
-      "rotation": [
-        -35,
-        -20,
-        -25
-      ],
-      "translation": [
-        2.0,
-        -2.5,
-        0
-      ],
-      "scale": [
-        0.214,
-        0.214,
-        0.214
-      ]
-    },
+  "loader": "neoforge:separate_transforms",
+  "base": {
+    "parent": "builtin/entity",
+    "gui_light": "front",
+    "display": {
+      "thirdperson_righthand": {
+        "rotation": [
+          -45,
+          -90,
+          10
+        ],
+        "translation": [
+          0,
+          -1.92,
+          1.54
+        ],
+        "scale": [
+          0.6,
+          0.6,
+          0.6
+        ]
+      },
+      "thirdperson_lefthand": {
+        "rotation": [
+          -45,
+          90,
+          -10
+        ],
+        "translation": [
+          0,
+          -1.92,
+          1.54
+        ],
+        "scale": [
+          0.6,
+          0.6,
+          0.6
+        ]
+      },
+      "firstperson_righthand": {
+        "rotation": [
+          -35,
+          20,
+          25
+        ],
+        "translation": [
+          2.0,
+          -2.5,
+          0
+        ],
+        "scale": [
+          0.214,
+          0.214,
+          0.214
+        ]
+      },
+      "firstperson_lefthand": {
+        "rotation": [
+          -35,
+          -20,
+          -25
+        ],
+        "translation": [
+          2.0,
+          -2.5,
+          0
+        ],
+        "scale": [
+          0.214,
+          0.214,
+          0.214
+        ]
+      },
+      "fixed": {
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "translation": [
+          1.059,
+          -2.019,
+          -0.0
+        ],
+        "scale": [
+          0.1246,
+          0.1246,
+          0.1246
+        ]
+      },
+      "ground": {
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "translation": [
+          0,
+          2,
+          0
+        ],
+        "scale": [
+          0.2098,
+          0.2098,
+          0.2098
+        ]
+      },
+      "head": {
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.3,
+          0.3,
+          0.3
+        ]
+      }
+    }
+  },
+  "perspectives": {
     "gui": {
-      "rotation": [
-        0,
-        20,
-        -45
-      ],
-      "translation": [
-        -0.494,
-        -1.687,
-        0.18
-      ],
-      "scale": [
-        0.0966,
-        0.0966,
-        0.0966
-      ]
-    },
-    "fixed": {
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "translation": [
-        1.059,
-        -2.019,
-        -0.0
-      ],
-      "scale": [
-        0.1246,
-        0.1246,
-        0.1246
-      ]
-    },
-    "ground": {
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "translation": [
-        0,
-        2,
-        0
-      ],
-      "scale": [
-        0.2098,
-        0.2098,
-        0.2098
-      ]
-    },
-    "head": {
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "translation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.3,
-        0.3,
-        0.3
-      ]
+      "parent": "minecraft:item/generated",
+      "textures": {
+        "layer0": "fantasyweapons:item/weapon_of_god_icon"
+      }
     }
   }
 }

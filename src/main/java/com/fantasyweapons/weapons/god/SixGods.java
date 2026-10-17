@@ -42,7 +42,7 @@ public final class SixGods {
         int delay = delay(ctx);
         double r = WorldWreck.radius(ctx.param("radius"));
         Vec3 feet = ctx.feet();
-        ChunkShaper shaft = WreckShapes.shaft(at, r);
+        ChunkShaper shaft = WreckShapes.shaft(at, r, com.fantasyweapons.world.wreck.Wall.SHATTERED);
         if (Math.hypot(feet.x - at.x, feet.z - at.z) < r + SAFE + 16) shaft = DivineShapes.sparing(shaft, feet, SAFE);
         WorldWreck.disc(ctx.level(), at, r + 20, seed, d -> lead + delay - 1, shaft);
     }

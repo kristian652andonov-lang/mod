@@ -71,7 +71,7 @@ public class UltimateWindupVfx extends Vfx {
         float fade = 1 - clamp01((t - ticks) / 4f);
         if (fade <= 0) return;
         if (ctx.cam.distanceTo(at) < size * 6) SkyDarkness.request(0.6f * easeInOut(k) * fade);
-        ctx.squash = ctx.squashFor(at, VfxContext.viewReach() * 0.85);
+        ctx.squash = ctx.squashFor(at, size, VfxContext.viewReach() * 0.85);
         Vec3 ground = at.add(0, 0.35, 0);
         Vec3 ax = new Vec3(1, 0, 0), az = new Vec3(0, 0, 1);
         float r = size * (0.25f + 0.45f * easeOut(k)) * (1 - 0.85f * easeIn(tight));

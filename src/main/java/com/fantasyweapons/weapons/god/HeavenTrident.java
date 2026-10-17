@@ -60,7 +60,7 @@ public final class HeavenTrident {
     static void prepare(AbilityContext ctx, Vec3 at, long seed, int lead) {
         int strike = strike(ctx);
         double r = WorldWreck.radius(ctx.param("radius"));
-        WorldWreck.disc(ctx.level(), at, r + WreckShapes.ragReach(r) + 14, seed, d -> lead + strike, WreckShapes.sphere(at, r));
+        WorldWreck.disc(ctx.level(), at, r + WreckShapes.ragReach(r) + 14, seed, d -> lead + strike, WreckShapes.sphere(at, r, com.fantasyweapons.world.wreck.Wall.GOLDEN));
         var ring = CrackNetwork.radial(seed ^ 0x7121DEL, 18, r * 0.98, r * 1.6, 7, 120);
         WorldWreck.disc(ctx.level(), at, r * 1.6 + 12, seed + 7, d -> lead + strike + 12, WreckShapes.cracks(at, ring));
     }

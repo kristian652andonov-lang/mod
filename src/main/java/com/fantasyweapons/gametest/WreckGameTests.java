@@ -56,9 +56,12 @@ public final class WreckGameTests {
         h.succeed();
     }
 
-    /** Water at the edge of a hole the destruction opened is woken, so it pours in instead of standing as a wall. */
+    /**
+     * Water at the edge of a hole the destruction opened is sealed off with the ground under it, so it does not stream
+     * into the hole (or the void) - and the sea behind the seal stays as it was, still.
+     */
     @GameTest(template = "arena", batch = "wreck")
-    public static void cutWaterFlowsIn(GameTestHelper h) {
+    public static void cutWaterIsSealedOff(GameTestHelper h) {
         ServerLevel level = h.getLevel();
         LevelChunk chunk = flatChunk(level, 2903, 2900, GROUND, true);
         int minX = chunk.getPos().getMinBlockX(), minZ = chunk.getPos().getMinBlockZ();
@@ -70,9 +73,12 @@ public final class WreckGameTests {
                 }
             }
         });
-        BlockPos edge = new BlockPos(minX + 7, GROUND + 2, minZ + 5);
-        if (!level.getBlockState(edge).is(Blocks.WATER)) h.fail("the sea west of the hole is gone: " + level.getBlockState(edge));
-        if (!level.getFluidTicks().hasScheduledTick(edge, Fluids.WATER)) h.fail("the water at the hole's edge was left standing, not woken to flow");
+        BlockPos edge = new BlockPos(minX + 7, GROUND + 2, minZ + 5), behind = edge.west();
+        if (!level.getBlockState(edge).is(Blocks.STONE)) h.fail("the water at the hole's edge was not sealed off with the sea floor's stone: " + level.getBlockState(edge));
+        if (!level.getBlockState(behind).is(Blocks.WATER)) h.fail("the sea behind the seal is gone: " + level.getBlockState(behind));
+        if (level.getFluidTicks().hasScheduledTick(behind, Fluids.WATER)) h.fail("the sea behind the seal was woken to flow");
+        // the sea's surface, open to the sky over the hole's rim, is left open
+        if (!level.getBlockState(new BlockPos(minX + 3, GROUND + 5, minZ + 5)).is(Blocks.WATER)) h.fail("the sea's surface was sealed over");
         h.succeed();
     }
 

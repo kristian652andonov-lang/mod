@@ -215,6 +215,8 @@ public final class WreckChunk {
         boolean here = wet[si] || ly == 0 && si > 0 && wet[si - 1] || ly == 15 && si + 1 < wet.length && wet[si + 1];
         if (!here) return;
         for (Direction d : ALL) {
+            // water under the opened block only has air over it, as any lake does: it stays as it is
+            if (d == Direction.DOWN) continue;
             int nx = x + d.getStepX(), ny = y + d.getStepY(), nz = z + d.getStepZ();
             if (ny < minY || ny >= maxY || !contains(nx, nz)) continue;
             if (get(nx, ny, nz).getFluidState().is(FluidTags.WATER)) wake.add(BlockPos.asLong(nx, ny, nz));
@@ -283,6 +285,7 @@ public final class WreckChunk {
      */
     void finish() {
         if (changed == 0) return;
+        sealWater();
         heights = new long[heightmaps.length][];
         int bits = Mth.ceillog2(maxY - minY + 1);
         SimpleBitStorage[] store = new SimpleBitStorage[heightmaps.length];
@@ -372,7 +375,47 @@ public final class WreckChunk {
         wakeWater();
     }
 
-    /** Wakes the water beside what this rewrite opened up, in this chunk and the next, so it flows into the new space. */
+    /**
+     * Water left beside what this rewrite opened up is sealed off with the ground it lay on (in this chunk's copy, before
+     * it lands), so lakes and seas stay where they are instead of pouring over the edge into the void in streaks.
+     */
+    private void sealWater() {
+        if (wake.isEmpty()) return;
+        long[] at = wake.toLongArray();
+        for (long p : at) {
+            int x = BlockPos.getX(p), y = BlockPos.getY(p), z = BlockPos.getZ(p);
+            if (!get(x, y, z).getFluidState().is(FluidTags.WATER)) continue;
+            BlockState sealWith = seal(dy -> y - dy >= minY ? get(x, y - dy, z) : null);
+            // straight into the section: the seal opens nothing, and the shaper is done with this column
+            int si = (y - minY) >> 4;
+            sections[si].setBlockState(x & 15, y & 15, z & 15, sealWith);
+            touched[si] = true;
+            changed++;
+        }
+        wake.clear();
+    }
+
+    /**
+     * What seals off a block of water at the cut: the ground under it (the first solid block within a dozen below), as a
+     * block that will not fall - sand as sandstone, gravel as stone - or stone if there is none.
+     */
+    static BlockState seal(java.util.function.IntFunction<BlockState> below) {
+        for (int dy = 1; dy <= 12; dy++) {
+            BlockState s = below.apply(dy);
+            if (s == null) break;
+            if (s.isAir() || !s.getFluidState().isEmpty() || !terrain(s)) continue;
+            if (s.is(Blocks.RED_SAND)) return Blocks.RED_SANDSTONE.defaultBlockState();
+            if (s.is(BlockTags.SAND)) return Blocks.SANDSTONE.defaultBlockState();
+            if (s.getBlock() instanceof net.minecraft.world.level.block.FallingBlock) return Blocks.STONE.defaultBlockState();
+            return s;
+        }
+        return Blocks.STONE.defaultBlockState();
+    }
+
+    /**
+     * Water across the chunk's edge beside what this rewrite opened up there is sealed off too (on the main thread, in the
+     * next chunk as it is), and nothing is woken to flow.
+     */
     private void wakeWater() {
         LevelChunk beside = null;
         for (int i = 0; i < rim.size(); i++) {
@@ -390,8 +433,12 @@ public final class WreckChunk {
         while (it.hasNext()) {
             at.set(it.nextLong());
             if (level.getChunkSource().getChunkNow(at.getX() >> 4, at.getZ() >> 4) == null) continue;
-            FluidState f = level.getFluidState(at);
-            if (f.is(FluidTags.WATER)) level.scheduleTick(at.immutable(), f.getType(), f.getType().getTickDelay(level));
+            if (!level.getFluidState(at).is(FluidTags.WATER)) continue;
+            int x = at.getX(), y = at.getY(), z = at.getZ();
+            BlockPos.MutableBlockPos under = new BlockPos.MutableBlockPos();
+            BlockState sealWith = seal(dy -> y - dy >= minY ? level.getBlockState(under.set(x, y - dy, z)) : null);
+            // sent to players, but no neighbour is told: the water behind it stays still
+            level.setBlock(at, sealWith, net.minecraft.world.level.block.Block.UPDATE_CLIENTS | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
         }
     }
 }

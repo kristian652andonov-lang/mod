@@ -111,6 +111,15 @@ public final class VfxContext {
         return d <= max ? 1 : max / d;
     }
 
+    /**
+     * The squash that brings all of something reaching {@code extent} blocks round {@code at} - its far side too, not only
+     * its middle - within {@code max} blocks of the camera, so none of it fades into the fog or is cut by the far plane.
+     */
+    public double squashFor(Vec3 at, double extent, double max) {
+        double d = at.distanceTo(cam) + extent;
+        return d <= max ? 1 : max / d;
+    }
+
     /** How far the view reaches (the fog's end), for far-reaching effects. */
     public static double viewReach() {
         return Math.max(64, com.mojang.blaze3d.systems.RenderSystem.getShaderFogEnd());

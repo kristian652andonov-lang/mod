@@ -100,7 +100,7 @@ public class UltramassiveBlackholeVfx extends Vfx {
             float dark = 0.92f * clamp01(t / 30f) * (1 - burst);
             com.fantasyweapons.client.fx.SkyDarkness.request(dark);
         }
-        ctx.squash = ctx.squashFor(center, far * 0.85);
+        ctx.squash = ctx.squashFor(center, horizon, far * 0.85);
         float r = horizon * (0.05f + 0.95f * grow) * (1 - easeIn(crush) * 0.97f);
         float a = grow * (1 - crush);
         if (burst <= 0) {
