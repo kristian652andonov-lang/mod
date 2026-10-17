@@ -365,6 +365,9 @@ public final class LocalDialogueGenerator {
         add(DialogueTrigger.INTERACTION_START, c -> c.var("action", "").equals("HOLD_HANDS"), "Your hand is warm.", "Don't let go, okay?");
         add(DialogueTrigger.INTERACTION_START, c -> c.var("action", "").contains("CUDDLE"), "So comfy...", "Let's just stay like this for a while.");
         add(DialogueTrigger.INTERACTION_START, c -> c.var("action", "").equals("FOREHEAD_KISS"), "That's so sweet...");
+        add(DialogueTrigger.INTERACTION_START, c -> c.var("action", "").equals("PET_HAIR"), "Hehe... that feels nice~", "Keep doing that. Please?", "*closes her eyes happily*");
+        add(DialogueTrigger.INTERACTION_START, c -> c.var("action", "").equals("PET_CHEEK"), "*leans into your hand*", "Your hand is so warm...", "Mm... I like when you do that.");
+        add(DialogueTrigger.INTERACTION_START, c -> c.var("action", "").equals("LAP_SIT"), "Is this okay? Hehe, too late~", "Your lap is the comfiest seat in the world.");
         add(DialogueTrigger.INTERACTION_SHY,
                 "W-wait, I... okay. Hehe.",
                 "Oh! I... um... *blushes*",
@@ -381,6 +384,8 @@ public final class LocalDialogueGenerator {
         add(DialogueTrigger.INITIATIVE, c -> c.var("action", "").contains("CUDDLE"), "Cuddle time. No arguments.", "Scoot over~");
         add(DialogueTrigger.INITIATIVE, c -> c.var("action", "").equals("SIT_TOGETHER"), "Mind if I sit with you?", "Room for one more?");
         add(DialogueTrigger.INITIATIVE, c -> c.var("action", "").equals("LEAN_ON"), "I'm a little tired... let me lean on you.");
+        add(DialogueTrigger.INITIATIVE, c -> c.var("action", "").equals("LAP_SIT"), "*plops down on your lap* Mine now.", "Move over~ actually, don't. I'll just sit here.", "*curls up on your lap* Comfy.");
+        add(DialogueTrigger.INITIATIVE, c -> c.var("action", "").equals("PET_HAIR"), "*nudges her head under your hand* Pet me?", "Head pats. Now. Please~");
         add(DialogueTrigger.INTERACTION_REFUSED,
                 "Oh... okay. Maybe later.",
                 "Not now? That's fine.",

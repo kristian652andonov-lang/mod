@@ -15,5 +15,7 @@ public enum Positioning {
     /** She rides the player in their arms. */
     CARRIED,
     /** Both on a bed. */
-    BED
+    BED,
+    /** She sits on the seated player's lap (rides the player). */
+    LAP
 }

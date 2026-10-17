@@ -17,7 +17,6 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.Nullable;
 
@@ -100,7 +99,7 @@ public final class ServerPayloadHandler {
         if (!(ctx.player() instanceof ServerPlayer player)) return;
         GirlfriendEntity gf = owned(player, p.entityId(), 64);
         if (gf == null) return;
-        PacketDistributor.sendToPlayer(player, new StatusPayload(gf.getId(), StatusSnapshot.of(gf, player, true)));
+        com.aigirlfriend.network.Net.send(player, new StatusPayload(gf.getId(), StatusSnapshot.of(gf, player, true)));
     }
 
     public static void requestResponse(RequestResponsePayload p, IPayloadContext ctx) {
@@ -108,7 +107,7 @@ public final class ServerPayloadHandler {
         GirlfriendEntity gf = owned(player, p.entityId(), 64);
         if (gf == null) return;
         RequestSystem.respond(gf, player, p.accept());
-        PacketDistributor.sendToPlayer(player, new StatusPayload(gf.getId(), StatusSnapshot.of(gf, player, true)));
+        com.aigirlfriend.network.Net.send(player, new StatusPayload(gf.getId(), StatusSnapshot.of(gf, player, true)));
     }
 
     public static void sit(SitPayload p, IPayloadContext ctx) {

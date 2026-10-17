@@ -16,6 +16,7 @@ public final class GFConfig {
     public static final ModConfigSpec.BooleanValue RESTORE_IDENTITY;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> NAMES;
     public static final ModConfigSpec.IntValue OUTFIT_COUNT;
+    public static final ModConfigSpec.BooleanValue AUTO_SLEEPWEAR;
 
     // ---- personality ----
     public static final ModConfigSpec.DoubleValue TRAIT_AFFECTION;
@@ -137,8 +138,10 @@ public final class GFConfig {
                 .define("restoreIdentityOnRespawn", true);
         NAMES = b.comment("Random names used when a new companion is created. Players can rename her afterwards with a name tag.")
                 .defineListAllowEmpty("names", List.of("Aria", "Luna", "Mia", "Elena", "Sofia", "Hana", "Lily", "Nora", "Iris", "Clara", "Yuna", "Ivy"), () -> "Aria", o -> o instanceof String s && !s.isBlank() && s.length() <= 24);
-        OUTFIT_COUNT = b.comment("Number of outfit/appearance variants available (textures girlfriend.png, girlfriend_1.png, ...).")
-                .defineInRange("outfitVariants", 3, 1, 16);
+        OUTFIT_COUNT = b.comment("Number of outfits that can be picked (everyday, beach, sleep).")
+                .defineInRange("outfitVariants", 3, 1, 3);
+        AUTO_SLEEPWEAR = b.comment("She changes into her sleep outfit when she goes to bed and back into what she wore when she wakes up.")
+                .define("autoSleepwear", true);
         b.pop();
 
         b.comment("Base personality. Each new companion gets these values with some random variation.").push("personality");

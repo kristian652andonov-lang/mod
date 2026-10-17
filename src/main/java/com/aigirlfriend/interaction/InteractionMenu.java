@@ -11,7 +11,6 @@ import com.aigirlfriend.util.WorldClock;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +22,7 @@ public final class InteractionMenu {
     public static void open(GirlfriendEntity gf, ServerPlayer player) {
         List<ActionType> actions = validActions(gf, player);
         int[] ids = actions.stream().mapToInt(Enum::ordinal).toArray();
-        PacketDistributor.sendToPlayer(player, new OpenMenuPayload(gf.getId(), ids, StatusSnapshot.of(gf, player, true)));
+        com.aigirlfriend.network.Net.send(player, new OpenMenuPayload(gf.getId(), ids, StatusSnapshot.of(gf, player, true)));
         gf.getLookControl().setLookAt(player, 30f, 30f);
     }
 
@@ -62,6 +61,10 @@ public final class InteractionMenu {
         }
         if (cur == InteractionType.CARRY) list.add(ActionType.PUT_DOWN);
         else addIfValid(list, gf, player, ActionType.PICK_UP, InteractionType.CARRY);
+        addIfValid(list, gf, player, ActionType.PET_HAIR, InteractionType.PET_HAIR);
+        addIfValid(list, gf, player, ActionType.PET_CHEEK, InteractionType.PET_CHEEK);
+        if (cur == InteractionType.LAP_SIT) list.add(ActionType.GET_UP);
+        else addIfValid(list, gf, player, ActionType.LAP_SIT, InteractionType.LAP_SIT);
 
         ItemStack held = player.getMainHandItem();
         if (!held.isEmpty()) {
@@ -73,7 +76,7 @@ public final class InteractionMenu {
             list.add(ActionType.SLEEP_TOGETHER);
         }
         if (cur != InteractionType.CUDDLE_BED) addIfValid(list, gf, player, ActionType.CUDDLE_BED, InteractionType.CUDDLE_BED);
-        if (cur != null && cur != InteractionType.HOLD_HANDS && cur != InteractionType.CARRY && cur != InteractionType.LEAD_TO_BED) list.add(ActionType.STOP);
+        if (cur != null && cur != InteractionType.HOLD_HANDS && cur != InteractionType.CARRY && cur != InteractionType.LEAD_TO_BED && cur != InteractionType.LAP_SIT) list.add(ActionType.STOP);
         return list;
     }
 
@@ -115,7 +118,10 @@ public final class InteractionMenu {
             case CUDDLE_SITTING -> im.start(InteractionType.CUDDLE_SITTING, player, false);
             case PICK_UP -> im.start(InteractionType.CARRY, player, false);
             case CUDDLE_BED -> im.start(InteractionType.CUDDLE_BED, player, false);
-            case LET_GO, PUT_DOWN, STOP -> im.stop(InteractionManager.StopReason.CANCELLED_PLAYER);
+            case PET_HAIR -> im.start(InteractionType.PET_HAIR, player, false);
+            case PET_CHEEK -> im.start(InteractionType.PET_CHEEK, player, false);
+            case LAP_SIT -> im.start(InteractionType.LAP_SIT, player, false);
+            case LET_GO, PUT_DOWN, STOP, GET_UP -> im.stop(InteractionManager.StopReason.CANCELLED_PLAYER);
             case GIVE_GIFT, FEED -> {
                 ItemStack held = player.getItemInHand(InteractionHand.MAIN_HAND);
                 if (FoodHelper.isDrink(held)) gf.controller().onDrink(player, held);

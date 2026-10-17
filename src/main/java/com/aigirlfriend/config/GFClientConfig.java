@@ -21,6 +21,13 @@ public final class GFClientConfig {
     public static final ModConfigSpec.DoubleValue VOICE_VOLUME;
     public static final ModConfigSpec.DoubleValue VOICE_PITCH;
     public static final ModConfigSpec.BooleanValue SOUNDS;
+    public static final ModConfigSpec.DoubleValue CARRY_FORWARD;
+    public static final ModConfigSpec.DoubleValue CARRY_HEIGHT;
+    public static final ModConfigSpec.DoubleValue CARRY_YAW;
+    public static final ModConfigSpec.DoubleValue LAP_FORWARD;
+    public static final ModConfigSpec.DoubleValue LAP_HEIGHT;
+    public static final ModConfigSpec.DoubleValue LAP_YAW;
+    public static final ModConfigSpec.DoubleValue SEAT_HEIGHT;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -46,6 +53,16 @@ public final class GFClientConfig {
         VOICE_VOLUME = b.defineInRange("voiceVolume", 0.5, 0.0, 1.0);
         VOICE_PITCH = b.defineInRange("voicePitch", 1.35, 0.5, 2.0);
         SOUNDS = b.comment("Interaction sound effects (kiss, hug, gifts).").define("interactionSounds", true);
+        b.pop();
+
+        b.comment("Fine-tune where her model sits relative to you, to match your own model/animations (visual only).").push("poseTuning");
+        CARRY_FORWARD = b.comment("Carried: blocks in front of you.").defineInRange("carryForward", 0.42, -1.0, 2.0);
+        CARRY_HEIGHT = b.comment("Carried: height of her feet above yours.").defineInRange("carryHeight", 0.62, -1.0, 2.5);
+        CARRY_YAW = b.comment("Carried: her facing relative to yours, in degrees (90 = across your arms).").defineInRange("carryYaw", 90.0, -180.0, 180.0);
+        LAP_FORWARD = b.comment("Lap sitting: blocks in front of you.").defineInRange("lapForward", 0.22, -1.0, 2.0);
+        LAP_HEIGHT = b.comment("Lap sitting: height of her feet above yours (you are seated).").defineInRange("lapHeight", 0.05, -1.0, 2.0);
+        LAP_YAW = b.comment("Lap sitting: her facing relative to yours (0 = same way, 90 = sideways).").defineInRange("lapYaw", 90.0, -180.0, 180.0);
+        SEAT_HEIGHT = b.comment("Seats: how far her feet hang below the seat surface (her hip height).").defineInRange("seatHeight", 0.70, 0.0, 1.5);
         b.pop();
         SPEC = b.build();
     }

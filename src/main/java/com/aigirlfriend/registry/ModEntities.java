@@ -14,8 +14,8 @@ public final class ModEntities {
 
     public static final DeferredHolder<EntityType<?>, EntityType<GirlfriendEntity>> GIRLFRIEND = ENTITIES.register("girlfriend",
             () -> EntityType.Builder.of(GirlfriendEntity::new, MobCategory.CREATURE)
-                    .sized(0.6f, 1.75f)
-                    .eyeHeight(1.58f)
+                    .sized(0.6f, 1.8f)
+                    .eyeHeight(1.6f)
                     .clientTrackingRange(10)
                     .updateInterval(2)
                     .build(AIGirlfriend.MOD_ID + ":girlfriend"));

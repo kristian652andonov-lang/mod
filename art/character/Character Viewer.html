@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Girlfriend — character assets</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  },
+  "integrity": {
+    "https://unpkg.com/three@0.184.0/build/three.module.js": "sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J",
+    "https://unpkg.com/three@0.184.0/build/three.core.js": "sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT",
+    "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js": "sha384-4rziNxOBZKQ69i+w+f89KJ55TCYquwchVbByQwmaOeIOXdOU2PLDn3kOfXHwIJC9",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js": "sha384-nbwtoZENJD3Vq+ACK0CuGQdPMuDWHkamC2KJD70EV5nfg6jQjfppKOea07YJN+N3",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js": "sha384-VofkvpG6HERhFCYbsUOHeNXBCqID2nfqkQqnVzE1jc/oPcz+qJ13ADdXH08hE+cQ"
+  }
+}
+</script>
+<link rel="stylesheet" href="viewer/styles.css">
+<style>
+  html, body { height: 100%; }
+  body { display: grid; grid-template-columns: minmax(270px, 330px) minmax(0, 1fr); height: 100vh; overflow: hidden; }
+  a { color: var(--color-accent-300); }
+  a:hover { color: var(--color-accent-200); }
+  aside { overflow-y: auto; padding: var(--space-8) var(--space-6); display: flex; flex-direction: column; gap: var(--space-8); }
+  three-d-stage { height: 100vh; --stage-bg: radial-gradient(120% 90% at 60% 35%, var(--color-surface), var(--color-bg)); }
+  three-d-stage:not(:defined) { visibility: hidden; }
+  .group { display: flex; flex-direction: column; gap: var(--space-3); }
+  .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+  .muted { font-size: 13px; color: color-mix(in srgb, var(--color-text) 62%, transparent); margin: 0; text-wrap: pretty; }
+  .seg { width: 100%; }
+  .seg-opt { flex: 1; justify-content: center; }
+  .anims { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+  .anims .btn { font-size: 13px; padding: var(--space-2) var(--space-1); }
+  .anims .btn[aria-pressed="true"] { color: var(--color-accent); border-color: var(--color-accent); }
+  .row { display: flex; align-items: center; gap: var(--space-3); }
+  .textures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .textures figure { display: flex; flex-direction: column; gap: var(--space-1); }
+  .textures img { width: 100%; aspect-ratio: 1; image-rendering: pixelated; border-radius: var(--radius-sm); background: repeating-conic-gradient(var(--color-neutral-800) 0 25%, var(--color-neutral-900) 0 50%) 0 0 / 12px 12px; }
+  .files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: 13px; }
+  .files li { display: flex; justify-content: space-between; gap: var(--space-3); }
+  .files code { font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent); overflow-wrap: anywhere; }
+  .status { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 13px; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+  @media (max-width: 760px) {
+    body { grid-template-columns: 1fr; grid-template-rows: 62vh auto; height: auto; overflow: auto; }
+    three-d-stage { height: 62vh; order: -1; }
+    aside { overflow: visible; }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <header class="group">
+    <span class="label">GeckoLib · NeoForge 1.21.1 · 64×64</span>
+    <h3 style="margin:0">Her character assets</h3>
+    <p class="muted">One skeleton, three outfit layers. Switching outfits swaps the layer only; her pose and animation keep running.</p>
+  </header>
+
+  <section class="group">
+    <span class="label">Outfit</span>
+    <div class="seg" role="radiogroup" id="outfits"></div>
+    <p class="muted" id="outfit-note"></p>
+  </section>
+
+  <section class="group">
+    <div class="row" style="justify-content:space-between">
+      <span class="label">Animation</span>
+      <button class="btn btn-ghost" id="play" type="button" aria-label="Pause">
+        <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" id="play-icon"><path d="M200,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm0,176H160V48h40ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Zm0,176H56V48H96Z"/></svg>
+        <span id="play-label">Pause</span>
+      </button>
+    </div>
+    <div class="anims" id="anims"></div>
+  </section>
+
+  <section class="group">
+    <span class="label">Body under clothing</span>
+    <div class="seg" role="radiogroup">
+      <label class="seg-opt"><input type="radio" name="hide" value="1" checked>Hidden</label>
+      <label class="seg-opt"><input type="radio" name="hide" value="0">Shown</label>
+    </div>
+    <p class="muted">Parts fully covered by opaque fabric are skipped at render time so nothing can poke through.</p>
+  </section>
+
+  <section class="group">
+    <span class="label">Export from this view</span>
+    <div class="seg" role="radiogroup">
+      <label class="seg-opt"><input type="radio" name="export" value="all" checked>Body + outfit</label>
+      <label class="seg-opt"><input type="radio" name="export" value="outfit">Outfit only</label>
+    </div>
+    <p class="muted">GLB keeps the bone hierarchy and the pixel textures; exports use the rest pose.</p>
+  </section>
+
+  <section class="group">
+    <span class="label">Textures</span>
+    <div class="textures">
+      <figure><img id="tex-body" alt="Body texture"><figcaption>skin.png</figcaption></figure>
+      <figure><img id="tex-outfit" alt="Outfit texture"><figcaption id="tex-outfit-cap"></figcaption></figure>
+    </div>
+  </section>
+
+  <section class="group">
+    <span class="label">Game files</span>
+    <ul class="files" id="files"></ul>
+  </section>
+
+  <section class="group">
+    <span class="label">Mod code</span>
+    <ul class="files" id="code"></ul>
+  </section>
+</aside>
+
+<three-d-stage name="girlfriend_everyday"></three-d-stage>
+<div class="status" id="status">Loading model…</div>
+
+<script src="viewer/three-d-stage.js"></script>
+<script type="module">
+  import * as THREE from 'three';
+  import { loadJSON, loadTexture, buildGeo, AnimSet, procedural, applyPose, syncBones } from './viewer/bedrock.js';
+
+  const $ = (s) => document.querySelector(s);
+  const stage = $('three-d-stage');
+  await stage.ready;
+  const M = await loadJSON('viewer/manifest.json');
+  const [baseGeo, baseTex, animJson] = await Promise.all([loadJSON(M.base.geo), loadTexture(M.base.texture), loadJSON(M.animations)]);
+  const body = buildGeo(baseGeo, baseTex, 'girlfriend_body');
+  body.material.userData.mapFile = 'skin.png';
+  const outfits = {};
+  await Promise.all(M.outfits.map(async (o) => {
+    const [g, t] = await Promise.all([loadJSON(o.geo), loadTexture(o.texture)]);
+    const model = buildGeo(g, t, 'outfit_' + o.id);
+    model.material.userData.mapFile = o.id + '.png';
+    outfits[o.id] = { meta: o, model };
+  }));
+  const anims = new AnimSet(animJson);
+
+  const view = new THREE.Group();
+  view.name = 'girlfriend';
+  view.rotation.y = Math.PI; // glTF convention: face +Z
+  view.add(body.root);
+
+  const state = { outfit: 'everyday', anim: 'idle', hide: true, playing: true, t: 0, last: performance.now(), exporting: false, exportMode: 'all' };
+
+  function applyHide() {
+    for (const g of body.bones.values()) g.visible = true;
+    if (state.hide) for (const n of outfits[state.outfit].meta.hide) body.bones.get(n).visible = false;
+  }
+  function setOutfit(id) {
+    view.remove(outfits[state.outfit].model.root);
+    state.outfit = id;
+    view.add(outfits[id].model.root);
+    applyHide();
+    updateExport();
+    renderUI();
+  }
+  function updateExport() {
+    const o = outfits[state.outfit];
+    stage.exportTarget = state.exportMode === 'outfit' ? o.model.root : null;
+    stage.setAttribute('name', state.exportMode === 'outfit' ? `girlfriend_${o.meta.id}_outfit` : `girlfriend_${o.meta.id}`);
+  }
+  function pose(t) {
+    const a = anims.list[state.anim];
+    const p = state.exporting ? new Map() : anims.sample(a, anims.time(a, t));
+    procedural(p, outfits[state.outfit].meta);
+    applyPose(body, p);
+    syncBones(body, outfits[state.outfit].model);
+  }
+
+  view.add(outfits[state.outfit].model.root);
+  applyHide();
+  state.exporting = true; pose(0); state.exporting = false;
+  stage.setObject(view);
+  // Minecraft doesn't self-shadow entities: keep the ground shadow, drop shadows cast onto her own body.
+  const noSelfShadow = (root) => root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+  noSelfShadow(body.root);
+  Object.values(outfits).forEach((o) => noSelfShadow(o.model.root));
+  $('#status').remove();
+
+  stage.addEventListener('beforeexport', () => { state.exporting = true; pose(0); view.updateMatrixWorld(true); });
+  stage.addEventListener('afterexport', () => { state.exporting = false; });
+
+  function tick(now) {
+    if (state.playing) state.t += (now - state.last) / 1000;
+    state.last = now;
+    if (!state.exporting) pose(state.t);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ---- UI ----
+  $('#outfits').innerHTML = M.outfits.map((o) => `<label class="seg-opt"><input type="radio" name="outfit" value="${o.id}" ${o.id === state.outfit ? 'checked' : ''}>${o.label}</label>`).join('');
+  $('#outfits').addEventListener('change', (e) => setOutfit(e.target.value));
+  $('#anims').innerHTML = M.animationList.map((a) => `<button class="btn btn-secondary" type="button" data-anim="${a.id}">${a.label}</button>`).join('');
+  $('#anims').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-anim]');
+    if (!b) return;
+    state.anim = b.dataset.anim; state.t = 0;
+    renderUI();
+  });
+  document.querySelectorAll('input[name="hide"]').forEach((i) => i.addEventListener('change', () => { state.hide = i.value === '1'; applyHide(); }));
+  document.querySelectorAll('input[name="export"]').forEach((i) => i.addEventListener('change', () => { state.exportMode = i.value; updateExport(); }));
+  const PAUSE = 'M200,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm0,176H160V48h40ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Zm0,176H56V48H96Z';
+  const PLAY = 'M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z';
+  $('#play').addEventListener('click', () => {
+    state.playing = !state.playing;
+    $('#play-icon').innerHTML = `<path d="${state.playing ? PAUSE : PLAY}"/>`;
+    $('#play-label').textContent = state.playing ? 'Pause' : 'Play';
+    $('#play').setAttribute('aria-label', state.playing ? 'Pause' : 'Play');
+  });
+
+  const fileRow = (path) => `<li><a href="${path}" download>${path.split('/').pop()}</a><code>${path.split('/').slice(-3, -1).join('/')}</code></li>`;
+  function renderUI() {
+    const o = outfits[state.outfit].meta;
+    $('#outfit-note').textContent = o.note;
+    document.querySelectorAll('#anims [data-anim]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.anim === state.anim)));
+    $('#tex-body').src = M.base.texture;
+    $('#tex-outfit').src = o.texture;
+    $('#tex-outfit-cap').textContent = o.id + '.png';
+    $('#files').innerHTML = [M.base.geo, M.base.texture, M.animations, o.geo, o.texture].map(fileRow).join('');
+  }
+  renderUI();
+  const J = 'mod/src/main/java/com/example/companion/';
+  $('#code').innerHTML = ['mod/README.md', J + 'outfit/Outfit.java', J + 'outfit/Wardrobe.java', J + 'entity/GirlfriendEntity.java', J + 'client/GirlfriendModel.java', J + 'client/GirlfriendRenderer.java', J + 'client/OutfitLayer.java', J + 'network/SetOutfitPayload.java'].map(fileRow).join('');
+  window.__viewer = { state, setOutfit, body, outfits, stage, pose, applyHide, renderUI };
+</script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+{
+ "base": {
+  "geo": "mod/src/main/resources/assets/companion/geo/entity/girlfriend.geo.json",
+  "texture": "mod/src/main/resources/assets/companion/textures/entity/girlfriend/skin.png"
+ },
+ "animations": "mod/src/main/resources/assets/companion/animations/entity/girlfriend.animation.json",
+ "animationList": [
+  {
+   "id": "idle",
+   "key": "animation.girlfriend.idle",
+   "loop": true,
+   "length": 4,
+   "label": "Idle"
+  },
+  {
+   "id": "walk",
+   "key": "animation.girlfriend.walk",
+   "loop": true,
+   "length": 1,
+   "label": "Walk"
+  },
+  {
+   "id": "run",
+   "key": "animation.girlfriend.run",
+   "loop": true,
+   "length": 0.6,
+   "label": "Run"
+  },
+  {
+   "id": "swim",
+   "key": "animation.girlfriend.swim",
+   "loop": true,
+   "length": 1.6,
+   "label": "Swim"
+  },
+  {
+   "id": "sit",
+   "key": "animation.girlfriend.sit",
+   "loop": true,
+   "length": 3,
+   "label": "Sit"
+  },
+  {
+   "id": "hug",
+   "key": "animation.girlfriend.hug",
+   "loop": true,
+   "length": 3,
+   "label": "Hug"
+  },
+  {
+   "id": "carried",
+   "key": "animation.girlfriend.carried",
+   "loop": true,
+   "length": 3,
+   "label": "Carried"
+  },
+  {
+   "id": "lie_down",
+   "key": "animation.girlfriend.lie_down",
+   "loop": "hold_on_last_frame",
+   "length": 1.6,
+   "label": "Lie down"
+  },
+  {
+   "id": "sleep",
+   "key": "animation.girlfriend.sleep",
+   "loop": true,
+   "length": 4,
+   "label": "Sleep"
+  },
+  {
+   "id": "cuddle",
+   "key": "animation.girlfriend.cuddle",
+   "loop": true,
+   "length": 4,
+   "label": "Cuddle"
+  },
+  {
+   "id": "stretch",
+   "key": "animation.girlfriend.stretch",
+   "loop": false,
+   "length": 2.4,
+   "label": "Stretch"
+  },
+  {
+   "id": "wake_up",
+   "key": "animation.girlfriend.wake_up",
+   "loop": false,
+   "length": 2.6,
+   "label": "Wake up"
+  },
+  {
+   "id": "lap",
+   "key": "animation.girlfriend.lap",
+   "loop": true,
+   "length": 4,
+   "label": "Lap sit"
+  },
+  {
+   "id": "pet_head",
+   "key": "animation.girlfriend.pet_head",
+   "loop": true,
+   "length": 2.4,
+   "label": "Head pat"
+  },
+  {
+   "id": "pet_cheek",
+   "key": "animation.girlfriend.pet_cheek",
+   "loop": true,
+   "length": 3,
+   "label": "Cheek pet"
+  }
+ ],
+ "outfits": [
+  {
+   "id": "everyday",
+   "label": "Everyday",
+   "note": "Her pink hoodie from the original skin, hood up, bare legs; her panties underneath",
+   "geo": "mod/src/main/resources/assets/companion/geo/entity/girlfriend_everyday.geo.json",
+   "texture": "mod/src/main/resources/assets/companion/textures/entity/girlfriend/everyday.png",
+   "hide": [
+    "hair",
+    "hair_front",
+    "hair_back",
+    "chest_skin",
+    "bust",
+    "right_upper_arm",
+    "right_lower_arm",
+    "left_upper_arm",
+    "left_lower_arm"
+   ],
+   "hairPush": 0
+  },
+  {
+   "id": "beach",
+   "label": "Beach",
+   "note": "Gingham triangle top, tie-side bottoms",
+   "geo": "mod/src/main/resources/assets/companion/geo/entity/girlfriend_beach.geo.json",
+   "texture": "mod/src/main/resources/assets/companion/textures/entity/girlfriend/beach.png",
+   "hide": [],
+   "hairPush": 0
+  },
+  {
+   "id": "sleep",
+   "label": "Sleep",
+   "note": "Her underwear set: bra and panties",
+   "geo": "mod/src/main/resources/assets/companion/geo/entity/girlfriend_sleep.geo.json",
+   "texture": "mod/src/main/resources/assets/companion/textures/entity/girlfriend/sleep.png",
+   "hide": [],
+   "hairPush": 0
+  }
+ ]
+}

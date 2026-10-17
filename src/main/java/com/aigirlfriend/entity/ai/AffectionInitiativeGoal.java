@@ -101,8 +101,10 @@ public class AffectionInitiativeGoal extends Goal {
             if (cur == InteractionType.SIT_TOGETHER) {
                 add(pool, weights, InteractionType.HEAD_ON_SHOULDER, 3f);
                 add(pool, weights, InteractionType.CUDDLE_SITTING, 2.5f + d.personality.affection);
+                add(pool, weights, InteractionType.LAP_SIT, 1.5f + d.personality.playfulness + (d.mood.primary == Mood.NEEDY ? 1.5f : 0f));
             } else if (cur == null) {
                 add(pool, weights, InteractionType.SIT_TOGETHER, 3f);
+                add(pool, weights, InteractionType.LAP_SIT, 1.2f + d.personality.playfulness);
             }
         } else if (ownerStill && sp.onGround()) {
             if (cur == InteractionType.HOLD_HANDS) return null;
@@ -112,6 +114,7 @@ public class AffectionInitiativeGoal extends Goal {
             add(pool, weights, InteractionType.KISS, 1.5f + d.personality.affection * 1.5f);
             add(pool, weights, InteractionType.CUDDLE, 1.5f + (d.mood.primary == Mood.NEEDY || d.mood.primary == Mood.AFFECTIONATE ? 2f : 0f));
             add(pool, weights, InteractionType.LEAN_ON, d.needs.isTired() ? 3f : 1f);
+            add(pool, weights, InteractionType.PET_HAIR, 0.8f + d.personality.shyness);
         } else if (cur == null && sp.getDeltaMovement().horizontalDistanceSqr() < 0.06 && !sp.isSprinting()) {
             add(pool, weights, InteractionType.HOLD_HANDS, 4f);
         }
@@ -158,9 +161,9 @@ public class AffectionInitiativeGoal extends Goal {
         timer++;
         if (owner == null || chosen == null) return;
         gf.getLookControl().setLookAt(owner, 30f, 30f);
-        double need = chosen.isSeated() || chosen == InteractionType.HOLD_HANDS ? 2.5 : 1.6;
+        double need = chosen.isSeated() || chosen == InteractionType.HOLD_HANDS || chosen == InteractionType.LAP_SIT ? 2.5 : 1.6;
         if (chosen == InteractionType.SIT_TOGETHER) need = 2.0;
-        if (gf.distanceTo(owner) > need && !gf.isSeated()) {
+        if (gf.distanceTo(owner) > need && !(gf.isSeated() && chosen.isSeated())) {
             if (--repath <= 0) {
                 repath = 8;
                 gf.getNavigation().moveTo(owner, 1.05);

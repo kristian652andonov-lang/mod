@@ -154,6 +154,12 @@ public final class InteractionManager {
             case FREE -> {
                 if (player.isPassenger() || gf.isCarried()) return reason("player_busy");
             }
+            case LAP -> {
+                boolean seated = SeatManager.isSeated(player);
+                if (player.isPassenger() && !seated) return reason("player_busy");
+                if (player.isVehicle() && gf.getVehicle() != player) return reason("player_busy");
+                if (player.isFallFlying() || player.isSleeping() || (!seated && !player.onGround())) return reason("player_busy");
+            }
         }
         return null;
     }
@@ -273,6 +279,19 @@ public final class InteractionManager {
                 }
             }
             case FREE -> {}
+            case LAP -> {
+                if (!SeatManager.isSeated(player) && SeatManager.sitHere(player) == null) {
+                    player.displayClientMessage(reason("no_space"), true);
+                    return false;
+                }
+                // sync the type first so both sides use the lap attachment point while mounting
+                gf.setSyncedInteraction(type, player.getId(), self);
+                if (!gf.startRiding(player, true)) {
+                    gf.setSyncedInteraction(null, -1, false);
+                    return false;
+                }
+                player.connection.send(new ClientboundSetPassengersPacket(player));
+            }
         }
         current = type;
         partnerId = player.getUUID();
@@ -347,7 +366,7 @@ public final class InteractionManager {
         b.setPos(b.position().subtract(dir.scale(move)));
     }
 
-    /** Both lie down on a bed side by side (cuddling, without sleeping). */
+    /** Both lie down on a bed side by side (cuddling, without sleeping): she lies beside, the player on a lying seat. */
     private boolean lieOnBed(ServerPlayer player) {
         BlockPos head = findBedNear(player, 3);
         if (head == null) return false;
@@ -357,23 +376,16 @@ public final class InteractionManager {
         BlockPos foot = head.relative(facing.getOpposite());
         Vec3 mid = new Vec3((head.getX() + foot.getX()) / 2.0 + 0.5, head.getY() + 0.5625, (head.getZ() + foot.getZ()) / 2.0 + 0.5);
         Direction side = facing.getClockWise();
-        Vec3 playerPos = mid.add(side.getStepX() * 0.22, 0, side.getStepZ() * 0.22);
-        Vec3 herPos = mid.add(-side.getStepX() * 0.22, 0, -side.getStepZ() * 0.22);
+        Vec3 playerPos = mid.add(side.getStepX() * 0.24, 0, side.getStepZ() * 0.24);
         if (player.isPassenger()) player.stopRiding();
         SeatEntity ps = SeatEntity.create(gf.level(), head, playerPos, yaw);
-        SeatEntity gs = SeatEntity.create(gf.level(), head, herPos, yaw);
         if (!gf.level().addFreshEntity(ps)) return false;
-        if (!gf.level().addFreshEntity(gs)) {
+        if (!player.startRiding(ps, true)) {
             ps.discard();
             return false;
         }
-        if (!player.startRiding(ps, true) || !gf.startRiding(gs, true)) {
-            player.stopRiding();
-            gf.stopRiding();
-            ps.discard();
-            gs.discard();
-            return false;
-        }
+        if (gf.isPassenger()) gf.stopRiding();
+        gf.startSleepingBeside(head, SleepHelper.besidePosition(gf.level(), head, false));
         bed = head;
         return true;
     }
@@ -466,7 +478,7 @@ public final class InteractionManager {
                 }
             }
             case BED -> {
-                if (type == InteractionType.CUDDLE_BED && (!SeatManager.isSeated(p) || !gf.isPassenger())) {
+                if (type == InteractionType.CUDDLE_BED && (!SeatManager.isSeated(p) || !gf.isSleeping())) {
                     stop(StopReason.CANCELLED_PLAYER);
                     return;
                 }
@@ -476,6 +488,12 @@ public final class InteractionManager {
                 }
             }
             case FREE -> {}
+            case LAP -> {
+                if (gf.getVehicle() != p || !SeatManager.isSeated(p) || p.isSleeping()) {
+                    stop(StopReason.CANCELLED_PLAYER);
+                    return;
+                }
+            }
         }
         if (ticks % 20 == 0) gf.controller().onInteractionSecond(type, ticks / 20);
         if ((type.isRomantic() || type == InteractionType.HUG) && ticks % 50 == 25 && type.positioning != Positioning.FREE) gf.controller().heartParticles(1);
@@ -494,7 +512,7 @@ public final class InteractionManager {
         current = null;
 
         switch (type.positioning) {
-            case CARRIED -> putDown(p);
+            case CARRIED, LAP -> putDown(p);
             case SEATED -> {
                 boolean stillSeated = p != null && SeatManager.isSeated(p) && gf.isSeated();
                 if (type != InteractionType.SIT_TOGETHER && stillSeated && reason != StopReason.REPLACED && reason != StopReason.DANGER
@@ -512,13 +530,7 @@ public final class InteractionManager {
             }
             case BED -> {
                 if (type == InteractionType.CUDDLE_BED) {
-                    if (gf.getVehicle() instanceof SeatEntity) {
-                        gf.stopRiding();
-                        if (bed != null) {
-                            Vec3 v = SleepHelper.findStandUpPosition(gf, bed);
-                            gf.moveTo(v.x, v.y, v.z, gf.getYRot(), 0f);
-                        }
-                    }
+                    if (gf.isSleeping()) gf.stopSleeping();
                     if (p != null && p.getVehicle() instanceof SeatEntity seat && bed != null && seat.getSeatBlock().equals(bed)) p.stopRiding();
                 } else if (type == InteractionType.SLEEP_TOGETHER && reason != StopReason.SLEEP && gf.isSleeping()) {
                     gf.stopSleeping();
@@ -555,6 +567,7 @@ public final class InteractionManager {
             else if (wasSelf && reason == StopReason.CANCELLED_PLAYER && lasted < 40) gf.controller().onInteractionDeclined(type);
         }
         if (type == InteractionType.CARRY && reason != StopReason.REPLACED) gf.controller().say(DialogueTrigger.PUT_DOWN);
+        if (type == InteractionType.LAP_SIT && reason != StopReason.REPLACED) gf.controller().say(DialogueTrigger.STAND_UP);
     }
 
     private void putDown(@Nullable ServerPlayer p) {
@@ -562,8 +575,16 @@ public final class InteractionManager {
         if (p == null) return;
         p.connection.send(new ClientboundSetPassengersPacket(p));
         float yaw = p.getYRot() * Mth.DEG_TO_RAD;
-        Vec3 front = p.position().add(-Mth.sin(yaw) * 0.9, 0, Mth.cos(yaw) * 0.9);
-        Vec3 target = isStandable(front) ? front : p.position();
+        Vec3 base = p.getVehicle() instanceof SeatEntity seat ? Vec3.atBottomCenterOf(seat.getSeatBlock().above()) : p.position();
+        Vec3 target = base;
+        for (double angle : new double[]{0, 90, -90, 180}) {
+            double a = yaw + Math.toRadians(angle);
+            Vec3 c = new Vec3(base.x - Math.sin(a) * 0.9, base.y, base.z + Math.cos(a) * 0.9);
+            if (isStandable(c)) {
+                target = c;
+                break;
+            }
+        }
         gf.moveTo(target.x, target.y, target.z, p.getYRot() + 180f, 0f);
         gf.setDeltaMovement(Vec3.ZERO);
         gf.fallDistance = 0;
@@ -575,8 +596,8 @@ public final class InteractionManager {
         if (current == null) return null;
         if (shy) return Expression.EMBARRASSED;
         return switch (current) {
-            case KISS, KISS_CHEEK, FOREHEAD_KISS, CUDDLE, BACK_HUG, HEAD_ON_SHOULDER, CUDDLE_SITTING, CUDDLE_BED -> Expression.AFFECTION;
-            case HUG, CARRY, HOLD_HANDS, LEAD_TO_BED, SIT_TOGETHER, LEAN_ON -> Expression.HAPPY;
+            case KISS, KISS_CHEEK, FOREHEAD_KISS, CUDDLE, BACK_HUG, HEAD_ON_SHOULDER, CUDDLE_SITTING, CUDDLE_BED, PET_CHEEK, LAP_SIT -> Expression.AFFECTION;
+            case HUG, CARRY, HOLD_HANDS, LEAD_TO_BED, SIT_TOGETHER, LEAN_ON, PET_HAIR -> Expression.HAPPY;
             case SLEEP_TOGETHER -> Expression.SLEEPY;
         };
     }

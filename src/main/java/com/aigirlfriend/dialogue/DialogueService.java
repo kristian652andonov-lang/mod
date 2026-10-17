@@ -22,7 +22,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -240,7 +239,7 @@ public final class DialogueService {
     }
 
     private static void sendTyping(GirlfriendEntity gf) {
-        PacketDistributor.sendToPlayersNear((ServerLevel) gf.level(), null, gf.getX(), gf.getY(), gf.getZ(), GFConfig.SPEECH_RADIUS.get(),
+        com.aigirlfriend.network.Net.sendNear((ServerLevel) gf.level(), gf.getX(), gf.getY(), gf.getZ(), GFConfig.SPEECH_RADIUS.get(),
                 new SpeechPayload(gf.getId(), "...", Emotion.NONE.ordinal(), true, 200));
     }
 
@@ -252,7 +251,7 @@ public final class DialogueService {
         if (emotion != Emotion.NONE) gf.controller().feel(emotion, 0.5f, 200);
         int duration = Math.min(240, 60 + text.length() * 2);
         double radius = GFConfig.SPEECH_RADIUS.get();
-        PacketDistributor.sendToPlayersNear(level, null, gf.getX(), gf.getY(), gf.getZ(), radius,
+        com.aigirlfriend.network.Net.sendNear(level, gf.getX(), gf.getY(), gf.getZ(), radius,
                 new SpeechPayload(gf.getId(), text, emotion.ordinal(), false, duration));
         if (!gf.isPlayingGesture() && !gf.interactions().isActive() && gf.getRandom().nextInt(3) == 0) gf.playGesture(Gesture.TALK);
         if (GFConfig.SPEECH_IN_CHAT.get()) {

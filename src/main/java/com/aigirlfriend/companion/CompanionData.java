@@ -54,7 +54,7 @@ public final class CompanionData {
         name = chosenName;
         personality = Personality.generate(random);
         preferences = Preferences.generate(random, personality);
-        outfit = random.nextInt(Math.max(1, outfitCount));
+        outfit = 0;
         createdDay = day;
         mood.wellbeing = 15f + random.nextFloat() * 20f;
     }

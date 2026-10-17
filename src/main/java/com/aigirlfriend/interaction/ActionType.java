@@ -7,7 +7,8 @@ public enum ActionType {
     // outer ring: interactions
     HUG(false), CUDDLE(false), KISS(false), KISS_CHEEK(false), FOREHEAD_KISS(false), BACK_HUG(false),
     HOLD_HANDS(false), LET_GO(false), LEAN(false), SIT_TOGETHER(false), HEAD_ON_SHOULDER(false), CUDDLE_SITTING(false),
-    PICK_UP(false), PUT_DOWN(false), GIVE_GIFT(false), FEED(false), SLEEP_TOGETHER(false), CUDDLE_BED(false), STOP(false);
+    PICK_UP(false), PUT_DOWN(false), GIVE_GIFT(false), FEED(false), SLEEP_TOGETHER(false), CUDDLE_BED(false), STOP(false),
+    PET_HAIR(false), PET_CHEEK(false), LAP_SIT(false), GET_UP(false);
 
     public final boolean command;
 

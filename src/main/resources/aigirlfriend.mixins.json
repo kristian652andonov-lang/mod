@@ -4,7 +4,9 @@
   "package": "com.aigirlfriend.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
-  "client": [],
+  "client": [
+    "client.HumanoidModelMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

@@ -40,7 +40,13 @@ public enum InteractionType {
     CUDDLE_BED(RelationshipStage.ROMANTIC, -1, 200, Positioning.BED, 0f, false, 4f,
             "interaction.cuddle_bed", "cuddle_bed", 5f, 1.5f, 20f, LogKey.CUDDLES, Emotion.LOVE),
     SLEEP_TOGETHER(RelationshipStage.ROMANTIC, -1, 0, Positioning.BED, 0f, false, 6f,
-            "interaction.sleep_together", null, 6f, 3f, 20f, LogKey.SLEPT_TOGETHER, Emotion.LOVE);
+            "interaction.sleep_together", null, 6f, 3f, 20f, LogKey.SLEPT_TOGETHER, Emotion.LOVE),
+    PET_HAIR(RelationshipStage.FRIENDSHIP, 90, 160, Positioning.FACE, 0.55f, true, 2.5f,
+            "interaction.pet_hair", "pet_hair", 3f, 1.2f, 12f, LogKey.HUGS, Emotion.JOY),
+    PET_CHEEK(RelationshipStage.GROWING_AFFECTION, 80, 200, Positioning.FACE, 0.48f, true, 2.5f,
+            "interaction.pet_cheek", "pet_cheek", 4f, 1.2f, 14f, LogKey.CUDDLES, Emotion.LOVE),
+    LAP_SIT(RelationshipStage.ROMANTIC, -1, 200, Positioning.LAP, 0f, false, 4f,
+            "interaction.lap_sit", "lap_sit", 5f, 1.5f, 20f, LogKey.CUDDLES, Emotion.LOVE);
 
     public final RelationshipStage stage;
     public final int duration;

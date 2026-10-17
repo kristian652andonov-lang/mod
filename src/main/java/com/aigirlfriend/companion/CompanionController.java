@@ -42,7 +42,6 @@ import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
@@ -189,14 +188,14 @@ public final class CompanionController {
         if (ticks % 40 == 0) {
             ServerPlayer owner = gf.getOwnerAnywhere();
             if (owner != null && owner.level() == gf.level() && owner.distanceToSqr(gf) < 48 * 48) {
-                PacketDistributor.sendToPlayer(owner, new StatusPayload(gf.getId(), StatusSnapshot.of(gf, owner, false)));
+                com.aigirlfriend.network.Net.send(owner, new StatusPayload(gf.getId(), StatusSnapshot.of(gf, owner, false)));
             }
         }
     }
 
     private float computeActivityLevel() {
         if (gf.isSleeping() || gf.isFainted()) return 0f;
-        if (gf.isSeated() || gf.isCarried()) return 0.05f;
+        if (gf.isSeated() || gf.isCarried() || gf.isOnLap()) return 0.05f;
         double speed = gf.getDeltaMovement().horizontalDistance();
         if (fear.afraid() || speed > 0.2) return 1f;
         if (speed > 0.05) return 0.6f;
@@ -629,12 +628,15 @@ public final class CompanionController {
                 case BACK_HUG -> "the first time I hugged you from behind";
                 case FOREHEAD_KISS -> "the first time you kissed my forehead";
                 case HEAD_ON_SHOULDER -> "the first time I rested my head on your shoulder";
+                case LAP_SIT -> "the first time I curled up on your lap";
+                case PET_CHEEK -> "the first time you caressed my cheek";
                 default -> "a sweet moment together";
             };
             d.memory.remember(MemoryType.MILESTONE, what + " in the " + biomeName(), key, day(), now(), 1.0f);
         }
         if (type == InteractionType.HUG || type == InteractionType.CUDDLE || type == InteractionType.CUDDLE_SITTING
-                || type == InteractionType.HEAD_ON_SHOULDER || type == InteractionType.BACK_HUG || type == InteractionType.CUDDLE_BED) {
+                || type == InteractionType.HEAD_ON_SHOULDER || type == InteractionType.BACK_HUG || type == InteractionType.CUDDLE_BED
+                || type == InteractionType.PET_HAIR || type == InteractionType.PET_CHEEK || type == InteractionType.LAP_SIT) {
             RequestSystem.progress(gf, RequestType.COMFORT_ME, 1f, null);
         }
         if (shy) gf.playGesture(Gesture.SHY);
@@ -931,9 +933,9 @@ public final class CompanionController {
         d.today.add(LogKey.SLEPT, 1);
         if (sharedWithOwner) d.today.add(LogKey.SLEPT_TOGETHER, 1);
         d.mood.shiftWellbeing(sharedWithOwner ? 6f : 2f);
-        gf.playGesture(Gesture.STRETCH);
+        gf.playGesture(Gesture.WAKE_UP);
         say(DialogueTrigger.GOOD_MORNING, Map.of("together", sharedWithOwner ? "1" : "0"));
-        pendingWakeAffection = now() + 70;
+        pendingWakeAffection = now() + 80;
     }
 
     public void requestBedtime(ServerPlayer player) {
@@ -945,7 +947,8 @@ public final class CompanionController {
 
     /** Wakes her up from her own (non shared) sleep in the morning, or when danger appears. */
     private void tickOwnSleep() {
-        if (!gf.isSleeping() || gf.interactions().current() == InteractionType.SLEEP_TOGETHER) return;
+        InteractionType cur = gf.interactions().current();
+        if (!gf.isSleeping() || cur == InteractionType.SLEEP_TOGETHER || cur == InteractionType.CUDDLE_BED) return;
         long tod = WorldClock.timeOfDay(gf.level());
         boolean day = tod >= 0 && tod < 12000;
         if (waitingBed != null) {
@@ -969,7 +972,11 @@ public final class CompanionController {
         gf.setExpression(currentExpression());
     }
 
+    /** Test/debug hook: forces a facial expression (null = normal behaviour). */
+    @Nullable public Expression debugExpression;
+
     public Expression currentExpression() {
+        if (debugExpression != null) return debugExpression;
         Expression override = gf.interactions().expressionOverride();
         if (override != null) return override;
         return MoodEvaluator.expression(gf, now(), fear.level);

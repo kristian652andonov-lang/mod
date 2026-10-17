@@ -67,8 +67,14 @@ public final class GirlfriendAnimations {
         fb("interaction.sit_together", "pose.sit");
         fb("interaction.head_on_shoulder", "interaction.sit_together");
         fb("interaction.cuddle_sitting", "interaction.head_on_shoulder");
+        fb("action.wake_up", "action.stretch");
+        fb("pose.lie_down", "pose.sleep");
         fb("interaction.cuddle_bed", "pose.sleep");
         fb("interaction.sleep_together", "pose.sleep");
+        fb("interaction.pet_hair", "move.idle");
+        fb("interaction.pet_cheek", "interaction.pet_hair");
+        fb("interaction.lap_sit", "pose.lap_sit");
+        fb("pose.lap_sit", "pose.sit");
         fb("action.wave_goodbye", "action.wave");
         fb("action.blow_kiss", "action.wave");
         fb("action.giggle", "action.gift_happy");
@@ -114,6 +120,12 @@ public final class GirlfriendAnimations {
         return LOOPS.computeIfAbsent(name, n -> RawAnimation.begin().thenLoop(n));
     }
 
+    private static final Map<String, RawAnimation> CHAINS = new HashMap<>();
+
+    private static RawAnimation lieThenSleep(String lie, String sleep) {
+        return CHAINS.computeIfAbsent(lie + ">" + sleep, k -> RawAnimation.begin().thenPlay(lie).thenLoop(sleep));
+    }
+
     private static RawAnimation once(String name) {
         return ONCE.computeIfAbsent(name, n -> RawAnimation.begin().thenPlay(n));
     }
@@ -122,6 +134,9 @@ public final class GirlfriendAnimations {
     public static final class ClientState {
         int lastGestureSeq = Integer.MIN_VALUE;
         int gestureEndTick;
+        /** Anti-snap filter state (see GirlfriendModel). */
+        public double lastPoseTick;
+        public java.util.Map<String, float[]> lastPose;
     }
 
     private static double speed() {
@@ -149,8 +164,15 @@ public final class GirlfriendAnimations {
     private static PlayState main(GirlfriendEntity gf, AnimationState<GirlfriendEntity> state) {
         String anim;
         if (gf.isFainted()) anim = "pose.fainted";
-        else if (gf.isSleeping()) anim = "pose.sleep";
+        else if (gf.isSleeping()) {
+            // lie down first, then breathe in her sleep
+            String lie = resolve("pose.lie_down"), sleep = resolve("pose.sleep");
+            if (sleep == null) return PlayState.STOP;
+            state.getController().setAnimationSpeed(speed());
+            return state.setAndContinue(lie != null && !lie.equals(sleep) ? lieThenSleep(lie, sleep) : loop(sleep));
+        }
         else if (gf.isCarried()) anim = "pose.carried";
+        else if (gf.isOnLap()) anim = "pose.lap_sit";
         else if (gf.getVehicle() instanceof SeatEntity) anim = "pose.sit";
         else if (gf.hasFlag(GirlfriendEntity.FLAG_GROUND_SIT)) anim = "pose.sit_ground";
         else if (gf.isInWater() && !gf.onGround()) anim = "move.swim";
@@ -197,8 +219,18 @@ public final class GirlfriendAnimations {
         if (type == null) return PlayState.STOP;
         String name = type.animation;
         if (gf.isSyncedInteractionSelfInitiated() && exists(name + "_initiate")) name = name + "_initiate";
+        if (exists(name + "_left") || exists(name + "_right")) name = name + (partnerOnLeft(gf) ? "_left" : "_right");
         if (gf.hasFlag(GirlfriendEntity.FLAG_SHY) && exists(name + "_shy")) name = name + "_shy";
         return play(state, name, true);
+    }
+
+    /** True if the interaction partner is on her left-hand side. */
+    private static boolean partnerOnLeft(GirlfriendEntity gf) {
+        net.minecraft.world.entity.Entity p = gf.level().getEntity(gf.getSyncedPartnerId());
+        if (p == null) return true;
+        double yaw = Math.toRadians(gf.yBodyRot);
+        double lx = Math.cos(yaw), lz = Math.sin(yaw);
+        return (p.getX() - gf.getX()) * lx + (p.getZ() - gf.getZ()) * lz > 0;
     }
 
     private static PlayState face(GirlfriendEntity gf, AnimationState<GirlfriendEntity> state) {

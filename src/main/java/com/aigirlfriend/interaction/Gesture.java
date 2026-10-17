@@ -28,6 +28,7 @@ public enum Gesture {
     GIGGLE(36),
     WAKE_GREETING(60),
     RELIEVED(50),
+    WAKE_UP(52),
     ASK_HELP(50);
 
     public final int duration;

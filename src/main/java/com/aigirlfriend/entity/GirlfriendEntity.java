@@ -113,6 +113,7 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
     @Nullable private BlockPos waitPos;
     private int gestureTicks;
     private boolean dataInitialized;
+    private int outfitBeforeBed = -1;
 
     public GirlfriendEntity(EntityType<? extends GirlfriendEntity> type, Level level) {
         super(type, level);
@@ -260,6 +261,7 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
         entityData.get(DATA_OWNER).ifPresent(u -> tag.putUUID("Owner", u));
         tag.putString("Command", command.name());
         if (waitPos != null) tag.putLong("WaitPos", waitPos.asLong());
+        tag.putInt("OutfitBeforeBed", outfitBeforeBed);
         tag.putBoolean("Initialized", dataInitialized);
     }
 
@@ -277,6 +279,7 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
             setCommand(CommandMode.FOLLOW);
         }
         waitPos = tag.contains("WaitPos") ? BlockPos.of(tag.getLong("WaitPos")) : null;
+        outfitBeforeBed = tag.contains("OutfitBeforeBed") ? tag.getInt("OutfitBeforeBed") : -1;
         data.relationship.refreshStage();
         if (!level().isClientSide) {
             applyConfigAttributes();
@@ -422,16 +425,20 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
         return super.isInvulnerableTo(source);
     }
 
-    /** Positions her in the player's arms while carried and at the right height on seats. */
+    /** Positions her in the player's arms while carried, on their lap, and at the right height on seats. */
     @Override
     public Vec3 getVehicleAttachmentPoint(Entity vehicle) {
+        boolean client = level().isClientSide;
         if (vehicle instanceof Player p) {
+            boolean lap = getSyncedInteraction() == InteractionType.LAP_SIT;
+            double forward = lap ? PoseTuning.lapForward(client) : PoseTuning.carryForward(client);
+            double height = lap ? PoseTuning.lapHeight(client) : PoseTuning.carryHeight(client);
             float yaw = p.yBodyRot * Mth.DEG_TO_RAD;
-            double fx = -Mth.sin(yaw) * 0.42, fz = Mth.cos(yaw) * 0.42;
-            // vehicle passenger point is on top of the player's head (1.8); we want her at chest height in front
-            return new Vec3(-fx, p.getBbHeight() - 0.62, -fz);
+            double fx = -Mth.sin(yaw) * forward, fz = Mth.cos(yaw) * forward;
+            // the player's passenger point is on top of their head; shift down and forward from there
+            return new Vec3(-fx, p.getBbHeight() - height, -fz);
         }
-        if (vehicle instanceof SeatEntity) return new Vec3(0, 0.56, 0);
+        if (vehicle instanceof SeatEntity) return new Vec3(0, PoseTuning.seatHeight(client), 0);
         return super.getVehicleAttachmentPoint(vehicle);
     }
 
@@ -439,9 +446,12 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
     public void rideTick() {
         super.rideTick();
         if (getVehicle() instanceof Player p) {
-            setYRot(p.yBodyRot + 90f);
+            boolean lap = getSyncedInteraction() == InteractionType.LAP_SIT;
+            float offset = (float) (lap ? PoseTuning.lapYaw(level().isClientSide) : PoseTuning.carryYaw(level().isClientSide));
+            setYRot(p.yBodyRot + offset);
             yBodyRot = getYRot();
-            yHeadRot = p.getYHeadRot();
+            yBodyRotO = yBodyRot;
+            yHeadRot = lap ? p.getYHeadRot() : getYRot();
         } else if (getVehicle() instanceof SeatEntity seat) {
             setYRot(seat.getYRot());
             yBodyRot = seat.getYRot();
@@ -459,6 +469,7 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
         setDeltaMovement(Vec3.ZERO);
         hasImpulse = true;
         controller().sleepingShared = true;
+        onBedtime();
     }
 
     @Override
@@ -470,9 +481,11 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
             setPose(Pose.STANDING);
             clearSleepingPos();
             setPos(stand.x, stand.y, stand.z);
+            onWake();
             return;
         }
         super.stopSleeping();
+        onWake();
     }
 
     // ------------------------------------------------------------------ accessors
@@ -516,9 +529,41 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
         return entityData.get(DATA_OUTFIT);
     }
 
+    public com.aigirlfriend.companion.Outfit getOutfitType() {
+        return com.aigirlfriend.companion.Outfit.byIndex(getOutfit());
+    }
+
+    /** Manual outfit choice; also cancels the automatic change back after sleeping. */
     public void setOutfit(int outfit) {
+        outfitBeforeBed = -1;
+        wearOutfit(outfit);
+    }
+
+    private void wearOutfit(int outfit) {
         data.outfit = outfit;
         entityData.set(DATA_OUTFIT, outfit);
+    }
+
+    /** Sleepwear on when she goes to bed (if enabled), previous outfit back when she wakes. */
+    private void onBedtime() {
+        if (level().isClientSide || !GFConfig.AUTO_SLEEPWEAR.get()) return;
+        int sleep = com.aigirlfriend.companion.Outfit.SLEEP.ordinal();
+        if (getOutfit() != sleep && sleep < GFConfig.OUTFIT_COUNT.get()) {
+            outfitBeforeBed = getOutfit();
+            wearOutfit(sleep);
+        }
+    }
+
+    private void onWake() {
+        if (level().isClientSide) return;
+        if (outfitBeforeBed >= 0 && getOutfit() == com.aigirlfriend.companion.Outfit.SLEEP.ordinal()) wearOutfit(outfitBeforeBed);
+        outfitBeforeBed = -1;
+    }
+
+    @Override
+    public void startSleeping(BlockPos pos) {
+        super.startSleeping(pos);
+        onBedtime();
     }
 
     public Mood getSyncedMood() {
@@ -589,7 +634,11 @@ public class GirlfriendEntity extends PathfinderMob implements GeoEntity {
     }
 
     public boolean isCarried() {
-        return getVehicle() instanceof Player;
+        return getVehicle() instanceof Player && getSyncedInteraction() != InteractionType.LAP_SIT;
+    }
+
+    public boolean isOnLap() {
+        return getVehicle() instanceof Player && getSyncedInteraction() == InteractionType.LAP_SIT;
     }
 
     @Nullable

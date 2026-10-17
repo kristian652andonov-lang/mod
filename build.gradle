@@ -24,8 +24,22 @@ repositories {
     }
 }
 
+sourceSets {
+    // Dev-only in-game visual test harness (never packaged): ./gradlew runAnimTest
+    devtest {
+        java.srcDir 'src/devtest/java'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    devtestImplementation.extendsFrom implementation
+}
+
 neoForge {
     version = project.neo_version
+    addModdingDependenciesTo(sourceSets.devtest)
 
     parchment {
         mappingsVersion = project.parchment_mappings_version
@@ -46,6 +60,12 @@ neoForge {
             type = 'gameTestServer'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
+        animTest {
+            client()
+            gameDirectory = file('run/animtest')
+            systemProperty 'aigirlfriend.animtest', 'true'
+            programArguments.addAll('--width', '960', '--height', '540')
+        }
         configureEach {
             systemProperty 'forge.logging.markers', 'REGISTRIES'
             logLevel = org.slf4j.event.Level.INFO
@@ -55,6 +75,7 @@ neoForge {
     mods {
         "${mod_id}" {
             sourceSet(sourceSets.main)
+            sourceSet(sourceSets.devtest)
         }
     }
 }
