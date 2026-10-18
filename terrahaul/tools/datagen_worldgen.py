@@ -77,6 +77,9 @@ def main(vanilla):
     dim['min_y'] = MIN_Y
     dim['height'] = HEIGHT
     dim['logical_height'] = HEIGHT
+    # client sky effects identical to the Overworld's except for a higher cloud layer (registered
+    # by the client; clients without them fall back to the vanilla Overworld effects)
+    dim['effects'] = 'terrahaul:overworld'
     write('terrahaul/dimension_type/overworld.json', dim)
 
     # ---- noises -------------------------------------------------------------------------------

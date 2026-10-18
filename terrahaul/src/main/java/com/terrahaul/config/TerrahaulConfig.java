@@ -33,6 +33,7 @@ public final class TerrahaulConfig {
 
     // client
     public static final ModConfigSpec.BooleanValue SELECT_TERRAHAUL_BY_DEFAULT;
+    public static final ModConfigSpec.IntValue CLOUD_HEIGHT;
     public static final ModConfigSpec.EnumValue<AnimationQuality> ANIMATION_QUALITY;
     public static final ModConfigSpec.BooleanValue FALLING_LEAVES;
     public static final ModConfigSpec.DoubleValue FALLING_LEAF_DENSITY;
@@ -52,11 +53,13 @@ public final class TerrahaulConfig {
             .define("groundDetails", true);
         GEOLOGICAL_FORMATIONS = c.comment("Generate natural arches, rock spires, hoodoos and boulder fields. Restart required.")
             .define("geologicalFormations", true);
-        ORE_DEPTH_FIX = c.comment("Keep vanilla ores and cave decorations that are anchored to the world bottom at their vanilla depths,",
-                "and add extra resource layers in Terrahaul's deep (Y -512..-64) and high (above Y 320) zones. Restart required.")
+        ORE_DEPTH_FIX = c.comment("In Terrahaul worlds, keep vanilla ores, geodes, springs and cave decorations at their vanilla depths",
+                "(vanilla anchors many of them to the world bottom, which is 448 blocks deeper here) and add extra resource layers",
+                "in the deep (Y -512..-64) and high (above Y 320) zones. The extra layers need a restart.")
             .define("oreDepthFix", true);
-        TERRAIN_AWARE_STRUCTURES = c.comment("Move villages, outposts, mansions and temples away from steep slopes and water in Terrahaul worlds",
-                "(the candidate position inside each structure region is chosen by terrain). Restart required.")
+        TERRAIN_AWARE_STRUCTURES = c.comment("Move villages, outposts, mansions and temples away from steep slopes, cliffs and water in Terrahaul",
+                "worlds (the position inside each structure region is chosen by terrain). Set it before creating a world: changing it",
+                "later moves structures that have not been generated yet.")
             .define("terrainAwareStructures", true);
         SAPLINGS_GROW_TERRAHAUL_TREES = c.comment("Saplings grown by players also produce Terrahaul trees.")
             .define("saplingsGrowTerrahaulTrees", true);
@@ -77,6 +80,8 @@ public final class TerrahaulConfig {
         b.comment("Client-side visual settings. These never change the world and are not sent to servers.").push("client");
         SELECT_TERRAHAUL_BY_DEFAULT = b.comment("Pre-select the Terrahaul world type on the Create World screen.")
             .define("selectTerrahaulByDefault", true);
+        CLOUD_HEIGHT = b.comment("Height of the cloud layer in Terrahaul worlds (vanilla clouds are at 192, inside Terrahaul's hills).")
+            .defineInRange("cloudHeight", 448, 192, 2000);
         b.pop();
         b.comment("Environmental animations: falling leaves and petals, wind, dust and vegetation sway.").push("animations");
         ANIMATION_QUALITY = b.comment("Overall animation quality. OFF disables every Terrahaul animation; LOW reduces range and particle counts.")
@@ -161,6 +166,60 @@ public final class TerrahaulConfig {
 
     public static double rockDensity() {
         return number(ROCK_DENSITY);
+    }
+
+    // client options; only read on the client
+
+    private static <T extends Enum<T>> T enumValue(ModConfigSpec.EnumValue<T> value) {
+        try {
+            return value.get();
+        } catch (IllegalStateException e) {
+            return value.getDefault();
+        }
+    }
+
+    public static boolean selectTerrahaulByDefault() {
+        return bool(SELECT_TERRAHAUL_BY_DEFAULT);
+    }
+
+    public static int cloudHeight() {
+        try {
+            return CLOUD_HEIGHT.get();
+        } catch (IllegalStateException e) {
+            return CLOUD_HEIGHT.getDefault();
+        }
+    }
+
+    public static AnimationQuality animationQuality() {
+        return enumValue(ANIMATION_QUALITY);
+    }
+
+    public static boolean fallingLeaves() {
+        return bool(FALLING_LEAVES);
+    }
+
+    public static double fallingLeafDensity() {
+        return number(FALLING_LEAF_DENSITY);
+    }
+
+    public static boolean cherryPetals() {
+        return bool(CHERRY_PETALS);
+    }
+
+    public static boolean dust() {
+        return bool(DUST);
+    }
+
+    public static boolean autumnLeafFall() {
+        return bool(AUTUMN_LEAF_FALL);
+    }
+
+    public static boolean vegetationSway() {
+        return bool(VEGETATION_SWAY);
+    }
+
+    public static double windStrength() {
+        return number(WIND_STRENGTH);
     }
 
     /** Looks up a boolean option by its key, for the {@code terrahaul:config} data pack condition. */

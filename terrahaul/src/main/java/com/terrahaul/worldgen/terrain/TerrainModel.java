@@ -408,6 +408,17 @@ public final class TerrainModel {
         double detail = (1.2 + 2.5 * hillW + 7.0 * mountain * shape + 3.0 * windswept) * plainsDetail.fbm(rx / (46.0 * hs) + 300.0, rz / (46.0 * hs) - 120.0);
         double h = base + mountainHeight + hillHeight + plateauHeightValue + windHeight + plains * (1.0 - mountain) + detail * reliefLand;
 
+        // ocean floors: rolling abyssal plains, long ridges and rare seamounts instead of a flat bed;
+        // kept well below sea level so no unintended islands appear
+        double seaFloor = smoothstep(-0.34, -0.5, cEff);
+        if (seaFloor > 0.0) {
+            double rolling = 5.0 * hillNoise.fbm(x / (240.0 * hs) + 711.0, z / (240.0 * hs) - 403.0);
+            double ridge = windsweptNoise.ridged(wx / (1300.0 * hs) - 91.0, wz / (1300.0 * hs) + 57.0, 2.0);
+            double seamount = smoothstep(0.6, 0.95, 0.5 + 0.5 * colossalNoise.fbm(wx / (900.0 * hs) + 333.0, wz / (900.0 * hs) - 222.0));
+            double seabed = rolling + 16.0 * ridge * ridge + 34.0 * seamount * (0.6 + 0.4 * ridge);
+            h = Math.min(h + seaFloor * seabed, Math.max(h, sl - 9.0));
+        }
+
         // ---- 7. wetlands ---------------------------------------------------------------------
         double swamp = smoothstep(0.55, 0.72, erosion) * smoothstep(-0.11, 0.02, cEff) * (1.0 - mountain) * (1.0 - plateau);
         if (swamp > 0.0) {

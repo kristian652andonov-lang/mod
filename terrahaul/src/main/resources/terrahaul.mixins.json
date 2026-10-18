@@ -4,15 +4,21 @@
   "package": "com.terrahaul.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ChunkGeneratorMixin",
+    "HeightRangePlacementMixin",
     "MineshaftStructureMixin",
     "NoiseBasedAquiferMixin",
     "NoiseBasedChunkGeneratorMixin",
     "NoiseChunkMixin",
+    "RandomSpreadStructurePlacementMixin",
     "StrongholdStructureMixin",
+    "StructurePlacementAccessor",
     "SurfaceSystemMixin",
     "WorldDimensionsMixin"
   ],
-  "client": [],
+  "client": [
+    "client.FogShapeMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

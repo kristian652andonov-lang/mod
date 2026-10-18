@@ -37,6 +37,10 @@ neoForge {
             if (project.hasProperty('screenshots')) {
                 systemProperty 'terrahaul.screenshots', project.property('screenshots').toString()
             }
+            // -PcreateWorldCheck: open the Create World screen, log the selected world type, screenshot it
+            if (project.hasProperty('createWorldCheck')) {
+                systemProperty 'terrahaul.screenshots.createWorld', 'true'
+            }
             jvmArguments.addAll('-Xmx6G')
         }
 

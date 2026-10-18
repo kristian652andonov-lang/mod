@@ -131,11 +131,151 @@ public final class AutoTest {
             renderArea(level, cx, cz, radius, dir.resolve("area" + areaIndex + ".png").toFile());
             renderSection(level, cx, cz, radius, dir.resolve("section" + areaIndex + ".png").toFile());
             dumpRiverColumn(level, model, cx, cz, radius, report);
+            oreHistogram(level, cx, cz, radius, report);
             areaIndex++;
+        }
+        if (Boolean.parseBoolean(System.getProperty("terrahaul.autotest.structures", "true"))) {
+            checkStructures(level, report);
         }
         Files.write(dir.resolve("autotest-report.txt"), report);
         for (String line : report) {
             Terrahaul.LOGGER.info("[autotest] {}", line);
+        }
+    }
+
+    private static final int[] ORE_BANDS = {-512, -64, 0, 64, 320, 2032};
+
+    /** Counts ore blocks per vertical band, to check vanilla depths and the extra layers. */
+    private static void oreHistogram(ServerLevel level, int cx, int cz, int radius, List<String> report) {
+        java.util.Map<String, long[]> counts = new java.util.TreeMap<>();
+        long[] caveAir = new long[2];
+        long[] deepBlocks = new long[2];
+        java.util.function.Predicate<net.minecraft.world.level.block.state.BlockState> isOre =
+            st -> st.is(net.neoforged.neoforge.common.Tags.Blocks.ORES);
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                var chunk = level.getChunk(cx + dx, cz + dz);
+                var sections = chunk.getSections();
+                for (int i = 0; i < sections.length; i++) {
+                    var section = sections[i];
+                    int baseY = level.getSectionYFromSectionIndex(i) << 4;
+                    if (baseY < 0) {
+                        // cave volume below Y 0: [-512,-64) and [-64,0)
+                        int b = baseY < -64 ? 0 : 1;
+                        deepBlocks[b] += 4096;
+                        for (int y = 0; y < 16; y++) {
+                            for (int z = 0; z < 16; z++) {
+                                for (int x = 0; x < 16; x++) {
+                                    var st = section.getBlockState(x, y, z);
+                                    if (st.isAir() || st.is(net.minecraft.world.level.block.Blocks.LAVA) || st.is(net.minecraft.world.level.block.Blocks.WATER)) {
+                                        caveAir[b]++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (section.hasOnlyAir() || !section.getStates().maybeHas(isOre)) {
+                        continue;
+                    }
+                    for (int y = 0; y < 16; y++) {
+                        for (int z = 0; z < 16; z++) {
+                            for (int x = 0; x < 16; x++) {
+                                var st = section.getBlockState(x, y, z);
+                                if (!isOre.test(st)) {
+                                    continue;
+                                }
+                                String name = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getPath()
+                                    .replace("deepslate_", "");
+                                int band = 0;
+                                while (band < ORE_BANDS.length - 2 && baseY + y >= ORE_BANDS[band + 1]) {
+                                    band++;
+                                }
+                                counts.computeIfAbsent(name, k -> new long[ORE_BANDS.length - 1])[band]++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        report.add(String.format(Locale.ROOT, "  cave volume (air/water/lava): Y -512..-64 %.1f%%, Y -64..0 %.1f%%",
+            100.0 * caveAir[0] / Math.max(1, deepBlocks[0]), 100.0 * caveAir[1] / Math.max(1, deepBlocks[1])));
+        report.add("  ores per band [-512,-64) [-64,0) [0,64) [64,320) [320,2032):");
+        counts.forEach((name, c) -> report.add(String.format(Locale.ROOT, "    %-14s %6d %6d %6d %6d %6d", name, c[0], c[1], c[2], c[3], c[4])));
+    }
+
+    /** Locates surface structures and checks that they generate where located, on suitable ground. */
+    private static void checkStructures(ServerLevel level, List<String> report) {
+        var registry = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+        String[][] checks = {
+            {"#minecraft:village", "0,0"}, {"#minecraft:village", "3000,0"}, {"#minecraft:village", "0,-3000"},
+            {"minecraft:pillager_outpost", "0,0"}, {"minecraft:desert_pyramid", "0,0"}, {"minecraft:swamp_hut", "0,0"},
+            {"minecraft:mansion", "0,0"}, {"minecraft:stronghold", "0,0"}, {"minecraft:mineshaft", "0,0"},
+            {"minecraft:ancient_city", "0,0"}, {"minecraft:trial_chambers", "0,0"}, {"minecraft:monument", "0,0"}
+        };
+        report.add("structures:");
+        for (String[] check : checks) {
+            net.minecraft.core.HolderSet<net.minecraft.world.level.levelgen.structure.Structure> set;
+            if (check[0].startsWith("#")) {
+                var tag = net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.STRUCTURE,
+                    net.minecraft.resources.ResourceLocation.parse(check[0].substring(1)));
+                var named = registry.getTag(tag);
+                if (named.isEmpty()) {
+                    report.add("  " + check[0] + ": tag missing");
+                    continue;
+                }
+                set = named.get();
+            } else {
+                var holder = registry.getHolder(net.minecraft.resources.ResourceLocation.parse(check[0]));
+                if (holder.isEmpty()) {
+                    report.add("  " + check[0] + ": not registered");
+                    continue;
+                }
+                set = net.minecraft.core.HolderSet.direct(holder.get());
+            }
+            String[] o = check[1].split(",");
+            BlockPos origin = new BlockPos(Integer.parseInt(o[0]), 0, Integer.parseInt(o[1]));
+            long t0 = System.nanoTime();
+            var found = level.getChunkSource().getGenerator().findNearestMapStructure(level, set, origin, 64, false);
+            double ms = (System.nanoTime() - t0) / 1e6;
+            if (found == null) {
+                report.add(String.format(Locale.ROOT, "  %s near %s: none within 64 regions (%.0f ms)", check[0], check[1], ms));
+                continue;
+            }
+            BlockPos pos = found.getFirst();
+            var structure = found.getSecond().value();
+            var chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4, ChunkStatus.FULL, true);
+            var start = level.structureManager().getStartForStructure(net.minecraft.core.SectionPos.of(chunk.getPos(), 0), structure, chunk);
+            boolean present = start != null && start.isValid();
+            String terrain = "";
+            boolean surface = check[0].contains("village") || check[0].contains("outpost") || check[0].contains("pyramid")
+                || check[0].contains("swamp_hut") || check[0].contains("mansion");
+            if (present && surface) {
+                var box = start.getBoundingBox();
+                for (int x = box.minX() >> 4; x <= box.maxX() >> 4; x++) {
+                    for (int z = box.minZ() >> 4; z <= box.maxZ() >> 4; z++) {
+                        level.getChunk(x, z, ChunkStatus.FULL, true);
+                    }
+                }
+                int min = Integer.MAX_VALUE;
+                int max = Integer.MIN_VALUE;
+                int water = 0;
+                int samples = 0;
+                for (int x = box.minX(); x <= box.maxX(); x += 4) {
+                    for (int z = box.minZ(); z <= box.maxZ(); z += 4) {
+                        int h = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR, x, z);
+                        min = Math.min(min, h);
+                        max = Math.max(max, h);
+                        if (!level.getFluidState(new BlockPos(x, h, z)).isEmpty()) {
+                            water++;
+                        }
+                        samples++;
+                    }
+                }
+                terrain = String.format(Locale.ROOT, " box %dx%d y%d..%d, ground in box y%d..%d, water columns %d/%d",
+                    box.getXSpan(), box.getZSpan(), box.minY(), box.maxY(), min, max, water, samples);
+            }
+            report.add(String.format(Locale.ROOT, "  %s near %s: %s at %d %d %d (%.0f ms), start present: %s%s", check[0], check[1],
+                found.getSecond().unwrapKey().map(k -> k.location().toString()).orElse("?"), pos.getX(), pos.getY(), pos.getZ(), ms, present, terrain));
         }
     }
 

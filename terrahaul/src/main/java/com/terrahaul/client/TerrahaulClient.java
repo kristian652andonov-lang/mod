@@ -2,11 +2,20 @@ package com.terrahaul.client;
 
 import com.terrahaul.Terrahaul;
 import com.terrahaul.client.dev.ClientScreenshotTest;
+import com.terrahaul.client.particle.AmbientParticleSpawner;
+import com.terrahaul.client.particle.TerrahaulParticleProviders;
 import com.terrahaul.client.render.TerrahaulColors;
+import com.terrahaul.client.render.TerrahaulSkyEffects;
+import com.terrahaul.client.sway.SwayModels;
+import com.terrahaul.client.sway.SwayShader;
+import com.terrahaul.client.wind.WindSystem;
+import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
@@ -20,6 +29,17 @@ public final class TerrahaulClient {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
         modBus.addListener(TerrahaulColors::blockColors);
         modBus.addListener(TerrahaulColors::itemColors);
+        modBus.addListener(TerrahaulParticleProviders::register);
+        modBus.addListener(SwayModels::modifyBakingResult);
+        modBus.addListener(TerrahaulSkyEffects::register);
+        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> {
+            Minecraft mc = Minecraft.getInstance();
+            WindSystem.tick(mc);
+            AmbientParticleSpawner.tick(mc);
+        });
+        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> WindSystem.reset());
+        NeoForge.EVENT_BUS.addListener(SwayShader::onRenderStage);
+        NeoForge.EVENT_BUS.addListener(WorldTypeDefault::onScreenInit);
         NeoForge.EVENT_BUS.addListener(ClientScreenshotTest::onClientTick);
     }
 }

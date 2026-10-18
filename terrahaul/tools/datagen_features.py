@@ -531,10 +531,67 @@ def details():
     with_conditions('terrahaul/neoforge/biome_modifier/rock_formations.json', CONFIG_FORMATIONS)
 
 
+CONFIG_ORES = [{"type": "terrahaul:config", "key": "ore_depth_fix"}]
+
+
+def uniform(lo, hi):
+    return {"type": "minecraft:uniform", "min_inclusive": {"absolute": lo}, "max_inclusive": {"absolute": hi}}
+
+
+def trapezoid(lo, hi, plateau=0):
+    return {"type": "minecraft:trapezoid", "min_inclusive": {"absolute": lo}, "max_inclusive": {"absolute": hi}, "plateau": plateau}
+
+
+def layer(name, feature, count, height, step, biomes='#minecraft:is_overworld', rarity=None, extra=None):
+    """A resource layer for Terrahaul's deep (Y -512..-64) or high (Y 320+) zone. It reuses a vanilla
+    configured feature and only places in Terrahaul worlds (terrahaul:terrahaul_only)."""
+    placement = []
+    if rarity:
+        placement.append({"type": "minecraft:rarity_filter", "chance": rarity})
+    if count != 1:
+        placement.append({"type": "minecraft:count", "count": count})
+    placement += [{"type": "minecraft:in_square"}, {"type": "minecraft:height_range", "height": height}]
+    placement += extra or []
+    placement += [{"type": "terrahaul:terrahaul_only"}, {"type": "minecraft:biome"}]
+    placed(f'resources/{name}', feature, placement)
+    add_features(f'resources/{name}', biomes, f'terrahaul:resources/{name}', step)
+    with_conditions(f'terrahaul/neoforge/biome_modifier/resources/{name}.json', CONFIG_ORES)
+
+
+def resources():
+    """Ores and cave decoration for the zones a vanilla world does not have. Vanilla features keep
+    their vanilla depths through HeightRangePlacementMixin (also behind ore_depth_fix)."""
+    ores = 'underground_ores'
+    # ---- deep zone: Y -512..-64, all deepslate ---------------------------------------------------
+    layer('deep_diamond', 'minecraft:ore_diamond_small', 6, trapezoid(-500, -100), ores)
+    layer('deep_diamond_large', 'minecraft:ore_diamond_large', 1, uniform(-500, -80), ores, rarity=5)
+    layer('deep_diamond_buried', 'minecraft:ore_diamond_buried', 3, trapezoid(-480, -120), ores)
+    layer('deep_redstone', 'minecraft:ore_redstone', 6, uniform(-500, -64), ores)
+    layer('deep_gold', 'minecraft:ore_gold_buried', 5, trapezoid(-480, -96), ores)
+    layer('deep_iron', 'minecraft:ore_iron', 8, uniform(-510, -64), ores)
+    layer('deep_lapis', 'minecraft:ore_lapis_buried', 3, trapezoid(-400, -64), ores)
+    layer('deep_copper', 'minecraft:ore_copper_small', 4, uniform(-300, -64), ores)
+    layer('deep_tuff', 'minecraft:ore_tuff', 3, uniform(-510, -64), ores)
+    layer('deep_granite', 'minecraft:ore_granite', 1, uniform(-510, -64), ores)
+    layer('deep_geode', 'minecraft:amethyst_geode', 1, uniform(-490, -80), 'local_modifications', rarity=36)
+    layer('deep_lava_spring', 'minecraft:spring_lava_overworld', 8, uniform(-500, -80), 'fluid_springs')
+    layer('deep_water_spring', 'minecraft:spring_water', 4, uniform(-400, -64), 'fluid_springs')
+    layer('deep_glow_lichen', 'minecraft:glow_lichen', 40, uniform(-510, -64), 'vegetal_decoration')
+    # ---- high zone: Y 320+, the cores of Terrahaul's mountains -----------------------------------
+    layer('high_coal', 'minecraft:ore_coal', 14, uniform(320, 1400), ores)
+    layer('high_iron', 'minecraft:ore_iron', 9, trapezoid(320, 1100), ores)
+    layer('high_copper', 'minecraft:ore_copper_small', 6, uniform(320, 900), ores)
+    layer('high_gold', 'minecraft:ore_gold', 2, uniform(480, 1700), ores)
+    layer('high_emerald', 'minecraft:ore_emerald', 40, uniform(320, 1800), ores, biomes='#minecraft:is_mountain')
+    layer('high_lapis', 'minecraft:ore_lapis', 1, uniform(700, 1900), ores, rarity=2)
+    layer('high_water_spring', 'minecraft:spring_water', 10, uniform(320, 1600), 'fluid_springs')
+
+
 def main():
     water()
     trees()
     details()
+    resources()
 
 
 if __name__ == '__main__':

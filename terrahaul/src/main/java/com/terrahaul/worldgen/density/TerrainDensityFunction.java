@@ -72,10 +72,25 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
             case WEIRDNESS -> s.weirdness;
             case TEMPERATURE -> s.temperature;
             case HUMIDITY -> s.humidity;
-            case DEPTH -> (s.height - y) / 128.0;
+            case DEPTH -> (depthSurface(s.height, x, z) - y) / 128.0;
             case SURFACE_HEIGHT -> s.height;
             case CAVE_ALLOWANCE -> caveAllowance(s, y);
         };
+    }
+
+    /**
+     * The surface used for the biome depth parameter: the lowest model surface within 8 blocks.
+     * Biome lookups are jittered by a few blocks, so on cliffs and mountain walls the plain column
+     * height would put the sample point tens of blocks "underground" and pick cave biomes
+     * (dripstone caves, deep dark) for exposed rock faces.
+     */
+    private double depthSurface(double height, int x, int z) {
+        double h = height;
+        h = Math.min(h, model.sample(x + 8, z).height);
+        h = Math.min(h, model.sample(x - 8, z).height);
+        h = Math.min(h, model.sample(x, z + 8).height);
+        h = Math.min(h, model.sample(x, z - 8).height);
+        return h;
     }
 
     /**

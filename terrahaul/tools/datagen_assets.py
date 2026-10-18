@@ -243,31 +243,82 @@ def dry_shrub_texture():
 
 
 def particle_textures():
-    """Falling-leaf, petal and dust sprites (8x8). Leaf sprites are grey so they can be tinted."""
+    """Falling-leaf, needle, petal and dust sprites. Leaf, needle and dust sprites are grey so the
+    particle can tint them with the colour of the leaves or ground they come from."""
     rnd = random.Random(21)
-    for i in range(4):
-        img = Image.new('RGBA', (8, 8), (0, 0, 0, 0))
-        leaf_shape(img, 3.5 + rnd.uniform(-0.4, 0.4), 3.5 + rnd.uniform(-0.4, 0.4), 6.5 + i * 0.4, rnd.uniform(0.4, 1.2),
-                   lambda u, v, r: (lambda b: (b, b, b, 255))(170 + int(60 * (1 - abs(v))) - (30 if abs(v) < 0.3 else 0)), rnd, 1.6)
-        save_texture(img, f'particle/falling_leaf_{i}.png')
+
+    def leaf_sprite(path, length, width, angle, lobes, tip_power):
+        size = 16
+        img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        ca, sa = math.cos(angle), math.sin(angle)
+        cx, cy = 7.5, 7.5
+        for y in range(size):
+            for x in range(size):
+                # leaf space: u along the midrib (-1 stem end .. 1 tip), v across
+                dx, dy = x - cx, y - cy
+                u = (dx * ca + dy * sa) / (length / 2)
+                v = (-dx * sa + dy * ca) / (width / 2)
+                if u < -1.0 or u > 1.0:
+                    continue
+                t = (u + 1) / 2
+                half = math.sin(math.pi * t) ** tip_power * (1.0 if t < 0.5 else (1 - t) * 2 + 0.25 * math.sin(math.pi * t))
+                if lobes:
+                    half *= 0.78 + 0.22 * abs(math.sin(t * math.pi * lobes))
+                if abs(v) > half:
+                    continue
+                edge = abs(v) / max(half, 1e-3)
+                b = 222 - int(48 * edge * edge) - int(10 * t)
+                if abs(v) < 0.16:
+                    b -= 34  # midrib
+                b += rnd.randint(-6, 6)
+                img.putpixel((x, y), (b, b, b, 255))
+        # stem
+        for k in range(3):
+            sx = round(cx - ca * (length / 2 + k * 0.9))
+            sy = round(cy - sa * (length / 2 + k * 0.9))
+            if 0 <= sx < size and 0 <= sy < size:
+                img.putpixel((sx, sy), (150, 150, 150, 255))
+        save_texture(img, path)
+
+    leaf_sprite('particle/falling_leaf_0.png', 12.0, 7.5, 0.7, 0, 0.75)    # oval
+    leaf_sprite('particle/falling_leaf_1.png', 13.0, 5.0, 2.3, 0, 0.9)     # slender
+    leaf_sprite('particle/falling_leaf_2.png', 11.0, 9.0, -0.4, 0, 0.6)    # broad
+    leaf_sprite('particle/falling_leaf_3.png', 12.5, 8.5, 1.9, 3, 0.7)     # lobed (oak)
+
     for i in range(3):
-        img = Image.new('RGBA', (8, 8), (0, 0, 0, 0))
-        for y in range(8):
-            for x in range(8):
-                dx, dy = (x - 3.5) / (2.6 + i * 0.3), (y - 3.5) / (2.0 + i * 0.25)
-                if dx * dx + dy * dy <= 1.0 and not (x == 4 and y <= 1):
-                    img.putpixel((x, y), (255, 182 - int(28 * abs(dy)), 212 - int(12 * abs(dx)), 255))
+        img = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+        rx, ry = 4.6 + i * 0.5, 3.4 + i * 0.4
+        for y in range(16):
+            for x in range(16):
+                dx, dy = (x - 7.5) / rx, (y - 7.5) / ry
+                # notched heart-like petal
+                notch = dy < -0.55 and abs(dx) < 0.18
+                if dx * dx + dy * dy <= 1.0 and not notch:
+                    d = math.sqrt(dx * dx + dy * dy)
+                    img.putpixel((x, y), (255, 196 - int(46 * d) + rnd.randint(-5, 5), 222 - int(24 * d), 255))
         save_texture(img, f'particle/petal_{i}.png')
+
     for i in range(2):
-        img = Image.new('RGBA', (8, 8), (0, 0, 0, 0))
-        leaf_shape(img, 3.5, 3.5, 7.0, 0.8 + i * 0.6, lambda u, v, r: (200, 200, 200, 255), rnd, 0.45)
+        img = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+        count = 1 + i * 2
+        for n in range(count):
+            a = 0.8 + (n - (count - 1) / 2) * 0.45
+            bend = rnd.uniform(-0.03, 0.03)
+            for k in range(12):
+                x = 3 + math.cos(a + bend * k) * k
+                y = 3 + math.sin(a + bend * k) * k
+                xi, yi = round(x), round(y)
+                if 0 <= xi < 16 and 0 <= yi < 16:
+                    b = 205 - k * 3
+                    img.putpixel((xi, yi), (b, b, b, 255))
         save_texture(img, f'particle/needle_{i}.png')
+
     for i in range(3):
         img = Image.new('RGBA', (8, 8), (0, 0, 0, 0))
         for _ in range(4 + i * 2):
             x, y = rnd.randint(1, 6), rnd.randint(1, 6)
             a = rnd.randint(90, 200)
-            img.putpixel((x, y), (215, 190, 150, a))
+            img.putpixel((x, y), (236, 236, 236, a))
         save_texture(img, f'particle/dust_{i}.png')
 
 

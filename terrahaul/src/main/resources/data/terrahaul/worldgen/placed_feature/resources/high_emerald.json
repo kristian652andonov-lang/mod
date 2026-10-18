@@ -1,0 +1,30 @@
+{
+  "feature": "minecraft:ore_emerald",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 40
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "min_inclusive": {
+          "absolute": 320
+        },
+        "max_inclusive": {
+          "absolute": 1800
+        }
+      }
+    },
+    {
+      "type": "terrahaul:terrahaul_only"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -7,8 +7,10 @@ import com.terrahaul.config.TerrahaulConfig;
 import com.terrahaul.dev.AutoTest;
 import com.terrahaul.registry.TerrahaulBlocks;
 import com.terrahaul.registry.TerrahaulFeatures;
+import com.terrahaul.registry.TerrahaulParticles;
 import com.terrahaul.registry.TerrahaulPlacements;
 import com.terrahaul.registry.TerrahaulWorldgenTypes;
+import com.terrahaul.worldgen.structure.TerrainAwareStructures;
 import com.terrahaul.worldgen.trees.SaplingGrowthHandler;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.resources.ResourceLocation;
@@ -50,10 +52,12 @@ public final class Terrahaul {
         TerrahaulWorldgenTypes.register(modBus);
         TerrahaulFeatures.register(modBus);
         TerrahaulPlacements.register(modBus);
+        TerrahaulParticles.register(modBus);
         CONDITIONS.register(modBus);
         NeoForge.EVENT_BUS.addListener(AutoTest::onServerStarted);
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent e) -> TerrahaulCommand.register(e.getDispatcher(), e.getBuildContext()));
         NeoForge.EVENT_BUS.addListener(SaplingGrowthHandler::onGrow);
+        NeoForge.EVENT_BUS.addListener(TerrainAwareStructures::onServerStopped);
     }
 
     public static ResourceLocation id(String path) {

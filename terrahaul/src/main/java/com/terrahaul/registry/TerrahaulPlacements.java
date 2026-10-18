@@ -2,6 +2,7 @@ package com.terrahaul.registry;
 
 import com.terrahaul.Terrahaul;
 import com.terrahaul.worldgen.placement.DensityCountPlacement;
+import com.terrahaul.worldgen.placement.TerrahaulOnlyFilter;
 import com.terrahaul.worldgen.placement.TreeLineFilter;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
@@ -17,6 +18,8 @@ public final class TerrahaulPlacements {
         TYPES.register("density_count", () -> () -> DensityCountPlacement.CODEC);
     public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<TreeLineFilter>> TREE_LINE =
         TYPES.register("tree_line", () -> () -> TreeLineFilter.CODEC);
+    public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<TerrahaulOnlyFilter>> TERRAHAUL_ONLY =
+        TYPES.register("terrahaul_only", () -> () -> TerrahaulOnlyFilter.CODEC);
 
     private TerrahaulPlacements() {
     }
