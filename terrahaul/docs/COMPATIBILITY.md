@@ -35,6 +35,8 @@ otherwise leaves vanilla behaviour untouched.
 | `RandomSpreadStructurePlacementMixin`, `StructurePlacementAccessor` | `getPotentialStructureChunk` | Terrain-aware choice of the structure chunk for vanilla surface structure sets (identified by salt) in Terrahaul worlds |
 | `ChunkGeneratorMixin` | `createState` | Registers a Terrahaul world's terrain for the structure placement above |
 | `OceanMonumentStructureMixin` | `OceanMonumentStructure.generatePieces` | In Terrahaul worlds, lowers monuments (built at a fixed Y 39) onto the much deeper sea floor |
+| `WorldCarverMixin` | `WorldCarver.carveBlock` | In Terrahaul worlds, cave and ravine carvers do not cut within 14 blocks below the surface of nearby lakes and elevated rivers, so carved notches cannot drain a lake into a wall of water |
+| `client.VertexBufferMixin` (client only) | `VertexBuffer` constructor, `bind`, `upload`, `uploadIndexBuffer`, `close` | Creates a vertex buffer's OpenGL objects on first use instead of in the constructor. Minecraft builds five buffers per render section in range; in a 159-section-tall world that is millions of OpenGL objects for empty air, which exhausted graphics memory. Applies in all worlds (lazy creation does not change behaviour) |
 | `client.FogShapeMixin` (client only) | `FogShape.getIndex` | In Terrahaul worlds the terrain fog weighs vertical distance at 15%, so valleys stay visible from high peaks (vanilla's cylinder fog counts vertical distance fully) |
 
 Access transformers (`META-INF/accesstransformer.cfg`) widen `SurfaceRules.Context`, its fields

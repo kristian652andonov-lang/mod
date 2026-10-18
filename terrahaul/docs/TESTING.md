@@ -112,6 +112,27 @@ Each run created a fresh world and ran `AutoTest`:
   "all sections rendered" state to hold for several seconds. Before that wait was added, distant
   shots showed only sky.
 
+## Client memory and the high-render-distance crash
+A player's game closed without any error in the log while playing at render distance 16 with
+a 4 GB heap. The cause was found in Minecraft's chunk renderer: it creates five vertex buffers
+(each with three OpenGL objects) for every 16-block section within render distance, whether
+or not the section holds a block. A Terrahaul world is 159 sections tall instead of 24, so that
+is about 2.6 million OpenGL objects at render distance 16 and 10 million at 32, almost all for
+empty air. `VertexBufferMixin` now creates the OpenGL objects when a buffer is first bound.
+
+Measured with the development client (`-PmemoryLog`, Mesa llvmpipe, `-Xmx6G`, quick play
+into an existing save, live heap measured after a full garbage collection):
+
+| World | Render distance | Before the fix | After the fix |
+|---|---|---|---|
+| Terrahaul | 32 | process killed by the OS (out of memory) within about 2 s of joining | ran to the end of the test: 2946 chunks loaded, process memory 7.6 GB |
+| Terrahaul | 16 | – | 1021 chunks loaded, live heap 1.37 GB, process memory 4.5 GB |
+| Vanilla, same machine | 16 | – | 1021 chunks loaded, live heap 0.56 GB, process memory 2.8 GB |
+
+The software renderer keeps OpenGL objects in process memory; a hardware driver keeps them in
+driver memory, which is why the player's game died without a Java error. The fix was not
+tested on a real GPU.
+
 ## Client and dedicated server over the network
 - A dedicated server (`runServer`, fresh Terrahaul world, offline mode) and a separate client
   process (`runClient -Pmultiplayer=localhost:25565`) were started.
