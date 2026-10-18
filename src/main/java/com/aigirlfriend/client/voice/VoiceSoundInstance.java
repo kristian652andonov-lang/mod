@@ -26,14 +26,12 @@ final class VoiceSoundInstance extends AbstractTickableSoundInstance {
     static final double MAX_DISTANCE = 48.0;
 
     private final Entity speaker;
-    private final short[] pcm;
-    private final int sampleRate;
+    private final VoiceClip clip;
 
-    VoiceSoundInstance(Entity speaker, short[] pcm, int sampleRate) {
+    VoiceSoundInstance(Entity speaker, VoiceClip clip) {
         super(EVENT, SoundSource.VOICE, SoundInstance.createUnseededRandom());
         this.speaker = speaker;
-        this.pcm = pcm;
-        this.sampleRate = sampleRate;
+        this.clip = clip;
         this.volume = GFClientConfig.VOICE_VOLUME.get().floatValue();
         this.pitch = 1.0f;
         this.looping = false;
@@ -46,15 +44,22 @@ final class VoiceSoundInstance extends AbstractTickableSoundInstance {
         return speaker.getId();
     }
 
+    /** Stops playing, and stops rendering the rest of the line if that is still going on. */
     void halt() {
+        clip.cancel();
         stop();
+    }
+
+    /** Lets the line end with what is already rendered (a newer line is on its way). */
+    void finishEarly() {
+        clip.cancel();
     }
 
     @Override
     public void tick() {
         Minecraft mc = Minecraft.getInstance();
         if (speaker.isRemoved() || mc.player == null || speaker.distanceToSqr(mc.player) > MAX_DISTANCE * MAX_DISTANCE) {
-            stop();
+            halt();
             return;
         }
         volume = GFClientConfig.VOICE_VOLUME.get().floatValue();
@@ -69,6 +74,6 @@ final class VoiceSoundInstance extends AbstractTickableSoundInstance {
 
     @Override
     public CompletableFuture<AudioStream> getStream(SoundBufferLibrary soundBuffers, Sound sound, boolean looping) {
-        return CompletableFuture.completedFuture(new PcmAudioStream(pcm, sampleRate));
+        return CompletableFuture.completedFuture(new PcmAudioStream(clip));
     }
 }

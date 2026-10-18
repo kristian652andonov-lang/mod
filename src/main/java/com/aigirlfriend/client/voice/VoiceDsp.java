@@ -367,6 +367,12 @@ final class VoiceDsp {
 
     /** Scales so the active (non-silent) parts reach {@code targetRms}, never letting peaks exceed {@code ceiling}. */
     static void normalize(float[] x, int sr, float targetRms, float ceiling) {
+        float gain = gainFor(x, sr, targetRms, ceiling);
+        for (int i = 0; i < x.length; i++) x[i] *= gain;
+    }
+
+    /** The gain {@link #normalize} would apply (1 for silence). */
+    static float gainFor(float[] x, int sr, float targetRms, float ceiling) {
         int block = Math.max(1, sr / 50);
         int blocks = (x.length + block - 1) / block;
         double[] rms = new double[blocks];
@@ -381,7 +387,7 @@ final class VoiceDsp {
             rms[b] = Math.sqrt(sum / Math.max(1, e - s));
             loudest = Math.max(loudest, rms[b]);
         }
-        if (loudest < 1e-6 || peak < 1e-6) return;
+        if (loudest < 1e-6 || peak < 1e-6) return 1f;
         double sum = 0;
         int used = 0;
         for (double r : rms) {
@@ -391,8 +397,7 @@ final class VoiceDsp {
             }
         }
         double active = Math.sqrt(sum / Math.max(1, used));
-        double gain = Math.min(targetRms / active, ceiling / peak);
-        for (int i = 0; i < x.length; i++) x[i] *= (float) gain;
+        return (float) Math.min(targetRms / active, ceiling / peak);
     }
 
     static void fade(float[] x, int sr, float inSeconds, float outSeconds) {

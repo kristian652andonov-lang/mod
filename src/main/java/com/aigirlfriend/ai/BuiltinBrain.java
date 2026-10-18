@@ -4,22 +4,12 @@ import com.aigirlfriend.AIGirlfriend;
 import com.aigirlfriend.ai.local.LocalChat;
 import com.aigirlfriend.ai.local.Model;
 import com.aigirlfriend.config.GFConfig;
+import com.aigirlfriend.util.Download;
 import net.neoforged.fml.loading.FMLPaths;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
-import java.security.MessageDigest;
-import java.time.Duration;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -155,69 +145,19 @@ public final class BuiltinBrain {
     }
 
     private static void download(ModelFile mf, Path target) throws IOException, InterruptedException {
-        Files.createDirectories(target.getParent());
-        Path part = target.resolveSibling(target.getFileName() + ".part");
-        long have = Files.isRegularFile(part) ? Files.size(part) : 0;
-        if (have > mf.size()) {
-            Files.delete(part);
-            have = 0;
-        }
-        if (have < mf.size()) fetch(mf, part, have);
-        verifyAndMove(mf, part, target);
-    }
-
-    private static void fetch(ModelFile mf, Path part, long have) throws IOException, InterruptedException {
-        AIGirlfriend.LOGGER.info("Downloading the built-in AI model {} ({} MB) to {}", mf.label(), mf.size() / 1_000_000, part.getParent());
-        HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS).connectTimeout(Duration.ofSeconds(20)).build();
-        HttpRequest.Builder req = HttpRequest.newBuilder(URI.create(mf.url())).header("User-Agent", "AIGirlfriend-mod").GET();
-        if (have > 0) req.header("Range", "bytes=" + have + "-");
-        HttpResponse<InputStream> resp = http.send(req.build(), HttpResponse.BodyHandlers.ofInputStream());
-        int code = resp.statusCode();
-        if (code == 416) { // nothing left to fetch: the part file is already complete
-            resp.body().close();
-            return;
-        }
-        if (code != 206 && code != 200) {
-            resp.body().close();
-            throw new IOException("Download failed: HTTP " + code);
-        }
-        if (code == 200 && have > 0) have = 0; // server ignored the range: start over
-        try (InputStream in = resp.body();
-             OutputStream out = Files.newOutputStream(part, StandardOpenOption.CREATE,
-                     have > 0 ? StandardOpenOption.APPEND : StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
-            byte[] buf = new byte[1 << 16];
-            long done = have;
-            int n;
-            while ((n = in.read(buf)) > 0) {
-                out.write(buf, 0, n);
-                done += n;
-                progress = (float) done / mf.size();
+        AIGirlfriend.LOGGER.info("Downloading the built-in AI model {} ({} MB) to {}", mf.label(), mf.size() / 1_000_000, target.getParent());
+        Download.fetch(new Download.Pinned(mf.url(), mf.size(), mf.sha256()), target, new Download.Listener() {
+            @Override
+            public void progress(long done, long total) {
+                progress = (float) done / total;
             }
-        }
-    }
 
-    private static void verifyAndMove(ModelFile mf, Path part, Path target) throws IOException {
-        detail = "verifying download";
-        if (Files.size(part) != mf.size()) throw new IOException("Download incomplete (" + Files.size(part) + " of " + mf.size() + " bytes); it will resume next time");
-        String sha = sha256(part);
-        if (!sha.equalsIgnoreCase(mf.sha256())) {
-            Files.deleteIfExists(part);
-            throw new IOException("Downloaded model failed its checksum; deleted, it will download again");
-        }
-        Files.move(part, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            @Override
+            public void verifying() {
+                detail = "verifying download";
+            }
+        });
         AIGirlfriend.LOGGER.info("Built-in AI model downloaded and verified");
-    }
-
-    private static String sha256(Path file) throws IOException {
-        try (InputStream in = Files.newInputStream(file)) {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] buf = new byte[1 << 16];
-            int n;
-            while ((n = in.read(buf)) > 0) md.update(buf, 0, n);
-            return HexFormat.of().formatHex(md.digest());
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IOException(e);
-        }
     }
 
     private static void load(Path file, String key) throws IOException {

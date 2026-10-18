@@ -57,10 +57,10 @@ The mod is needed on both the server and every client. Players without it cannot
 * **Requests**: now and then she asks for something ("Want to go exploring together?", a gift, being home before
   night...). Answer by typing in chat ("sure!", "not now") or click the **[Yes]** / **[No]** buttons right after
   her message. The status screen shows the request and its progress.
-* **Her voice**: she speaks her lines out loud from where she stands, through the Voice/Speech volume slider. The
-  mod uses your system's speech engine (Windows SAPI, macOS `say`, Linux pico2wave/flite/espeak-ng) and reshapes it
-  into her own voice (pitch, timbre, emotion); without one it uses a built-in synthesized voice. See the `sound`
-  section of the client config.
+* **Her voice**: she speaks her lines out loud from where she stands, through the Voice/Speech volume slider, in a
+  natural neural voice that runs on your own computer (downloaded once in the background). Until it is ready, or
+  if your computer can't run it, she uses your system's speech engine reshaped into her voice, or a built-in
+  synthesized voice. See [Her voice](#her-voice).
 * **Gifts and marriage**: nine craftable romantic items she loves (recipes in the recipe book; also in the
   *AI Girlfriend* creative tab): Red Rose, Rose Bouquet, Flower Crown, Box of Chocolates (also food), Teddy Bear,
   Love Letter (becomes a lasting memory), Heart Necklace, Wrapped Gift Box, and the **Wedding Ring**
@@ -105,6 +105,47 @@ Other brains (`ai.brain`):
   read only on the server; keep it private and do not distribute it.
 * `/gf ai` shows the brain status (download progress, loading, ready).
 
+## Her voice
+
+By default (`voiceMode = AUTO`) she speaks with a natural neural voice:
+[Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M), run inside the game on your CPU through
+[ONNX Runtime](https://onnxruntime.ai). Nothing is sent anywhere, and there's no account or key.
+
+* **First use**: the voice is downloaded once, in the background, to `<game dir>/aigirlfriend/voice/` (about
+  420 MB in total; every file is checked against a pinned SHA-256, and an interrupted download resumes). The files
+  are the ONNX Runtime 1.23.2 jar (75 MB, Maven Central), the Kokoro model (326 MB, Hugging Face), 15 voice
+  tables (8 MB) and the pronunciation dictionaries (13 MB, GitHub). A gray chat line tells you when the download
+  starts and when her voice is ready. Until then she talks with her other voice. With
+  `neuralVoiceAutoDownload = false` nothing is downloaded in `AUTO` mode.
+* **Voices** (`neuralVoice`): one voice, or a blend joined with `+`. The default is
+  `af_heart:0.7+af_sarah:0.3`, a warm, young voice that scored best in our listening tests (`af_heart` on its
+  own sounds almost the same). The other American voices are `af_sarah`, `af_bella`, `af_nicole` (whispery),
+  `af_sky`, `af_nova`, `af_jessica`, `af_aoede`, `af_kore`, `af_river` and `af_alloy`. The British voices are
+  `bf_emma`, `bf_isabella`, `bf_alice` and `bf_lily`, and they use British pronunciation. All voice files are
+  downloaded together, so you can switch at any time.
+* **Emotion**: she already sounds happy, sad or scared from the words themselves. Her mood adds a little more:
+  a slightly faster or slower pace, a brighter or softer delivery, and now and then a short pause. Moods never
+  shift her pitch, because pitch processing made her sound less natural in tests.
+* **Speed**: on a long reply she starts talking while the rest is still being rendered. She waits only until the
+  rest can keep up, so she doesn't stop mid-sentence to catch up: on a fast computer that's after the first
+  sentence, on a slower one a moment later. `neuralVoiceThreads` sets how many CPU threads she uses. 0 picks a
+  quarter of your processor threads (1 to 4), so the game keeps the rest. More threads mean she starts talking
+  sooner. `voiceRate` scales her pace. `voicePitchScale` also works, but she sounds most natural at 1.0.
+* **Memory**: while loaded, the voice uses about 0.5 to 0.7 GB of native memory, outside the Java heap (so
+  you don't need to raise `-Xmx`). It is released a minute after you switch to a mode that doesn't use it.
+* **Fallback**: in `AUTO` she uses system speech or her synthesized voice whenever the natural voice isn't
+  ready. The natural voice runs on Windows x64, Linux x64/ARM64 and macOS 13.4+ (Apple Silicon and Intel). On
+  Windows it needs a recent Microsoft Visual C++ Redistributable (msvcp140.dll 14.40 from 2024 or newer). Java
+  ships an older copy (Minecraft's bundled Java 21 has 14.38), so the mod loads the system's copy first. If that
+  one is too old as well, a chat line says so before anything is downloaded. If the voice can't start, a chat line
+  says so and she keeps her other voice. If loading it ever crashes the game, it stays off from then on, and a chat
+  line names the file to delete to try again. `voiceMode = NEURAL` uses only the natural voice: it
+  downloads even with auto-download off, and she stays silent until it's ready. `SPEECH`, `SYNTH`, `BLIPS` and
+  `OFF` work as before.
+* **Debugging**: `-Daigirlfriend.voice.dump=<folder>` saves every line she says as a WAV file, with a `.txt`
+  next to it (text, engine, timings), even lines nobody can hear (no audio device, muted).
+  `-Daigirlfriend.voice.dir=<folder>` moves the voice files.
+
 ## Commands
 
 `/aigirlfriend` (alias `/gf`): `info`, `recall`, `restore`, `name <name>`, `memories`, `ai`, `answer yes|no` (what the
@@ -131,7 +172,8 @@ Common (server) config `config/aigirlfriend-common.toml`, grouped by section:
 
 Client config `config/aigirlfriend-client.toml`: HUD (`showHud`, corner), `speechBubbles`, `showCycleStatus`,
 `minimalUi`, `tooltips`, `animationSpeed`, `playerAnimations`, `lockMovement`, hand-pull, her voice (`speakAloud`,
-`voiceMode` AUTO/SPEECH/SYNTH/BLIPS/OFF, `voiceVolume`, `voicePitchScale`, `voiceRate`, `systemVoice`), sounds, and
+`voiceMode` AUTO/NEURAL/SPEECH/SYNTH/BLIPS/OFF, `voiceVolume`, `voicePitchScale`, `voiceRate`, `systemVoice`,
+`neuralVoice`, `neuralVoiceAutoDownload`, `neuralVoiceThreads`), sounds, and
 **pose tuning** for custom models: `carryForward`, `carryHeight`, `carryYaw`, `lapForward`, `lapHeight`, `lapYaw`,
 `seatHeight` (defaults are tuned in game for the bundled model).
 
@@ -182,6 +224,20 @@ Set `-Daigirlfriend.animtest.only=<regex>` to run selected shots.
   is), and the [Yes]/[No] request buttons, the see-through speech bubble and the single name tag were checked in
   screenshots. GameTests cover reply order and the answer buttons.
 
+* Her natural voice: the mod's own loader (ONNX Runtime in its own class loader) produced audio bit-identical to
+  the Python reference on all 10 reference phrases, and the Java pronunciation code gave the same model input as
+  misaki on 98.9% of 1,158 test lines. Rated by an automatic naturalness model (UTMOS, 1 to 5) on 24 typical
+  lines, she scores 4.43, with 1.9% of words misheard by speech recognition, against 2.23 for the previous
+  system-speech voice. On held-out lines she scores 4.46 with 0.5% misheard words. On the 4-core test machine,
+  while another game client was running on it, the first words of those lines were ready after a median of 1.8 s
+  with 1 thread and 1.1 s with 2, and loading took 2 s. Long replies (up to 390 characters) started after 2.0 to
+  3.6 s with 1 thread and 0.9 to 2.5 s with 2 or 4. In 24 such renders, 21 had no added pause mid-line; the other
+  three paused at most 0.4 s longer between two sentences. In a dev client starting with no voice files, the
+  421 MB download took 20 to 23 s and loading 2.8 to 3.7 s, with her other voice speaking meanwhile. The 16 replies
+  she then spoke in game scored 4.49 (the previous voice: 2.40 on the same lines), and her first words came
+  1.6 to 3.5 s after the chat line (median 2.4 s, 1 thread), or up to 5.9 s while the built-in AI was writing
+  her next answer on the same cores. The test machine has no audio device, so actual playback wasn't heard.
+
 Known limitations:
 
 * Speed of the built-in brain depends on your CPU. On the 4-core cloud machine used for testing (2 threads for
@@ -190,8 +246,11 @@ Known limitations:
   with 4 threads. A typical gaming PC is several times faster. For the best answers use `builtinModel = SMART`
   (or a bigger model through Ollama / an API).
 * The small built-in models are not as clever as big online AIs: they can get facts wrong or mix up who said what.
-* Her spoken voice was tested outside the game (Linux speech engines, audio analysis); in-game playback and the
-  Windows/macOS speech paths could not be heard here (no audio device).
+* Her spoken voice was tested outside the game (Linux speech engines, audio analysis). In-game playback and the
+  Windows/macOS speech paths could not be heard here (no audio device). Her natural voice was only run on Linux
+  x64. Windows and macOS use the same pinned ONNX Runtime build, but loading it there wasn't tested; if it fails,
+  she falls back to her other voice. The Windows C++ runtime check was tested against the real DLLs (Minecraft's
+  Java 21 copy is 14.38), but loading the system's copy first could not be run on Windows here.
 
 * Lead-to-bed, swimming and crouch-walking were not covered by the scripted visual test.
 * The external AI providers (Ollama, OpenAI-compatible, Anthropic) have not been tested against a live server;
@@ -211,3 +270,26 @@ Known limitations:
 * **She is stuck or lost**: `/gf recall` brings her to you; `/gf restore` restores her if she was lost.
 * **Custom model floats or clips while carried / on your lap / seated**: adjust the pose tuning values in the client config.
 * **Too many lines / too few**: `dialogue.frequency` and `minSecondsBetweenLines`.
+* **Her voice still sounds robotic**: her natural voice is still downloading, or it couldn't start (a gray chat
+  line says which; details are in `logs/latest.log` under "Companion voice"). Check `voiceMode = AUTO` and
+  `neuralVoiceAutoDownload = true`. Deleting `<game dir>/aigirlfriend/voice/` makes it download again.
+* **"Her natural voice needs the latest Microsoft Visual C++ Redistributable"** (Windows): install the latest
+  x64 Visual C++ Redistributable from Microsoft, then restart the game.
+* **"Her natural voice crashed the game the last time it loaded"**: the game closed while the voice was loading
+  (a crash, or the game was killed), so the mod no longer loads it. Delete the `loading.marker` file the message
+  names to try again.
+
+## Credits and licenses
+
+Downloaded at run time, never bundled in the mod jar:
+
+* [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) v1.0 by hexgrad, Apache-2.0 (her natural voice; the
+  ONNX export and voice tables come from
+  [onnx-community/Kokoro-82M-v1.0-ONNX](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)).
+* [misaki](https://github.com/hexgrad/misaki) by hexgrad, Apache-2.0: the pronunciation dictionaries. Its
+  English rules are ported to Java in `client/voice/g2p`.
+* [ONNX Runtime](https://github.com/microsoft/onnxruntime) by Microsoft, MIT (`ThirdPartyNotices.txt` is inside
+  the downloaded jar).
+* [Qwen2.5](https://huggingface.co/Qwen) Instruct, Apache-2.0 (the built-in brain).
+
+Ported into the mod: the English tokenizer rules and exception table of [spaCy](https://spacy.io), MIT.

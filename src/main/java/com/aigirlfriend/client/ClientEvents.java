@@ -28,6 +28,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 import net.neoforged.neoforge.client.event.RenderPlayerEvent;
+import net.neoforged.neoforge.event.GameShuttingDownEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.HashSet;
@@ -174,6 +175,11 @@ public final class ClientEvents {
     @SubscribeEvent
     public void onRenderPlayerPost(RenderPlayerEvent.Post event) {
         if (pushedRoot.remove(event.getEntity().getId())) event.getPoseStack().popPose();
+    }
+
+    @SubscribeEvent
+    public void onShutdown(GameShuttingDownEvent event) {
+        VoiceManager.shutdown();
     }
 
     @SubscribeEvent

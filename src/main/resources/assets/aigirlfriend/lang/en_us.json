@@ -251,5 +251,12 @@
   "aigirlfriend.chat.no.hover": "Say no to %s (or just type your answer)",
   "aigirlfriend.chat.yes.said": "Yes, let's do it!",
   "aigirlfriend.chat.no.said": "Sorry, not right now.",
-  "aigirlfriend.chat.no_request": "%s isn't asking you for anything right now."
+  "aigirlfriend.chat.no_request": "%s isn't asking you for anything right now.",
+  "aigirlfriend.voice.downloading": "Downloading her natural voice (%s, one time only). Until it's ready she uses her other voice.",
+  "aigirlfriend.voice.ready": "Her natural voice is ready (%s downloaded).",
+  "aigirlfriend.voice.failed": "Her natural voice couldn't start on this computer (%s), so she keeps her other voice.",
+  "aigirlfriend.voice.failed_only": "Her natural voice couldn't start on this computer (%s). Set voiceMode to AUTO to hear her other voice.",
+  "aigirlfriend.voice.crashed": "Her natural voice crashed the game the last time it loaded, so it stays off. To try again, delete %s",
+  "aigirlfriend.voice.vcredist": "Her natural voice needs the latest Microsoft Visual C++ Redistributable (x64) from Microsoft; this computer has %s. Install it, then restart the game.",
+  "aigirlfriend.voice.unsupported": "Her natural voice can't run on this computer (%s). Set voiceMode to AUTO to hear her other voice."
 }
