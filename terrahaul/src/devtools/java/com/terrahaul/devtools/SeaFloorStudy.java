@@ -72,6 +72,43 @@ public final class SeaFloorStudy {
                 }
             }
             case "stats" -> stats(model);
+            case "grottos" -> {
+                // census of grotto sites in a square around the origin; renders the first hidden one
+                int half = args.length > 3 ? Integer.parseInt(args[3]) : 5000;
+                GrottoPlan plan = GrottoPlan.of(planner);
+                int sites = 0;
+                int domes = 0;
+                double minMargin = Double.MAX_VALUE;
+                java.util.Map<String, Integer> kinds = new java.util.TreeMap<>();
+                GrottoPlan.Grotto firstDome = null;
+                long t0 = System.nanoTime();
+                int cells = 0;
+                for (int cx = -half / GrottoPlan.CELL; cx < half / GrottoPlan.CELL; cx++) {
+                    for (int cz = -half / GrottoPlan.CELL; cz < half / GrottoPlan.CELL; cz++) {
+                        cells++;
+                        GrottoPlan.Grotto g = plan.grotto(cx, cz);
+                        if (g == null) {
+                            continue;
+                        }
+                        sites++;
+                        kinds.merge(g.kind, 1, Integer::sum);
+                        minMargin = Math.min(minMargin, g.margin);
+                        if (g.dome) {
+                            domes++;
+                            if (firstDome == null || Math.hypot(g.mx, g.mz) < Math.hypot(firstDome.mx, firstDome.mz)) {
+                                firstDome = g;
+                            }
+                        }
+                    }
+                }
+                double area = 4.0 * half * half / 1.0e8;
+                System.out.printf(Locale.ROOT, "%d grottos (%.1f per 10000 x 10000 blocks), %d hidden with an air dome, kinds %s, smallest roof margin %.2f, planning %.2f ms per cell%n",
+                    sites, sites / area, domes, kinds, minMargin, (System.nanoTime() - t0) / 1.0e6 / cells);
+                if (firstDome != null) {
+                    int[] f = firstDome.front();
+                    study(planner, dir, "hidden_grotto", f[0], f[2], 96, new TerrainFinder.Result(f[0], f[1], f[2], "hidden_grotto"));
+                }
+            }
             case "perf" -> perf(planner);
             default -> throw new IllegalArgumentException("unknown mode " + mode);
         }
@@ -180,7 +217,9 @@ public final class SeaFloorStudy {
         GrottoPlan grottos = GrottoPlan.of(planner);
         area.applyDug(GrottoPlan.MARGIN, grottos::build);
         long t2 = System.nanoTime();
+        area.guarded = true;
         area.apply(ReefRaster.MARGIN, ReefRaster::build);
+        area.guarded = false;
         long t3 = System.nanoTime();
         area.applyVegetation();
         long t4 = System.nanoTime();
@@ -219,6 +258,29 @@ public final class SeaFloorStudy {
         ImageIO.write(area.iso(ax, az, isoN, isoN > 64 ? 6 : 8, yLow, yHigh), "png", new File(dir, name + "_iso.png"));
         int secZ = found != null ? found.z() : minZ + size / 2;
         ImageIO.write(area.section(minX, size, secZ, yLow, yHigh, 5), "png", new File(dir, name + "_sec.png"));
+        if (found != null) {
+            // a diver's view: at the finder's spot (reef, grotto) looking at the feature, or from
+            // 12 blocks back for spots in the middle of a field (kelp, meadow, rocks)
+            MarineColumn c = area.column(found.x(), found.z());
+            double dx = c.slope > 0.02 ? c.gradX : 0.0;
+            double dz = c.slope > 0.02 ? c.gradZ : -1.0;
+            double l = Math.hypot(dx, dz);
+            dx /= l;
+            dz /= l;
+            boolean facing = found.label().equals("coral_reef") || found.label().endsWith("grotto");
+            if (found.label().endsWith("grotto")) {
+                for (GrottoPlan.Grotto g : GrottoPlan.of(planner).near(found.x() & ~15, found.z() & ~15)) {
+                    if (g.front()[0] == found.x() && g.front()[2] == found.z()) {
+                        dx = g.ux;
+                        dz = g.uz;
+                    }
+                }
+            }
+            double back = facing ? 2.0 : 12.0;
+            double camY = facing ? found.y() + 0.5 : found.y() + 2.5;
+            ImageIO.write(area.perspective(found.x() + 0.5 - dx * back, camY, found.z() + 0.5 - dz * back, dx, dz, facing ? 2.0 : -14.0, 640, 360),
+                "png", new File(dir, name + "_view.png"));
+        }
         if (found != null && found.label().endsWith("grotto")) {
             GrottoPlan plan = GrottoPlan.of(planner);
             for (GrottoPlan.Grotto g : plan.near(found.x() & ~15, found.z() & ~15)) {
@@ -404,7 +466,11 @@ public final class SeaFloorStudy {
                 }
                 if (!wet) {
                     if (dry++ < 5) {
-                        System.out.println("  dry coral " + code + " at " + p[0] + " " + p[1] + " " + p[2]);
+                        StringBuilder sb = new StringBuilder();
+                        for (int[] d : new int[][]{{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}) {
+                            sb.append(' ').append(area.get(p[0] + d[0], p[1] + d[1], p[2] + d[2]));
+                        }
+                        System.out.println("  dry coral " + code + " at " + p[0] + " " + p[1] + " " + p[2] + ", neighbours" + sb);
                     }
                 }
             }

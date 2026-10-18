@@ -43,18 +43,15 @@ public final class GrottoPlan {
     private final ConcurrentHashMap<Long, Grotto> cache = new ConcurrentHashMap<>();
     private static final Grotto NONE = new Grotto();
 
-    private GrottoPlan(MarinePlanner p) {
+    GrottoPlan(MarinePlanner p) {
         this.p = p;
         this.model = p.model();
         this.sl = p.seaLevel();
     }
 
-    private static final java.util.Map<MarinePlanner, GrottoPlan> PLANS = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
-
+    /** The grotto planner of a world (owned by its marine planner). */
     public static GrottoPlan of(MarinePlanner planner) {
-        synchronized (PLANS) {
-            return PLANS.computeIfAbsent(planner, GrottoPlan::new);
-        }
+        return planner.grottos();
     }
 
     /** A planned grotto. Coordinates along the axis are measured from the foot of the face. */
@@ -447,6 +444,13 @@ public final class GrottoPlan {
         }
         double top = t.chamberFloor + (cu - 0.25) / 0.75 * (sl + 1.5 - t.chamberFloor) - 0.4 * Math.abs(v) / t.rv;
         return y <= top;
+    }
+
+    /** True in the open water in front of a grotto's mouth, which rocks and boulders keep clear. */
+    public static boolean inCorridor(Grotto t, double x, double z, double margin) {
+        double u = t.u(x, z);
+        double v = t.v(x, z);
+        return u >= -10.0 - margin && u <= t.um + 1.0 + margin && Math.abs(v) <= t.hw + 4.0 + margin;
     }
 
     /** True if a grotto may reach the chunk at {@code (minX, minZ)}. */

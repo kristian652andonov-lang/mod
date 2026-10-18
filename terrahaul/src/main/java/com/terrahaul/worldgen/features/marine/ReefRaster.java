@@ -90,7 +90,7 @@ public final class ReefRaster {
     private static final int PATCH_REACH = 44;
 
     /** Margin around the core that a reef volume needs (halos and wall fans look this far). */
-    public static final int MARGIN = 6;
+    public static final int MARGIN = 4;
 
     private final MarineVolume v;
     private final MarinePlanner p;
@@ -99,6 +99,8 @@ public final class ReefRaster {
     private final int crest;
     private final int coralTop;
     private final Map<Long, Integer> speciesCache = new HashMap<>();
+    /** Grottos near the chunk: the reef leaves the water in front of their mouths open. */
+    private final java.util.List<GrottoPlan.Grotto> grottos;
 
     private ReefRaster(MarineVolume v) {
         this.v = v;
@@ -107,6 +109,16 @@ public final class ReefRaster {
         this.surf = p.surf;
         this.crest = p.crest;
         this.coralTop = p.coralTop;
+        this.grottos = GrottoPlan.of(p).near(v.coreMinX, v.coreMinZ);
+    }
+
+    private boolean blocksGrotto(double x, double z, double margin) {
+        for (GrottoPlan.Grotto g : grottos) {
+            if (GrottoPlan.inCorridor(g, x, z, margin)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Plans the reefs of the volume's region and decorates its core. */
@@ -160,6 +172,9 @@ public final class ReefRaster {
         for (int x = v.minX; x < v.minX + v.sizeX; x++) {
             for (int z = v.minZ; z < v.minZ + v.sizeZ; z++) {
                 MarineColumn c = v.column(x, z);
+                if (c.hasPlatform() && blocksGrotto(x + 0.5, z + 0.5, 0.0)) {
+                    continue;
+                }
                 for (int y = c.floor + 1; y <= c.platform; y++) {
                     v.set(x, y, z, FRAME);
                 }
@@ -189,7 +204,7 @@ public final class ReefRaster {
         for (int x = Math.max(v.minX, pr.x - reach); x <= Math.min(v.minX + v.sizeX - 1, pr.x + reach); x++) {
             for (int z = Math.max(v.minZ, pr.z - reach); z <= Math.min(v.minZ + v.sizeZ - 1, pr.z + reach); z++) {
                 MarineColumn c = v.column(x, z);
-                if (!c.sea) {
+                if (!c.sea || blocksGrotto(x + 0.5, z + 0.5, 0.0)) {
                     continue;
                 }
                 double dx = x + 0.5 - pr.x;
@@ -219,7 +234,7 @@ public final class ReefRaster {
             int sx = (int) Math.floor(pr.x + Math.cos(a) * dist);
             int sz = (int) Math.floor(pr.z + Math.sin(a) * dist);
             MarineColumn c = v.column(sx, sz);
-            if (c.sea && c.depth >= 5) {
+            if (c.sea && c.depth >= 5 && !blocksGrotto(sx + 0.5, sz + 0.5, BOMMIE_REACH)) {
                 foreBommie(sx, sz, c, h);
             }
         }
@@ -327,7 +342,7 @@ public final class ReefRaster {
                     continue;
                 }
                 MarineColumn col = v.column(bx, bz);
-                if (!col.sea) {
+                if (!col.sea || blocksGrotto(bx + 0.5, bz + 0.5, 0.0)) {
                     continue;
                 }
                 double top = lerp(along / total, sl - 3.5, col.floor + 2.5) - 1.5 * (dist / w) * (dist / w);
@@ -411,7 +426,7 @@ public final class ReefRaster {
                 long h = SeedMixer.hash2(salt, gx, gz);
                 int sx = (int) Math.floor((gx + 0.15 + 0.7 * unit(h, 1)) * cell);
                 int sz = (int) Math.floor((gz + 0.15 + 0.7 * unit(h, 2)) * cell);
-                if (!overlaps(sx, sz, reach)) {
+                if (!overlaps(sx, sz, reach) || blocksGrotto(sx + 0.5, sz + 0.5, reach)) {
                     continue;
                 }
                 MarineColumn c = v.column(sx, sz);
@@ -802,7 +817,7 @@ public final class ReefRaster {
         int water = surf - y;
         int tint = v.tint(x, y, z);
         MarinePlanner.Colony col = top ? p.colony(x, z) : p.wallColony(x, y, z);
-        double liveShare = tint != 0 ? 0.78 : top ? 0.0 : 0.72;
+        double liveShare = tint != 0 ? 0.8 : top ? 0.0 : 0.8;
         boolean live = top && tint == 0 ? col.live() : col.roll() < liveShare;
         if (live) {
             int sp;
@@ -820,6 +835,11 @@ public final class ReefRaster {
         }
         if (top && water <= 5 && !col.bleached() && p.noise(MarinePlanner.LUMPS, x / 5.0 + 40.0, z / 5.0) < -0.3 && isSolid(v.get(x, y - 1, z))) {
             return SAND;
+        }
+        // pavement on the reef tops is partly pale rubble of broken, bleached coral (whole
+        // colonies of it, never single blocks), elsewhere grey dead coral
+        if (top && tint == 0 && !col.bleached() && SeedMixer.cellUnit(col.id, 0, 0, 16) < (water <= 4 ? 0.45 : 0.2)) {
+            return CALCITE;
         }
         return (byte) (DEAD + (tint != 0 ? (tint - 1) % 5 : pavement(col)));
     }

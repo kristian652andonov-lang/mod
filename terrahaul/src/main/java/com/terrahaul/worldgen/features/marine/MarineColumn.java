@@ -59,4 +59,35 @@ public final class MarineColumn {
     public boolean hasPlatform() {
         return platform > floor;
     }
+
+    public void copyFrom(MarineColumn o) {
+        x = o.x;
+        z = o.z;
+        height = o.height;
+        floor = o.floor;
+        depth = o.depth;
+        sea = o.sea;
+        temperature = o.temperature;
+        slope = o.slope;
+        gradX = o.gradX;
+        gradZ = o.gradZ;
+        coastCliff = o.coastCliff;
+        fjord = o.fjord;
+        riverValley = o.riverValley;
+        trench = o.trench;
+        oceanRidge = o.oceanRidge;
+        beach = o.beach;
+        volcano = o.volcano;
+        geology = o.geology;
+        family = o.family;
+        reef = o.reef;
+        reefObjects = o.reefObjects;
+        front = o.front;
+        back = o.back;
+        platform = o.platform;
+        kelp = o.kelp;
+        meadow = o.meadow;
+        rocky = o.rocky;
+        outcrop = o.outcrop;
+    }
 }

@@ -65,8 +65,8 @@ public final class SeaLifeRaster {
         double r = SeedMixer.unit(h);
         double k = c.kelp;
         if (water >= 3) {
-            double clump = 0.35 + 0.45 * smoothstep(-0.2, 0.5, p.noise(MarinePlanner.CLUMP, c.x / 5.0, c.z / 5.0));
-            double holdfast = floor == HARD ? 1.6 : floor == GRAVELLY ? 1.0 : 0.45;
+            double clump = 0.45 + 0.5 * smoothstep(-0.2, 0.5, p.noise(MarinePlanner.CLUMP, c.x / 5.0, c.z / 5.0));
+            double holdfast = floor == HARD ? 1.6 : floor == GRAVELLY ? 1.1 : 0.7;
             double chance = k * clump * holdfast;
             boolean sparse = k < 0.05 && c.temperature > -0.45 && c.temperature < 0.35 && water <= 40;
             if (sparse) {
@@ -86,6 +86,10 @@ public final class SeaLifeRaster {
                     out.head = Math.min(p.surf - 1, top + length);
                     out.mature = false;
                     out.age = 20 + (int) (SeedMixer.cellUnit(h, 0, 0, 4) * 5.0);
+                }
+                if (c.temperature < -0.4) {
+                    // under sea ice the canopy stays below the frozen surface
+                    out.head = Math.min(out.head, p.surf - 2);
                 }
                 if (out.head <= top) {
                     out.kind = NONE;
@@ -109,35 +113,6 @@ public final class SeaLifeRaster {
     }
 
     /**
-     * Writes the plants of the volume's core into it, standing on the planned tops (the devtools'
-     * view; the feature places the same decisions on the real tops).
-     */
-    public static void build(MarineVolume v) {
-        MarinePlanner p = v.planner();
-        Plant plant = new Plant();
-        for (int x = v.coreMinX; x < v.coreMinX + v.coreSizeX; x++) {
-            for (int z = v.coreMinZ; z < v.coreMinZ + v.coreSizeZ; z++) {
-                MarineColumn c = v.column(x, z);
-                if (!c.sea) {
-                    continue;
-                }
-                int top = c.floor;
-                while (MarineVolume.isSolid(v.get(x, top + 1, z)) && top < p.surf) {
-                    top++;
-                }
-                if (v.get(x, top + 1, z) != MarineVolume.NAT_WATER) {
-                    continue;
-                }
-                byte code = v.get(x, top, z);
-                int floor = code == MarineVolume.NAT_SOLID ? naturalFloor(c) : code == MarineVolume.GRAVEL ? GRAVELLY
-                    : code == MarineVolume.SAND ? SOFT : HARD;
-                decide(p, c, top, floor, plant);
-                place(v, x, z, top, plant);
-            }
-        }
-    }
-
-    /**
      * The kind of an untouched floor, approximating the surface rule's seabed (sand in shallow and
      * temperate water, gravel in cold water and with depth). The feature uses the real block.
      */
@@ -148,28 +123,5 @@ public final class SeaLifeRaster {
         }
         double t = (c.depth - 14) / 56.0 + (cold ? 0.3 : 0.0) - (c.temperature > 0.5 ? 0.3 : 0.0);
         return t < 0.5 ? SOFT : GRAVELLY;
-    }
-
-    private static void place(MarineVolume v, int x, int z, int top, Plant plant) {
-        switch (plant.kind) {
-            case SEAGRASS -> v.put(x, top + 1, z, MarineVolume.SEAGRASS);
-            case TALL_SEAGRASS -> {
-                if (v.get(x, top + 2, z) == MarineVolume.NAT_WATER) {
-                    v.put(x, top + 1, z, MarineVolume.TALL_LOWER);
-                    v.put(x, top + 2, z, MarineVolume.TALL_UPPER);
-                }
-            }
-            case KELP -> {
-                int head = top;
-                while (head < plant.head && v.get(x, head + 1, z) == MarineVolume.NAT_WATER) {
-                    head++;
-                }
-                for (int y = top + 1; y <= head; y++) {
-                    v.set(x, y, z, y < head ? MarineVolume.KELP_PLANT : plant.mature && head == plant.head ? MarineVolume.KELP_TOP : MarineVolume.KELP_GROWING);
-                }
-            }
-            default -> {
-            }
-        }
     }
 }

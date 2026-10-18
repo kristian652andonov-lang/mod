@@ -27,6 +27,29 @@ public final class MarineFinder {
 
     public static TerrainFinder.Result find(TerrainModel model, String target, int x, int z, int radius, BooleanSupplier cancelled) {
         MarinePlanner p = MarinePlanner.of(model);
+        TerrainFinder.Result r = search(p, target, x, z, radius, cancelled);
+        if (r == null || target.equals("sea_grotto") || target.equals("patch_reef")) {
+            return r;
+        }
+        // the spot must be open water, not inside a coral head or a boulder planned there
+        return new TerrainFinder.Result(r.x(), openWater(p, r.x(), r.y(), r.z(), target.equals("coral_reef")), r.z(), r.label());
+    }
+
+    /** The lowest y from {@code y} up where the planned reef or rocks leave two blocks of water. */
+    private static int openWater(MarinePlanner p, int x, int y, int z, boolean reef) {
+        MarineVolume v = new MarineVolume(p, x & ~15, z & ~15, 16, 16, reef ? ReefRaster.MARGIN : RockRaster.MARGIN);
+        if (reef) {
+            ReefRaster.build(v);
+        } else {
+            RockRaster.build(v, 1.0, 1.0);
+        }
+        while (y < p.surf - 1 && (MarineVolume.isSolid(v.get(x, y, z)) || MarineVolume.isSolid(v.get(x, y + 1, z)))) {
+            y++;
+        }
+        return y;
+    }
+
+    private static TerrainFinder.Result search(MarinePlanner p, String target, int x, int z, int radius, BooleanSupplier cancelled) {
         return switch (target) {
             case "coral_reef" -> rings(p, x, z, radius, 48, cancelled, s -> s.temperature > 0.42 && s.height < p.seaLevel() - 1.0 && s.height > p.seaLevel() - 18.0,
                 (c, px, pz) -> reefFront(p, c, px, pz), target);
@@ -111,7 +134,8 @@ public final class MarineFinder {
         if (!f.sea || f.hasPlatform() || f.depth < 6) {
             return null;
         }
-        return new int[]{fx, f.floor + 3, fz};
+        // level with the middle of the reef wall, even where the floor in front drops away
+        return new int[]{fx, Math.max(f.floor + 3, p.crest - 6), fz};
     }
 
     private static TerrainFinder.Result patchReef(MarinePlanner p, int x, int z, int radius, BooleanSupplier cancelled) {

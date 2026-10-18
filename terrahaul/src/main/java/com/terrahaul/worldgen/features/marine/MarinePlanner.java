@@ -10,9 +10,8 @@ import com.terrahaul.worldgen.noise.TMath;
 import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.Geology;
 import com.terrahaul.worldgen.terrain.TerrainModel;
-import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -36,7 +35,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * thread-safe, so the chunk workers share it.
  */
 public final class MarinePlanner {
-    private static final Map<TerrainModel, MarinePlanner> PLANNERS = Collections.synchronizedMap(new WeakHashMap<>());
+    /** One planner per terrain model; bounded like the model cache, so old worlds are released. */
+    private static final Map<TerrainModel, MarinePlanner> PLANNERS = new LinkedHashMap<>(8, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<TerrainModel, MarinePlanner> eldest) {
+            return size() > 8;
+        }
+    };
+    private static volatile MarinePlanner lastPlanner;
+    private volatile GrottoPlan grottoPlan;
 
     /** Rock families: one colour each, graded from the top stop to the bottom stop. */
     public static final int GREY = 0;
@@ -124,9 +131,30 @@ public final class MarinePlanner {
     }
 
     public static MarinePlanner of(TerrainModel model) {
-        synchronized (PLANNERS) {
-            return PLANNERS.computeIfAbsent(model, MarinePlanner::new);
+        MarinePlanner last = lastPlanner;
+        if (last != null && last.model == model) {
+            return last;
         }
+        synchronized (PLANNERS) {
+            last = PLANNERS.computeIfAbsent(model, MarinePlanner::new);
+        }
+        lastPlanner = last;
+        return last;
+    }
+
+    /** The grotto planner of this world. */
+    public GrottoPlan grottos() {
+        GrottoPlan plan = grottoPlan;
+        if (plan == null) {
+            synchronized (this) {
+                plan = grottoPlan;
+                if (plan == null) {
+                    plan = new GrottoPlan(this);
+                    grottoPlan = plan;
+                }
+            }
+        }
+        return plan;
     }
 
     public TerrainModel model() {
@@ -156,6 +184,34 @@ public final class MarinePlanner {
 
     /** Fills {@code c} with the plan of the column at {@code (x, z)}. */
     public void column(int x, int z, MarineColumn c) {
+        // neighbouring chunks plan the same margin columns, usually on the same worker thread
+        ColumnCache cache = columnCache.get();
+        int i = (x & CACHE_MASK) | (z & CACHE_MASK) << CACHE_BITS;
+        long key = (long) x << 32 | z & 0xFFFFFFFFL;
+        MarineColumn hit = cache.columns[i];
+        if (hit != null && cache.keys[i] == key) {
+            c.copyFrom(hit);
+            return;
+        }
+        compute(x, z, c);
+        if (hit == null) {
+            hit = new MarineColumn();
+            cache.columns[i] = hit;
+        }
+        hit.copyFrom(c);
+        cache.keys[i] = key;
+    }
+
+    private static final int CACHE_BITS = 6;
+    private static final int CACHE_MASK = (1 << CACHE_BITS) - 1;
+    private final ThreadLocal<ColumnCache> columnCache = ThreadLocal.withInitial(ColumnCache::new);
+
+    private static final class ColumnCache {
+        final long[] keys = new long[1 << 2 * CACHE_BITS];
+        final MarineColumn[] columns = new MarineColumn[1 << 2 * CACHE_BITS];
+    }
+
+    private void compute(int x, int z, MarineColumn c) {
         c.x = x;
         c.z = z;
         double h = model.interpolatedHeight(x, z);
@@ -297,8 +353,8 @@ public final class MarinePlanner {
 
     /** Spacing of the colony mosaic on reef tops. */
     private static final double COLONY_CELL = 7.0;
-    /** Spacing of the colony mosaic on reef walls (vertical distances count 1.5 times). */
-    private static final double WALL_COLONY_CELL = 6.0;
+    /** Spacing of the colony mosaic on reef walls (colonies are flatter than wide: vertical distances count 1.3 times). */
+    private static final double WALL_COLONY_CELL = 8.0;
 
     /**
      * A coral colony of the mosaic covering reef surfaces: one species, one colour. Live colonies
@@ -317,12 +373,12 @@ public final class MarinePlanner {
         public int seedZ;
 
         public boolean live() {
-            return SeedMixer.cellUnit(id, 0, 0, 11) < 0.64;
+            return SeedMixer.cellUnit(id, 0, 0, 11) < 0.72;
         }
 
         public boolean bleached() {
             double k = SeedMixer.cellUnit(id, 0, 0, 11);
-            return k >= 0.64 && k < 0.69;
+            return k >= 0.72 && k < 0.76;
         }
 
         /** Massive (brain-like) colonies grow into low domes. */
@@ -369,7 +425,7 @@ public final class MarinePlanner {
     public Colony wallColony(int x, int y, int z) {
         long salt = salt(3);
         int gx = Math.floorDiv(x, (int) WALL_COLONY_CELL);
-        int gy = Math.floorDiv(y, 4);
+        int gy = Math.floorDiv(y, 6);
         int gz = Math.floorDiv(z, (int) WALL_COLONY_CELL);
         Colony c = new Colony();
         c.d1 = Double.MAX_VALUE;
@@ -379,10 +435,10 @@ public final class MarinePlanner {
                 for (int dz = -1; dz <= 1; dz++) {
                     long h = SeedMixer.hash3(salt, gx + dx, gy + dy, gz + dz);
                     double sx = (gx + dx + SeedMixer.cellUnit(h, 0, 0, 1)) * WALL_COLONY_CELL;
-                    double sy = (gy + dy + SeedMixer.cellUnit(h, 0, 0, 2)) * 4.0;
+                    double sy = (gy + dy + SeedMixer.cellUnit(h, 0, 0, 2)) * 6.0;
                     double sz = (gz + dz + SeedMixer.cellUnit(h, 0, 0, 3)) * WALL_COLONY_CELL;
                     double ex = sx - x - 0.5;
-                    double ey = (sy - y - 0.5) * 1.5;
+                    double ey = (sy - y - 0.5) * 1.3;
                     double ez = sz - z - 0.5;
                     double d = Math.sqrt(ex * ex + ey * ey + ez * ez);
                     if (d < c.d1) {

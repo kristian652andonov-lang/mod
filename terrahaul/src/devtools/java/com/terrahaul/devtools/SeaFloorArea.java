@@ -124,7 +124,7 @@ final class SeaFloorArea {
                 while (top < planner.surf && MarineVolume.isSolid(get(x, top + 1, z))) {
                     top++;
                 }
-                if (get(x, top + 1, z) != MarineVolume.NAT_WATER) {
+                if (get(x, top + 1, z) != MarineVolume.NAT_WATER || !MarineVolume.isSolid(get(x, top, z))) {
                     continue;
                 }
                 byte ground = get(x, top, z);
@@ -159,6 +159,9 @@ final class SeaFloorArea {
         }
     }
 
+    /** Like the reef feature: leave columns alone that hold something else than water above the floor. */
+    boolean guarded;
+
     void copyCore(MarineVolume v) {
         for (int x = v.coreMinX; x < v.coreMinX + v.coreSizeX; x++) {
             for (int z = v.coreMinZ; z < v.coreMinZ + v.coreSizeZ; z++) {
@@ -166,6 +169,23 @@ final class SeaFloorArea {
                     continue;
                 }
                 int hi = v.storedMax(x, z);
+                if (guarded) {
+                    int top = Integer.MIN_VALUE;
+                    for (int y = v.storedMin(x, z); y < hi; y++) {
+                        if (MarineVolume.isPlanned(v.get(x, y, z))) {
+                            top = y;
+                        }
+                    }
+                    boolean clear = true;
+                    for (int y = column(x, z).floor + 1; y <= top; y++) {
+                        if (!MarineVolume.isWaterLike(get(x, y, z)) && !(get(x, y, z) >= MarineVolume.PEBBLES && get(x, y, z) < MarineVolume.GLOW_LICHEN)) {
+                            clear = false;
+                        }
+                    }
+                    if (!clear) {
+                        continue;
+                    }
+                }
                 for (int y = v.storedMin(x, z); y < hi; y++) {
                     byte code = v.get(x, y, z);
                     if (!MarineVolume.isPlanned(code)) {
@@ -176,18 +196,41 @@ final class SeaFloorArea {
                         // plants: into water only, on what they need (as the features check in the world)
                         byte below = get(x, y - 1, z);
                         boolean wet = here == MarineVolume.NAT_WATER || here == MarineVolume.WATER || here == MarineVolume.AIR;
-                        boolean held = MarineVolume.isSolid(below) || code == MarineVolume.TALL_UPPER && below == MarineVolume.TALL_LOWER
-                            || code >= MarineVolume.KELP_PLANT && code <= MarineVolume.KELP_GROWING && below == MarineVolume.KELP_PLANT
-                            || code >= MarineVolume.WALL_FAN && code < MarineVolume.PICKLE || code >= MarineVolume.GLOW_LICHEN;
+                        boolean held;
+                        if (code >= MarineVolume.WALL_FAN && code < MarineVolume.PICKLE) {
+                            int k = (code - MarineVolume.WALL_FAN) % 4;
+                            held = MarineVolume.isSolid(get(x - MarineVolume.DIR_X[k], y, z - MarineVolume.DIR_Z[k]));
+                        } else if (code >= MarineVolume.GLOW_LICHEN && code < MarineVolume.GLOW_LICHEN + 5) {
+                            int k = code - MarineVolume.GLOW_LICHEN;
+                            held = k == 0 ? MarineVolume.isSolid(get(x, y + 1, z)) : MarineVolume.isSolid(get(x + MarineVolume.DIR_X[k - 1], y, z + MarineVolume.DIR_Z[k - 1]));
+                        } else {
+                            held = MarineVolume.isSolid(below) || code == MarineVolume.TALL_UPPER && below == MarineVolume.TALL_LOWER
+                                || code >= MarineVolume.KELP_PLANT && code <= MarineVolume.KELP_GROWING && below == MarineVolume.KELP_PLANT;
+                        }
                         if (wet && held) {
                             set(x, y, z, code);
                         }
                     } else if (code == MarineVolume.WATER || code == MarineVolume.AIR || MarineVolume.isWaterLike(here) || writesFloor(code) && here == MarineVolume.NAT_SOLID) {
+                        if (guarded && MarineVolume.isLive(code) && !wet(v, x, y, z)) {
+                            code = (byte) (code - MarineVolume.LIVE + MarineVolume.DEAD);
+                        }
                         set(x, y, z, code);
                     }
                 }
             }
         }
+    }
+
+    /** The reef emitter's test: a neighbour planned as water that is still water here. */
+    private boolean wet(MarineVolume v, int x, int y, int z) {
+        for (int[] d : new int[][]{{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}) {
+            byte planned = v.get(x + d[0], y + d[1], z + d[2]);
+            boolean water = MarineVolume.isWaterLike(planned) || planned >= MarineVolume.PLANT && planned < MarineVolume.ROCK;
+            if (water && y + d[1] <= planner.surf && MarineVolume.isWaterLike(get(x + d[0], y + d[1], z + d[2]))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean writesFloor(byte code) {
@@ -490,6 +533,115 @@ final class SeaFloorArea {
             }
         }
         return img;
+    }
+
+    /**
+     * What a diver sees: a ray-cast view from {@code (cx, cy, cz)} along {@code (dx, dz)} tilted by
+     * {@code pitch} degrees, with underwater fog (turquoise in warm seas, blue elsewhere) and shaded
+     * block faces. Plants are drawn as thin, partly transparent blocks.
+     */
+    BufferedImage perspective(double cx, double cy, double cz, double dirX, double dirZ, double pitch, int w, int h) {
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        double len = Math.hypot(dirX, dirZ);
+        double fx = dirX / len;
+        double fz = dirZ / len;
+        double p = Math.toRadians(pitch);
+        // camera basis: forward, right, up
+        double[] fwd = {fx * Math.cos(p), Math.sin(p), fz * Math.cos(p)};
+        double[] right = {-fz, 0, fx};
+        double[] up = {fwd[1] * right[2] - fwd[2] * right[1], fwd[2] * right[0] - fwd[0] * right[2], fwd[0] * right[1] - fwd[1] * right[0]};
+        if (up[1] < 0) {
+            up = new double[]{-up[0], -up[1], -up[2]};
+        }
+        double tanHalf = Math.tan(Math.toRadians(35.0));
+        MarineColumn here = column((int) Math.floor(cx), (int) Math.floor(cz));
+        boolean warm = here.temperature > 0.55;
+        int[] fog = warm ? new int[]{38, 150, 170} : here.temperature > 0.2 ? new int[]{30, 110, 160} : new int[]{24, 72, 120};
+        double fogDist = warm ? 38.0 : 30.0;
+        for (int py = 0; py < h; py++) {
+            for (int px = 0; px < w; px++) {
+                double sx = (2.0 * (px + 0.5) / w - 1.0) * tanHalf * w / h;
+                double sy = (1.0 - 2.0 * (py + 0.5) / h) * tanHalf;
+                double rx = fwd[0] + sx * right[0] + sy * up[0];
+                double ry = fwd[1] + sx * right[1] + sy * up[1];
+                double rz = fwd[2] + sx * right[2] + sy * up[2];
+                double rl = Math.sqrt(rx * rx + ry * ry + rz * rz);
+                img.setRGB(px, py, rgb(trace(cx, cy, cz, rx / rl, ry / rl, rz / rl, fog, fogDist)));
+            }
+        }
+        return img;
+    }
+
+    private int[] trace(double ox, double oy, double oz, double dx, double dy, double dz, int[] fog, double fogDist) {
+        int x = (int) Math.floor(ox);
+        int y = (int) Math.floor(oy);
+        int z = (int) Math.floor(oz);
+        int stepX = dx > 0 ? 1 : -1;
+        int stepY = dy > 0 ? 1 : -1;
+        int stepZ = dz > 0 ? 1 : -1;
+        double tMaxX = dx != 0 ? ((dx > 0 ? x + 1 - ox : ox - x) / Math.abs(dx)) : Double.MAX_VALUE;
+        double tMaxY = dy != 0 ? ((dy > 0 ? y + 1 - oy : oy - y) / Math.abs(dy)) : Double.MAX_VALUE;
+        double tMaxZ = dz != 0 ? ((dz > 0 ? z + 1 - oz : oz - z) / Math.abs(dz)) : Double.MAX_VALUE;
+        double tdx = dx != 0 ? 1.0 / Math.abs(dx) : Double.MAX_VALUE;
+        double tdy = dy != 0 ? 1.0 / Math.abs(dy) : Double.MAX_VALUE;
+        double tdz = dz != 0 ? 1.0 / Math.abs(dz) : Double.MAX_VALUE;
+        double t = 0.0;
+        int face = 1;
+        double plantAlpha = 0.0;
+        int[] plant = null;
+        double plantT = 0.0;
+        while (t < fogDist * 1.6) {
+            byte code = get(x, y, z);
+            if (y > planner.surf && code != MarineVolume.AIR && !visible(code)) {
+                // left the water: sky seen through the surface
+                return blendFog(new int[]{170, 210, 240}, fog, Math.min(1.0, t / fogDist), plant, plantAlpha, plantT, fogDist);
+            }
+            if (visible(code)) {
+                int[] c = colour(x, y, z, code);
+                if (thin(code)) {
+                    if (plant == null) {
+                        plant = c;
+                        plantAlpha = 0.6;
+                        plantT = t;
+                    }
+                } else {
+                    double shade = face == 1 ? 1.0 : face == 0 ? 0.78 : face == 2 ? 0.65 : 0.5;
+                    // light falls off with depth below the surface
+                    double depthLight = Math.max(0.45, 1.0 - (planner.surf - y) / 70.0);
+                    int[] lit = shade(c, shade * depthLight);
+                    return blendFog(lit, fog, Math.min(1.0, t / fogDist), plant, plantAlpha, plantT, fogDist);
+                }
+            }
+            if (tMaxX < tMaxY && tMaxX < tMaxZ) {
+                x += stepX;
+                t = tMaxX;
+                tMaxX += tdx;
+                face = 0;
+            } else if (tMaxY < tMaxZ) {
+                y += stepY;
+                t = tMaxY;
+                tMaxY += tdy;
+                face = dy < 0 ? 1 : 3;
+            } else {
+                z += stepZ;
+                t = tMaxZ;
+                tMaxZ += tdz;
+                face = 2;
+            }
+        }
+        return blendFog(fog, fog, 1.0, plant, plantAlpha, plantT, fogDist);
+    }
+
+    private static int[] blendFog(int[] c, int[] fog, double f, int[] plant, double alpha, double plantT, double fogDist) {
+        f = f * f * (3 - 2 * f);
+        int[] out = {(int) (c[0] * (1 - f) + fog[0] * f), (int) (c[1] * (1 - f) + fog[1] * f), (int) (c[2] * (1 - f) + fog[2] * f)};
+        if (plant != null) {
+            double pf = Math.min(1.0, plantT / fogDist);
+            pf = pf * pf * (3 - 2 * pf);
+            int[] pc = {(int) (plant[0] * (1 - pf) + fog[0] * pf), (int) (plant[1] * (1 - pf) + fog[1] * pf), (int) (plant[2] * (1 - pf) + fog[2] * pf)};
+            out = new int[]{(int) (out[0] * (1 - alpha) + pc[0] * alpha), (int) (out[1] * (1 - alpha) + pc[1] * alpha), (int) (out[2] * (1 - alpha) + pc[2] * alpha)};
+        }
+        return out;
     }
 
     /** Vertical section along x at {@code z}, {@code scale} pixels per block. */

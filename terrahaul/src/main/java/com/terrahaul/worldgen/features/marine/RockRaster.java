@@ -52,10 +52,23 @@ public final class RockRaster {
     private final MarinePlanner p;
     private final int surf;
 
+    /** Grottos near the chunk, whose mouths rocks keep clear. */
+    private final java.util.List<GrottoPlan.Grotto> grottos;
+
     private RockRaster(MarineVolume v) {
         this.v = v;
         this.p = v.planner();
         this.surf = p.surf;
+        this.grottos = GrottoPlan.of(p).near(v.coreMinX, v.coreMinZ);
+    }
+
+    private boolean blocksGrotto(double x, double z, double margin) {
+        for (GrottoPlan.Grotto g : grottos) {
+            if (GrottoPlan.inCorridor(g, x, z, margin)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -91,7 +104,7 @@ public final class RockRaster {
         for (int x = v.coreMinX; x < v.coreMinX + v.coreSizeX; x++) {
             for (int z = v.coreMinZ; z < v.coreMinZ + v.coreSizeZ; z++) {
                 MarineColumn c = v.column(x, z);
-                if (c.outcrop <= 0) {
+                if (c.outcrop <= 0 || blocksGrotto(x + 0.5, z + 0.5, 0.0)) {
                     continue;
                 }
                 int top = c.floor + c.outcrop;
@@ -130,7 +143,7 @@ public final class RockRaster {
                     continue;
                 }
                 MarineColumn c = v.column(sx, sz);
-                if (!c.sea || c.depth < 3 || c.slope > 1.2 || c.trench > 0.3) {
+                if (!c.sea || c.depth < 3 || c.slope > 1.2 || c.trench > 0.3 || blocksGrotto(sx + 0.5, sz + 0.5, 7.0)) {
                     continue;
                 }
                 if (SeedMixer.unit(h) < 0.55 * density(c, sx, sz) * rockDensity) {
@@ -315,7 +328,7 @@ public final class RockRaster {
         for (int x = v.coreMinX; x < v.coreMinX + v.coreSizeX; x++) {
             for (int z = v.coreMinZ; z < v.coreMinZ + v.coreSizeZ; z++) {
                 MarineColumn c = v.column(x, z);
-                if (!c.sea || c.depth < 2 || c.trench > 0.2 || c.reefObjects > 0.25) {
+                if (!c.sea || c.depth < 2 || c.trench > 0.2 || c.reefObjects > 0.25 || blocksGrotto(x + 0.5, z + 0.5, 0.0)) {
                     continue;
                 }
                 int y = c.floor + 1;

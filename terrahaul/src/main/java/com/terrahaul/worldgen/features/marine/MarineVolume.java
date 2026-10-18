@@ -56,7 +56,7 @@ public final class MarineVolume {
     public static final byte PEBBLES = 100;
     /** Waterlogged Terrahaul knee-high rock, plus stone index. */
     public static final byte ROCK_DECOR = 110;
-    /** Glow lichen hanging from the block above. */
+    /** Glow lichen, plus the face it grows on: 0 the block above, 1-4 the wall to the north, east, south, west. */
     public static final byte GLOW_LICHEN = 120;
 
     /** Horizontal facings used by wall fans: north, east, south, west. */

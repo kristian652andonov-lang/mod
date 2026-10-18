@@ -8,20 +8,20 @@ import com.terrahaul.worldgen.noise.SeedMixer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.BaseCoralWallFanBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.KelpBlock;
 import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.SeaPickleBlock;
 import net.minecraft.world.level.block.TallSeagrassBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.common.Tags;
 
 /**
@@ -287,6 +287,25 @@ public final class MarineBlocks {
         return placed;
     }
 
+    /**
+     * True if a planned coral block will have water next to it: a neighbour that the plan leaves
+     * as water (or fills with a waterlogged plant) and that is still water in the world.
+     */
+    private static boolean wet(WorldGenLevel level, MarineVolume v, int x, int y, int z) {
+        BlockPos.MutableBlockPos n = new BlockPos.MutableBlockPos();
+        for (Direction d : Direction.values()) {
+            int nx = x + d.getStepX();
+            int ny = y + d.getStepY();
+            int nz = z + d.getStepZ();
+            byte planned = v.get(nx, ny, nz);
+            boolean water = MarineVolume.isWaterLike(planned) || planned >= MarineVolume.PLANT && planned < MarineVolume.ROCK;
+            if (water && ny <= v.planner().surf && waterLike(level.getBlockState(n.set(nx, ny, nz)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** True if every block from {@code y0} to {@code y1} of the column is water or a water plant. */
     private static boolean clearWater(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int z, int y0, int y1) {
         for (int y = y0; y < y1; y++) {
@@ -306,6 +325,11 @@ public final class MarineBlocks {
             if (!MarineVolume.isPlanned(code) || isPlant(code) || code == MarineVolume.WATER || code == MarineVolume.AIR
                 || sink && code == MarineVolume.GRAVEL && y == v.column(x, z).floor) {
                 continue;
+            }
+            if (MarineVolume.isLive(code) && !wet(level, v, x, y, z)) {
+                // the water the plan left next to this coral is taken (by a boulder placed
+                // earlier): live coral without water would die, so it is dead coral from the start
+                code = (byte) (code - MarineVolume.LIVE + MarineVolume.DEAD);
             }
             BlockState old = level.getBlockState(pos.set(x, y, z));
             BlockState state = state(code, x, y, z);
@@ -430,7 +454,7 @@ public final class MarineBlocks {
 
     private static boolean touchesWater(WorldGenLevel level, BlockPos.MutableBlockPos n, int x, int y, int z) {
         for (Direction d : Direction.values()) {
-            if (level.getFluidState(n.set(x + d.getStepX(), y + d.getStepY(), z + d.getStepZ())).is(Fluids.WATER)) {
+            if (level.getFluidState(n.set(x + d.getStepX(), y + d.getStepY(), z + d.getStepZ())).is(FluidTags.WATER)) {
                 return true;
             }
         }
@@ -446,11 +470,14 @@ public final class MarineBlocks {
             int nx = x + d.getStepX();
             int ny = y + d.getStepY();
             int nz = z + d.getStepZ();
-            if (GrottoPlan.dug(v.get(nx, ny, nz))) {
-                continue;
-            }
             BlockState s = level.getBlockState(n.set(nx, ny, nz));
-            if (air ? !s.getFluidState().isEmpty() : s.isAir() && ny <= v.planner().surf) {
+            if (!air) {
+                // below sea level the grotto only ever holds water, so air there is a land cave
+                // (even inside the planned shape, where a column was left undug)
+                if (s.isAir() && ny <= v.planner().surf || s.getFluidState().is(FluidTags.LAVA)) {
+                    return false;
+                }
+            } else if (!GrottoPlan.dug(v.get(nx, ny, nz)) && !s.getFluidState().isEmpty()) {
                 return false;
             }
         }
