@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.terrahaul.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MineshaftStructureMixin",
+    "NoiseBasedAquiferMixin",
+    "NoiseBasedChunkGeneratorMixin",
+    "NoiseChunkMixin",
+    "StrongholdStructureMixin",
+    "SurfaceSystemMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

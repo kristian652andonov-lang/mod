@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:cache_once",
+  "argument": {
+    "type": "terrahaul:terrain",
+    "output": "density",
+    "seed_noise": "terrahaul:terrain_seed"
+  }
+}

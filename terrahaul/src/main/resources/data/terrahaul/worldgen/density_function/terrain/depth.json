@@ -1,0 +1,5 @@
+{
+  "type": "terrahaul:terrain",
+  "output": "depth",
+  "seed_noise": "terrahaul:terrain_seed"
+}

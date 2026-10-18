@@ -1,0 +1,5 @@
+{
+  "type": "terrahaul:terrain",
+  "output": "erosion",
+  "seed_noise": "terrahaul:terrain_seed"
+}

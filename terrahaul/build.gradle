@@ -1,0 +1,120 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = mod_version
+group = mod_group_id
+
+repositories {
+    mavenLocal()
+}
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // automated validation (see com.terrahaul.dev.AutoTest): -Pautotest=<dir> [-Pareas="x,z,r;..."]
+            if (project.hasProperty('autotest')) {
+                systemProperty 'terrahaul.autotest', project.property('autotest').toString()
+                systemProperty 'terrahaul.autotest.areas', (project.findProperty('areas') ?: '0,0,6').toString()
+            }
+            jvmArguments.addAll('-Xmx6G')
+            if (project.hasProperty('jfr')) {
+                jvmArguments.add("-XX:StartFlightRecording=filename=${project.property('jfr')},settings=profile")
+            }
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.INFO
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+dependencies {
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// ---------------------------------------------------------------------------------------------
+// Development tools (not part of the mod jar): offline terrain map renderer used to tune the
+// terrain model without launching Minecraft. Run with:
+//   ./gradlew renderMap -Pargs="<seed> <centerX> <centerZ> <sizeBlocks> <blocksPerPixel> <out.png> [mode]"
+// ---------------------------------------------------------------------------------------------
+sourceSets {
+    devtools {
+        java.srcDir 'src/devtools/java'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+tasks.register('renderMap', JavaExec) {
+    group = 'terrahaul'
+    description = 'Renders the Terrahaul terrain model to a PNG map (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.MapRenderer'
+    jvmArgs '-Xmx4G', '-Djava.awt.headless=true', "-DcamHeight=${project.findProperty('camHeight') ?: '180'}"
+    args = (project.findProperty('args') ?: '12345 0 0 16384 16 build/map.png').toString().split(' ').toList()
+}
+
+tasks.register('probe', JavaExec) {
+    group = 'terrahaul'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.Probe'
+    args = (project.findProperty('args') ?: '12345 0 100 0 4').toString().split(' ').toList()
+}

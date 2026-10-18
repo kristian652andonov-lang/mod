@@ -1,0 +1,137 @@
+package com.terrahaul.worldgen.terrain;
+
+/**
+ * Everything the terrain model knows about one block column. Instances are mutable and reused
+ * by the per-thread cache in {@link TerrainModel}; callers must copy values they want to keep.
+ */
+public final class ColumnSample {
+    /** No elevated water body covers the column. */
+    public static final double NO_WATER = -1.0E9;
+
+    public int x;
+    public int z;
+
+    // --- geometry -------------------------------------------------------------------------
+    /** Terrain surface height (top of the solid ground, before 3D detail and caves). */
+    public double height;
+    /** Height before rivers, lakes and canyons were carved; used for valley walls. */
+    public double uncarvedHeight;
+    /**
+     * Surface of a water body above sea level (elevated river or lake), or {@link #NO_WATER}.
+     * Water at or below sea level is placed by the vanilla fluid system and is not recorded here.
+     */
+    public double waterLevel;
+    /** Surface of a lava pool in a volcano crater, or {@link #NO_WATER}. */
+    public double lavaLevel;
+    /** Amplitude of 3D overhang carving on cliffs, 0..1. */
+    public double cliff;
+    /** Approximate slope class from the shaping functions, 0 (flat) .. 1 (cliff). */
+    public double steepness;
+
+    // --- classification -------------------------------------------------------------------
+    public double mountain;
+    /** Relative elevation inside mountain/hill terrain: 0 valley floor .. 1 summit. */
+    public double peakness;
+    public double alpine;
+    public double ancient;
+    public double wall;
+    public double plateau;
+    public double meadow;
+    public double windswept;
+    public double swamp;
+    public double volcano;
+    /** Volcano crater interior (0..1); lava or water pools may form here. */
+    public double crater;
+    public double canyon;
+    /** Canyon floor elevation when {@link #canyon} is positive. */
+    public double canyonFloor;
+    /** 1 at a river centreline, falling to 0 at the bank. */
+    public double river;
+    /** 0..1 influence of the surrounding river valley or floodplain. */
+    public double riverValley;
+    /** River half-width in blocks (0 when no river is near). */
+    public double riverWidth;
+    /** Water level of the nearest major river. */
+    public double riverLevel;
+    /** Distance to the river centreline divided by its half width. */
+    public double riverDistance;
+    /** True when the river is in an arid region and runs dry. */
+    public boolean dryRiver;
+    /** 1 at a stream centreline (small creeks carved at block resolution by a feature). */
+    public double stream;
+    public double lake;
+    public int lakeType;
+    public double lakeLevel;
+    public double coastCliff;
+    public double beach;
+    public double island;
+    public double fjord;
+    /** Geology province index (see {@link Geology}). */
+    public int geology;
+    /** Fine strata selector noise in [0, 1). */
+    public double strata;
+
+    // --- climate parameters handed to the vanilla multi-noise biome source ------------------
+    public double continentalness;
+    public double erosion;
+    public double weirdness;
+    public double temperature;
+    public double humidity;
+    /** Climate temperature before altitude cooling. */
+    public double baseTemperature;
+
+    /** Internal continentalness before biome-consistency adjustments. */
+    public double rawContinentalness;
+
+    public void copyFrom(ColumnSample o) {
+        x = o.x;
+        z = o.z;
+        height = o.height;
+        uncarvedHeight = o.uncarvedHeight;
+        waterLevel = o.waterLevel;
+        lavaLevel = o.lavaLevel;
+        cliff = o.cliff;
+        steepness = o.steepness;
+        mountain = o.mountain;
+        peakness = o.peakness;
+        alpine = o.alpine;
+        ancient = o.ancient;
+        wall = o.wall;
+        plateau = o.plateau;
+        meadow = o.meadow;
+        windswept = o.windswept;
+        swamp = o.swamp;
+        volcano = o.volcano;
+        crater = o.crater;
+        canyon = o.canyon;
+        canyonFloor = o.canyonFloor;
+        river = o.river;
+        riverValley = o.riverValley;
+        riverWidth = o.riverWidth;
+        riverLevel = o.riverLevel;
+        riverDistance = o.riverDistance;
+        dryRiver = o.dryRiver;
+        stream = o.stream;
+        lake = o.lake;
+        lakeType = o.lakeType;
+        lakeLevel = o.lakeLevel;
+        coastCliff = o.coastCliff;
+        beach = o.beach;
+        island = o.island;
+        fjord = o.fjord;
+        geology = o.geology;
+        strata = o.strata;
+        continentalness = o.continentalness;
+        erosion = o.erosion;
+        weirdness = o.weirdness;
+        temperature = o.temperature;
+        humidity = o.humidity;
+        baseTemperature = o.baseTemperature;
+        rawContinentalness = o.rawContinentalness;
+    }
+
+    /** True if the column's surface is under sea water. */
+    public boolean isSea(int seaLevel) {
+        return height < seaLevel - 0.5 && lake <= 0.0 && river <= 0.0;
+    }
+}

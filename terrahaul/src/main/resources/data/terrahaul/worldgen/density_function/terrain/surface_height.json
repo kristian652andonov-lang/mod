@@ -1,0 +1,5 @@
+{
+  "type": "terrahaul:terrain",
+  "output": "surface_height",
+  "seed_noise": "terrahaul:terrain_seed"
+}

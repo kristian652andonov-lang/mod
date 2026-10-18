@@ -1,0 +1,5 @@
+{
+  "type": "terrahaul:terrain",
+  "output": "temperature",
+  "seed_noise": "terrahaul:terrain_seed"
+}
