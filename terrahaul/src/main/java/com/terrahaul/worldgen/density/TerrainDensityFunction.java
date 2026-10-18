@@ -63,6 +63,13 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
         int x = context.blockX();
         int y = context.blockY();
         int z = context.blockZ();
+        if (output == Output.CAVE_ALLOWANCE || output == Output.CAVERN_ALLOWANCE) {
+            // the cave guards are also evaluated per block (noodle caves); they change slowly, so
+            // they use the interpolation grid's columns instead of computing a column per block
+            // (which also evicted the grid columns from the model's cache)
+            x &= ~3;
+            z &= ~3;
+        }
         ColumnSample s = model.sample(x, z);
         return switch (output) {
             case DENSITY -> TerrainDetail.density(model, s, x, y, z);
@@ -98,10 +105,15 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
 
     /**
      * 1 where caves may form, fading to 0 under lake and river beds and near the sea floor, so cave
-     * systems do not drain water bodies into the ground.
+     * systems do not drain water bodies into the ground. Caves also stay out of everything above
+     * the 2D surface (ledges and overhangs, which they could cut off their cliff) and out of the
+     * top 32 blocks of cliff rims, which ledges and overhangs hang from.
      */
     private double caveAllowance(ColumnSample s, int x, int y, int z) {
         double depthBelow = s.height - y;
+        if (depthBelow < 0.0 || depthBelow < 32.0 && TerrainDetail.rimDrop(model, s, x, z) >= TerrainDetail.RIM_DROP) {
+            return 0.0;
+        }
         double guard = 1.0;
         if (s.lake > 0.0 || s.river > 0.0 || s.waterLevel != ColumnSample.NO_WATER) {
             guard = Math.min(1.0, Math.max(0.0, (depthBelow - 6.0) / 10.0));
