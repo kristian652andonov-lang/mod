@@ -24,8 +24,13 @@ public final class SeedMixer {
         return mix(seed ^ mix(salt * 0x632BE59BD9B4E019L + 0x9E3779B97F4A7C15L));
     }
 
+    /**
+     * Hash of a 2D cell. The coordinates are mixed in one after the other: combining them with a
+     * single XOR made (x, z) and (-x, -z) collide for about a third of all cells, so mirrored
+     * cells shared site cache entries and random rolls.
+     */
     public static long hash2(long seed, int x, int z) {
-        return mix(seed ^ (x * 0x9E3779B97F4A7C15L) ^ (z * 0xC2B2AE3D27D4EB4FL));
+        return mix(mix(seed + x * 0x9E3779B97F4A7C15L) + z * 0xC2B2AE3D27D4EB4FL);
     }
 
     public static long hash3(long seed, int x, int y, int z) {
