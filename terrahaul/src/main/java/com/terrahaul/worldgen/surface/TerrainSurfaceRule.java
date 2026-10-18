@@ -31,19 +31,25 @@ import net.minecraft.world.level.levelgen.SurfaceRules;
  * <b>Fades stay within one colour.</b> Every gradient runs through a single family of similar
  * blocks, for example tuff, andesite and stone for grey rock, or calcite, diorite and stone below
  * snow. Boundaries between the stops of a gradient wander with smooth 3D noise, so they form
- * wavy bands and broad patches instead of speckles. Families:
+ * wavy bands and broad patches instead of speckles; no material choice uses per-block random
+ * numbers (the arithmetic lives in {@link Fades}). Families:
  * <ul>
  *   <li>grey rock: tuff, andesite, stone (all mountains, temperate and granite provinces);</li>
  *   <li>dark rock: tuff, smooth basalt, deepslate;</li>
  *   <li>pale rock: calcite, diorite, stone (limestone provinces);</li>
- *   <li>sandstone and red sandstone (sedimentary lowlands; badlands keep vanilla's bands);</li>
+ *   <li>sandstone and red sandstone (sedimentary lowlands and deserts; badlands keep vanilla's
+ *       bands);</li>
  *   <li>volcanic rock: blackstone, basalt, smooth basalt;</li>
  *   <li>soil: dirt and coarse dirt over grey rock; snow over calcite and diorite; sand over
  *       sandstone.</li>
  * </ul>
- * Exposed rock shows slow, wavy strata cycling through its family. Snow and rock on peaks, and
- * grass and rock on steep hillsides, are separated by the slope of the smoothed terrain, so rock
- * outcrops and snowfields are coherent areas.
+ * All rock below the soil is one continuous field of strata that cycle through the family in
+ * horizontal beds of irregular thickness, so cliffs, canyon walls, overhang undersides and cave
+ * roofs show level bands that line up from column to column instead of vertical seams. Snow and
+ * rock on peaks, and grass and rock on steep hillsides, are separated by the slope of the smoothed
+ * terrain, so rock outcrops and snowfields are coherent areas, and an outcrop is rock all the way
+ * down rather than a rock crust on dirt. Below Y 8 rock turns into tuff and deepslate along a
+ * smooth, wavy boundary.
  * <p>
  * Fades never reach deeper than {@value #MAX_DEPTH} blocks below the nearest exposed surface.
  * That distance is measured both vertically and sideways, so cliff and mountain faces, trench
@@ -137,15 +143,20 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
         private static final BlockState[] TRENCH_WALL = {BLACKSTONE, BASALT, SMOOTH_BASALT};
         private static final BlockState[] TRENCH_FLOOR = {BLACKSTONE, BASALT, BLACKSTONE};
 
+        /** Slope beyond which desert sand gives way to sandstone outcrops. */
+        private static final double SAND_ROCK = 1.1;
+
         private final SurfaceRules.Context ctx;
         private final TerrainModel model;
         private final int seaLevel;
         private final ChunkPos chunkPos;
         private final boolean trails;
         private final BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+        private final double[] blendScratch = new double[Fades.BLEND_FIELDS];
 
         private int lastX = Integer.MIN_VALUE;
         private int lastZ = Integer.MIN_VALUE;
+        /** Column fields: categorical ones from the nearest model corner, continuous ones interpolated. */
         private final ColumnSample col = new ColumnSample();
         private int slope;
         /** Gradient of the smoothed terrain (rise per block over 8 blocks); steep ground is bare rock. */
@@ -160,6 +171,14 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
         private double trailDistance;
         private boolean trailGround;
         private BlockState[] family;
+        /** Biome at the top of the column, which picks sandstone families in deserts. */
+        private Holder<Biome> topBiome;
+        /** {@link Fades#rockiness} of grassy ground; positive: the column is a rock outcrop. */
+        private double outcrop;
+        /** Column part of the strata height (see {@link Fades#strataWarp}). */
+        private double strataWarp;
+        /** Depth of the current block below the top of its column, or below open air above it. */
+        private int vertical;
 
         Rule(SurfaceRules.Context ctx, TerrainModel model) {
             this.ctx = ctx;
@@ -172,8 +191,14 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
         private void updateColumn(int x, int z) {
             lastX = x;
             lastZ = z;
-            // categorical fields come from the nearest interpolation corner, the height is interpolated
+            // categorical fields come from the nearest interpolation corner; continuous ones are
+            // interpolated like the height, so landform boundaries follow smooth curves
             col.copyFrom(model.sample((x + 2) & ~3, (z + 2) & ~3));
+            Fades.blend(model, x, z, col, blendScratch);
+            // province boundaries wander a few blocks instead of following the 4-block model grid
+            int gx = x + (int) Math.round(3.0 * patch(x, z, 13.0, 2));
+            int gz = z + (int) Math.round(3.0 * patch(x, z, 13.0, 5));
+            col.geology = model.sample((gx + 2) & ~3, (gz + 2) & ~3).geology;
             top = topAt(x, z);
             int max = 0;
             for (int i = -2; i <= 2; i += 4) {
@@ -181,9 +206,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                 max = Math.max(max, Math.abs(topAt(x, z + i) - top));
             }
             slope = max;
-            double gx = model.interpolatedHeight(x + 4, z) - model.interpolatedHeight(x - 4, z);
-            double gz = model.interpolatedHeight(x, z + 4) - model.interpolatedHeight(x, z - 4);
-            smoothSlope = Math.sqrt(gx * gx + gz * gz) / 8.0;
+            smoothSlope = Fades.smoothSlope(model, x, z);
             rugged = slope >= 3 || col.steepness > 0.3 || col.cliff > 0.1 || col.trench > 0.15 || col.canyon > 0.1 || col.coastCliff > 0.2;
             if (rugged) {
                 for (int i = 0; i < RING.length; i++) {
@@ -191,24 +214,31 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                     ringTop[i] = Math.min(Math.min(topAt(x + k, z), topAt(x - k, z)), Math.min(topAt(x, z + k), topAt(x, z - k)));
                 }
             }
-            double thin = col.mountain > 0.4 ? 0.6 : 1.0;
-            soilDepth = Math.max(1.5, (3.0 + 4.0 * Math.max(0.0, 1.0 - slope / 5.0) + 1.5 * patch(x, z, 23.0, 5)) * thin);
+            // thinner soil on mountains and steep ground; both terms are smooth so the base of
+            // the soil does not jump from column to column
+            double thin = 1.0 - 0.4 * Fades.smoothstep(0.25, 0.55, col.mountain);
+            soilDepth = Math.max(1.5, (3.0 + 4.0 * Math.max(0.0, 1.0 - smoothSlope / 2.5) + 1.5 * patch(x, z, 23.0, 5)) * thin);
             trailDistance = trails ? model.trailDistance(x, z) : 1.0E9;
             trailGround = trailDistance < 4.0 && TerrainModel.trailGround(col, seaLevel);
+            outcrop = rockiness(x, z, 0.95);
+            strataWarp = Fades.strataWarp(model, x, z);
             family = family();
         }
 
-        /** The rock family of this column: grey on every mountain, otherwise the province's own. */
+        /**
+         * The rock family of this column: grey on every mountain (or the dark or pale variant of
+         * its province), otherwise the province's own; sandstone in deserts and on beaches.
+         */
         private BlockState[] family() {
             if (col.volcano > 0.3 || col.geology == Geology.VOLCANIC) {
                 return VOLCANIC;
             }
-            boolean mountainous = col.mountain > 0.3 || col.peakness > 0.55;
+            boolean mountainous = col.mountain > 0.3 || col.alpine > 0.3;
             return switch (col.geology) {
                 case Geology.DARK -> DARK;
                 case Geology.LIMESTONE -> PALE;
                 case Geology.SEDIMENTARY -> mountainous ? GREY : col.baseTemperature > 0.45 ? RED : SANDY;
-                default -> GREY;
+                default -> !mountainous && isSandy(topBiome) && !topBiome.is(Biomes.SNOWY_BEACH) ? SANDY : GREY;
             };
         }
 
@@ -222,43 +252,44 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
 
         /** Smooth 2D noise in about [-1, 1] at the given feature size. */
         private double patch(int x, int z, double scale, int channel) {
-            return model.detail3(channel, x / scale, channel * 17.0, z / scale);
+            return Fades.patch(model, x, z, scale, channel);
         }
 
         /** Smooth 3D noise in about [-1, 1] that makes the boundaries between gradient stops wavy. */
         private double wobble(int x, int y, int z) {
-            return model.detail3(6, x / 3.5, y / 3.5, z / 3.5);
+            return Fades.wobble(model, x, y, z);
         }
 
         /**
          * Picks a stop of a gradient at position {@code t} (0..1). The boundaries between stops move
-         * by up to {@code 0.45} of a stop with the smooth noise {@code n}, so neighbouring blocks
-         * almost always agree and the fade forms patches and wavy bands rather than speckles.
+         * with the smooth noise {@code n} (see {@link Fades#stop}), so neighbouring blocks almost
+         * always agree and the fade forms patches and wavy bands rather than speckles.
          */
         private static BlockState gradient(BlockState[] stops, double t, double n) {
-            double f = Math.max(0.0, Math.min(1.0, t)) * (stops.length - 1) + n * 0.45;
-            int i = (int) Math.floor(f + 0.5);
-            return stops[Math.max(0, Math.min(stops.length - 1, i))];
+            return stops[Fades.stop(stops.length, t, n)];
         }
 
         @Override
         public BlockState tryApply(int x, int y, int z) {
             if (x != lastX || z != lastZ) {
+                topBiome = ctx.biome.get();
                 updateColumn(x, z);
             }
             int above = ctx.stoneDepthAbove - 1;
-            int vertical = top - y <= OPEN_POCKET ? above : top - y;
+            vertical = top - y <= OPEN_POCKET ? above : top - y;
             int lateral = rugged ? lateral(y) : Integer.MAX_VALUE;
             // rock above open air: the underside of an overhang or arch, or a cave roof
             int below = ctx.stoneDepthBelow - 1;
             int side = Math.min(lateral, below);
             int d = Math.min(vertical, side);
             if (d > MAX_DEPTH) {
-                return y < 8 ? deep(STONE, x, y, z) : null;
+                return y < 8 ? (Fades.deep(model, x, y, z) ? DEEPSLATE : STONE) : null;
             }
-            boolean face = side < vertical - 1 || slope >= 6;
+            // a face: exposed sideways or from below, or on a very steep column. The two blocks
+            // above open air are always rock, so undersides and cave roofs never show soil.
+            boolean face = side < vertical - 1 || slope >= 6 || vertical > 0 && below <= 1;
             BlockState state = choose(x, y, z, d, face);
-            return y < 8 ? deep(state == null ? STONE : state, x, y, z) : state;
+            return y < 8 ? deep(state, x, y, z, d) : state;
         }
 
         /** Horizontal distance to open air at height {@code y}, or a large value. */
@@ -275,8 +306,8 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             boolean underFluid = ctx.waterHeight != Integer.MIN_VALUE && ctx.waterHeight > y;
             boolean planned = col.waterLevel != ColumnSample.NO_WATER && y < col.waterLevel;
             Holder<Biome> biome = ctx.biome.get();
-            if (biome.is(BiomeTags.IS_BADLANDS) && col.river <= 0.0 && col.lake <= 0.0) {
-                // keep vanilla's terracotta bands
+            if (biome.is(BiomeTags.IS_BADLANDS) && !(d <= 2 && (underFluid || planned) && (col.river > 0.0 || col.lake > 0.0 || planned))) {
+                // keep vanilla's terracotta bands everywhere except on the beds of rivers and lakes
                 return null;
             }
             double n = wobble(x, y, z);
@@ -314,32 +345,34 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             if (isRocky(biome) && !biome.is(Biomes.WINDSWEPT_GRAVELLY_HILLS)) {
                 return d <= 3 ? bareRock(x, z, d, n) : bedrock(x, y, z, d, n);
             }
-            // ---- scree on steep alpine slopes -----------------------------------------------------
-            if (col.mountain > 0.3 && slope >= 3 && d <= 1 && !underFluid && col.peakness > 0.35) {
+            // ---- scree on steep alpine slopes (smoothed slope: whole aprons, not single columns) ----
+            if (col.mountain > 0.3 && smoothSlope > 0.75 && d <= 1 && !underFluid && col.peakness > 0.35) {
                 double p = patch(x, z, 9.0, 2);
                 if (p > 0.35) {
-                    return supported(x, y, z) ? GRAVEL : family[1];
+                    return supported(x, y, z) ? loose() : family[1];
                 }
             }
             // ---- coasts: pebbly beaches under rocky cliffs ---------------------------------------
             if (col.coastCliff > 0.3 && d <= 2 && y <= seaLevel + 2 && y >= seaLevel - 6) {
-                return patch(x, z, 6.0, 3) > 0.0 && supported(x, y, z) ? GRAVEL : family[2];
+                return patch(x, z, 6.0, 3) > 0.0 && supported(x, y, z) ? loose() : family[2];
             }
             // ---- river banks: gravel bars and sandbars --------------------------------------------
             if (col.riverValley > 0.85 && col.river <= 0.0 && d <= 1 && y <= col.riverLevel + 2.0 && !underFluid) {
                 double p = patch(x, z, 7.0, 0);
                 if (p > 0.35 && supported(x, y, z)) {
-                    return d == 0 && p > 0.6 ? SAND : GRAVEL;
+                    return barMaterial(x, z);
                 }
             }
             // ---- wetland margins --------------------------------------------------------------
             if (col.swamp > 0.4 && d <= 1 && y >= seaLevel - 3 && y <= seaLevel + 1) {
                 return MUD;
             }
-            if (d == 0) {
+            if (d == 0 && vertical == 0) {
                 return underFluid ? null : topBlock(x, y, z, biome, n);
             }
-            return profile(x, y, z, d, biome, n);
+            // blocks exposed only sideways near the top (the riser of a small step) show the soil
+            // profile like a cut through the ground, never top materials such as paths or podzol
+            return profile(x, y, z, Math.max(d, 1), biome, n);
         }
 
         // =====================================================================================
@@ -348,10 +381,14 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
 
         /** How far past the slope at which ground turns to bare rock this column is (negative: below it). */
         private double rockiness(int x, int z, double limit) {
-            return smoothSlope - limit - 0.3 * patch(x, z, 12.0, 4);
+            return Fades.rockiness(model, x, z, smoothSlope, limit);
         }
 
         private BlockState topBlock(int x, int y, int z, Holder<Biome> biome, double n) {
+            if (isSandy(biome) && rockiness(x, z, SAND_ROCK) > 0.0) {
+                // sand slides off steep desert slopes and leaves sandstone outcrops
+                return bareRock(x, z, 0, n);
+            }
             boolean soil = !isSandy(biome) && !isRocky(biome);
             if (soil && trailGround && slope <= 3) {
                 BlockState trail = trail(x, y, z, n);
@@ -371,7 +408,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             }
             if (soil) {
                 // grass gives way to rock outcrops on steep ground, with a coarse-dirt fringe
-                double r = rockiness(x, z, 0.95);
+                double r = outcrop;
                 if (r > 0.0) {
                     return bareRock(x, z, 0, n);
                 }
@@ -398,7 +435,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             double edge = trailDistance - half + 0.6 * patch(x, z, 3.0, 2);
             if (edge < 0.0) {
                 if (slope >= 2 && n > 0.45) {
-                    return slope >= 3 ? GRAVEL : COARSE_DIRT;
+                    return slope >= 3 && supported(x, y, z) ? GRAVEL : COARSE_DIRT;
                 }
                 return DIRT_PATH;
             }
@@ -436,6 +473,9 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
 
         private BlockState profile(int x, int y, int z, int d, Holder<Biome> biome, double n) {
             if (isSandy(biome)) {
+                if (rockiness(x, z, SAND_ROCK) > 0.0) {
+                    return d <= 3 ? bareRock(x, z, d, n) : bedrock(x, y, z, d, n);
+                }
                 double t = d / Math.max(2.0, soilDepth * 0.8);
                 if (t < 0.8 + 0.25 * n) {
                     return supported(x, y, z) ? SAND : SANDSTONE;
@@ -444,6 +484,10 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                     return gradient(UNDER_SAND, (t - 0.8) / 1.8, n);
                 }
                 return bedrock(x, y, z, d, n);
+            }
+            if (outcrop > 0.0) {
+                // a rock outcrop is rock all the way down, not a crust of rock on dirt
+                return d <= 3 ? bareRock(x, z, d, n) : bedrock(x, y, z, d, n);
             }
             // soil: dirt, coarse dirt, then the rock family from weathered to fresh
             double t = d / soilDepth + 0.2 * n;
@@ -461,28 +505,27 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
 
         /** Bare rock at the surface: broad patches of the family, turning to fresh rock a few blocks in. */
         private BlockState bareRock(int x, int z, int d, double n) {
-            return gradient(family, 0.65 + 0.45 * patch(x, z, 15.0, 5) + d * 0.15, n);
+            return family[Fades.bareRockStop(model, family.length, x, z, d, n)];
         }
 
-        /** Rock below the fades: the family's fresh rock, with broad patches of its middle stop. */
+        /**
+         * Rock below the fades. It is the same strata field as on exposed faces everywhere, so a
+         * cliff, a canyon wall or a ravine cut shows the same level beds whichever way each column
+         * was classified (a different material below non-face columns drew vertical seams).
+         */
         private BlockState bedrock(int x, int y, int z, int d, double n) {
-            if (col.mountain > 0.4) {
-                return strata(x, y, z, n);
-            }
-            return n > 0.55 ? family[1] : family[2];
+            return strata(x, y, z, n);
         }
 
         /**
          * Exposed rock: strata that cycle smoothly through the family (for grey rock: stone,
-         * andesite, tuff, andesite, stone, ...). The layers are 5-9 blocks thick, tilt and wave
-         * with low-frequency noise, and their boundaries are softened by the 3D noise.
+         * andesite, tuff, andesite, stone, ...). Beds are about 4-6 blocks thick but vary, tilt and
+         * wave with low-frequency noise, and their boundaries are softened by the 3D noise. The
+         * layers are a continuous function of the block position (see {@link Fades#strata}).
          */
         private BlockState strata(int x, int y, int z, double n) {
-            double period = col.geology == Geology.SEDIMENTARY ? 16.0 : 24.0;
-            double warp = col.strata * 37.0 + patch(x, z, 70.0, 1) * 6.0 + patch(x, z, 19.0, 3) * 1.5;
-            double phase = (y + warp) / period;
-            double tri = Math.abs(phase - Math.floor(phase) - 0.5) * 2.0;
-            return gradient(family, tri, n * 0.8);
+            double period = col.geology == Geology.SEDIMENTARY ? Fades.SEDIMENTARY_PERIOD : Fades.ROCK_PERIOD;
+            return family[Fades.strataStop(model, family.length, x, y, z, strataWarp, period, n)];
         }
 
         /** Sea floor: sand in the shallows giving way to gravel with depth; clay and tuff in the abyss. */
@@ -521,9 +564,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
         /** Deep-sea trenches: magma vents in blackstone and basalt on the floor, dark banded walls. */
         private BlockState trench(int x, int y, int z, int d, boolean face, double n) {
             if (face || y > col.trenchFloor + 8.0) {
-                double phase = (y + col.strata * 23.0 + patch(x, z, 40.0, 1) * 4.0) / 18.0;
-                double tri = Math.abs(phase - Math.floor(phase) - 0.5) * 2.0;
-                return gradient(TRENCH_WALL, tri, n * 0.8);
+                return TRENCH_WALL[Fades.strataStop(model, TRENCH_WALL.length, x, y, z, strataWarp, 18.0, n)];
             }
             if (d <= 1) {
                 double vent = patch(x, z, 7.0, 7);
@@ -562,15 +603,34 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             return state;
         }
 
-        /** Deepslate-zone counterpart of a block below Y 8 (with vanilla's 0..8 gradient). */
-        private static BlockState deep(BlockState state, int x, int y, int z) {
-            if (y >= 8 || y > 0 && SeedMixer.unit(SeedMixer.hash3(0xDEE95L, x, y, z)) >= (8 - y) / 8.0) {
-                return state == STONE ? null : state;
+        /** Loose sediment of the rock family: gravel for grey rock, sand for sandstone. */
+        private BlockState loose() {
+            if (family == SANDY) {
+                return SAND;
+            }
+            return family == RED ? RED_SAND : GRAVEL;
+        }
+
+        /**
+         * Material below Y 8. Rock in the deepslate zone (whose upper boundary is a smooth surface,
+         * see {@link Fades#deep}) turns into its dark counterpart; sediments stay. Where the rule
+         * has no material of its own ({@code state == null}) below the top block, it still decides
+         * between stone and deepslate, so vanilla's random deepslate gradient never speckles an
+         * exposed surface.
+         */
+        private BlockState deep(BlockState state, int x, int y, int z, int d) {
+            boolean deep = Fades.deep(model, x, y, z);
+            if (state == null) {
+                return d == 0 ? null : deep ? DEEPSLATE : STONE;
+            }
+            if (!deep) {
+                return state;
             }
             if (state == STONE || state == GRANITE) {
                 return DEEPSLATE;
             }
-            if (state == ANDESITE || state == DIORITE || state == SANDSTONE || state == CALCITE) {
+            if (state == ANDESITE || state == DIORITE || state == CALCITE || state == SANDSTONE || state == SMOOTH_SANDSTONE
+                || state == RED_SANDSTONE || state == SMOOTH_RED_SANDSTONE || state == ORANGE_TERRACOTTA) {
                 return TUFF;
             }
             if (state == COBBLESTONE || state == MOSSY_COBBLESTONE) {
@@ -595,21 +655,36 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
         // landform materials
         // =====================================================================================
 
+        /** Gravel or sand bars along a river bank; one material per bar, sand in the warm lowlands. */
+        private BlockState barMaterial(int x, int z) {
+            double sandy = patch(x, z, 90.0, 7) + (col.baseTemperature > 0.4 ? 0.3 : 0.0) - (col.mountain > 0.2 ? 0.6 : 0.0);
+            return sandy > 0.0 ? SAND : GRAVEL;
+        }
+
+        /**
+         * Beds of rivers and lakes. Each lake, and each stretch of river, is lined with one
+         * sediment chosen by climate and a slowly varying selector (hundreds of blocks), so beds
+         * read as sandy, gravelly, muddy or clayey as a whole; small patches only mix materials of
+         * one colour (gravel and grey rock in the mountains).
+         */
         private BlockState bedMaterial(int x, int y, int z, int d) {
             double n = patch(x, z, 6.0, 0);
+            double reach = patch(x, z, 80.0, 6);
             double hot = col.baseTemperature;
             double wet = col.humidity;
             BlockState result;
             if (col.lake > 0.0) {
                 switch (col.lakeType) {
                     case LakeType.MOUNTAIN, LakeType.GLACIAL, LakeType.CRATER -> result = n > 0.0 ? GRAVEL : family[2];
-                    case LakeType.MARSH -> result = d == 0 && n > 0.5 ? CLAY : MUD;
-                    case LakeType.GREAT -> result = n > -0.3 ? SAND : GRAVEL;
+                    case LakeType.MARSH -> result = MUD;
+                    case LakeType.GREAT -> result = hot < -0.25 || reach < -0.45 ? GRAVEL : SAND;
                     default -> {
-                        if (n > 0.55) {
+                        if (hot > 0.3 && wet > 0.3) {
+                            result = MUD;
+                        } else if (reach > 0.3 && hot < 0.5) {
                             result = CLAY;
                         } else {
-                            result = n > 0.0 ? SAND : (wet > 0.3 ? MUD : DIRT);
+                            result = reach > -0.25 ? SAND : GRAVEL;
                         }
                     }
                 }
@@ -617,12 +692,10 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                 result = n > -0.3 ? GRAVEL : family[2];
             } else if (col.dryRiver) {
                 result = hot > 0.55 ? RED_SAND : SAND;
-            } else if (hot > 0.5 && wet > 0.3 && n > -0.2) {
+            } else if (hot > 0.5 && wet > 0.3) {
                 result = MUD;
-            } else if (n > 0.6 && d == 0) {
-                result = CLAY;
             } else {
-                result = n > -0.15 ? GRAVEL : SAND;
+                result = reach + (hot > 0.35 ? 0.3 : -0.1) > 0.0 ? SAND : GRAVEL;
             }
             if (falling(result) && !supported(x, y, z)) {
                 return consolidated(result);
@@ -642,14 +715,18 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
         }
 
         private BlockState canyonFloor(int x, int z, int d) {
+            // dry canyon floors: sand of the wall's colour in sandstone canyons, otherwise grass
+            // with coarse-dirt patches and gravel washes; loose material only on solid ground
+            int y = ctx.blockY;
             double p = patch(x, z, 10.0, 3);
-            if (col.baseTemperature > 0.45) {
-                return p > -0.3 ? RED_SAND : RED_SANDSTONE;
+            if (family == RED || family == SANDY) {
+                BlockState sand = family == RED ? RED_SAND : SAND;
+                return p > -0.3 && supported(x, y, z) ? sand : consolidated(sand);
             }
             if (d == 0 && p < -0.2) {
                 return null;
             }
-            return p > 0.2 ? GRAVEL : COARSE_DIRT;
+            return p > 0.2 && supported(x, y, z) ? GRAVEL : COARSE_DIRT;
         }
 
         private BlockState forestFloor(int x, int z, Holder<Biome> biome) {
