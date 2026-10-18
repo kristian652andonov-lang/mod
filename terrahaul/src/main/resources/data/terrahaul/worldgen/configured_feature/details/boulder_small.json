@@ -1,0 +1,35 @@
+{
+  "type": "terrahaul:boulder",
+  "config": {
+    "radius": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 1.2,
+      "max_exclusive": 2.6
+    },
+    "material": {
+      "type": "minecraft:weighted_state_provider",
+      "entries": [
+        {
+          "data": {
+            "Name": "minecraft:stone"
+          },
+          "weight": 3
+        },
+        {
+          "data": {
+            "Name": "minecraft:andesite"
+          },
+          "weight": 2
+        },
+        {
+          "data": {
+            "Name": "minecraft:cobblestone"
+          },
+          "weight": 1
+        }
+      ]
+    },
+    "moss": 0.0,
+    "bury": 0.35
+  }
+}

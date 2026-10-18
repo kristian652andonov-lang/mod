@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:random_selector",
+  "config": {
+    "features": [
+      {
+        "chance": 0.35,
+        "feature": {
+          "feature": "terrahaul:tree/spruce",
+          "placement": []
+        }
+      }
+    ],
+    "default": {
+      "feature": "terrahaul:tree/spruce_old_growth",
+      "placement": []
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "jungle",
+    "sizes": [
+      {
+        "data": "small",
+        "weight": 30
+      },
+      {
+        "data": "medium",
+        "weight": 30
+      }
+    ],
+    "vines": 0.15,
+    "cocoa": 0.1
+  }
+}

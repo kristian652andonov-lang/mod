@@ -1,0 +1,20 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "dark_oak",
+    "sizes": [
+      {
+        "data": "medium",
+        "weight": 40
+      },
+      {
+        "data": "large",
+        "weight": 50
+      },
+      {
+        "data": "giant",
+        "weight": 20
+      }
+    ]
+  }
+}

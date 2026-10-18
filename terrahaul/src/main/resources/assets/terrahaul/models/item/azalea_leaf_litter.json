@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "terrahaul:block/azalea_leaf_litter"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:wooded_badlands"
+  ],
+  "features": "terrahaul:trees/wooded_badlands",
+  "step": "vegetal_decoration"
+}

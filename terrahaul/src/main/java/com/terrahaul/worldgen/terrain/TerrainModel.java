@@ -107,6 +107,8 @@ public final class TerrainModel {
     private static final VolcanoSite NO_VOLCANO = new VolcanoSite();
     private final ConcurrentHashMap<Long, WaterfallSite> waterfallSites = new ConcurrentHashMap<>();
     private static final WaterfallSite NO_WATERFALL = new WaterfallSite();
+    private final ConcurrentHashMap<Long, FormationSite> formationSites = new ConcurrentHashMap<>();
+    private static final FormationSite NO_FORMATION = new FormationSite();
 
     public TerrainModel(long seed, TerrainSettings settings) {
         this.seed = seed;
@@ -1222,6 +1224,81 @@ public final class TerrainModel {
     }
 
     // =========================================================================================
+    // Rock formation sites (arches, spires, hoodoos, sea stacks)
+    // =========================================================================================
+
+    public static final int FORMATION_CELL = 384;
+    public static final int ARCH = 1;
+    public static final int SPIRE = 2;
+    public static final int HOODOO = 3;
+    public static final int SEA_STACK = 4;
+
+    public FormationSite formationSite(int cellX, int cellZ) {
+        long key = SeedMixer.hash2(siteSeed ^ 0xF0F0L, cellX, cellZ);
+        FormationSite cached = formationSites.get(key);
+        if (cached == null) {
+            cached = computeFormationSite(cellX, cellZ);
+            if (formationSites.size() > 16384) {
+                formationSites.clear();
+            }
+            formationSites.put(key, cached);
+        }
+        return cached == NO_FORMATION ? null : cached;
+    }
+
+    private FormationSite computeFormationSite(int cellX, int cellZ) {
+        long seedF = siteSeed ^ 0xF0F0L;
+        double roll = SeedMixer.cellUnit(seedF, cellX, cellZ, 0);
+        if (roll > 0.45) {
+            return NO_FORMATION;
+        }
+        int px = (int) ((cellX + 0.2 + 0.6 * SeedMixer.cellUnit(seedF, cellX, cellZ, 1)) * FORMATION_CELL);
+        int pz = (int) ((cellZ + 0.2 + 0.6 * SeedMixer.cellUnit(seedF, cellX, cellZ, 2)) * FORMATION_CELL);
+        ColumnSample s = new ColumnSample();
+        computeColumn(px, pz, s, true, scratch.get());
+        double pick = SeedMixer.cellUnit(seedF, cellX, cellZ, 3);
+        boolean dry = s.baseTemperature > 0.4 && s.humidity < 0.15;
+        int type = 0;
+        if (s.height < seaLevel - 2 && s.height > seaLevel - 16 && s.coastCliff > 0.15) {
+            type = SEA_STACK;
+        } else if (s.height < seaLevel + 1 || s.waterLevel != ColumnSample.NO_WATER || s.river > 0.0 || s.lake > 0.0 || s.volcano > 0.2) {
+            return NO_FORMATION;
+        } else if (dry && (s.plateau > 0.2 || s.canyon > 0.1 || s.erosion > -0.4) && s.steepness < 0.5) {
+            type = pick < 0.55 ? ARCH : HOODOO;
+        } else if ((s.mountain > 0.3 || s.cliff > 0.3) && s.peakness < 0.7) {
+            type = pick < 0.6 ? SPIRE : 0;
+        } else if (s.coastCliff > 0.3 && s.height > seaLevel + 4) {
+            type = pick < 0.5 ? ARCH : 0;
+        } else if (s.erosion > -0.2 && s.mountain < 0.1 && pick < 0.12) {
+            type = s.humidity < 0.2 ? ARCH : SPIRE;
+        }
+        if (type == 0) {
+            return NO_FORMATION;
+        }
+        FormationSite f = new FormationSite();
+        f.type = type;
+        f.x = px;
+        f.z = pz;
+        f.ground = s.height;
+        f.geology = s.geology;
+        f.climate = s.baseTemperature > 0.55 && s.humidity < 0.0 ? (s.baseTemperature > 0.75 || s.geology == Geology.SEDIMENTARY ? 2 : 1) : 0;
+        f.size = SeedMixer.cellUnit(seedF, cellX, cellZ, 4);
+        f.angle = SeedMixer.cellUnit(seedF, cellX, cellZ, 5) * Math.PI;
+        f.seed = SeedMixer.hash2(seedF, cellX, cellZ);
+        return f;
+    }
+
+    public static String formationName(int type) {
+        return switch (type) {
+            case ARCH -> "arch";
+            case SPIRE -> "spire";
+            case HOODOO -> "hoodoo";
+            case SEA_STACK -> "sea_stack";
+            default -> "formation";
+        };
+    }
+
+    // =========================================================================================
     // Data holders
     // =========================================================================================
 
@@ -1237,6 +1314,18 @@ public final class TerrainModel {
         public boolean lava;
         int ridges;
         double phase;
+    }
+
+    public static final class FormationSite {
+        public int type;
+        public int x;
+        public int z;
+        public double ground;
+        public int geology;
+        public int climate;
+        public double size;
+        public double angle;
+        public long seed;
     }
 
     public static final class WaterfallSite {

@@ -1,6 +1,13 @@
 package com.terrahaul.registry;
 
 import com.terrahaul.Terrahaul;
+import com.terrahaul.worldgen.features.BoulderConfiguration;
+import com.terrahaul.worldgen.features.BoulderFeature;
+import com.terrahaul.worldgen.features.FallenLogConfiguration;
+import com.terrahaul.worldgen.features.FallenLogFeature;
+import com.terrahaul.worldgen.features.RockFormationFeature;
+import com.terrahaul.worldgen.trees.ProceduralTreeConfiguration;
+import com.terrahaul.worldgen.trees.ProceduralTreeFeature;
 import com.terrahaul.worldgen.water.SurfaceWaterFeature;
 import com.terrahaul.worldgen.water.WaterfallFeature;
 import net.minecraft.core.registries.Registries;
@@ -18,6 +25,16 @@ public final class TerrahaulFeatures {
         FEATURES.register("surface_water", () -> new SurfaceWaterFeature(NoneFeatureConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, WaterfallFeature> WATERFALL =
         FEATURES.register("waterfall", () -> new WaterfallFeature(NoneFeatureConfiguration.CODEC));
+
+    public static final DeferredHolder<Feature<?>, ProceduralTreeFeature> PROCEDURAL_TREE =
+        FEATURES.register("procedural_tree", () -> new ProceduralTreeFeature(ProceduralTreeConfiguration.CODEC));
+
+    public static final DeferredHolder<Feature<?>, FallenLogFeature> FALLEN_LOG =
+        FEATURES.register("fallen_log", () -> new FallenLogFeature(FallenLogConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, BoulderFeature> BOULDER =
+        FEATURES.register("boulder", () -> new BoulderFeature(BoulderConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, RockFormationFeature> ROCK_FORMATIONS =
+        FEATURES.register("rock_formations", () -> new RockFormationFeature(NoneFeatureConfiguration.CODEC));
 
     private TerrahaulFeatures() {
     }

@@ -1,0 +1,124 @@
+{
+  "variants": {
+    "facing=north,count=1,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_1"
+    },
+    "facing=east,count=1,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_1",
+      "y": 90
+    },
+    "facing=south,count=1,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_1",
+      "y": 180
+    },
+    "facing=west,count=1,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_1",
+      "y": 270
+    },
+    "facing=north,count=1,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_1"
+    },
+    "facing=east,count=1,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_1",
+      "y": 90
+    },
+    "facing=south,count=1,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_1",
+      "y": 180
+    },
+    "facing=west,count=1,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_1",
+      "y": 270
+    },
+    "facing=north,count=2,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_2"
+    },
+    "facing=east,count=2,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_2",
+      "y": 90
+    },
+    "facing=south,count=2,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_2",
+      "y": 180
+    },
+    "facing=west,count=2,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_2",
+      "y": 270
+    },
+    "facing=north,count=2,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_2"
+    },
+    "facing=east,count=2,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_2",
+      "y": 90
+    },
+    "facing=south,count=2,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_2",
+      "y": 180
+    },
+    "facing=west,count=2,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_2",
+      "y": 270
+    },
+    "facing=north,count=3,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_3"
+    },
+    "facing=east,count=3,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_3",
+      "y": 90
+    },
+    "facing=south,count=3,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_3",
+      "y": 180
+    },
+    "facing=west,count=3,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_3",
+      "y": 270
+    },
+    "facing=north,count=3,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_3"
+    },
+    "facing=east,count=3,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_3",
+      "y": 90
+    },
+    "facing=south,count=3,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_3",
+      "y": 180
+    },
+    "facing=west,count=3,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_3",
+      "y": 270
+    },
+    "facing=north,count=4,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_4"
+    },
+    "facing=east,count=4,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_4",
+      "y": 90
+    },
+    "facing=south,count=4,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_4",
+      "y": 180
+    },
+    "facing=west,count=4,waterlogged=false": {
+      "model": "terrahaul:block/deepslate_pebbles_4",
+      "y": 270
+    },
+    "facing=north,count=4,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_4"
+    },
+    "facing=east,count=4,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_4",
+      "y": 90
+    },
+    "facing=south,count=4,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_4",
+      "y": 180
+    },
+    "facing=west,count=4,waterlogged=true": {
+      "model": "terrahaul:block/deepslate_pebbles_4",
+      "y": 270
+    }
+  }
+}

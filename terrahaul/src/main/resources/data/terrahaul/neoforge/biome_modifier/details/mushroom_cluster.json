@@ -1,0 +1,22 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "ground_details"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:dark_forest",
+    "minecraft:grove",
+    "minecraft:mangrove_swamp",
+    "minecraft:old_growth_pine_taiga",
+    "minecraft:old_growth_spruce_taiga",
+    "minecraft:snowy_taiga",
+    "minecraft:swamp",
+    "minecraft:taiga",
+    "minecraft:windswept_forest"
+  ],
+  "features": "terrahaul:details/mushroom_cluster",
+  "step": "vegetal_decoration"
+}

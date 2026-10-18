@@ -1,0 +1,28 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "ground_details"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:frozen_peaks",
+    "minecraft:grove",
+    "minecraft:ice_spikes",
+    "minecraft:jagged_peaks",
+    "minecraft:old_growth_pine_taiga",
+    "minecraft:old_growth_spruce_taiga",
+    "minecraft:snowy_plains",
+    "minecraft:snowy_slopes",
+    "minecraft:snowy_taiga",
+    "minecraft:stony_peaks",
+    "minecraft:stony_shore",
+    "minecraft:taiga",
+    "minecraft:windswept_forest",
+    "minecraft:windswept_gravelly_hills",
+    "minecraft:windswept_hills"
+  ],
+  "features": "terrahaul:details/bushes_alpine",
+  "step": "vegetal_decoration"
+}

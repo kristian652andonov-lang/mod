@@ -1,0 +1,31 @@
+{
+  "feature": "terrahaul:trees/flower_forest",
+  "placement": [
+    {
+      "type": "terrahaul:density_count",
+      "count": 3.5,
+      "density": "forest",
+      "scale": 200,
+      "variation": 0.8,
+      "clearing": -0.6
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "terrahaul:tree_line",
+      "max_slope": 7
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

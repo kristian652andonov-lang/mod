@@ -1,0 +1,47 @@
+{
+  "replace": false,
+  "values": {
+    "terrahaul:oak_leaf_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:birch_leaf_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:spruce_needle_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:jungle_leaf_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:acacia_leaf_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:dark_oak_leaf_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:mangrove_leaf_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:azalea_leaf_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:dry_leaf_litter": {
+      "chance": 0.3
+    },
+    "terrahaul:leafy_bush": {
+      "chance": 0.5
+    },
+    "terrahaul:dense_shrub": {
+      "chance": 0.5
+    },
+    "terrahaul:alpine_shrub": {
+      "chance": 0.5
+    },
+    "terrahaul:dry_shrub": {
+      "chance": 0.5
+    },
+    "terrahaul:pine_cone": {
+      "chance": 0.3
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "terrahaul:oak_branch",
+    "terrahaul:birch_branch",
+    "terrahaul:spruce_branch",
+    "terrahaul:jungle_branch",
+    "terrahaul:acacia_branch",
+    "terrahaul:dark_oak_branch",
+    "terrahaul:mangrove_branch",
+    "terrahaul:cherry_branch",
+    "terrahaul:twigs",
+    "terrahaul:pine_cone"
+  ]
+}

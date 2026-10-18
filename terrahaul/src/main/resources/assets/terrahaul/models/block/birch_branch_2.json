@@ -1,0 +1,241 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "minecraft:block/birch_log",
+    "birch_log_top": "minecraft:block/birch_log_top"
+  },
+  "elements": [
+    {
+      "from": [
+        1,
+        0,
+        5
+      ],
+      "to": [
+        9,
+        2,
+        7
+      ],
+      "faces": {
+        "east": {
+          "texture": "#birch_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "west": {
+          "texture": "#birch_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "north": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ]
+        },
+        "south": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ]
+        },
+        "up": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
+        },
+        "down": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ]
+        }
+      },
+      "rotation": {
+        "origin": [
+          8,
+          1,
+          8
+        ],
+        "axis": "y",
+        "angle": -22.5
+      }
+    },
+    {
+      "from": [
+        7,
+        0,
+        8
+      ],
+      "to": [
+        15,
+        2,
+        10
+      ],
+      "faces": {
+        "east": {
+          "texture": "#birch_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "west": {
+          "texture": "#birch_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "north": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ]
+        },
+        "south": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ]
+        },
+        "up": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
+        },
+        "down": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ]
+        }
+      },
+      "rotation": {
+        "origin": [
+          8,
+          1,
+          8
+        ],
+        "axis": "y",
+        "angle": 22.5
+      }
+    },
+    {
+      "from": [
+        10,
+        0.5,
+        4
+      ],
+      "to": [
+        14,
+        1.5,
+        5
+      ],
+      "faces": {
+        "east": {
+          "texture": "#birch_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "west": {
+          "texture": "#birch_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "north": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ]
+        },
+        "south": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ]
+        },
+        "up": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
+        },
+        "down": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ]
+        }
+      },
+      "rotation": {
+        "origin": [
+          8,
+          1,
+          8
+        ],
+        "axis": "y",
+        "angle": 0
+      }
+    }
+  ]
+}

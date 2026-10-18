@@ -1,0 +1,17 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "ground_details"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:badlands",
+    "minecraft:desert",
+    "minecraft:eroded_badlands",
+    "minecraft:wooded_badlands"
+  ],
+  "features": "terrahaul:details/boulder_desert",
+  "step": "vegetal_decoration"
+}

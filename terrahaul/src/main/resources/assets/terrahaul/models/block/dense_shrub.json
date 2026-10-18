@@ -1,0 +1,139 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout_mipped",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "minecraft:block/dark_oak_leaves",
+    "leaves": "minecraft:block/dark_oak_leaves"
+  },
+  "elements": [
+    {
+      "from": [
+        1,
+        0,
+        1
+      ],
+      "to": [
+        15,
+        12,
+        15
+      ],
+      "faces": {
+        "north": {
+          "texture": "#leaves",
+          "tintindex": 0
+        },
+        "south": {
+          "texture": "#leaves",
+          "tintindex": 0
+        },
+        "east": {
+          "texture": "#leaves",
+          "tintindex": 0
+        },
+        "west": {
+          "texture": "#leaves",
+          "tintindex": 0
+        },
+        "up": {
+          "texture": "#leaves",
+          "tintindex": 0
+        },
+        "down": {
+          "texture": "#leaves",
+          "tintindex": 0
+        }
+      }
+    },
+    {
+      "from": [
+        0.8,
+        0,
+        8
+      ],
+      "to": [
+        15.2,
+        15,
+        8
+      ],
+      "shade": false,
+      "rotation": {
+        "origin": [
+          8,
+          8,
+          8
+        ],
+        "axis": "y",
+        "angle": 45,
+        "rescale": true
+      },
+      "faces": {
+        "north": {
+          "texture": "#leaves",
+          "uv": [
+            0,
+            1,
+            16,
+            16
+          ],
+          "tintindex": 0
+        },
+        "south": {
+          "texture": "#leaves",
+          "uv": [
+            0,
+            1,
+            16,
+            16
+          ],
+          "tintindex": 0
+        }
+      }
+    },
+    {
+      "from": [
+        0.8,
+        0,
+        8
+      ],
+      "to": [
+        15.2,
+        15,
+        8
+      ],
+      "shade": false,
+      "rotation": {
+        "origin": [
+          8,
+          8,
+          8
+        ],
+        "axis": "y",
+        "angle": -45,
+        "rescale": true
+      },
+      "faces": {
+        "north": {
+          "texture": "#leaves",
+          "uv": [
+            0,
+            1,
+            16,
+            16
+          ],
+          "tintindex": 0
+        },
+        "south": {
+          "texture": "#leaves",
+          "uv": [
+            0,
+            1,
+            16,
+            16
+          ],
+          "tintindex": 0
+        }
+      }
+    }
+  ]
+}

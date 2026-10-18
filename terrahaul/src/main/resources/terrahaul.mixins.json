@@ -9,7 +9,8 @@
     "NoiseBasedChunkGeneratorMixin",
     "NoiseChunkMixin",
     "StrongholdStructureMixin",
-    "SurfaceSystemMixin"
+    "SurfaceSystemMixin",
+    "WorldDimensionsMixin"
   ],
   "client": [],
   "injectors": {

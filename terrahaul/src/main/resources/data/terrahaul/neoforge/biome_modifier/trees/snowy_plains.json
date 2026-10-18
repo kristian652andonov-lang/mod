@@ -1,0 +1,15 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:snowy_plains",
+    "minecraft:ice_spikes"
+  ],
+  "features": "terrahaul:trees/snowy_plains",
+  "step": "vegetal_decoration"
+}

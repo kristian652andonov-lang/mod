@@ -1,0 +1,35 @@
+{
+  "replace": false,
+  "values": {
+    "terrahaul:oak_branch": {
+      "burn_time": 200
+    },
+    "terrahaul:birch_branch": {
+      "burn_time": 200
+    },
+    "terrahaul:spruce_branch": {
+      "burn_time": 200
+    },
+    "terrahaul:jungle_branch": {
+      "burn_time": 200
+    },
+    "terrahaul:acacia_branch": {
+      "burn_time": 200
+    },
+    "terrahaul:dark_oak_branch": {
+      "burn_time": 200
+    },
+    "terrahaul:mangrove_branch": {
+      "burn_time": 200
+    },
+    "terrahaul:cherry_branch": {
+      "burn_time": 200
+    },
+    "terrahaul:twigs": {
+      "burn_time": 100
+    },
+    "terrahaul:pine_cone": {
+      "burn_time": 150
+    }
+  }
+}

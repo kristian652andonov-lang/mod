@@ -1,0 +1,21 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "swamp_oak",
+    "sizes": [
+      {
+        "data": "small",
+        "weight": 20
+      },
+      {
+        "data": "medium",
+        "weight": 60
+      },
+      {
+        "data": "large",
+        "weight": 30
+      }
+    ],
+    "vines": 0.16
+  }
+}

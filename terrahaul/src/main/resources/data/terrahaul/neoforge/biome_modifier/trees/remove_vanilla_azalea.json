@@ -1,0 +1,18 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:remove_features",
+  "biomes": [
+    "minecraft:lush_caves"
+  ],
+  "features": [
+    "minecraft:rooted_azalea_tree"
+  ],
+  "steps": [
+    "vegetal_decoration"
+  ]
+}

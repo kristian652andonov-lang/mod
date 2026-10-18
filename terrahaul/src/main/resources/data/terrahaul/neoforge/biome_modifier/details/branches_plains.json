@@ -1,0 +1,16 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "ground_details"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:meadow",
+    "minecraft:plains",
+    "minecraft:sunflower_plains"
+  ],
+  "features": "terrahaul:details/branches_plains",
+  "step": "vegetal_decoration"
+}

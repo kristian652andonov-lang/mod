@@ -1,0 +1,23 @@
+{
+  "feature": "terrahaul:details/fallen_log_dark_oak",
+  "placement": [
+    {
+      "type": "terrahaul:density_count",
+      "count": 0.45,
+      "density": "forest",
+      "scale": 300,
+      "variation": 1.0,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

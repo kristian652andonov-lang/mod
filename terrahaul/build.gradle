@@ -29,6 +29,15 @@ neoForge {
         client {
             client()
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // visual test (see com.terrahaul.client.dev.ClientScreenshotTest):
+            //   -Pquickplay=<world> -Pscreenshots="name@find:waterfall,60,25;..."
+            if (project.hasProperty('quickplay')) {
+                programArguments.addAll('--quickPlaySingleplayer', project.property('quickplay').toString())
+            }
+            if (project.hasProperty('screenshots')) {
+                systemProperty 'terrahaul.screenshots', project.property('screenshots').toString()
+            }
+            jvmArguments.addAll('-Xmx6G')
         }
 
         server {

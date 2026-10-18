@@ -1,0 +1,21 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "cherry",
+    "sizes": [
+      {
+        "data": "small",
+        "weight": 30
+      },
+      {
+        "data": "medium",
+        "weight": 40
+      },
+      {
+        "data": "large",
+        "weight": 10
+      }
+    ],
+    "beehive": 0.05
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "terrahaul:dark_oak_branch"
+    }
+  ],
+  "result": {
+    "id": "minecraft:stick",
+    "count": 2
+  }
+}

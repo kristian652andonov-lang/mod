@@ -1,0 +1,31 @@
+{
+  "feature": "terrahaul:tree/swamp_oak",
+  "placement": [
+    {
+      "type": "terrahaul:density_count",
+      "count": 2.8,
+      "density": "forest",
+      "scale": 220,
+      "variation": 0.7,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 2
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "terrahaul:tree_line",
+      "max_slope": 7
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

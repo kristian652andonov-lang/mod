@@ -17,7 +17,7 @@ public final class TerrainFinder {
     /**
      * A search target and how to look for it. For {@link Kind#GRID} and {@link Kind#HIGHEST} the
      * step is the sampling distance in blocks; for {@link Kind#LAKE_SITE} it holds the
-     * {@link LakeType} to look for (0 = any lake).
+     * {@link LakeType} to look for (0 = any lake) and for {@link Kind#FORMATION} the formation type.
      */
     public record Target(String name, String description, int step, Predicate<ColumnSample> coarse, Predicate<ColumnSample> exact, Kind kind) {
     }
@@ -27,7 +27,8 @@ public final class TerrainFinder {
         HIGHEST,
         VOLCANO,
         WATERFALL,
-        LAKE_SITE
+        LAKE_SITE,
+        FORMATION
     }
 
     /** Result of a search: block position of the match and a short label. */
@@ -74,6 +75,10 @@ public final class TerrainFinder {
         add("wetland", "a wetland or swamp", 48, s -> s.swamp > 0.6, s -> s.swamp > 0.8, Kind.GRID);
         add("volcano", "a volcano", 0, null, null, Kind.VOLCANO);
         add("waterfall", "a waterfall", 0, null, null, Kind.WATERFALL);
+        add("arch", "a natural stone arch", TerrainModel.ARCH, null, null, Kind.FORMATION);
+        add("spire", "a rock spire", TerrainModel.SPIRE, null, null, Kind.FORMATION);
+        add("hoodoo", "a hoodoo cluster", TerrainModel.HOODOO, null, null, Kind.FORMATION);
+        add("sea_stack", "a sea stack", TerrainModel.SEA_STACK, null, null, Kind.FORMATION);
     }
 
     private TerrainFinder() {
@@ -100,6 +105,7 @@ public final class TerrainFinder {
             case LAKE_SITE -> findLake(model, target.step(), x, z, radius);
             case HIGHEST -> findHighest(model, target, x, z, radius, cancelled);
             case GRID -> findGrid(model, target, x, z, radius, cancelled);
+            case FORMATION -> findFormation(model, target.step(), x, z, radius, cancelled);
         };
     }
 
@@ -269,6 +275,34 @@ public final class TerrainFinder {
                     if (dd < bestD) {
                         bestD = dd;
                         best = new Result(w.x, (int) Math.ceil(w.top) + 1, w.z, "waterfall");
+                    }
+                }
+            }
+            if (best != null) {
+                return best;
+            }
+        }
+        return null;
+    }
+
+    private static Result findFormation(TerrainModel model, int type, int x, int z, int radius, BooleanSupplier cancelled) {
+        int cell = TerrainModel.FORMATION_CELL;
+        int cx = Math.floorDiv(x, cell);
+        int cz = Math.floorDiv(z, cell);
+        int rings = radius / cell + 1;
+        for (int r = 0; r <= rings; r++) {
+            if (cancelled.getAsBoolean()) {
+                return null;
+            }
+            Result best = null;
+            double bestD = Double.MAX_VALUE;
+            for (int[] p : ring(r)) {
+                TerrainModel.FormationSite f = model.formationSite(cx + p[0], cz + p[1]);
+                if (f != null && f.type == type) {
+                    double dd = sq(f.x - x) + sq(f.z - z);
+                    if (dd < bestD) {
+                        bestD = dd;
+                        best = new Result(f.x, (int) Math.ceil(Math.max(f.ground, 63)) + 2, f.z, TerrainModel.formationName(type));
                     }
                 }
             }

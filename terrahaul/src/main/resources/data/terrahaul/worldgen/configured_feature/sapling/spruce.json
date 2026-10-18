@@ -1,0 +1,16 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "spruce",
+    "sizes": [
+      {
+        "data": "small",
+        "weight": 40
+      },
+      {
+        "data": "medium",
+        "weight": 40
+      }
+    ]
+  }
+}

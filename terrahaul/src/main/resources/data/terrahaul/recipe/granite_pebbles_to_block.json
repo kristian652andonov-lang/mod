@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "terrahaul:granite_pebbles"
+    }
+  },
+  "result": {
+    "id": "minecraft:granite",
+    "count": 1
+  }
+}

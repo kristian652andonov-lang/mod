@@ -1,0 +1,14 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:forest"
+  ],
+  "features": "terrahaul:trees/forest",
+  "step": "vegetal_decoration"
+}

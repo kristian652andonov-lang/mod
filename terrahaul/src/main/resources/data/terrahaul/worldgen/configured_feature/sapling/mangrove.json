@@ -1,0 +1,16 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "mangrove",
+    "sizes": [
+      {
+        "data": "small",
+        "weight": 30
+      },
+      {
+        "data": "medium",
+        "weight": 40
+      }
+    ]
+  }
+}

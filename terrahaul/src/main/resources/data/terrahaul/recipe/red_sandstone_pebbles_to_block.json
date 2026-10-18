@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "terrahaul:red_sandstone_pebbles"
+    }
+  },
+  "result": {
+    "id": "minecraft:red_sandstone",
+    "count": 1
+  }
+}

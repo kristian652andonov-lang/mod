@@ -1,0 +1,23 @@
+{
+  "feature": "terrahaul:details/pebbles_underwater",
+  "placement": [
+    {
+      "type": "terrahaul:density_count",
+      "count": 2.0,
+      "density": "ground_detail",
+      "scale": 160,
+      "variation": 0.8,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

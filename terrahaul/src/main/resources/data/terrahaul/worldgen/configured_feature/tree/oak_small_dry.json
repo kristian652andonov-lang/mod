@@ -1,0 +1,21 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "oak",
+    "sizes": [
+      {
+        "data": "young",
+        "weight": 20
+      },
+      {
+        "data": "small",
+        "weight": 50
+      },
+      {
+        "data": "medium",
+        "weight": 20
+      }
+    ],
+    "dry_leaves": 0.15
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "birch",
+    "sizes": [
+      {
+        "data": "medium",
+        "weight": 20
+      },
+      {
+        "data": "large",
+        "weight": 30
+      }
+    ],
+    "beehive": 0.6
+  }
+}

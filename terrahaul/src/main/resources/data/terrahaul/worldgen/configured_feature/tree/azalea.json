@@ -1,0 +1,20 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "azalea",
+    "sizes": [
+      {
+        "data": "small",
+        "weight": 30
+      },
+      {
+        "data": "medium",
+        "weight": 30
+      },
+      {
+        "data": "large",
+        "weight": 10
+      }
+    ]
+  }
+}

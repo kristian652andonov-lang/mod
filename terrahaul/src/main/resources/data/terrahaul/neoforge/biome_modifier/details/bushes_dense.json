@@ -1,0 +1,19 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "ground_details"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:bamboo_jungle",
+    "minecraft:dark_forest",
+    "minecraft:jungle",
+    "minecraft:mangrove_swamp",
+    "minecraft:sparse_jungle",
+    "minecraft:swamp"
+  ],
+  "features": "terrahaul:details/bushes_dense",
+  "step": "vegetal_decoration"
+}

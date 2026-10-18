@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "terrahaul:mossy_pebbles"
+    }
+  },
+  "result": {
+    "id": "minecraft:mossy_cobblestone",
+    "count": 1
+  }
+}

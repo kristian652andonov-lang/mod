@@ -1,0 +1,184 @@
+{
+  "variants": {
+    "facing=north,mossy=false,shape=0,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_0"
+    },
+    "facing=east,mossy=false,shape=0,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_0",
+      "y": 90
+    },
+    "facing=south,mossy=false,shape=0,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_0",
+      "y": 180
+    },
+    "facing=west,mossy=false,shape=0,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_0",
+      "y": 270
+    },
+    "facing=north,mossy=false,shape=0,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_0"
+    },
+    "facing=east,mossy=false,shape=0,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_0",
+      "y": 90
+    },
+    "facing=south,mossy=false,shape=0,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_0",
+      "y": 180
+    },
+    "facing=west,mossy=false,shape=0,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_0",
+      "y": 270
+    },
+    "facing=north,mossy=false,shape=1,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_1"
+    },
+    "facing=east,mossy=false,shape=1,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_1",
+      "y": 90
+    },
+    "facing=south,mossy=false,shape=1,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_1",
+      "y": 180
+    },
+    "facing=west,mossy=false,shape=1,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_1",
+      "y": 270
+    },
+    "facing=north,mossy=false,shape=1,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_1"
+    },
+    "facing=east,mossy=false,shape=1,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_1",
+      "y": 90
+    },
+    "facing=south,mossy=false,shape=1,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_1",
+      "y": 180
+    },
+    "facing=west,mossy=false,shape=1,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_1",
+      "y": 270
+    },
+    "facing=north,mossy=false,shape=2,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_2"
+    },
+    "facing=east,mossy=false,shape=2,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_2",
+      "y": 90
+    },
+    "facing=south,mossy=false,shape=2,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_2",
+      "y": 180
+    },
+    "facing=west,mossy=false,shape=2,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_2",
+      "y": 270
+    },
+    "facing=north,mossy=false,shape=2,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_2"
+    },
+    "facing=east,mossy=false,shape=2,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_2",
+      "y": 90
+    },
+    "facing=south,mossy=false,shape=2,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_2",
+      "y": 180
+    },
+    "facing=west,mossy=false,shape=2,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_2",
+      "y": 270
+    },
+    "facing=north,mossy=true,shape=0,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_0_mossy"
+    },
+    "facing=east,mossy=true,shape=0,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_0_mossy",
+      "y": 90
+    },
+    "facing=south,mossy=true,shape=0,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_0_mossy",
+      "y": 180
+    },
+    "facing=west,mossy=true,shape=0,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_0_mossy",
+      "y": 270
+    },
+    "facing=north,mossy=true,shape=0,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_0_mossy"
+    },
+    "facing=east,mossy=true,shape=0,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_0_mossy",
+      "y": 90
+    },
+    "facing=south,mossy=true,shape=0,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_0_mossy",
+      "y": 180
+    },
+    "facing=west,mossy=true,shape=0,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_0_mossy",
+      "y": 270
+    },
+    "facing=north,mossy=true,shape=1,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_1_mossy"
+    },
+    "facing=east,mossy=true,shape=1,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_1_mossy",
+      "y": 90
+    },
+    "facing=south,mossy=true,shape=1,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_1_mossy",
+      "y": 180
+    },
+    "facing=west,mossy=true,shape=1,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_1_mossy",
+      "y": 270
+    },
+    "facing=north,mossy=true,shape=1,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_1_mossy"
+    },
+    "facing=east,mossy=true,shape=1,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_1_mossy",
+      "y": 90
+    },
+    "facing=south,mossy=true,shape=1,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_1_mossy",
+      "y": 180
+    },
+    "facing=west,mossy=true,shape=1,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_1_mossy",
+      "y": 270
+    },
+    "facing=north,mossy=true,shape=2,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_2_mossy"
+    },
+    "facing=east,mossy=true,shape=2,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_2_mossy",
+      "y": 90
+    },
+    "facing=south,mossy=true,shape=2,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_2_mossy",
+      "y": 180
+    },
+    "facing=west,mossy=true,shape=2,waterlogged=false": {
+      "model": "terrahaul:block/oak_branch_2_mossy",
+      "y": 270
+    },
+    "facing=north,mossy=true,shape=2,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_2_mossy"
+    },
+    "facing=east,mossy=true,shape=2,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_2_mossy",
+      "y": 90
+    },
+    "facing=south,mossy=true,shape=2,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_2_mossy",
+      "y": 180
+    },
+    "facing=west,mossy=true,shape=2,waterlogged=true": {
+      "model": "terrahaul:block/oak_branch_2_mossy",
+      "y": 270
+    }
+  }
+}

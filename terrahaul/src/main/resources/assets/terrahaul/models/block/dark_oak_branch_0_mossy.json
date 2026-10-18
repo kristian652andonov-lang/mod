@@ -1,0 +1,197 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "minecraft:block/dark_oak_log",
+    "dark_oak_log_top": "minecraft:block/dark_oak_log_top",
+    "moss_block": "minecraft:block/moss_block"
+  },
+  "elements": [
+    {
+      "from": [
+        1,
+        0,
+        7
+      ],
+      "to": [
+        15,
+        2,
+        9
+      ],
+      "faces": {
+        "east": {
+          "texture": "#dark_oak_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "west": {
+          "texture": "#dark_oak_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "north": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ]
+        },
+        "south": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ]
+        },
+        "up": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
+        },
+        "down": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        5,
+        0,
+        9
+      ],
+      "to": [
+        10,
+        1,
+        10
+      ],
+      "faces": {
+        "east": {
+          "texture": "#dark_oak_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "west": {
+          "texture": "#dark_oak_log_top",
+          "uv": [
+            6,
+            6,
+            8,
+            8
+          ]
+        },
+        "north": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            4,
+            16,
+            6
+          ]
+        },
+        "south": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            8,
+            16,
+            10
+          ]
+        },
+        "up": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ]
+        },
+        "down": {
+          "texture": "#particle",
+          "uv": [
+            0,
+            12,
+            16,
+            14
+          ]
+        }
+      },
+      "rotation": {
+        "origin": [
+          8,
+          1,
+          8
+        ],
+        "axis": "y",
+        "angle": 22.5
+      }
+    },
+    {
+      "from": [
+        2,
+        2,
+        7
+      ],
+      "to": [
+        13,
+        2.3,
+        9
+      ],
+      "faces": {
+        "up": {
+          "texture": "#moss_block",
+          "uv": [
+            0,
+            0,
+            10,
+            2
+          ]
+        },
+        "north": {
+          "texture": "#moss_block",
+          "uv": [
+            0,
+            0,
+            10,
+            0.3
+          ]
+        },
+        "south": {
+          "texture": "#moss_block",
+          "uv": [
+            0,
+            0,
+            10,
+            0.3
+          ]
+        }
+      }
+    }
+  ]
+}

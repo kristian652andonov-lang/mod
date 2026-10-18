@@ -1,0 +1,18 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "ground_details"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:beach",
+    "minecraft:frozen_river",
+    "minecraft:river",
+    "minecraft:snowy_beach",
+    "minecraft:stony_shore"
+  ],
+  "features": "terrahaul:details/pebbles_river",
+  "step": "vegetal_decoration"
+}

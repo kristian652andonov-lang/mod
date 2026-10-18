@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "terrahaul:oak_leaf_litter",
+    "terrahaul:birch_leaf_litter",
+    "terrahaul:spruce_needle_litter",
+    "terrahaul:jungle_leaf_litter",
+    "terrahaul:acacia_leaf_litter",
+    "terrahaul:dark_oak_leaf_litter",
+    "terrahaul:mangrove_leaf_litter",
+    "terrahaul:azalea_leaf_litter",
+    "terrahaul:dry_leaf_litter"
+  ]
+}

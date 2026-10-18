@@ -1,0 +1,12 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "jungle",
+    "sizes": [
+      {
+        "data": "young",
+        "weight": 10
+      }
+    ]
+  }
+}

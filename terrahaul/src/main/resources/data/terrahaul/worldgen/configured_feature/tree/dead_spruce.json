@@ -1,0 +1,20 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "dead_spruce",
+    "sizes": [
+      {
+        "data": "small",
+        "weight": 20
+      },
+      {
+        "data": "medium",
+        "weight": 30
+      },
+      {
+        "data": "large",
+        "weight": 20
+      }
+    ]
+  }
+}

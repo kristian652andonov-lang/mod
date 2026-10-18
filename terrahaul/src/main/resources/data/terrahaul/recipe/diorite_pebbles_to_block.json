@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": {
+      "item": "terrahaul:diorite_pebbles"
+    }
+  },
+  "result": {
+    "id": "minecraft:diorite",
+    "count": 1
+  }
+}

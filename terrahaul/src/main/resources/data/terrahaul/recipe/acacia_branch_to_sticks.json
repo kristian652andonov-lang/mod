@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "terrahaul:acacia_branch"
+    }
+  ],
+  "result": {
+    "id": "minecraft:stick",
+    "count": 2
+  }
+}

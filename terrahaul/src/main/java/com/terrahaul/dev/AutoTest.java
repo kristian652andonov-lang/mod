@@ -98,6 +98,19 @@ public final class AutoTest {
                 report.add(String.format(Locale.ROOT, "area %d: found %s at %d %d %d in %.0f ms", areaIndex, name, found.x(), found.y(), found.z(), (System.nanoTime() - f0) / 1e6));
                 cx = found.x() >> 4;
                 cz = found.z() >> 4;
+            } else if (p[0].startsWith("biome:")) {
+                String id = p[0].substring(6);
+                radius = Integer.parseInt(p[1].trim());
+                var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME, net.minecraft.resources.ResourceLocation.parse(id));
+                var found = level.findClosestBiome3d(h -> h.is(key), BlockPos.ZERO, 12000, 32, 64);
+                if (found == null) {
+                    report.add("area " + areaIndex + ": biome " + id + " not found");
+                    areaIndex++;
+                    continue;
+                }
+                report.add("area " + areaIndex + ": biome " + id + " at " + found.getFirst().toShortString());
+                cx = found.getFirst().getX() >> 4;
+                cz = found.getFirst().getZ() >> 4;
             } else {
                 cx = Integer.parseInt(p[0].trim()) >> 4;
                 cz = Integer.parseInt(p[1].trim()) >> 4;

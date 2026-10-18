@@ -1,0 +1,23 @@
+{
+  "feature": "terrahaul:details/litter_acacia",
+  "placement": [
+    {
+      "type": "terrahaul:density_count",
+      "count": 0.4,
+      "density": "ground_detail",
+      "scale": 160,
+      "variation": 0.8,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

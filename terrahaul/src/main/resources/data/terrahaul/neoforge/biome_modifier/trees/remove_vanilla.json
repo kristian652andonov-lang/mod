@@ -1,0 +1,39 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:remove_features",
+  "biomes": "#minecraft:is_overworld",
+  "features": [
+    "minecraft:trees_birch",
+    "minecraft:trees_cherry",
+    "minecraft:trees_water",
+    "minecraft:dark_forest_vegetation",
+    "minecraft:trees_flower_forest",
+    "minecraft:trees_birch_and_oak",
+    "minecraft:trees_grove",
+    "minecraft:trees_snowy",
+    "minecraft:trees_jungle",
+    "minecraft:trees_mangrove",
+    "minecraft:trees_meadow",
+    "minecraft:birch_tall",
+    "minecraft:trees_old_growth_pine_taiga",
+    "minecraft:trees_old_growth_spruce_taiga",
+    "minecraft:trees_plains",
+    "minecraft:trees_savanna",
+    "minecraft:trees_taiga",
+    "minecraft:trees_sparse_jungle",
+    "minecraft:trees_swamp",
+    "minecraft:trees_windswept_forest",
+    "minecraft:trees_windswept_hills",
+    "minecraft:trees_windswept_savanna",
+    "minecraft:trees_badlands",
+    "minecraft:bamboo_vegetation"
+  ],
+  "steps": [
+    "vegetal_decoration"
+  ]
+}

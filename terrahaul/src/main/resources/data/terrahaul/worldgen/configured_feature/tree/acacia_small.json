@@ -1,0 +1,20 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "acacia",
+    "sizes": [
+      {
+        "data": "young",
+        "weight": 20
+      },
+      {
+        "data": "small",
+        "weight": 40
+      },
+      {
+        "data": "medium",
+        "weight": 20
+      }
+    ]
+  }
+}

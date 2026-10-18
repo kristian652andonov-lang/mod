@@ -1,0 +1,21 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "oak",
+    "sizes": [
+      {
+        "data": "medium",
+        "weight": 30
+      },
+      {
+        "data": "large",
+        "weight": 40
+      },
+      {
+        "data": "giant",
+        "weight": 20
+      }
+    ],
+    "beehive": 0.05
+  }
+}

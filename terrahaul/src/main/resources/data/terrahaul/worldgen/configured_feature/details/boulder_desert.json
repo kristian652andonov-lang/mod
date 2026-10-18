@@ -1,0 +1,29 @@
+{
+  "type": "terrahaul:boulder",
+  "config": {
+    "radius": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 1.5,
+      "max_exclusive": 3.5
+    },
+    "material": {
+      "type": "minecraft:weighted_state_provider",
+      "entries": [
+        {
+          "data": {
+            "Name": "minecraft:sandstone"
+          },
+          "weight": 3
+        },
+        {
+          "data": {
+            "Name": "minecraft:smooth_sandstone"
+          },
+          "weight": 1
+        }
+      ]
+    },
+    "moss": 0.0,
+    "bury": 0.35
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "type": "terrahaul:fallen_log",
+  "config": {
+    "log": {
+      "Name": "minecraft:cherry_log",
+      "Properties": {
+        "axis": "x"
+      }
+    },
+    "stripped": {
+      "Name": "minecraft:stripped_cherry_log",
+      "Properties": {
+        "axis": "x"
+      }
+    },
+    "length": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 4,
+      "max_inclusive": 7
+    },
+    "rot": 0.25,
+    "moss": 0.35,
+    "mushroom": 0.1,
+    "stump": 0.35
+  }
+}

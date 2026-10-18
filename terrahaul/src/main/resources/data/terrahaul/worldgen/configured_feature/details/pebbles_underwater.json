@@ -1,0 +1,779 @@
+{
+  "type": "minecraft:random_patch",
+  "config": {
+    "tries": 14,
+    "xz_spread": 6,
+    "y_spread": 1,
+    "feature": {
+      "feature": {
+        "type": "minecraft:simple_block",
+        "config": {
+          "to_place": {
+            "type": "minecraft:weighted_state_provider",
+            "entries": [
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 12
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 12
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 12
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 12
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 9
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 9
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 9
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 9
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 6
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 6
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 6
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 6
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:stone_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 8
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 8
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 8
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 8
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 6
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 6
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 6
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 6
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:andesite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 1
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 1
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 1
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:granite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 1
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "1",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 4
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "2",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 3
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "3",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 2
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "north",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 1
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "east",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 1
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "south",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 1
+              },
+              {
+                "data": {
+                  "Name": "terrahaul:diorite_pebbles",
+                  "Properties": {
+                    "count": "4",
+                    "facing": "west",
+                    "waterlogged": "true"
+                  }
+                },
+                "weight": 1
+              }
+            ]
+          }
+        }
+      },
+      "placement": [
+        {
+          "type": "minecraft:block_predicate_filter",
+          "predicate": {
+            "type": "minecraft:all_of",
+            "predicates": [
+              {
+                "type": "minecraft:matching_fluids",
+                "fluids": "minecraft:water"
+              },
+              {
+                "type": "minecraft:any_of",
+                "predicates": [
+                  {
+                    "type": "minecraft:matching_block_tag",
+                    "offset": [
+                      0,
+                      -1,
+                      0
+                    ],
+                    "tag": "minecraft:sand"
+                  },
+                  {
+                    "type": "minecraft:matching_blocks",
+                    "offset": [
+                      0,
+                      -1,
+                      0
+                    ],
+                    "blocks": "minecraft:gravel"
+                  },
+                  {
+                    "type": "minecraft:matching_block_tag",
+                    "offset": [
+                      0,
+                      -1,
+                      0
+                    ],
+                    "tag": "minecraft:dirt"
+                  },
+                  {
+                    "type": "minecraft:matching_blocks",
+                    "offset": [
+                      0,
+                      -1,
+                      0
+                    ],
+                    "blocks": "minecraft:clay"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "replace": false,
+  "values": [
+    "terrahaul:stone_rock",
+    "terrahaul:mossy_rock",
+    "terrahaul:andesite_rock",
+    "terrahaul:granite_rock",
+    "terrahaul:diorite_rock",
+    "terrahaul:deepslate_rock",
+    "terrahaul:tuff_rock",
+    "terrahaul:sandstone_rock",
+    "terrahaul:red_sandstone_rock",
+    "terrahaul:blackstone_rock",
+    "terrahaul:stone_pebbles",
+    "terrahaul:mossy_pebbles",
+    "terrahaul:andesite_pebbles",
+    "terrahaul:granite_pebbles",
+    "terrahaul:diorite_pebbles",
+    "terrahaul:deepslate_pebbles",
+    "terrahaul:tuff_pebbles",
+    "terrahaul:sandstone_pebbles",
+    "terrahaul:red_sandstone_pebbles",
+    "terrahaul:blackstone_pebbles"
+  ]
+}

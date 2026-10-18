@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Generates Terrahaul's configured features, placed features and NeoForge biome modifiers.
 
-Usage: python3 tools/datagen_features.py
+Usage: python3 tools/datagen_features.py <vanilla-data-dir>
+  <vanilla-data-dir> is the extracted "data/minecraft" directory of the 1.21.1 client resources;
+  it is read to copy a few vanilla feature definitions that Terrahaul adapts.
 Output goes to src/main/resources/data and is committed.
 """
 import json
 import os
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'main', 'resources', 'data')
+VANILLA = None  # extracted vanilla data/minecraft directory, set from the command line
 
 
 def write(path, obj):
@@ -48,9 +51,493 @@ def water():
     add_features('waterfall', '#minecraft:is_overworld', 'terrahaul:waterfall', 'fluid_springs')
 
 
+CONFIG_TREES = [{"type": "terrahaul:config", "key": "replace_vanilla_trees"}]
+
+
+def with_conditions(path, conditions):
+    full = os.path.join(ROOT, path)
+    with open(full) as f:
+        obj = json.load(f)
+    obj = {"neoforge:conditions": conditions, **obj}
+    write(path, obj)
+
+
+def tree_config(name, species, sizes, vines=0.0, cocoa=0.0, beehive=0.0, dry=0.0):
+    # weights are integers in vanilla weighted lists: scale by 10 so fractional weights survive
+    cfg = {"species": species, "sizes": [{"data": k, "weight": max(1, int(round(w * 10)))} for k, w in sizes.items()]}
+    if vines:
+        cfg["vines"] = vines
+    if cocoa:
+        cfg["cocoa"] = cocoa
+    if beehive:
+        cfg["beehive"] = beehive
+    if dry:
+        cfg["dry_leaves"] = dry
+    configured(name, 'terrahaul:procedural_tree', cfg)
+
+
+def ref(feature):
+    return {"feature": feature, "placement": []}
+
+
+def selector(name, entries, default):
+    """entries: list of (configured feature id, chance) evaluated in order; default otherwise."""
+    configured(name, 'minecraft:random_selector', {
+        "features": [{"chance": c, "feature": ref(f)} for f, c in entries],
+        "default": ref(default),
+    })
+
+
+def tree_placement(count, scale=260, variation=0.7, clearing=-2.0, water_depth=0, slope=7, density="forest"):
+    return [
+        {"type": "terrahaul:density_count", "count": count, "density": density, "scale": scale,
+         "variation": variation, "clearing": clearing},
+        {"type": "minecraft:in_square"},
+        {"type": "minecraft:surface_water_depth_filter", "max_water_depth": water_depth},
+        {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"},
+        {"type": "terrahaul:tree_line", "max_slope": slope},
+        {"type": "minecraft:biome"},
+    ]
+
+
+SMALLISH = {"young": 2, "small": 5, "medium": 3}
+MIXED = {"small": 3, "medium": 6, "large": 2, "giant": 0.4}
+
+VANILLA_TREE_FEATURES = [
+    "minecraft:trees_birch", "minecraft:trees_cherry", "minecraft:trees_water", "minecraft:dark_forest_vegetation",
+    "minecraft:trees_flower_forest", "minecraft:trees_birch_and_oak", "minecraft:trees_grove", "minecraft:trees_snowy",
+    "minecraft:trees_jungle", "minecraft:trees_mangrove", "minecraft:trees_meadow", "minecraft:birch_tall",
+    "minecraft:trees_old_growth_pine_taiga", "minecraft:trees_old_growth_spruce_taiga", "minecraft:trees_plains",
+    "minecraft:trees_savanna", "minecraft:trees_taiga", "minecraft:trees_sparse_jungle", "minecraft:trees_swamp",
+    "minecraft:trees_windswept_forest", "minecraft:trees_windswept_hills", "minecraft:trees_windswept_savanna",
+    "minecraft:trees_badlands", "minecraft:bamboo_vegetation",
+]
+
+
+def trees():
+    T = 'terrahaul:tree/'
+    # ---- species / size mixes --------------------------------------------------------------
+    tree_config('tree/oak', 'oak', MIXED)
+    tree_config('tree/oak_bees', 'oak', MIXED, beehive=0.02)
+    tree_config('tree/oak_lone', 'oak', {"medium": 3, "large": 4, "giant": 2}, beehive=0.05)
+    tree_config('tree/oak_meadow', 'oak', {"medium": 2, "large": 3}, beehive=0.6)
+    tree_config('tree/oak_young', 'oak', {"young": 3, "small": 2})
+    tree_config('tree/oak_small_dry', 'oak', {"young": 2, "small": 5, "medium": 2}, dry=0.15)
+    tree_config('tree/swamp_oak', 'swamp_oak', {"small": 2, "medium": 6, "large": 3}, vines=0.16)
+    tree_config('tree/birch', 'birch', {"small": 3, "medium": 6, "large": 2})
+    tree_config('tree/birch_bees', 'birch', {"small": 3, "medium": 6, "large": 2}, beehive=0.02)
+    tree_config('tree/birch_meadow', 'birch', {"medium": 2, "large": 3}, beehive=0.6)
+    tree_config('tree/birch_tall', 'birch', {"medium": 2, "large": 5, "giant": 3})
+    tree_config('tree/birch_young', 'birch', {"young": 3, "small": 2})
+    tree_config('tree/spruce', 'spruce', MIXED)
+    tree_config('tree/spruce_small', 'spruce', SMALLISH)
+    tree_config('tree/spruce_old_growth', 'spruce', {"medium": 2, "large": 5, "giant": 3})
+    tree_config('tree/spruce_young', 'spruce', {"young": 3, "small": 2})
+    tree_config('tree/pine', 'pine', {"medium": 4, "large": 4, "giant": 1.5})
+    tree_config('tree/pine_old_growth', 'pine', {"large": 5, "giant": 3})
+    tree_config('tree/fir', 'fir', {"small": 3, "medium": 5, "large": 2, "giant": 0.4})
+    tree_config('tree/jungle_giant', 'jungle', {"large": 4, "giant": 3}, vines=0.22, cocoa=0.06)
+    tree_config('tree/jungle_medium', 'jungle', {"small": 2, "medium": 5}, vines=0.25, cocoa=0.12)
+    tree_config('tree/jungle_bush', 'jungle', {"young": 1})
+    tree_config('tree/acacia', 'acacia', {"small": 3, "medium": 5, "large": 3, "giant": 1})
+    tree_config('tree/acacia_small', 'acacia', {"young": 2, "small": 4, "medium": 2})
+    tree_config('tree/dark_oak', 'dark_oak', {"medium": 4, "large": 5, "giant": 2})
+    tree_config('tree/mangrove', 'mangrove', {"small": 3, "medium": 5, "large": 3, "giant": 1}, vines=0.05)
+    tree_config('tree/cherry', 'cherry', {"small": 2, "medium": 5, "large": 3, "giant": 1}, beehive=0.05)
+    tree_config('tree/cherry_young', 'cherry', {"young": 3, "small": 1})
+    tree_config('tree/azalea', 'azalea', {"small": 3, "medium": 3, "large": 1})
+    tree_config('tree/dead', 'dead', {"small": 3, "medium": 3, "large": 1})
+    tree_config('tree/dead_spruce', 'dead_spruce', {"small": 2, "medium": 3, "large": 2})
+
+    # ---- biome mixes ---------------------------------------------------------------------------
+    groups = {
+        # name: (biomes, [(selector entries)], default, placement kwargs)
+        'plains_lone': (['minecraft:plains', 'minecraft:sunflower_plains'], [(T + 'birch', 0.15)], T + 'oak_lone',
+                        dict(count=0.16, variation=1.4, scale=900)),
+        'plains_groves': (['minecraft:plains', 'minecraft:sunflower_plains'], [(T + 'birch', 0.25), (T + 'oak_young', 0.2)], T + 'oak_bees',
+                          dict(count=2.5, variation=1.0, scale=380, clearing=0.42)),
+        'forest': (['minecraft:forest'], [(T + 'birch', 0.27)], T + 'oak_bees', dict(count=6.0, scale=230, variation=0.7, clearing=-0.72)),
+        'forest_understory': (['minecraft:forest', 'minecraft:flower_forest'], [(T + 'birch_young', 0.35)], T + 'oak_young',
+                              dict(count=2.5, scale=230, variation=0.6)),
+        'flower_forest': (['minecraft:flower_forest'], [(T + 'birch_bees', 0.4)], T + 'oak_bees', dict(count=3.5, scale=200, variation=0.8, clearing=-0.6)),
+        'birch_forest': (['minecraft:birch_forest'], [(T + 'birch_young', 0.2)], T + 'birch_bees', dict(count=7.0, scale=220, variation=0.6, clearing=-0.8)),
+        'old_growth_birch_forest': (['minecraft:old_growth_birch_forest'], [(T + 'birch', 0.35)], T + 'birch_tall',
+                                    dict(count=6.5, scale=240, variation=0.5, clearing=-0.85)),
+        'dark_forest': (['minecraft:dark_forest'], [(T + 'oak', 0.12), (T + 'birch', 0.09), (T + 'dark_oak', 1.0)], T + 'dark_oak',
+                        dict(count=7.5, scale=260, variation=0.45, clearing=-0.9)),
+        'taiga': (['minecraft:taiga'], [(T + 'pine', 0.25), (T + 'fir', 0.18), (T + 'dead_spruce', 0.04)], T + 'spruce',
+                  dict(count=6.5, scale=240, variation=0.6, clearing=-0.75)),
+        'taiga_understory': (['minecraft:taiga', 'minecraft:snowy_taiga', 'minecraft:old_growth_spruce_taiga', 'minecraft:old_growth_pine_taiga'],
+                             [], T + 'spruce_young', dict(count=2.5, scale=240, variation=0.6)),
+        'snowy_taiga': (['minecraft:snowy_taiga'], [(T + 'fir', 0.3)], T + 'spruce', dict(count=5.0, scale=240, variation=0.6, clearing=-0.75)),
+        'old_growth_spruce_taiga': (['minecraft:old_growth_spruce_taiga'], [(T + 'spruce', 0.35)], T + 'spruce_old_growth',
+                                    dict(count=5.0, scale=280, variation=0.45, clearing=-0.9)),
+        'old_growth_pine_taiga': (['minecraft:old_growth_pine_taiga'], [(T + 'spruce_old_growth', 0.35)], T + 'pine_old_growth',
+                                  dict(count=5.0, scale=280, variation=0.45, clearing=-0.9)),
+        'grove': (['minecraft:grove'], [(T + 'spruce', 0.4)], T + 'fir', dict(count=4.0, scale=200, variation=0.7, clearing=-0.6, slope=9)),
+        'snowy_plains': (['minecraft:snowy_plains', 'minecraft:ice_spikes'], [(T + 'dead_spruce', 0.1)], T + 'spruce_small',
+                         dict(count=0.3, scale=600, variation=1.2)),
+        'windswept_hills': (['minecraft:windswept_hills', 'minecraft:windswept_gravelly_hills'], [(T + 'oak_small_dry', 0.45)], T + 'spruce_small',
+                            dict(count=0.8, scale=300, variation=1.0, slope=9)),
+        'windswept_forest': (['minecraft:windswept_forest'], [(T + 'oak', 0.35)], T + 'spruce', dict(count=5.0, scale=240, variation=0.6, slope=9)),
+        'meadow': (['minecraft:meadow'], [(T + 'birch_meadow', 0.4)], T + 'oak_meadow', dict(count=0.12, scale=600, variation=1.2)),
+        'cherry_grove': (['minecraft:cherry_grove'], [(T + 'cherry_young', 0.15)], T + 'cherry', dict(count=3.5, scale=180, variation=0.8, clearing=-0.7)),
+        'jungle_giants': (['minecraft:jungle'], [(T + 'oak', 0.06)], T + 'jungle_giant', dict(count=2.0, scale=220, variation=0.6)),
+        'jungle_medium': (['minecraft:jungle', 'minecraft:bamboo_jungle'], [], T + 'jungle_medium', dict(count=4.0, scale=180, variation=0.6)),
+        'jungle_bushes': (['minecraft:jungle', 'minecraft:bamboo_jungle', 'minecraft:sparse_jungle'], [], T + 'jungle_bush',
+                          dict(count=7.0, scale=150, variation=0.5)),
+        'sparse_jungle': (['minecraft:sparse_jungle'], [(T + 'jungle_giant', 0.2)], T + 'jungle_medium', dict(count=1.4, scale=300, variation=1.0)),
+        'bamboo_jungle': (['minecraft:bamboo_jungle'], [], T + 'jungle_giant', dict(count=0.5, scale=300, variation=1.0)),
+        'savanna': (['minecraft:savanna', 'minecraft:savanna_plateau'], [(T + 'dead', 0.05), (T + 'oak_small_dry', 0.06)], T + 'acacia',
+                    dict(count=1.3, scale=420, variation=1.1)),
+        'windswept_savanna': (['minecraft:windswept_savanna'], [(T + 'oak_small_dry', 0.3)], T + 'acacia_small', dict(count=1.0, scale=300, variation=1.0, slope=9)),
+        'wooded_badlands': (['minecraft:wooded_badlands'], [(T + 'dead', 0.3)], T + 'oak_small_dry', dict(count=4.0, scale=220, variation=0.8)),
+        'swamp': (['minecraft:swamp'], [], T + 'swamp_oak', dict(count=2.8, scale=220, variation=0.7, water_depth=2)),
+        'mangrove_swamp': (['minecraft:mangrove_swamp'], [], T + 'mangrove', dict(count=7.0, scale=200, variation=0.5, water_depth=4)),
+        'river_banks': (['minecraft:river'], [(T + 'birch', 0.3)], T + 'oak', dict(count=0.06, scale=300, variation=1.0)),
+        'azaleas': (['minecraft:forest', 'minecraft:flower_forest', 'minecraft:meadow', 'minecraft:birch_forest'], [], T + 'azalea',
+                    dict(count=0.12, scale=300, variation=1.2)),
+    }
+    for name, (biomes, entries, default, kw) in groups.items():
+        if entries:
+            selector('trees/' + name, entries, default)
+            feature = 'terrahaul:trees/' + name
+        else:
+            feature = default
+        placed('trees/' + name, feature, tree_placement(**kw))
+        add_features('trees/' + name, biomes, 'terrahaul:trees/' + name, 'vegetal_decoration')
+        with_conditions(f'terrahaul/neoforge/biome_modifier/trees/{name}.json', CONFIG_TREES)
+
+    # dark forests keep their huge mushrooms
+    configured('dark_forest_mushrooms', 'minecraft:random_boolean_selector', {
+        "feature_true": ref('minecraft:huge_brown_mushroom'), "feature_false": ref('minecraft:huge_red_mushroom')})
+    placed('dark_forest_mushrooms', 'terrahaul:dark_forest_mushrooms', tree_placement(count=0.35, scale=300, variation=1.0))
+    add_features('trees/dark_forest_mushrooms', ['minecraft:dark_forest'], 'terrahaul:dark_forest_mushrooms', 'vegetal_decoration')
+    with_conditions('terrahaul/neoforge/biome_modifier/trees/dark_forest_mushrooms.json', CONFIG_TREES)
+
+    # remove vanilla trees
+    remove_features('trees/remove_vanilla', '#minecraft:is_overworld', VANILLA_TREE_FEATURES, ['vegetal_decoration'])
+    with_conditions('terrahaul/neoforge/biome_modifier/trees/remove_vanilla.json', CONFIG_TREES)
+
+    # lush caves: vanilla root system, growing a Terrahaul azalea
+    with open(os.path.join(VANILLA, 'worldgen', 'configured_feature', 'rooted_azalea_tree.json')) as f:
+        rooted = json.load(f)
+    rooted['config']['feature'] = ref(T + 'azalea')
+    write('terrahaul/worldgen/configured_feature/rooted_azalea_tree.json', rooted)
+    with open(os.path.join(VANILLA, 'worldgen', 'placed_feature', 'rooted_azalea_tree.json')) as f:
+        rooted_placed = json.load(f)
+    rooted_placed['feature'] = 'terrahaul:rooted_azalea_tree'
+    write('terrahaul/worldgen/placed_feature/rooted_azalea_tree.json', rooted_placed)
+    remove_features('trees/remove_vanilla_azalea', ['minecraft:lush_caves'], ['minecraft:rooted_azalea_tree'], ['vegetal_decoration'])
+    with_conditions('terrahaul/neoforge/biome_modifier/trees/remove_vanilla_azalea.json', CONFIG_TREES)
+    add_features('trees/rooted_azalea', ['minecraft:lush_caves'], 'terrahaul:rooted_azalea_tree', 'vegetal_decoration')
+    with_conditions('terrahaul/neoforge/biome_modifier/trees/rooted_azalea.json', CONFIG_TREES)
+
+    # saplings grown by players (see SaplingGrowthHandler)
+    tree_config('sapling/oak', 'oak', {"small": 3, "medium": 4, "large": 1})
+    tree_config('sapling/birch', 'birch', {"small": 3, "medium": 4, "large": 1})
+    tree_config('sapling/spruce', 'spruce', {"small": 4, "medium": 4})
+    tree_config('sapling/spruce_large', 'spruce', {"large": 1})
+    tree_config('sapling/jungle', 'jungle', {"small": 3, "medium": 3}, vines=0.15, cocoa=0.1)
+    tree_config('sapling/jungle_large', 'jungle', {"large": 1}, vines=0.2, cocoa=0.05)
+    tree_config('sapling/acacia', 'acacia', {"small": 3, "medium": 4, "large": 1})
+    tree_config('sapling/dark_oak', 'dark_oak', {"small": 3, "medium": 4, "large": 2})
+    tree_config('sapling/cherry', 'cherry', {"small": 3, "medium": 4, "large": 1}, beehive=0.05)
+    tree_config('sapling/mangrove', 'mangrove', {"small": 3, "medium": 4})
+    tree_config('sapling/azalea', 'azalea', {"small": 3, "medium": 3})
+
+
+CONFIG_DETAILS = [{"type": "terrahaul:config", "key": "ground_details"}]
+CONFIG_FORMATIONS = [{"type": "terrahaul:config", "key": "geological_formations"}]
+
+GROUPS = {
+    "forest": ["minecraft:forest", "minecraft:flower_forest"],
+    "birch_forest": ["minecraft:birch_forest", "minecraft:old_growth_birch_forest"],
+    "dark_forest": ["minecraft:dark_forest"],
+    "taiga": ["minecraft:taiga", "minecraft:snowy_taiga", "minecraft:old_growth_spruce_taiga", "minecraft:old_growth_pine_taiga",
+              "minecraft:grove", "minecraft:windswept_forest"],
+    "jungle": ["minecraft:jungle", "minecraft:sparse_jungle", "minecraft:bamboo_jungle"],
+    "plains": ["minecraft:plains", "minecraft:sunflower_plains", "minecraft:meadow"],
+    "savanna": ["minecraft:savanna", "minecraft:savanna_plateau", "minecraft:windswept_savanna"],
+    "desert": ["minecraft:desert"],
+    "badlands": ["minecraft:badlands", "minecraft:wooded_badlands", "minecraft:eroded_badlands"],
+    "mountains": ["minecraft:windswept_hills", "minecraft:windswept_gravelly_hills", "minecraft:stony_peaks", "minecraft:jagged_peaks",
+                  "minecraft:frozen_peaks", "minecraft:snowy_slopes", "minecraft:stony_shore"],
+    "wetland": ["minecraft:swamp", "minecraft:mangrove_swamp"],
+    "cherry": ["minecraft:cherry_grove"],
+    "water_edge": ["minecraft:river", "minecraft:frozen_river", "minecraft:beach", "minecraft:snowy_beach", "minecraft:stony_shore"],
+    "snowy": ["minecraft:snowy_plains", "minecraft:ice_spikes"],
+}
+
+
+def state(block, **props):
+    st = {"Name": block}
+    if props:
+        st["Properties"] = {k: str(v).lower() for k, v in props.items()}
+    return st
+
+
+def weighted(entries):
+    return {"type": "minecraft:weighted_state_provider",
+            "entries": [{"data": st, "weight": w} for st, w in entries]}
+
+
+def facings_states(block, extra_list, base_weight=1, **fixed):
+    """All four facings of a block, combined with each dict of extra properties in extra_list."""
+    out = []
+    for extra in extra_list:
+        for facing in ["north", "east", "south", "west"]:
+            out.append((state(block, facing=facing, **fixed, **extra[0]), extra[1] * base_weight))
+    return out
+
+
+def ground_predicate(on=None, water=False):
+    """Air (or water) at the position, and one of `on` (tags prefixed with '#', else block ids) below."""
+    preds = [{"type": "minecraft:matching_fluids", "fluids": "minecraft:water"} if water
+             else {"type": "minecraft:matching_blocks", "blocks": "minecraft:air"}]
+    if on:
+        options = []
+        for t in on:
+            if t.startswith('#'):
+                options.append({"type": "minecraft:matching_block_tag", "offset": [0, -1, 0], "tag": t[1:]})
+            else:
+                options.append({"type": "minecraft:matching_blocks", "offset": [0, -1, 0], "blocks": t})
+        preds.append({"type": "minecraft:any_of", "predicates": options})
+    return {"type": "minecraft:all_of", "predicates": preds}
+
+
+def patch(name, provider, tries, spread, on_tags=None, water=False, y_spread=2):
+    inner = {"feature": {"type": "minecraft:simple_block", "config": {"to_place": provider}},
+             "placement": [{"type": "minecraft:block_predicate_filter", "predicate": ground_predicate(on_tags, water)}]}
+    configured(name, 'minecraft:random_patch', {"tries": tries, "xz_spread": spread, "y_spread": y_spread, "feature": inner})
+
+
+def detail_placement(count, density="ground_detail", scale=160, variation=0.8, clearing=-2.0, heightmap="MOTION_BLOCKING_NO_LEAVES"):
+    return [
+        {"type": "terrahaul:density_count", "count": count, "density": density, "scale": scale, "variation": variation, "clearing": clearing},
+        {"type": "minecraft:in_square"},
+        {"type": "minecraft:heightmap", "heightmap": heightmap},
+        {"type": "minecraft:biome"},
+    ]
+
+
+def add_detail(name, groups, count, density="ground_detail", conditions=None, **kw):
+    biomes = sorted({b for g in groups for b in GROUPS[g]})
+    placed('details/' + name, 'terrahaul:details/' + name, detail_placement(count, density, **kw))
+    add_features('details/' + name, biomes, 'terrahaul:details/' + name, 'vegetal_decoration')
+    with_conditions(f'terrahaul/neoforge/biome_modifier/details/{name}.json', conditions or CONFIG_DETAILS)
+
+
+SOIL = ["#minecraft:dirt"]
+GROUND = ["#minecraft:dirt", "#minecraft:sand", "#minecraft:base_stone_overworld", "minecraft:gravel", "#minecraft:terracotta"]
+
+
+def pebble_states(stones, wet=False):
+    out = []
+    for stone, w in stones:
+        for count, cw in ((1, 4), (2, 3), (3, 2), (4, 1)):
+            for facing in ["north", "east", "south", "west"]:
+                out.append((state(f"terrahaul:{stone}_pebbles", count=count, facing=facing, waterlogged=wet), w * cw))
+    return weighted(out)
+
+
+def rock_states(stones):
+    out = []
+    for stone, w in stones:
+        for variant in (0, 1):
+            for facing in ["north", "east", "south", "west"]:
+                out.append((state(f"terrahaul:{stone}_rock", variant=variant, facing=facing, waterlogged=False), w))
+    return weighted(out)
+
+
+def branch_states(woods, mossy_weight=1):
+    out = []
+    for wood, w in woods:
+        block = "terrahaul:twigs" if wood == "twigs" else f"terrahaul:{wood}_branch"
+        for shape in (0, 1, 2):
+            for mossy, mw in ((False, 4), (True, mossy_weight)):
+                for facing in ["north", "east", "south", "west"]:
+                    out.append((state(block, shape=shape, mossy=mossy, facing=facing, waterlogged=False), w * mw))
+    return weighted(out)
+
+
+def litter_states(litters):
+    out = []
+    for name, w in litters:
+        for facing in ["north", "east", "south", "west"]:
+            out.append((state(f"terrahaul:{name}", facing=facing, waterlogged=False), w))
+    return weighted(out)
+
+
+def details():
+    D = 'terrahaul:details/'
+    # ---- pebbles -------------------------------------------------------------------------------
+    pebble_sets = {
+        "temperate": [("stone", 3), ("andesite", 2), ("mossy", 1)],
+        "forest": [("stone", 2), ("mossy", 3), ("andesite", 1)],
+        "taiga": [("stone", 3), ("mossy", 2), ("andesite", 2), ("granite", 1)],
+        "mountain": [("andesite", 3), ("stone", 3), ("granite", 1), ("diorite", 1), ("tuff", 1)],
+        "desert": [("sandstone", 4), ("stone", 1)],
+        "badlands": [("red_sandstone", 4), ("sandstone", 1)],
+        "savanna": [("stone", 2), ("granite", 2), ("sandstone", 1)],
+        "river": [("stone", 3), ("andesite", 2), ("granite", 1), ("diorite", 1)],
+    }
+    for name, stones in pebble_sets.items():
+        patch(f'details/pebbles_{name}', pebble_states(stones), 10, 5, GROUND)
+    add_detail('pebbles_temperate', ["plains", "snowy"], 0.6)
+    add_detail('pebbles_forest', ["forest", "birch_forest", "dark_forest", "jungle", "wetland", "cherry"], 0.8)
+    add_detail('pebbles_taiga', ["taiga"], 1.4)
+    add_detail('pebbles_mountain', ["mountains"], 3.0)
+    add_detail('pebbles_desert', ["desert"], 1.2)
+    add_detail('pebbles_badlands', ["badlands"], 1.4)
+    add_detail('pebbles_savanna', ["savanna"], 1.0)
+    add_detail('pebbles_river', ["water_edge"], 2.5)
+    # submerged river pebbles
+    patch('details/pebbles_underwater', pebble_states(pebble_sets["river"], wet=True), 14, 6, ["#minecraft:sand", "minecraft:gravel", "#minecraft:dirt", "minecraft:clay"], water=True, y_spread=1)
+    add_detail('pebbles_underwater', ["water_edge"], 2.0, heightmap="OCEAN_FLOOR")
+
+    # ---- medium rocks ----------------------------------------------------------------------------
+    rock_sets = {
+        "temperate": [("stone", 3), ("andesite", 2), ("mossy", 2)],
+        "mountain": [("andesite", 3), ("stone", 3), ("granite", 1), ("diorite", 1), ("tuff", 1)],
+        "desert": [("sandstone", 1)],
+        "badlands": [("red_sandstone", 3), ("sandstone", 1)],
+        "mossy": [("mossy", 3), ("stone", 1)],
+    }
+    for name, stones in rock_sets.items():
+        patch(f'details/rocks_{name}', rock_states(stones), 3, 4, GROUND)
+    add_detail('rocks_temperate', ["plains", "taiga", "savanna", "water_edge", "snowy"], 0.3, density="rocks")
+    add_detail('rocks_mossy', ["forest", "birch_forest", "dark_forest", "jungle", "wetland"], 0.3, density="rocks")
+    add_detail('rocks_mountain', ["mountains"], 1.0, density="rocks")
+    add_detail('rocks_desert', ["desert"], 0.3, density="rocks")
+    add_detail('rocks_badlands', ["badlands"], 0.5, density="rocks")
+
+    # ---- boulders --------------------------------------------------------------------------------
+    def boulder(name, rmin, rmax, material, moss=0.0, bury=0.35):
+        configured(f'details/{name}', 'terrahaul:boulder', {
+            "radius": {"type": "minecraft:uniform", "min_inclusive": rmin, "max_exclusive": rmax},
+            "material": {"type": "minecraft:weighted_state_provider", "entries": [{"data": state(m), "weight": w} for m, w in material]},
+            "moss": moss, "bury": bury})
+    boulder('boulder_small', 1.2, 2.6, [("minecraft:stone", 3), ("minecraft:andesite", 2), ("minecraft:cobblestone", 1)])
+    boulder('boulder_mossy', 1.5, 3.4, [("minecraft:stone", 3), ("minecraft:mossy_cobblestone", 2), ("minecraft:andesite", 1)], moss=0.5)
+    boulder('boulder_large', 2.8, 5.0, [("minecraft:stone", 3), ("minecraft:andesite", 2), ("minecraft:granite", 1)], moss=0.15, bury=0.45)
+    boulder('boulder_desert', 1.5, 3.5, [("minecraft:sandstone", 3), ("minecraft:smooth_sandstone", 1)])
+    add_detail('boulder_small', ["mountains", "taiga", "snowy", "savanna"], 0.25, density="rocks", scale=300, variation=1.2)
+    add_detail('boulder_field', ["mountains"], 1.0, density="rocks", scale=220, variation=1.6, clearing=0.35)
+    add_detail('boulder_mossy', ["forest", "birch_forest", "dark_forest", "jungle", "taiga"], 0.12, density="rocks", scale=300, variation=1.2)
+    add_detail('boulder_large', ["plains", "savanna", "mountains"], 0.035, density="rocks", scale=500, variation=1.0)
+    add_detail('boulder_desert', ["desert", "badlands"], 0.06, density="rocks", scale=400, variation=1.0)
+    # boulder_field reuses the small boulder configuration
+    write('terrahaul/worldgen/placed_feature/details/boulder_field.json',
+          {"feature": D + 'boulder_small', "placement": detail_placement(1.0, "rocks", scale=220, variation=1.6, clearing=0.35)})
+
+    # ---- branches, twigs, pine cones -------------------------------------------------------------
+    branch_sets = {
+        "forest": [("oak", 3), ("birch", 1), ("twigs", 2)],
+        "birch": [("birch", 3), ("twigs", 1)],
+        "dark_oak": [("dark_oak", 3), ("oak", 1), ("twigs", 2)],
+        "spruce": [("spruce", 3), ("twigs", 2)],
+        "jungle": [("jungle", 3), ("twigs", 1)],
+        "acacia": [("acacia", 3), ("twigs", 1)],
+        "cherry": [("cherry", 3), ("twigs", 1)],
+        "wetland": [("mangrove", 2), ("oak", 2), ("twigs", 1)],
+        "plains": [("oak", 2), ("twigs", 2)],
+    }
+    for name, woods in branch_sets.items():
+        patch(f'details/branches_{name}', branch_states(woods, mossy_weight=2 if name in ("dark_oak", "wetland", "jungle") else 1), 6, 6, SOIL)
+    add_detail('branches_forest', ["forest"], 1.4)
+    add_detail('branches_birch', ["birch_forest"], 1.2)
+    add_detail('branches_dark_oak', ["dark_forest"], 1.6)
+    add_detail('branches_spruce', ["taiga"], 1.4)
+    add_detail('branches_jungle', ["jungle"], 1.2)
+    add_detail('branches_acacia', ["savanna"], 0.35)
+    add_detail('branches_cherry', ["cherry"], 0.7)
+    add_detail('branches_wetland', ["wetland"], 0.6)
+    add_detail('branches_plains', ["plains"], 0.12)
+    cones = []
+    for count, w in ((1, 4), (2, 3), (3, 2), (4, 1)):
+        for facing in ["north", "east", "south", "west"]:
+            cones.append((state("terrahaul:pine_cone", count=count, facing=facing, waterlogged=False), w))
+    patch('details/pine_cones', weighted(cones), 8, 6, SOIL)
+    add_detail('pine_cones', ["taiga"], 1.2)
+
+    # ---- leaf litter -----------------------------------------------------------------------------
+    litter_sets = {
+        "forest": [("oak_leaf_litter", 4), ("birch_leaf_litter", 1), ("dry_leaf_litter", 1)],
+        "birch": [("birch_leaf_litter", 4), ("dry_leaf_litter", 1)],
+        "dark_oak": [("dark_oak_leaf_litter", 4), ("dry_leaf_litter", 1)],
+        "spruce": [("spruce_needle_litter", 1)],
+        "jungle": [("jungle_leaf_litter", 3), ("dry_leaf_litter", 1)],
+        "acacia": [("acacia_leaf_litter", 2), ("dry_leaf_litter", 1)],
+        "wetland": [("mangrove_leaf_litter", 2), ("oak_leaf_litter", 1)],
+        "azalea": [("azalea_leaf_litter", 1)],
+    }
+    for name, litters in litter_sets.items():
+        patch(f'details/litter_{name}', litter_states(litters), 24, 6, SOIL)
+    add_detail('litter_forest', ["forest"], 2.2)
+    add_detail('litter_birch', ["birch_forest"], 2.0)
+    add_detail('litter_dark_oak', ["dark_forest"], 3.0)
+    add_detail('litter_spruce', ["taiga"], 2.6)
+    add_detail('litter_jungle', ["jungle"], 2.0)
+    add_detail('litter_acacia', ["savanna"], 0.4)
+    add_detail('litter_wetland', ["wetland"], 0.8)
+    add_detail('litter_azalea', ["forest", "plains"], 0.08)
+
+    # ---- bushes and low vegetation ---------------------------------------------------------------
+    def bush_patch(name, entries, tries, spread):
+        provider = {"type": "minecraft:weighted_state_provider", "entries": [{"data": state(b), "weight": w} for b, w in entries]}
+        patch(f'details/{name}', provider, tries, spread, ["#minecraft:dirt", "#minecraft:sand", "#minecraft:terracotta", "minecraft:gravel"])
+    bush_patch('bushes_forest', [("terrahaul:leafy_bush", 3), ("terrahaul:dense_shrub", 1)], 6, 5)
+    bush_patch('bushes_dense', [("terrahaul:dense_shrub", 3), ("terrahaul:leafy_bush", 2)], 8, 5)
+    bush_patch('bushes_alpine', [("terrahaul:alpine_shrub", 4), ("terrahaul:leafy_bush", 1)], 6, 5)
+    bush_patch('bushes_dry', [("terrahaul:dry_shrub", 4), ("minecraft:dead_bush", 1)], 5, 6)
+    bush_patch('bushes_savanna', [("terrahaul:dry_shrub", 2), ("terrahaul:leafy_bush", 2)], 5, 6)
+    add_detail('bushes_forest', ["forest", "birch_forest", "plains", "cherry"], 1.0, density="vegetation", scale=200, variation=1.0)
+    add_detail('bushes_dense', ["dark_forest", "jungle", "wetland"], 1.6, density="vegetation", scale=200, variation=0.8)
+    add_detail('bushes_alpine', ["taiga", "mountains", "snowy"], 0.9, density="vegetation", scale=200, variation=1.0)
+    add_detail('bushes_dry', ["desert", "badlands"], 0.5, density="vegetation", scale=260, variation=1.0)
+    add_detail('bushes_savanna', ["savanna"], 0.9, density="vegetation", scale=260, variation=1.0)
+
+    moss = {"type": "minecraft:weighted_state_provider", "entries": [{"data": state("minecraft:moss_carpet"), "weight": 1}]}
+    patch('details/moss_patch', moss, 32, 5, SOIL, y_spread=1)
+    add_detail('moss_patch', ["dark_forest", "jungle", "wetland", "taiga"], 0.5, density="vegetation", scale=180, variation=1.2)
+    ferns = {"type": "minecraft:weighted_state_provider", "entries": [{"data": state("minecraft:fern"), "weight": 3}]}
+    patch('details/fern_cluster', ferns, 24, 4, SOIL)
+    add_detail('fern_cluster', ["forest", "dark_forest", "taiga", "jungle", "birch_forest"], 0.8, density="vegetation", scale=180, variation=1.2)
+    mushrooms = {"type": "minecraft:weighted_state_provider", "entries": [{"data": state("minecraft:brown_mushroom"), "weight": 3},
+                                                                        {"data": state("minecraft:red_mushroom"), "weight": 1}]}
+    patch('details/mushroom_cluster', mushrooms, 12, 3, SOIL, y_spread=1)
+    add_detail('mushroom_cluster', ["dark_forest", "taiga", "wetland"], 0.3, density="vegetation", scale=200, variation=1.0)
+
+    # ---- fallen logs -----------------------------------------------------------------------------
+    def fallen(wood, lmin, lmax, rot=0.25, moss=0.35, mushroom=0.1, stump=0.35):
+        log = "minecraft:mangrove_log" if wood == "mangrove" else f"minecraft:{wood}_log"
+        configured(f'details/fallen_log_{wood}', 'terrahaul:fallen_log', {
+            "log": state(log, axis="x"), "stripped": state(f"minecraft:stripped_{wood}_log", axis="x"),
+            "length": {"type": "minecraft:uniform", "min_inclusive": lmin, "max_inclusive": lmax},
+            "rot": rot, "moss": moss, "mushroom": mushroom, "stump": stump})
+    for wood in ["oak", "birch", "spruce", "jungle", "acacia", "dark_oak", "mangrove", "cherry"]:
+        fallen(wood, 4, 9 if wood in ("spruce", "jungle", "dark_oak") else 7)
+    fallen_groups = [("oak", ["forest", "plains"], 0.25), ("birch", ["birch_forest", "forest"], 0.2), ("spruce", ["taiga"], 0.4),
+                     ("jungle", ["jungle"], 0.3), ("acacia", ["savanna"], 0.05), ("dark_oak", ["dark_forest"], 0.45),
+                     ("mangrove", ["wetland"], 0.1), ("cherry", ["cherry"], 0.12)]
+    for wood, groups, count in fallen_groups:
+        add_detail(f'fallen_log_{wood}', groups, count, density="forest", scale=300, variation=1.0)
+
+    # ---- rock formations (Terrahaul worlds only: sites come from the terrain model) --------------
+    configured('rock_formations', 'terrahaul:rock_formations', {})
+    placed('rock_formations', 'terrahaul:rock_formations', [])
+    add_features('rock_formations', '#minecraft:is_overworld', 'terrahaul:rock_formations', 'local_modifications')
+    with_conditions('terrahaul/neoforge/biome_modifier/rock_formations.json', CONFIG_FORMATIONS)
+
+
 def main():
     water()
+    trees()
+    details()
 
 
 if __name__ == '__main__':
+    import sys
+    VANILLA = sys.argv[1]
     main()
