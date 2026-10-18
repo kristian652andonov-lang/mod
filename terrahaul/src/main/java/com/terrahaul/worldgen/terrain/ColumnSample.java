@@ -59,6 +59,27 @@ public final class ColumnSample {
     public boolean dryRiver;
     /** 1 at a stream centreline (small creeks carved at block resolution by a feature). */
     public double stream;
+    /**
+     * Water body this corner belongs to ({@link WaterBody}); its level is valid when
+     * {@link #bodyInside} is set, which marks the channel of a wet river, the interior of a lake or
+     * the flooded part of a crater (lava for {@link WaterBody#LAVA}).
+     */
+    public int bodyKind;
+    public boolean bodyInside;
+    /**
+     * Exclusive top of that body's surface (the top fluid block is one below), an integer; bodies
+     * at sea level have the sea level. Surface water is placed from these by the water solver.
+     */
+    public double bodyLevel;
+    /**
+     * Unrounded river surface; interpolating it between corners places a river's steps at block
+     * resolution. Equal to {@link #bodyLevel} for lakes and craters.
+     */
+    public double bodyLevelCont;
+    /** 0..1: how much the river here belongs to the great-river network. */
+    public double riverGreat;
+    /** Memo of {@code TerrainModel.nearbyWaterLevel} for this corner ({@code NaN}: not computed). */
+    public double nearbyWater;
     public double lake;
     public int lakeType;
     public double lakeLevel;
@@ -135,6 +156,12 @@ public final class ColumnSample {
         riverDistance = o.riverDistance;
         dryRiver = o.dryRiver;
         stream = o.stream;
+        bodyKind = o.bodyKind;
+        bodyInside = o.bodyInside;
+        bodyLevel = o.bodyLevel;
+        bodyLevelCont = o.bodyLevelCont;
+        riverGreat = o.riverGreat;
+        nearbyWater = Double.NaN;
         lake = o.lake;
         lakeType = o.lakeType;
         lakeLevel = o.lakeLevel;
