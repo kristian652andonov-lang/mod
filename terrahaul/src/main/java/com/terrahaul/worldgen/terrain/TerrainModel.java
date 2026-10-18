@@ -38,7 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class TerrainModel {
     // continentalness profile: base ground height for a given continentalness
     private static final double[] PROFILE_C = {-1.00, -0.80, -0.60, -0.455, -0.30, -0.22, -0.19, -0.16, -0.13, -0.11, 0.03, 0.30, 0.60, 1.00};
-    private static final double[] PROFILE_H = {-38, -22, 0, 20, 37, 46, 51, 58.5, 63.6, 65.5, 71, 84, 100, 118};
+    /** Lowest trench floor, well above the lava sea and bedrock at the world bottom. */
+    private static final double MIN_TRENCH_FLOOR = -440.0;
+    // deep ocean floors lie around Y -60..-160 (abyssal plains), ocean floors around Y -24..30
+    private static final double[] PROFILE_H = {-160, -125, -70, -24, 30, 46, 51, 58.5, 63.6, 65.5, 71, 84, 100, 118};
 
     private static final int CACHE_BITS = 5;
     private static final int CACHE_SIZE = 1 << (CACHE_BITS * 2);
@@ -93,13 +96,19 @@ public final class TerrainModel {
     private final Fractal variantNoise;
     private final Fractal strataNoise;
     private final SimplexNoise lakeShape;
-    private final SimplexNoise[] detail3d = new SimplexNoise[4];
+    private final SimplexNoise[] detail3d = new SimplexNoise[8];
     private final long volcanoSeed;
     private final long lakeSeed;
     private final long greatLakeSeed;
     private final long pillarSeed;
     private final long geologySeed;
     private final long siteSeed;
+    private final Fractal trenchNoise;
+    private final Fractal trenchRegion;
+    private final Fractal trailWarpX;
+    private final Fractal trailWarpZ;
+    private final Fractal trailWiggle;
+    private final long trailSeed;
 
     private final ThreadLocal<Scratch> scratch;
     private final ConcurrentHashMap<Long, LakeSite> lakeSites = new ConcurrentHashMap<>();
@@ -169,6 +178,12 @@ public final class TerrainModel {
         this.pillarSeed = SeedMixer.derive(seed, ++salt);
         this.geologySeed = SeedMixer.derive(seed, ++salt);
         this.siteSeed = SeedMixer.derive(seed, ++salt);
+        this.trenchNoise = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.4);
+        this.trenchRegion = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
+        this.trailWarpX = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
+        this.trailWarpZ = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
+        this.trailWiggle = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
+        this.trailSeed = SeedMixer.derive(seed, ++salt);
         this.scratch = ThreadLocal.withInitial(Scratch::new);
     }
 
@@ -185,6 +200,78 @@ public final class TerrainModel {
     }
 
     /** 3D simplex noise channel {@code 0..3} used for overhangs, crags and sea caves. */
+    /**
+     * Whether a trail may be laid on this column: dry land above sea level, away from cliffs,
+     * canyons, volcanoes, wetlands, beaches, steep mountains and deserts.
+     */
+    public static boolean trailGround(ColumnSample s, int seaLevel) {
+        return s.height > seaLevel + 1.5 && s.waterLevel == ColumnSample.NO_WATER && s.river <= 0.0 && s.lake <= 0.0
+            && s.riverValley < 0.9 && s.cliff < 0.25 && s.canyon < 0.15 && s.mountain < 0.55 && s.steepness < 0.5
+            && s.volcano < 0.15 && s.swamp < 0.55 && s.beach < 0.4 && !(s.baseTemperature > 0.6 && s.humidity < -0.1);
+    }
+
+    /** Spacing of the trail network's Voronoi cells. */
+    public static final double TRAIL_CELL = 288.0;
+
+    /**
+     * Distance in blocks from (x, z) to the centre line of the nearest trail, or a large value
+     * where there is none. Trails follow the edges of a large, domain-warped Voronoi diagram;
+     * about 60% of its edges are kept, so trails wind across the land, meet at junctions and end
+     * in the open. Whether a trail is actually laid also depends on the ground (see the surface
+     * rule): never through water, over cliffs or up steep mountains.
+     */
+    public double trailDistance(int x, int z) {
+        double px = x + 40.0 * trailWarpX.fbm(x / (170.0 * hs), z / (170.0 * hs)) + 3.0 * trailWiggle.fbm(x / 23.0, z / 23.0);
+        double pz = z + 40.0 * trailWarpZ.fbm(x / (170.0 * hs) + 9.1, z / (170.0 * hs) - 4.7) + 3.0 * trailWiggle.fbm(x / 23.0 + 50.0, z / 23.0 - 31.0);
+        double cell = TRAIL_CELL * hs;
+        int cx = (int) Math.floor(px / cell);
+        int cz = (int) Math.floor(pz / cell);
+        double d1 = Double.MAX_VALUE;
+        double d2 = Double.MAX_VALUE;
+        double f1x = 0.0;
+        double f1z = 0.0;
+        double f2x = 0.0;
+        double f2z = 0.0;
+        long id1 = 0L;
+        long id2 = 0L;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                long id = SeedMixer.hash2(trailSeed, cx + dx, cz + dz);
+                double fx = (cx + dx + 0.15 + 0.7 * SeedMixer.unit(id)) * cell;
+                double fz = (cz + dz + 0.15 + 0.7 * SeedMixer.unit(SeedMixer.mix(id))) * cell;
+                double d = (px - fx) * (px - fx) + (pz - fz) * (pz - fz);
+                if (d < d1) {
+                    d2 = d1;
+                    f2x = f1x;
+                    f2z = f1z;
+                    id2 = id1;
+                    d1 = d;
+                    f1x = fx;
+                    f1z = fz;
+                    id1 = id;
+                } else if (d < d2) {
+                    d2 = d;
+                    f2x = fx;
+                    f2z = fz;
+                    id2 = id;
+                }
+            }
+        }
+        long edge = SeedMixer.mix(Math.min(id1, id2) * 31L + Math.max(id1, id2));
+        if (SeedMixer.unit(edge) > 0.6) {
+            return 1.0E9;
+        }
+        double ex = f2x - f1x;
+        double ez = f2z - f1z;
+        double len = Math.sqrt(ex * ex + ez * ez);
+        if (len < 1.0E-6) {
+            return 1.0E9;
+        }
+        double mx = (f1x + f2x) * 0.5;
+        double mz = (f1z + f2z) * 0.5;
+        return Math.abs(((px - mx) * ex + (pz - mz) * ez) / len);
+    }
+
     public double detail3(int channel, double x, double y, double z) {
         return detail3d[channel].noise3(x, y, z);
     }
@@ -411,12 +498,34 @@ public final class TerrainModel {
         // ocean floors: rolling abyssal plains, long ridges and rare seamounts instead of a flat bed;
         // kept well below sea level so no unintended islands appear
         double seaFloor = smoothstep(-0.34, -0.5, cEff);
+        double oceanRidge = 0.0;
         if (seaFloor > 0.0) {
-            double rolling = 5.0 * hillNoise.fbm(x / (240.0 * hs) + 711.0, z / (240.0 * hs) - 403.0);
+            double rolling = 7.0 * hillNoise.fbm(x / (240.0 * hs) + 711.0, z / (240.0 * hs) - 403.0);
             double ridge = windsweptNoise.ridged(wx / (1300.0 * hs) - 91.0, wz / (1300.0 * hs) + 57.0, 2.0);
             double seamount = smoothstep(0.6, 0.95, 0.5 + 0.5 * colossalNoise.fbm(wx / (900.0 * hs) + 333.0, wz / (900.0 * hs) - 222.0));
-            double seabed = rolling + 16.0 * ridge * ridge + 34.0 * seamount * (0.6 + 0.4 * ridge);
+            double seabed = rolling + 34.0 * ridge * ridge + 70.0 * seamount * (0.6 + 0.4 * ridge);
             h = Math.min(h + seaFloor * seabed, Math.max(h, sl - 9.0));
+            oceanRidge = seaFloor * smoothstep(0.82, 0.97, ridge);
+        }
+
+        // deep-sea trenches: long, narrow rifts in the abyssal plains with near-vertical walls whose
+        // floors drop to about Y -230..-340; the surface rule lines them with magma and basalt and
+        // the ocean vent feature builds hydrothermal chimneys on their floors
+        double trench = 0.0;
+        double trenchFloor = 0.0;
+        double abyss = smoothstep(-0.5, -0.66, cEff);
+        if (abyss > 0.0) {
+            double line = 1.0 - Math.abs(trenchNoise.fbm(wx / (3200.0 * hs), wz / (3200.0 * hs))) * 40.0;
+            if (line > 0.25) {
+                double region = smoothstep(-0.1, 0.25, trenchRegion.fbm(wx / (5200.0 * hs) + 17.0, wz / (5200.0 * hs) - 41.0));
+                trench = smoothstep(0.25, 0.9, line) * region * abyss;
+                if (trench > 0.0) {
+                    double drop = 170.0 + 100.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (1800.0 * hs) - 70.0, wz / (1800.0 * hs) + 25.0));
+                    trenchFloor = Math.max(MIN_TRENCH_FLOOR, h - drop * region * abyss);
+                    // most of the drop happens just inside the rim, giving steep walls and a flat floor
+                    h = lerp(Math.pow(trench, 0.4), h, trenchFloor);
+                }
+            }
         }
 
         // ---- 7. wetlands ---------------------------------------------------------------------
@@ -631,6 +740,11 @@ public final class TerrainModel {
         out.lakeLevel = lakeLevel;
         out.coastCliff = coastCliff;
         out.fjord = fjord;
+        out.trench = trench;
+        out.trenchFloor = trenchFloor;
+        out.oceanRidge = oceanRidge;
+        out.trailDistance = trailDistance(x, z);
+        out.overhangTop = Double.NaN;
         out.beach = (1.0 - coastCliff) * bump(h, sl - 3.0, sl + 1.0, sl + 5.0) * smoothstep(0.0, -0.16, cEff);
         out.stream = streamFactor(vRaw, mountain, hillW, erosion, x, z);
         out.cliff = clamp01(Math.max(Math.max(plateauEdge * 1.2, canyonWall), Math.max(coastCliff * smoothstep(sl, sl + 20.0, h),
@@ -653,7 +767,8 @@ public final class TerrainModel {
             cOut = -1.12;
         } else if (seaWater || fjord > 0.5 && h < sl - 2.0) {
             cOut = clamp(Math.min(rawC, -0.2), -1.04, -0.2);
-            if (h < sl - 26.0) {
+            // deep ocean biomes below the ocean/deep-ocean profile boundary (about Y -25)
+            if (h < sl - 88.0) {
                 cOut = Math.min(cOut, -0.47);
             }
         } else if (h < sl + 4.5 && cEff < -0.06 && mountain < 0.3) {

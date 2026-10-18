@@ -10,6 +10,7 @@
     "NoiseBasedAquiferMixin",
     "NoiseBasedChunkGeneratorMixin",
     "NoiseChunkMixin",
+    "OceanMonumentStructureMixin",
     "RandomSpreadStructurePlacementMixin",
     "StrongholdStructureMixin",
     "StructurePlacementAccessor",

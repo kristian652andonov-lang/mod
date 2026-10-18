@@ -56,6 +56,14 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1280x720x24" \
 4. Saves `run/screenshots/terrahaul_<name>.png` and logs the particle count.
 
 A shot of `name@same` reuses the previous camera, which is useful to compare animation frames.
+The player gets night vision so underwater shots (trenches, sea floors) are readable.
+
+Two more client checks:
+- `-PcreateWorldCheck` opens the Create World screen from the title screen. It logs the selected
+  world type and the available presets, saves `terrahaul_create_world.png` and exits.
+- `-Pmultiplayer=localhost:25565` joins a running dedicated server over the network. It logs
+  the dimension height and loaded chunks, saves `terrahaul_multiplayer.png`, disconnects and
+  exits.
 The save must already exist. Copy a world created by the server test into `run/saves/`.
 `xvfb-run` and Mesa's software renderer allow running it on a machine without a GPU.
 

@@ -132,6 +132,7 @@ public final class AutoTest {
             renderSection(level, cx, cz, radius, dir.resolve("section" + areaIndex + ".png").toFile());
             dumpRiverColumn(level, model, cx, cz, radius, report);
             oreHistogram(level, cx, cz, radius, report);
+            surfaceCensus(level, cx, cz, radius, report);
             areaIndex++;
         }
         if (Boolean.parseBoolean(System.getProperty("terrahaul.autotest.structures", "true"))) {
@@ -141,6 +142,31 @@ public final class AutoTest {
         for (String line : report) {
             Terrahaul.LOGGER.info("[autotest] {}", line);
         }
+    }
+
+    /** Counts the top solid block of every column and the blocks 1..15 below it. */
+    private static void surfaceCensus(ServerLevel level, int cx, int cz, int radius, List<String> report) {
+        java.util.Map<String, Integer> tops = new java.util.HashMap<>();
+        java.util.Map<String, Integer> below = new java.util.HashMap<>();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = (cx - radius) * 16; x < (cx + radius + 1) * 16; x++) {
+            for (int z = (cz - radius) * 16; z < (cz + radius + 1) * 16; z++) {
+                int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR, x, z) - 1;
+                String name = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos.set(x, top, z)).getBlock()).getPath();
+                tops.merge(name, 1, Integer::sum);
+                for (int d = 1; d <= 15; d++) {
+                    String b = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos.set(x, top - d, z)).getBlock()).getPath();
+                    below.merge(b, 1, Integer::sum);
+                }
+            }
+        }
+        report.add("  top blocks: " + topEntries(tops, 14));
+        report.add("  blocks 1-15 below top: " + topEntries(below, 14));
+    }
+
+    private static String topEntries(java.util.Map<String, Integer> counts, int limit) {
+        return counts.entrySet().stream().sorted(java.util.Map.Entry.<String, Integer>comparingByValue().reversed()).limit(limit)
+            .map(e -> e.getKey() + "=" + e.getValue()).collect(java.util.stream.Collectors.joining(", "));
     }
 
     private static final int[] ORE_BANDS = {-512, -64, 0, 64, 320, 2032};

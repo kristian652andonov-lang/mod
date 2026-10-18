@@ -41,6 +41,14 @@ def remove_features(name, biomes, features, steps=None):
     write(f'terrahaul/neoforge/biome_modifier/{name}.json', obj)
 
 
+def oceans():
+    # hydrothermal vents on trench floors and ridge crests (no-op outside Terrahaul worlds)
+    configured('ocean_vents', 'terrahaul:ocean_vents', {})
+    placed('ocean_vents', 'terrahaul:ocean_vents', [])
+    add_features('ocean_vents', '#minecraft:is_ocean', 'terrahaul:ocean_vents', 'local_modifications')
+    with_conditions('terrahaul/neoforge/biome_modifier/ocean_vents.json', [{"type": "terrahaul:config", "key": "ocean_vents"}])
+
+
 def water():
     # both features are no-ops outside Terrahaul worlds (they need the terrain model)
     configured('surface_water', 'terrahaul:surface_water', {})
@@ -589,6 +597,7 @@ def resources():
 
 def main():
     water()
+    oceans()
     trees()
     details()
     resources()

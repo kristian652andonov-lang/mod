@@ -49,6 +49,10 @@ public final class ClientScreenshotTest {
             checkCreateWorldScreen(Minecraft.getInstance());
             return;
         }
+        if (JOIN_CHECK) {
+            checkMultiplayer(Minecraft.getInstance());
+            return;
+        }
         if (SPEC == null) {
             return;
         }
@@ -79,6 +83,9 @@ public final class ClientScreenshotTest {
                 var player = server.getPlayerList().getPlayer(id);
                 if (player != null) {
                     player.setGameMode(net.minecraft.world.level.GameType.SPECTATOR);
+                    // lets underwater shots (trenches, sea floors) show more than murky blue
+                    player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.NIGHT_VISION,
+                        -1, 0, false, false));
                 }
             });
             mc.options.hideGui = true;
@@ -135,6 +142,36 @@ public final class ClientScreenshotTest {
             }
         } else if (stage == 2 && ++wait > 10) {
             stage = 0;
+        }
+    }
+
+    private static final boolean JOIN_CHECK = Boolean.getBoolean("terrahaul.screenshots.join");
+    private static int joinTicks;
+
+    /**
+     * With {@code -Dterrahaul.screenshots.join=true} (and a {@code --quickPlayMultiplayer} server):
+     * once connected, waits for the terrain to load, logs what the client received, takes a
+     * screenshot and disconnects. Used to test a client against a dedicated server over the network.
+     */
+    private static void checkMultiplayer(Minecraft mc) {
+        if (mc.level == null || mc.player == null || mc.getSingleplayerServer() != null) {
+            return;
+        }
+        joinTicks++;
+        if (joinTicks == 1) {
+            mc.options.hideGui = true;
+            Terrahaul.LOGGER.info("[screenshots] joined {} at {}, dimension height {}..{}", mc.getCurrentServer() == null ? "?" : mc.getCurrentServer().ip,
+                mc.player.blockPosition().toShortString(), mc.level.getMinBuildHeight(), mc.level.getMaxBuildHeight());
+        }
+        if (joinTicks == 600) {
+            Terrahaul.LOGGER.info("[screenshots] multiplayer: chunks loaded r6 {}, sky effects {}, particles {}", nearbyChunksLoaded(mc, 6),
+                mc.level.effects().getClass().getSimpleName(), mc.particleEngine.countParticles());
+            Screenshot.grab(mc.gameDirectory, "terrahaul_multiplayer.png", mc.getMainRenderTarget(),
+                msg -> Terrahaul.LOGGER.info("[screenshots] {}", msg.getString()));
+        }
+        if (joinTicks == 620) {
+            mc.level.disconnect();
+            mc.stop();
         }
     }
 
@@ -228,7 +265,22 @@ public final class ClientScreenshotTest {
         Terrahaul.LOGGER.info("[screenshots] {} found at {} {} {}", p[0], r.x(), r.y(), r.z());
         double distance = p.length > 1 ? Double.parseDouble(p[1]) : 60;
         double height = p.length > 2 ? Double.parseDouble(p[2]) : 25;
-        return server.submit(() -> viewpoint(level, r.x(), r.y(), r.z(), distance, height, false)).join();
+        // the finder reports the water surface for underwater targets (a safe /tp height); look at
+        // the sea floor instead
+        double ty = p[0].equals("trench") || p[0].equals("deep_ocean") ? model.sample(r.x(), r.z()).height + 4.0 : r.y();
+        boolean underwater = ty < r.y() - 8;
+        return server.submit(() -> underwater ? viewpointUnderwater(level, r.x(), ty, r.z(), distance, height)
+            : viewpoint(level, r.x(), ty, r.z(), distance, height, false)).join();
+    }
+
+    /** A camera {@code height} blocks above an underwater target and {@code distance} away, looking at it. */
+    private static double[] viewpointUnderwater(ServerLevel level, double tx, double ty, double tz, double distance, double height) {
+        level.getChunk((int) Math.floor(tx) >> 4, (int) Math.floor(tz) >> 4);
+        double cx = tx;
+        double cz = tz + distance;
+        double cy = ty + height;
+        double pitch = -Math.toDegrees(Math.atan2(ty - cy, distance));
+        return new double[]{cx, cy, cz, 180.0, pitch};
     }
 
     /**

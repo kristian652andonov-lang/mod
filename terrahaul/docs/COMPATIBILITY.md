@@ -12,7 +12,7 @@ the limitations that are known today. Statements about testing are kept separate
 | Terrain | Custom density function types `terrahaul:terrain`, `terrahaul:column_bounded`; surface rule `terrahaul:terrain_surface` (runs before the vanilla rule) | Terrahaul worlds |
 | Trees | Biome modifiers remove the vanilla tree features and add `terrahaul:procedural_tree` features; sapling growth event | All Overworld biomes, all worlds (config `replaceVanillaTrees`) |
 | Ground detail | Biome modifiers add features | All Overworld biomes, all worlds (config `groundDetails`) |
-| Water, waterfalls, formations | Features that read the terrain model; they do nothing elsewhere | Terrahaul worlds |
+| Water, waterfalls, formations, ocean vents | Features that read the terrain model; they do nothing elsewhere | Terrahaul worlds |
 | Extra ore layers | Biome modifiers with the `terrahaul:terrahaul_only` placement filter | Terrahaul worlds (config `oreDepthFix`) |
 | Sky effects | Dimension effects `terrahaul:overworld`: vanilla Overworld sky with a configurable cloud height | Terrahaul worlds, client |
 | Vegetation sway | Overrides the core shader `minecraft:shaders/core/rendertype_cutout` and wraps plant block models at model bake | Client |
@@ -26,7 +26,7 @@ otherwise leaves vanilla behaviour untouched.
 | Mixin | Target | Purpose |
 |---|---|---|
 | `NoiseBasedChunkGeneratorMixin` | `createFluidPicker`, `doFill` | Terrahaul fluid levels (lava at Y −502); skip noise filling of empty cells high above the terrain |
-| `NoiseChunkMixin` | preliminary surface, deep materials | Closed-form preliminary surface; deepslate/bedrock placed during the noise fill with vanilla's random sequences |
+| `NoiseChunkMixin` | preliminary surface, deep materials | Closed-form preliminary surface; deepslate/bedrock placed during the noise fill with vanilla's random sequences, except in the ~17 blocks below the surface, where the surface rule lays sediments and fades and then turns the rest into deepslate |
 | `NoiseBasedAquiferMixin` | `computeSubstance` | Air far above the terrain; open air below sea level becomes water (fills river channels) |
 | `SurfaceSystemMixin` | `buildSurface` | Surface rules only scan down to just below the surface instead of to Y −512 (performance) |
 | `StrongholdStructureMixin`, `MineshaftStructureMixin` | `getMinY` calls | Keep strongholds and mineshafts at vanilla depths |
@@ -34,6 +34,7 @@ otherwise leaves vanilla behaviour untouched.
 | `HeightRangePlacementMixin` | `HeightRangePlacement.getPositions` | In Terrahaul worlds with `oreDepthFix`, resolve height anchors against the vanilla Y −64..319 frame |
 | `RandomSpreadStructurePlacementMixin`, `StructurePlacementAccessor` | `getPotentialStructureChunk` | Terrain-aware choice of the structure chunk for vanilla surface structure sets (identified by salt) in Terrahaul worlds |
 | `ChunkGeneratorMixin` | `createState` | Registers a Terrahaul world's terrain for the structure placement above |
+| `OceanMonumentStructureMixin` | `OceanMonumentStructure.generatePieces` | In Terrahaul worlds, lowers monuments (built at a fixed Y 39) onto the much deeper sea floor |
 | `client.FogShapeMixin` (client only) | `FogShape.getIndex` | In Terrahaul worlds the terrain fog weighs vertical distance at 15%, so valleys stay visible from high peaks (vanilla's cylinder fog counts vertical distance fully) |
 
 Access transformers (`META-INF/accesstransformer.cfg`) widen `SurfaceRules.Context`, its fields
@@ -103,8 +104,9 @@ and `CreateWorldScreen.recreated`.
   | World | Area | ms per chunk |
   |---|---|---|
   | Vanilla | spawn area | about 54 |
-  | Terrahaul | lowland/plains | about 85–117 |
-  | Terrahaul | mountains | about 186–249 |
+  | Terrahaul | lowland/plains | about 85–93 |
+  | Terrahaul | oceans, trenches, sea cliffs | about 105–139 |
+  | Terrahaul | mountains and canyons | about 186–249 |
 
   Pre-generating the world, for example with a pre-generation mod, is recommended for servers.
   World saves are also larger: deep caves and tall mountains store more non-empty sections.
@@ -125,6 +127,14 @@ and `CreateWorldScreen.recreated`.
   own biome rules always apply, so a region may also end up without the structure, as in vanilla.
 - **Snow, ice and frozen rivers:** these follow the vanilla biome temperature, including altitude
   cooling. Snow layers come from vanilla's freeze step and so stop where vanilla puts them.
+- **Deep oceans:** abyssal plains at Y −60..−160 and trenches down to about Y −340 hold far
+  more water than vanilla oceans. That takes more memory and disk per ocean chunk, and the trench
+  floors are pitch dark. Drowned and other ocean mobs spawn by vanilla rules.
+- **Trails** are laid by the surface rule on the top block. They are not connected to villages
+  and do not cross rivers (they end at the banks). Trees and plants do not grow on the path
+  blocks; a fallen log or boulder can occasionally lie across a trail.
+- **Overhangs** come from the 3D terrain density. They are interpolated on Minecraft's
+  4×8×4-block noise cells, so ledges are at least a few blocks thick, not thin slabs.
 - **Spawn:** the world spawn is chosen by vanilla's spawn search over Terrahaul terrain. On rare
   seeds it can be on a hill or near water.
 - The `/terrahaul find` command is approximate for features that depend on block placement after

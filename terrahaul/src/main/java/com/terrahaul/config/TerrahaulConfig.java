@@ -25,6 +25,8 @@ public final class TerrahaulConfig {
     static final ModConfigSpec.BooleanValue ORE_DEPTH_FIX;
     static final ModConfigSpec.BooleanValue TERRAIN_AWARE_STRUCTURES;
     static final ModConfigSpec.BooleanValue SAPLINGS_GROW_TERRAHAUL_TREES;
+    static final ModConfigSpec.BooleanValue TRAILS;
+    static final ModConfigSpec.BooleanValue OCEAN_VENTS;
     static final ModConfigSpec.DoubleValue TREE_SIZE_VARIATION;
     static final ModConfigSpec.DoubleValue FOREST_DENSITY;
     static final ModConfigSpec.DoubleValue VEGETATION_DENSITY;
@@ -63,6 +65,10 @@ public final class TerrahaulConfig {
             .define("terrainAwareStructures", true);
         SAPLINGS_GROW_TERRAHAUL_TREES = c.comment("Saplings grown by players also produce Terrahaul trees.")
             .define("saplingsGrowTerrahaulTrees", true);
+        TRAILS = c.comment("Lay winding dirt trails across gentle ground in Terrahaul worlds.")
+            .define("trails", true);
+        OCEAN_VENTS = c.comment("Build hydrothermal vent chimneys on the floors of deep-sea trenches and mid-ocean ridges in Terrahaul worlds. Restart required.")
+            .define("oceanVents", true);
         TREE_SIZE_VARIATION = c.comment("Chance (0-1) that a tree keeps a large or giant size when one is rolled. Lower values give more uniform, smaller trees.")
             .defineInRange("treeSizeVariation", 1.0, 0.0, 1.0);
         FOREST_DENSITY = c.comment("Multiplier for the number of trees in forests and woodlands.")
@@ -148,6 +154,14 @@ public final class TerrahaulConfig {
         return bool(SAPLINGS_GROW_TERRAHAUL_TREES);
     }
 
+    public static boolean trails() {
+        return bool(TRAILS);
+    }
+
+    public static boolean oceanVents() {
+        return bool(OCEAN_VENTS);
+    }
+
     public static double treeSizeVariation() {
         return number(TREE_SIZE_VARIATION);
     }
@@ -230,6 +244,7 @@ public final class TerrahaulConfig {
             case "geological_formations" -> geologicalFormations();
             case "ore_depth_fix" -> oreDepthFix();
             case "terrain_aware_structures" -> terrainAwareStructures();
+            case "ocean_vents" -> oceanVents();
             default -> false;
         };
     }

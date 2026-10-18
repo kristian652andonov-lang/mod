@@ -53,7 +53,10 @@ public final class TerrainFinder {
             }
         }
         add("ocean", "the ocean", 64, s -> s.isSea(63) && s.continentalness < -0.19, s -> s.isSea(63) && s.height < 50, Kind.GRID);
-        add("deep_ocean", "a deep ocean basin", 96, s -> s.continentalness < -0.47 && s.height < 20, s -> s.height < 10, Kind.GRID);
+        add("deep_ocean", "a deep ocean basin", 96, s -> s.continentalness < -0.47 && s.height < -30, s -> s.height < -60, Kind.GRID);
+        add("trench", "a deep-sea trench with magma vents", 64, s -> s.trench > 0.2, s -> s.trench > 0.9, Kind.GRID);
+        add("trail", "a dirt trail", 16, s -> s.trailDistance < 20.0 && TerrainModel.trailGround(s, 63),
+            s -> s.trailDistance < 1.2 && TerrainModel.trailGround(s, 63), Kind.GRID);
         add("beach", "a sandy beach", 32, s -> s.beach > 0.4, s -> s.beach > 0.6, Kind.GRID);
         add("sea_cliff", "rocky sea cliffs", 32, s -> s.coastCliff > 0.4 && s.height > 70, s -> s.coastCliff > 0.5 && s.height > 74, Kind.GRID);
         add("island", "an island", 64, s -> s.island > 0.3 && s.height > 64, s -> s.island > 0.4 && s.height > 66, Kind.GRID);

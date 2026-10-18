@@ -66,6 +66,21 @@ public final class ColumnSample {
     public double beach;
     public double island;
     public double fjord;
+    /** Deep-sea trench strength (1 on the trench axis). */
+    public double trench;
+    /** Floor height of the trench this column belongs to. */
+    public double trenchFloor;
+    /** Crest of a mid-ocean ridge (0..1). */
+    public double oceanRidge;
+    /** Distance to the nearest trail centre line in blocks (large where there is none). */
+    public double trailDistance;
+    /**
+     * Highest model surface within 8 blocks, computed on demand by the overhang density
+     * ({@code NaN} until then).
+     */
+    public double overhangTop;
+    /** Highest model surface 8 blocks away; set together with {@link #overhangTop}. */
+    public double overhangFar;
     /** Geology province index (see {@link Geology}). */
     public int geology;
     /** Fine strata selector noise in [0, 1). */
@@ -119,6 +134,12 @@ public final class ColumnSample {
         beach = o.beach;
         island = o.island;
         fjord = o.fjord;
+        trench = o.trench;
+        trenchFloor = o.trenchFloor;
+        oceanRidge = o.oceanRidge;
+        trailDistance = o.trailDistance;
+        overhangTop = o.overhangTop;
+        overhangFar = o.overhangFar;
         geology = o.geology;
         strata = o.strata;
         continentalness = o.continentalness;

@@ -43,8 +43,30 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   - coastlines with beaches and sea cliffs, fjords, and waterfalls at real cliff sites.
 
   All water is placed with containment checks, so there is no floating water and no flooding.
+- **Deep oceans:**
+  - ocean floors lie around Y −24..30 and abyssal plains around Y −60..−160, with rolling relief,
+    mid-ocean ridges and seamounts;
+  - **deep-sea trenches** are long rifts with near-vertical walls that drop to about
+    Y −230..−340. Their floors are lined with magma, blackstone and basalt and carry
+    **hydrothermal vent chimneys**;
+  - ocean monuments are lowered onto the sea floor instead of floating.
+- **Cliff overhangs:** rock ledges jut out just below the rims of cliffs, canyon walls and sea
+  cliffs, and alcoves are carved into cliff faces.
 - **Canyons and ravines** with layered walls, plus natural **arches, rock spires, hoodoos and sea
   stacks**.
+- **Material fades:** surface materials blend into each other with speckled gradients instead of
+  hard layers:
+  - dirt → coarse dirt → gravel → weathered rock → bedrock;
+  - sand → sandstone → rock and snow → calcite → rock;
+  - sea floors: sand → gravel → clay and tuff with depth;
+  - strata bands with fuzzy edges.
+
+  At the surface, grass breaks up into stone as slopes steepen, snow patches thicken towards the
+  snow line, and sand creeps inland behind beaches. Fades reach at most 15 blocks below the
+  nearest exposed surface, measured sideways too, so cliff and mountain faces get them as well.
+- **Trails:** winding dirt paths with frayed coarse-dirt and gravel edges cross plains, forests
+  and hills, meet at junctions and end in the open. They avoid water, cliffs, steep mountains and
+  deserts.
 - **Geological provinces** (granite, dark/andesite, limestone, sedimentary, volcanic, temperate)
   decide the exposed rock. They show as strata bands on cliffs, scree, gravel coasts and river beds.
 - **Coherent vanilla biomes:** the terrain model outputs the climate parameters (continentalness,
@@ -107,10 +129,11 @@ need to generate chunks. The result is a clickable teleport suggestion. Landform
 |---|---|
 | Rivers | `river`, `great_river`, `dry_river`, `stream` |
 | Lakes | `lake`, `forest_lake`, `mountain_lake`, `great_lake`, `marsh_lake`, `crater_lake`, `plateau_lake`, `glacial_lake` |
-| Sea and coast | `ocean`, `deep_ocean`, `beach`, `sea_cliff`, `island`, `mushroom_island`, `fjord`, `sea_stack` |
+| Sea and coast | `ocean`, `deep_ocean`, `trench`, `beach`, `sea_cliff`, `island`, `mushroom_island`, `fjord`, `sea_stack` |
 | Mountains | `mountain`, `alpine_peaks`, `ancient_mountains`, `mountain_wall`, `colossal_peak`, `highest_peak`, `volcano` |
 | Lowlands and uplands | `meadow`, `plateau`, `valley`, `hills`, `plains`, `windswept_hills`, `wetland` |
 | Canyons and formations | `canyon`, `waterfall`, `arch`, `spire`, `hoodoo` |
+| Paths | `trail` |
 
 The other commands are:
 - `/terrahaul find biome <biome or #tag> [radius]` finds the nearest biome.
@@ -127,7 +150,8 @@ All of these need permission level 2. Searches run off the server thread.
 
 ## Installing
 1. Install NeoForge for 1.21.1.
-2. Put `terrahaul-1.0.0.jar` into the `mods` folder (client and server).
+2. Put `terrahaul-1.0.0.jar` (a prebuilt copy is in [`dist/`](dist/), or build it yourself, see
+   below) into the `mods` folder (client and server).
 3. **Singleplayer:** on the Create World screen, *World Type* defaults to **Terrahaul**. You can
    switch back to Default in the World tab; turn off `selectTerrahaulByDefault` in the client
    config to stop the pre-selection.
@@ -151,6 +175,8 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | `oreDepthFix` | `true` | Keep vanilla ores at vanilla depths and add deep/high resource layers (layers need a restart) |
 | `terrainAwareStructures` | `true` | Steer surface structures to flat, dry ground (set before creating a world) |
 | `saplingsGrowTerrahaulTrees` | `true` | Player-grown saplings produce Terrahaul trees |
+| `trails` | `true` | Lay dirt trails across gentle ground |
+| `oceanVents` | `true` | Hydrothermal vent chimneys in trenches and on mid-ocean ridges (restart) |
 | `treeSizeVariation` | `1.0` | Chance that large/giant tree sizes are kept (0 = uniform small trees) |
 | `forestDensity` | `1.0` | Multiplier for tree counts (0.1–3) |
 | `vegetationDensity` | `1.0` | Multiplier for bushes and low vegetation (0–3) |

@@ -58,6 +58,9 @@ public abstract class NoiseChunkMixin {
     @Shadow
     public abstract int blockZ();
 
+    @Shadow
+    public abstract int preliminarySurfaceLevel(int x, int z);
+
     @Unique
     private boolean terrahaul$deepMaterials;
     @Unique
@@ -101,6 +104,11 @@ public abstract class NoiseChunkMixin {
         int floor = this.terrahaul$minY;
         if (y < floor + 5 && (y <= floor || this.terrahaul$bedrockRandom.at(this.blockX(), y, this.blockZ()).nextFloat() < (floor + 5 - y) / 5.0)) {
             cir.setReturnValue(TERRAHAUL_BEDROCK);
+            return;
+        }
+        // the top ~17 blocks below the surface stay stone so the surface rule can lay sediments and
+        // material fades on deep sea floors and trenches; it turns what it leaves into deepslate
+        if (y >= this.preliminarySurfaceLevel(this.blockX(), this.blockZ()) - 14) {
             return;
         }
         if (y <= 0 || this.terrahaul$deepslateRandom.at(this.blockX(), y, this.blockZ()).nextFloat() < (8 - y) / 8.0) {

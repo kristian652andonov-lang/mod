@@ -1,0 +1,12 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "ocean_vents"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": "#minecraft:is_ocean",
+  "features": "terrahaul:ocean_vents",
+  "step": "local_modifications"
+}

@@ -37,6 +37,11 @@ neoForge {
             if (project.hasProperty('screenshots')) {
                 systemProperty 'terrahaul.screenshots', project.property('screenshots').toString()
             }
+            // -Pmultiplayer=host:port: join a server, wait, screenshot and disconnect (network test)
+            if (project.hasProperty('multiplayer')) {
+                programArguments.addAll('--quickPlayMultiplayer', project.property('multiplayer').toString())
+                systemProperty 'terrahaul.screenshots.join', 'true'
+            }
             // -PcreateWorldCheck: open the Create World screen, log the selected world type, screenshot it
             if (project.hasProperty('createWorldCheck')) {
                 systemProperty 'terrahaul.screenshots.createWorld', 'true'
