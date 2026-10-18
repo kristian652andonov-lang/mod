@@ -5,17 +5,25 @@
     "sizes": [
       {
         "data": "small",
-        "weight": 20
+        "weight": 200
       },
       {
         "data": "medium",
-        "weight": 60
+        "weight": 600
       },
       {
         "data": "large",
-        "weight": 30
+        "weight": 300
+      },
+      {
+        "data": "giant",
+        "weight": 60
+      },
+      {
+        "data": "ancient",
+        "weight": 10
       }
     ],
-    "vines": 0.16
+    "vines": 0.12
   }
 }

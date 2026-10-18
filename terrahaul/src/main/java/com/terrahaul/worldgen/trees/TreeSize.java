@@ -1,19 +1,17 @@
 package com.terrahaul.worldgen.trees;
 
-import com.mojang.serialization.Codec;
-import net.minecraft.util.StringRepresentable;
-
-/** Age/size class of a generated tree. */
-public enum TreeSize implements StringRepresentable {
+/** Age/size class of a generated tree. Plain Java, see {@link TreeSpecies}. */
+public enum TreeSize {
     YOUNG("young"),
     SMALL("small"),
     MEDIUM("medium"),
     LARGE("large"),
     GIANT("giant"),
-    /** Rare old trees far larger than vanilla ones; species without an ancient form grow as giants. */
+    /**
+     * Rare old trees far larger than vanilla ones, reaching up to {@link TreeBlueprint#ANCIENT_REACH}
+     * blocks from the trunk; species without an ancient form grow as giants.
+     */
     ANCIENT("ancient");
-
-    public static final Codec<TreeSize> CODEC = StringRepresentable.fromEnum(TreeSize::values);
 
     private final String name;
 
@@ -21,12 +19,25 @@ public enum TreeSize implements StringRepresentable {
         this.name = name;
     }
 
-    @Override
-    public String getSerializedName() {
+    public String serializedName() {
         return name;
+    }
+
+    /** The size class with the given serialized name, or {@code null}. */
+    public static TreeSize byName(String name) {
+        for (TreeSize s : values()) {
+            if (s.name.equals(name)) {
+                return s;
+            }
+        }
+        return null;
     }
 
     public TreeSize smaller() {
         return this == YOUNG ? YOUNG : values()[ordinal() - 1];
+    }
+
+    public boolean atLeast(TreeSize other) {
+        return ordinal() >= other.ordinal();
     }
 }

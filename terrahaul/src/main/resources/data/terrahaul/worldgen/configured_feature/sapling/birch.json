@@ -5,15 +5,15 @@
     "sizes": [
       {
         "data": "small",
-        "weight": 30
+        "weight": 300
       },
       {
         "data": "medium",
-        "weight": 40
+        "weight": 400
       },
       {
         "data": "large",
-        "weight": 10
+        "weight": 100
       }
     ]
   }

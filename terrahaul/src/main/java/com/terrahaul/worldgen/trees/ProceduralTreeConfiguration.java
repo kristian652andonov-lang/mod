@@ -1,6 +1,7 @@
 package com.terrahaul.worldgen.trees;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.random.SimpleWeightedRandomList;
 import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
@@ -17,9 +18,20 @@ import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfigur
  */
 public record ProceduralTreeConfiguration(TreeSpecies species, SimpleWeightedRandomList<TreeSize> sizes, float vines, float cocoa,
                                           float beehive, float dryLeaves) implements FeatureConfiguration {
+    /** Species by serialized name ({@link TreeSpecies} is plain Java and carries no codec itself). */
+    public static final Codec<TreeSpecies> SPECIES_CODEC = Codec.STRING.comapFlatMap(name -> {
+        TreeSpecies s = TreeSpecies.byName(name);
+        return s != null ? DataResult.success(s) : DataResult.error(() -> "Unknown tree species: " + name);
+    }, TreeSpecies::serializedName);
+
+    public static final Codec<TreeSize> SIZE_CODEC = Codec.STRING.comapFlatMap(name -> {
+        TreeSize s = TreeSize.byName(name);
+        return s != null ? DataResult.success(s) : DataResult.error(() -> "Unknown tree size: " + name);
+    }, TreeSize::serializedName);
+
     public static final Codec<ProceduralTreeConfiguration> CODEC = RecordCodecBuilder.create(i -> i.group(
-        TreeSpecies.CODEC.fieldOf("species").forGetter(ProceduralTreeConfiguration::species),
-        SimpleWeightedRandomList.wrappedCodec(TreeSize.CODEC).fieldOf("sizes").forGetter(ProceduralTreeConfiguration::sizes),
+        SPECIES_CODEC.fieldOf("species").forGetter(ProceduralTreeConfiguration::species),
+        SimpleWeightedRandomList.wrappedCodec(SIZE_CODEC).fieldOf("sizes").forGetter(ProceduralTreeConfiguration::sizes),
         Codec.floatRange(0, 1).optionalFieldOf("vines", 0.0f).forGetter(ProceduralTreeConfiguration::vines),
         Codec.floatRange(0, 1).optionalFieldOf("cocoa", 0.0f).forGetter(ProceduralTreeConfiguration::cocoa),
         Codec.floatRange(0, 1).optionalFieldOf("beehive", 0.0f).forGetter(ProceduralTreeConfiguration::beehive),

@@ -5,15 +5,15 @@
     "sizes": [
       {
         "data": "young",
-        "weight": 20
+        "weight": 200
       },
       {
         "data": "small",
-        "weight": 50
+        "weight": 500
       },
       {
         "data": "medium",
-        "weight": 20
+        "weight": 200
       }
     ],
     "dry_leaves": 0.15

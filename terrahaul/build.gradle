@@ -153,3 +153,12 @@ tasks.register('peakStudy', JavaExec) {
     jvmArgs '-Xmx4G', '-Djava.awt.headless=true'
     args = (project.findProperty('args') ?: '12345 build/peaks alpine_peaks 4').toString().split(' ').toList()
 }
+
+tasks.register('treeStudy', JavaExec) {
+    group = 'terrahaul'
+    description = 'Builds procedural trees and renders them with statistics (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.TreeStudy'
+    jvmArgs '-Xmx2G', '-Djava.awt.headless=true'
+    args = (project.findProperty('args') ?: 'build/trees all 3 4').toString().split(' ').toList()
+}

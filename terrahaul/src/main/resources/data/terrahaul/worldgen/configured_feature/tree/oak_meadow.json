@@ -5,11 +5,11 @@
     "sizes": [
       {
         "data": "medium",
-        "weight": 20
+        "weight": 200
       },
       {
         "data": "large",
-        "weight": 30
+        "weight": 300
       }
     ],
     "beehive": 0.6
