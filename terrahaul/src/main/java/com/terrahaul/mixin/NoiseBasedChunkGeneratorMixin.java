@@ -58,7 +58,9 @@ public abstract class NoiseBasedChunkGeneratorMixin {
             return cellCountY;
         }
         ChunkPos pos = chunk.getPos();
-        double maxSurface = model.maxHeightInArea(pos.getMinBlockX(), pos.getMinBlockZ(), pos.getMaxBlockX() + 1, pos.getMaxBlockZ() + 1);
+        // overhangs hang out up to 16 blocks from the top of a cliff that may stand in the next
+        // chunk, so the highest surface within 16 blocks of the chunk bounds the fill
+        double maxSurface = model.maxHeightInArea(pos.getMinBlockX() - 16, pos.getMinBlockZ() - 16, pos.getMaxBlockX() + 17, pos.getMaxBlockZ() + 17);
         int cellHeight = this.settings.value().noiseSettings().getCellHeight();
         int topY = (int) Math.ceil(Math.max(maxSurface, this.settings.value().seaLevel() + 2) + bounded.margin());
         int topCell = Mth.floorDiv(topY, cellHeight) + 1;

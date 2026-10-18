@@ -9,7 +9,9 @@ public enum TreeSize implements StringRepresentable {
     SMALL("small"),
     MEDIUM("medium"),
     LARGE("large"),
-    GIANT("giant");
+    GIANT("giant"),
+    /** Rare old trees far larger than vanilla ones; species without an ancient form grow as giants. */
+    ANCIENT("ancient");
 
     public static final Codec<TreeSize> CODEC = StringRepresentable.fromEnum(TreeSize::values);
 

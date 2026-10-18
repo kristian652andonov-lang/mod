@@ -109,7 +109,7 @@ def tree_placement(count, scale=260, variation=0.7, clearing=-2.0, water_depth=0
 
 
 SMALLISH = {"young": 2, "small": 5, "medium": 3}
-MIXED = {"small": 3, "medium": 6, "large": 2, "giant": 0.4}
+MIXED = {"small": 3, "medium": 6, "large": 2, "giant": 0.4, "ancient": 0.08}
 
 VANILLA_TREE_FEATURES = [
     "minecraft:trees_birch", "minecraft:trees_cherry", "minecraft:trees_water", "minecraft:dark_forest_vegetation",
@@ -127,7 +127,7 @@ def trees():
     # ---- species / size mixes --------------------------------------------------------------
     tree_config('tree/oak', 'oak', MIXED)
     tree_config('tree/oak_bees', 'oak', MIXED, beehive=0.02)
-    tree_config('tree/oak_lone', 'oak', {"medium": 3, "large": 4, "giant": 2}, beehive=0.05)
+    tree_config('tree/oak_lone', 'oak', {"medium": 3, "large": 4, "giant": 2, "ancient": 1}, beehive=0.05)
     tree_config('tree/oak_meadow', 'oak', {"medium": 2, "large": 3}, beehive=0.6)
     tree_config('tree/oak_young', 'oak', {"young": 3, "small": 2})
     tree_config('tree/oak_small_dry', 'oak', {"young": 2, "small": 5, "medium": 2}, dry=0.15)
@@ -139,19 +139,19 @@ def trees():
     tree_config('tree/birch_young', 'birch', {"young": 3, "small": 2})
     tree_config('tree/spruce', 'spruce', MIXED)
     tree_config('tree/spruce_small', 'spruce', SMALLISH)
-    tree_config('tree/spruce_old_growth', 'spruce', {"medium": 2, "large": 5, "giant": 3})
+    tree_config('tree/spruce_old_growth', 'spruce', {"medium": 2, "large": 5, "giant": 3, "ancient": 1.2})
     tree_config('tree/spruce_young', 'spruce', {"young": 3, "small": 2})
     tree_config('tree/pine', 'pine', {"medium": 4, "large": 4, "giant": 1.5})
-    tree_config('tree/pine_old_growth', 'pine', {"large": 5, "giant": 3})
+    tree_config('tree/pine_old_growth', 'pine', {"large": 5, "giant": 3, "ancient": 1})
     tree_config('tree/fir', 'fir', {"small": 3, "medium": 5, "large": 2, "giant": 0.4})
-    tree_config('tree/jungle_giant', 'jungle', {"large": 4, "giant": 3}, vines=0.22, cocoa=0.06)
+    tree_config('tree/jungle_giant', 'jungle', {"large": 4, "giant": 3, "ancient": 1}, vines=0.22, cocoa=0.06)
     tree_config('tree/jungle_medium', 'jungle', {"small": 2, "medium": 5}, vines=0.25, cocoa=0.12)
     tree_config('tree/jungle_bush', 'jungle', {"young": 1})
-    tree_config('tree/acacia', 'acacia', {"small": 3, "medium": 5, "large": 3, "giant": 1})
+    tree_config('tree/acacia', 'acacia', {"small": 3, "medium": 5, "large": 3, "giant": 1, "ancient": 0.3})
     tree_config('tree/acacia_small', 'acacia', {"young": 2, "small": 4, "medium": 2})
-    tree_config('tree/dark_oak', 'dark_oak', {"medium": 4, "large": 5, "giant": 2})
+    tree_config('tree/dark_oak', 'dark_oak', {"medium": 4, "large": 5, "giant": 2, "ancient": 0.6})
     tree_config('tree/mangrove', 'mangrove', {"small": 3, "medium": 5, "large": 3, "giant": 1}, vines=0.05)
-    tree_config('tree/cherry', 'cherry', {"small": 2, "medium": 5, "large": 3, "giant": 1}, beehive=0.05)
+    tree_config('tree/cherry', 'cherry', {"small": 2, "medium": 5, "large": 3, "giant": 1, "ancient": 0.3}, beehive=0.05)
     tree_config('tree/cherry_young', 'cherry', {"young": 3, "small": 1})
     tree_config('tree/azalea', 'azalea', {"small": 3, "medium": 3, "large": 1})
     tree_config('tree/dead', 'dead', {"small": 3, "medium": 3, "large": 1})

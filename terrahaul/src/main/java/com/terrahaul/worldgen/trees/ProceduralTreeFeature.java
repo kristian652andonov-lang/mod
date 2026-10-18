@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.Fluids;
 
 /**
@@ -66,8 +67,20 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
             size = TreeSize.MEDIUM;
         }
 
+        if (size == TreeSize.ANCIENT) {
+            // ancient trees reach further than 15 blocks: move the trunk near the middle of its
+            // chunk, where up to TreeBlueprint.ANCIENT_REACH blocks stay inside the writable area
+            int cx = (origin.getX() & ~15) + 7 + random.nextInt(2);
+            int cz = (origin.getZ() & ~15) + 7 + random.nextInt(2);
+            BlockPos moved = new BlockPos(cx, level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, cx, cz), cz);
+            if (Math.abs(moved.getY() - origin.getY()) <= 3 && species.canGrowOn(level.getBlockState(moved.below()))) {
+                origin = moved;
+            } else {
+                size = TreeSize.GIANT;
+            }
+        }
         for (int attempt = 0; attempt < 2; attempt++) {
-            TreeBlueprint bp = new TreeBlueprint(species, random);
+            TreeBlueprint bp = new TreeBlueprint(species, random, size == TreeSize.ANCIENT ? TreeBlueprint.ANCIENT_REACH : TreeBlueprint.MAX_REACH);
             TreeShapes.build(bp, size);
             if (fits(level, origin, bp)) {
                 placeBlueprint(level, origin, bp, config, random);
@@ -209,6 +222,7 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
                 }
             }
         }
+        placeGroundRoots(level, origin, bp);
         // leaves with exact distances
         BlockState leaf = bp.species().leaves();
         BlockState alt = bp.species().altLeaves();
@@ -228,6 +242,61 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
             placedLeaves.add(pos.asLong());
         }
         decorate(level, origin, bp, config, random, placedLeaves);
+    }
+
+    /**
+     * Roots that follow the ground: each column's root rises the planned height above that
+     * column's own ground (so roots run down slopes with it), replacing the soil block itself; roots
+     * just below the ground show as rooted dirt. Columns whose ground is more than 6 blocks above
+     * or below the trunk base are skipped.
+     */
+    private static void placeGroundRoots(WorldGenLevel level, BlockPos origin, TreeBlueprint bp) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        BlockState wood = bp.species().wood();
+        for (var entry : bp.groundRoots.long2DoubleEntrySet()) {
+            long k = entry.getLongKey();
+            double rise = entry.getDoubleValue();
+            int x = origin.getX() + BlockPos.getX(k);
+            int z = origin.getZ() + BlockPos.getZ(k);
+            int ground = Integer.MIN_VALUE;
+            for (int y = origin.getY() + 6; y >= origin.getY() - 6; y--) {
+                BlockState state = level.getBlockState(pos.set(x, y, z));
+                if (state.is(BlockTags.LOGS)) {
+                    break;
+                }
+                if (!isFree(state)) {
+                    ground = y;
+                    break;
+                }
+            }
+            if (ground == Integer.MIN_VALUE) {
+                continue;
+            }
+            BlockState soil = level.getBlockState(pos.set(x, ground, z));
+            boolean earthy = soil.is(BlockTags.DIRT) || soil.is(BlockTags.SAND) || soil.is(Blocks.GRAVEL) || soil.is(Blocks.MUD);
+            if (rise < 0.0) {
+                if (rise > -1.2 && (soil.is(BlockTags.DIRT) && !soil.is(Blocks.MUD))) {
+                    level.setBlock(pos, Blocks.ROOTED_DIRT.defaultBlockState(), SET_FLAGS);
+                }
+                continue;
+            }
+            if (!earthy && !soil.is(BlockTags.BASE_STONE_OVERWORLD)) {
+                continue;
+            }
+            int top = ground + (int) Math.floor(rise);
+            for (int y = ground; y <= top; y++) {
+                pos.set(x, y, z);
+                BlockState existing = level.getBlockState(pos);
+                if (y == ground ? existing == soil : isFree(existing)) {
+                    level.setBlock(pos, wood, SET_FLAGS);
+                }
+            }
+            // the soil under a raised root is no longer lit: no grass beneath the wood
+            BlockState below = level.getBlockState(pos.set(x, ground - 1, z));
+            if (below.is(Blocks.GRASS_BLOCK)) {
+                level.setBlock(pos, Blocks.DIRT.defaultBlockState(), SET_FLAGS);
+            }
+        }
     }
 
     private static void decorate(WorldGenLevel level, BlockPos origin, TreeBlueprint bp, ProceduralTreeConfiguration config, RandomSource random,

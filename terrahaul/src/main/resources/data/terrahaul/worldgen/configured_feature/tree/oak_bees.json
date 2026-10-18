@@ -18,6 +18,10 @@
       {
         "data": "giant",
         "weight": 4
+      },
+      {
+        "data": "ancient",
+        "weight": 1
       }
     ],
     "beehive": 0.02

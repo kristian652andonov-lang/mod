@@ -74,22 +74,25 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
             case HUMIDITY -> s.humidity;
             case DEPTH -> (depthSurface(s.height, x, z) - y) / 128.0;
             case SURFACE_HEIGHT -> s.height;
-            case CAVE_ALLOWANCE -> caveAllowance(s, y);
+            case CAVE_ALLOWANCE -> caveAllowance(s, x, y, z);
+            case CAVERN_ALLOWANCE -> Math.min(caveAllowance(s, x, y, z), cavernAllowance(s, x, y, z));
         };
     }
 
     /**
-     * The surface used for the biome depth parameter: the lowest model surface within 8 blocks.
+     * The surface used for the biome depth parameter: the lowest model surface within 20 blocks.
      * Biome lookups are jittered by a few blocks, so on cliffs and mountain walls the plain column
      * height would put the sample point tens of blocks "underground" and pick cave biomes
      * (dripstone caves, deep dark) for exposed rock faces.
      */
     private double depthSurface(double height, int x, int z) {
         double h = height;
-        h = Math.min(h, model.sample(x + 8, z).height);
-        h = Math.min(h, model.sample(x - 8, z).height);
-        h = Math.min(h, model.sample(x, z + 8).height);
-        h = Math.min(h, model.sample(x, z - 8).height);
+        for (int r = 8; r <= 20; r += 12) {
+            h = Math.min(h, model.sample(x + r, z).height);
+            h = Math.min(h, model.sample(x - r, z).height);
+            h = Math.min(h, model.sample(x, z + r).height);
+            h = Math.min(h, model.sample(x, z - r).height);
+        }
         return h;
     }
 
@@ -97,15 +100,41 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
      * 1 where caves may form, fading to 0 under lake and river beds and near the sea floor, so cave
      * systems do not drain water bodies into the ground.
      */
-    private double caveAllowance(ColumnSample s, int y) {
+    private double caveAllowance(ColumnSample s, int x, int y, int z) {
         double depthBelow = s.height - y;
         double guard = 1.0;
         if (s.lake > 0.0 || s.river > 0.0 || s.waterLevel != ColumnSample.NO_WATER) {
             guard = Math.min(1.0, Math.max(0.0, (depthBelow - 6.0) / 10.0));
-        } else if (s.height < settings.seaLevel()) {
-            guard = Math.min(1.0, Math.max(0.0, (depthBelow - 4.0) / 8.0));
+        } else if (y > settings.seaLevel() - 2 && y < s.height + 8.0) {
+            // next to a lake or elevated river, caves stay well below its surface so they cannot
+            // breach the shore and leave the water standing as a wall
+            double water = model.nearbyWaterLevel(x, z);
+            if (water != ColumnSample.NO_WATER) {
+                guard = Math.min(1.0, Math.max(0.0, (water - TerrainModel.WATER_GUARD - y) / 10.0));
+            }
+        }
+        if (s.height < settings.seaLevel() && s.waterLevel == ColumnSample.NO_WATER && s.lake <= 0.0 && s.river <= 0.0) {
+            // under the sea, caves stay at least 40 blocks below the lowest nearby sea floor, so
+            // they never undercut the floor into slabs or open sideways into trench walls
+            double below = depthSurface(s.height, x, z) - y;
+            guard = Math.min(guard, Math.max(0.0, (below - 40.0) / 24.0));
         }
         return guard;
+    }
+
+    /**
+     * 1 where large caverns (vanilla "cheese" caves) may open, fading to 0 within 40 blocks of the
+     * surface. Depth is measured from the lowest surface within 20 blocks, not just straight up, so
+     * on steep slopes and cliffs caverns keep away from the face too. Near the surface they would
+     * hollow out the ground into thin shells and leave slabs of terrain floating in the air; small
+     * tunnels (cave entrances, spaghetti and noodle caves) still reach the surface.
+     */
+    private double cavernAllowance(ColumnSample s, int x, int y, int z) {
+        if (s.height - y > 120.0) {
+            return 1.0;
+        }
+        double below = depthSurface(s.height, x, z) - y;
+        return Math.min(1.0, Math.max(0.0, (below - 40.0) / 20.0));
     }
 
     @Override
@@ -124,7 +153,7 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
             case DENSITY, PRELIMINARY -> -400.0;
             case DEPTH -> -40.0;
             case SURFACE_HEIGHT -> -2032.0;
-            case CAVE_ALLOWANCE -> 0.0;
+            case CAVE_ALLOWANCE, CAVERN_ALLOWANCE -> 0.0;
             default -> -1.2;
         };
     }
@@ -135,7 +164,7 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
             case DENSITY, PRELIMINARY -> 400.0;
             case DEPTH -> 40.0;
             case SURFACE_HEIGHT -> 2031.0;
-            case CAVE_ALLOWANCE -> 1.0;
+            case CAVE_ALLOWANCE, CAVERN_ALLOWANCE -> 1.0;
             default -> 1.2;
         };
     }
@@ -172,7 +201,8 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
         HUMIDITY("humidity"),
         DEPTH("depth"),
         SURFACE_HEIGHT("surface_height"),
-        CAVE_ALLOWANCE("cave_allowance");
+        CAVE_ALLOWANCE("cave_allowance"),
+        CAVERN_ALLOWANCE("cavern_allowance");
 
         public static final com.mojang.serialization.Codec<Output> CODEC = StringRepresentable.fromEnum(Output::values);
 

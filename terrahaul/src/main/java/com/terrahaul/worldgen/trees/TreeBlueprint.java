@@ -1,5 +1,6 @@
 package com.terrahaul.worldgen.trees;
 
+import it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
@@ -17,11 +18,14 @@ import net.minecraft.world.level.block.state.BlockState;
  * logs, leaves, roots and decorations through the primitives here; {@link ProceduralTreeFeature}
  * then validates and places the result.
  * <p>
- * Every primitive clips to {@link #MAX_REACH} horizontally: features may only write within the
- * 3x3 chunk area around the chunk being decorated, and 15 blocks from the origin is always safe.
+ * Every primitive clips to the blueprint's reach horizontally: features may only write within the
+ * 3x3 chunk area around the chunk being decorated. {@link #MAX_REACH} (15 blocks from the origin)
+ * is always safe; ancient trees, whose origin is moved near the middle of its chunk, may reach
+ * up to {@link #ANCIENT_REACH}.
  */
 public final class TreeBlueprint {
     public static final int MAX_REACH = 15;
+    public static final int ANCIENT_REACH = 22;
 
     private final TreeSpecies species;
     private final RandomSource random;
@@ -32,11 +36,23 @@ public final class TreeBlueprint {
     final Long2ObjectLinkedOpenHashMap<BlockState> decorations = new Long2ObjectLinkedOpenHashMap<>();
     /** Trunk footprint at the base, used to anchor the tree on slopes. */
     final LongOpenHashSet trunkBase = new LongOpenHashSet();
+    /**
+     * Roots that follow the ground: for each column (key with y = 0), how far the root rises above
+     * the local ground (negative: just below it, shown as rooted dirt).
+     */
+    final Long2DoubleOpenHashMap groundRoots = new Long2DoubleOpenHashMap();
     int height;
+    private final int reach;
 
     public TreeBlueprint(TreeSpecies species, RandomSource random) {
+        this(species, random, MAX_REACH);
+    }
+
+    public TreeBlueprint(TreeSpecies species, RandomSource random, int reach) {
         this.species = species;
         this.random = random;
+        this.reach = reach;
+        groundRoots.defaultReturnValue(Double.NEGATIVE_INFINITY);
     }
 
     public TreeSpecies species() {
@@ -51,8 +67,8 @@ public final class TreeBlueprint {
         return BlockPos.asLong(x, y, z);
     }
 
-    private static boolean inReach(int x, int z) {
-        return x >= -MAX_REACH && x <= MAX_REACH && z >= -MAX_REACH && z <= MAX_REACH;
+    private boolean inReach(int x, int z) {
+        return x >= -reach && x <= reach && z >= -reach && z <= reach;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -87,6 +103,17 @@ public final class TreeBlueprint {
     public void trunk(int baseY, int topY, double radius) {
         for (int y = baseY; y <= topY; y++) {
             trunkLayer(0, y, 0, radius);
+        }
+    }
+
+    /**
+     * Round trunk that narrows from {@code baseRadius} to {@code topRadius}, slightly faster near
+     * the ground, like the trunk of an old tree.
+     */
+    public void taperedTrunk(int topY, double baseRadius, double topRadius) {
+        for (int y = 0; y <= topY; y++) {
+            double t = (double) y / Math.max(1, topY);
+            trunkLayer(0, y, 0, topRadius + (baseRadius - topRadius) * Math.pow(1.0 - t, 1.3));
         }
     }
 
@@ -272,15 +299,75 @@ public final class TreeBlueprint {
 
     /** Exposed surface roots radiating from the trunk base and diving into the ground. */
     public void surfaceRoots(int count, int length, double trunkRadius) {
+        rootSystem(count, trunkRadius, length + 1.0 + 1.5 * trunkRadius, 0.7 + 0.9 * trunkRadius, 0.45 + 0.35 * trunkRadius);
+    }
+
+    /**
+     * A root system that follows the ground. Each main root leaves the trunk as a buttress fin
+     * {@code buttress} blocks high that drops away steeply, then runs on as a low, meandering ridge
+     * with an occasional knee, narrowing as it goes, and dives under the soil near its end, where
+     * it shows as rooted dirt. Most main roots fork once. Heights are relative to the ground under
+     * each column, so roots hug slopes instead of floating over them.
+     *
+     * @param halfWidth half the width of a root where it leaves the trunk
+     */
+    public void rootSystem(int count, double trunkRadius, double length, double buttress, double halfWidth) {
+        double c = trunkRadius > 0.4 && trunkRadius < 0.6 ? 0.5 : 0.0;
+        double start = trunkRadius < 0.6 ? 0.6 : trunkRadius;
+        double a0 = random.nextDouble() * Math.PI * 2.0;
         for (int i = 0; i < count; i++) {
-            double angle = (i + random.nextDouble() * 0.6) * Math.PI * 2.0 / count;
-            double sx = Math.cos(angle) * (trunkRadius + 0.5);
-            double sz = Math.sin(angle) * (trunkRadius + 0.5);
-            int len = length + random.nextInt(2);
-            double ex = Math.cos(angle) * (trunkRadius + len);
-            double ez = Math.sin(angle) * (trunkRadius + len);
-            // the root leaves the trunk a little above ground and sinks below it at its tip
-            branch(sx, 0.6 + random.nextDouble() * 0.8, sz, ex, -1.5, ez, 0.0);
+            double a = a0 + i * Math.PI * 2.0 / count + (random.nextDouble() - 0.5) * 0.6;
+            double len = length * (0.65 + 0.5 * random.nextDouble());
+            double sx = c + Math.cos(a) * start * 0.85;
+            double sz = c + Math.sin(a) * start * 0.85;
+            double h0 = buttress * (0.7 + 0.5 * random.nextDouble());
+            traceRoot(sx, sz, a, len, h0, halfWidth, random.nextFloat() < 0.75);
+        }
+    }
+
+    private void traceRoot(double x, double z, double angle, double len, double h0, double w0, boolean fork) {
+        double wander = (random.nextDouble() - 0.5) * 0.9;
+        double phase = random.nextDouble() * Math.PI * 2.0;
+        double forkAt = 0.3 + 0.3 * random.nextDouble();
+        int forkSide = random.nextBoolean() ? 1 : -1;
+        double step = 0.4;
+        for (double s = 0.0; s <= len; s += step) {
+            double t = s / len;
+            double a = angle + wander * t + 0.3 * Math.sin(phase + t * 5.0);
+            x += Math.cos(a) * step;
+            z += Math.sin(a) * step;
+            // a tall fin at the trunk, a low ridge with knees further out, below ground at the tip
+            double rise = h0 * Math.pow(1.0 - t, 2.6) + 0.7 * (1.0 - t) - 1.6 * t * t
+                + 0.6 * Math.max(0.0, Math.sin(phase * 1.7 + t * 11.0)) * (1.0 - t);
+            double w = Math.max(0.45, w0 * (1.0 - 0.7 * t));
+            markRoot(x, z, w, rise);
+            if (fork && t >= forkAt) {
+                fork = false;
+                traceRoot(x, z, a + forkSide * (0.55 + 0.4 * random.nextDouble()), (len - s) * 0.8, Math.max(0.0, rise) * 0.5, w * 0.75, false);
+            }
+        }
+    }
+
+    private void markRoot(double x, double z, double w, double rise) {
+        int r = Mth.ceil(w);
+        for (int ix = Mth.floor(x) - r; ix <= Mth.floor(x) + r; ix++) {
+            for (int iz = Mth.floor(z) - r; iz <= Mth.floor(z) + r; iz++) {
+                double dx = ix + 0.5 - x;
+                double dz = iz + 0.5 - z;
+                if (dx * dx + dz * dz > w * w + 0.15 || !inReach(ix, iz)) {
+                    continue;
+                }
+                long k = key(ix, 0, iz);
+                if (trunkBase.contains(k)) {
+                    continue;
+                }
+                // the root's crest is lower towards its edges
+                double edge = Math.sqrt(dx * dx + dz * dz) / Math.max(w, 0.5);
+                double h = rise - (rise > 1.0 ? (rise - 1.0) * 0.35 * edge : 0.0) - 0.4 * edge;
+                if (h > groundRoots.get(k)) {
+                    groundRoots.put(k, h);
+                }
+            }
         }
     }
 

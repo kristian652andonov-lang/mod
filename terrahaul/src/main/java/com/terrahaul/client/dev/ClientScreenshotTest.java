@@ -45,6 +45,12 @@ public final class ClientScreenshotTest {
     }
 
     public static void onClientTick(ClientTickEvent.Post event) {
+        if (MEMORY_LOG && Minecraft.getInstance().level != null && ++memoryTicks % MEMORY_INTERVAL == 0) {
+            logMemory(Minecraft.getInstance(), "tick " + memoryTicks + " loaded chunks " + Minecraft.getInstance().level.getChunkSource().getLoadedChunksCount());
+            if (memoryTicks >= MEMORY_TICKS) {
+                Minecraft.getInstance().stop();
+            }
+        }
         if (CREATE_WORLD_CHECK) {
             checkCreateWorldScreen(Minecraft.getInstance());
             return;
@@ -137,6 +143,7 @@ public final class ClientScreenshotTest {
                 Terrahaul.LOGGER.info("[screenshots] {} after {} ticks (all sections rendered: {}), particles: {}, render distance {}, chunks loaded r8 {}, at {}",
                     name, wait, ready, mc.particleEngine.countParticles(), mc.options.getEffectiveRenderDistance(),
                     nearbyChunksLoaded(mc, 8), mc.player.blockPosition().toShortString());
+                logMemory(mc, name);
                 stage = 2;
                 wait = 0;
             }
@@ -145,6 +152,10 @@ public final class ClientScreenshotTest {
         }
     }
 
+    private static final boolean MEMORY_LOG = Boolean.getBoolean("terrahaul.screenshots.memory");
+    private static final int MEMORY_TICKS = Integer.getInteger("terrahaul.screenshots.memoryTicks", 4000);
+    private static final int MEMORY_INTERVAL = Integer.getInteger("terrahaul.screenshots.memoryInterval", 200);
+    private static int memoryTicks;
     private static final boolean JOIN_CHECK = Boolean.getBoolean("terrahaul.screenshots.join");
     private static int joinTicks;
 
@@ -211,6 +222,27 @@ public final class ClientScreenshotTest {
                 mc.stop();
             }
         }
+    }
+
+    /** Logs heap use, process memory and the renderer's section statistics. */
+    static void logMemory(Minecraft mc, String label) {
+        Runtime rt = Runtime.getRuntime();
+        long used = (rt.totalMemory() - rt.freeMemory()) >> 20;
+        // the live heap: what is left after a full collection
+        System.gc();
+        long live = (rt.totalMemory() - rt.freeMemory()) >> 20;
+        String rss = "?";
+        try {
+            for (String line : java.nio.file.Files.readAllLines(java.nio.file.Path.of("/proc/self/status"))) {
+                if (line.startsWith("VmRSS")) {
+                    rss = line.substring(6).trim();
+                }
+            }
+        } catch (Exception ignored) {
+            // not on Linux
+        }
+        Terrahaul.LOGGER.info("[screenshots] memory at {}: heap used {} MB (live {} MB) of max {} MB, process RSS {}, renderer: {}", label,
+            used, live, rt.maxMemory() >> 20, rss, mc.levelRenderer.getSectionStatistics());
     }
 
     private static boolean nearbyChunksLoaded(Minecraft mc, int radius) {

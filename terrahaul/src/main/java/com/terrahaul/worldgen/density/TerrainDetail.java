@@ -13,7 +13,9 @@ import com.terrahaul.worldgen.terrain.TerrainModel;
  * <ul>
  *   <li>the small alpine crag term stays well below the terrain gradient;</li>
  *   <li>ledges grow out of a cliff face, in a band just below the rim of a neighbouring column
- *       that is solid up to that rim.</li>
+ *       that is solid up to that rim;</li>
+ *   <li>big curved overhangs continue the top of a tall, sheer cliff outwards over a
+ *       quarter-circle underside (on some stretches of cliff only).</li>
  * </ul>
  */
 public final class TerrainDetail {
@@ -26,8 +28,8 @@ public final class TerrainDetail {
 
     public static double density(TerrainModel model, ColumnSample s, int x, int y, int z) {
         double t = (s.height - y) * TerrainDensityFunction.SLOPE;
-        if (t < 0.0 && t > -40.0 && (s.cliff > 0.05 || s.steepness > 0.35 || s.coastCliff > 0.2 || s.canyon > 0.2)) {
-            t += overhang(model, s, x, y, z);
+        if (t < 0.0 && t > -40.0 && (s.cliff > 0.05 || s.steepness > 0.35 || s.coastCliff > 0.2 || s.canyon > 0.2 || s.plateau > 0.1)) {
+            t = Math.max(t + overhang(model, s, x, y, z), curvedOverhang(model, s, x, y, z));
         }
         if (t > BAND || t < -BAND) {
             return t;
@@ -77,6 +79,104 @@ public final class TerrainDetail {
         double n = model.detail3(4, x / 26.0, y / 12.0, z / 26.0) + 0.35 * model.detail3(5, x / 9.0, y / 6.0, z / 9.0);
         double patch = n < -0.25 ? 0.0 : n > 0.25 ? 1.0 : (n + 0.25) / 0.5;
         return band * patch * (drop * TerrainDensityFunction.SLOPE + 0.6) * 1.15;
+    }
+
+    /** Smallest cliff that can carry a big curved overhang. */
+    private static final double BIG_DROP = 26.0;
+
+    /**
+     * Density of a big curved overhang at a column on the low side of a sheer cliff: the cliff top
+     * continues outwards for up to 15 blocks, its underside curving from the face up and out along a
+     * quarter circle to a lip 5-8 blocks thick, with a short drip edge at the tip. Positive inside
+     * the overhang; very negative where there is none, so it only ever adds rock. A smooth 2D mask
+     * picks about a third of cliff length, and the radius tapers to zero at the mask's edges.
+     */
+    private static double curvedOverhang(TerrainModel model, ColumnSample s, int x, int y, int z) {
+        if (Double.isNaN(s.bigOverhangRim)) {
+            computeBigOverhang(model, s, x, z);
+        }
+        double r = s.bigOverhangRadius;
+        double d = s.bigOverhangDist;
+        double rim = s.bigOverhangRim;
+        if (r <= 0.0 || d >= r || y > rim) {
+            return -1.0E3;
+        }
+        double drop = rim - s.height;
+        double lip = Math.min(8.0, 5.0 + 0.06 * drop);
+        double y0 = rim - r - lip;
+        double under = y0 + Math.sqrt(r * r - (r - d) * (r - d));
+        if (d > r - 3.0) {
+            // drip edge: the tip hangs down a little
+            under -= 2.0 * (d - (r - 3.0)) / 3.0;
+        }
+        // the top droops slightly towards the tip
+        double top = rim - 0.12 * d - (d > r - 2.0 ? (d - (r - 2.0)) * 1.5 : 0.0);
+        return Math.min(y - under, top - y) * TerrainDensityFunction.SLOPE;
+    }
+
+    /**
+     * The big curved overhang over the column at {@code (x, z)} (a multiple of 4), as
+     * {rim height, radius, distance from the face}, or {@code null} if there is none.
+     */
+    public static double[] curvedOverhang(TerrainModel model, int x, int z) {
+        ColumnSample s = model.sample(x, z);
+        if (Double.isNaN(s.bigOverhangRim)) {
+            computeBigOverhang(model, s, x, z);
+        }
+        return s.bigOverhangRadius > 0.0 && s.bigOverhangDist < s.bigOverhangRadius
+            ? new double[]{s.bigOverhangRim, s.bigOverhangRadius, s.bigOverhangDist} : null;
+    }
+
+    /**
+     * Looks along the four axes, 4 to 16 blocks out, for a sheer cliff: a rise of at least
+     * {@value #BIG_DROP} blocks, most of it within 4 blocks. The nearest one sets the rim and this
+     * column's distance from its face.
+     */
+    private static void computeBigOverhang(TerrainModel model, ColumnSample s, int x, int z) {
+        s.bigOverhangRim = s.height;
+        s.bigOverhangRadius = 0.0;
+        s.bigOverhangDist = 1.0E9;
+        double mask = model.detail3(7, x / 170.0, 3.0, z / 170.0);
+        if (mask < 0.22) {
+            return;
+        }
+        double low = s.height;
+        double bestDist = 1.0E9;
+        double bestRim = low;
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] dir : dirs) {
+            double prev = low;
+            for (int k = 4; k <= 16; k += 4) {
+                double hk = model.sample(x + dir[0] * k, z + dir[1] * k).height;
+                if (hk - low >= BIG_DROP) {
+                    if (hk - prev >= 0.6 * (hk - low)) {
+                        double mid = (low + hk) * 0.5;
+                        double frac = Math.max(0.0, Math.min(1.0, (mid - prev) / (hk - prev)));
+                        double dist = (k - 4) + 4.0 * frac;
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestRim = hk;
+                        }
+                    }
+                    break;
+                }
+                prev = hk;
+            }
+        }
+        if (bestDist >= 16.0) {
+            return;
+        }
+        double drop = bestRim - low;
+        double lip = Math.min(8.0, 5.0 + 0.06 * drop);
+        double strength = mask >= 0.4 ? 1.0 : (mask - 0.22) / 0.18;
+        // leave at least 8 blocks of headroom between the underside and the ground below
+        double r = Math.min(Math.min(15.0, 0.4 * drop), drop - lip - 8.0) * strength;
+        if (r < 5.0) {
+            return;
+        }
+        s.bigOverhangRim = bestRim;
+        s.bigOverhangDist = bestDist;
+        s.bigOverhangRadius = r;
     }
 
     /**

@@ -37,6 +37,27 @@ public final class Fractal {
     }
 
     /** Standard fractal Brownian motion, normalised to roughly [-1, 1]. */
+    /**
+     * The first {@code maxOctaves} octaves of {@link #fbm(double, double)}, with the same
+     * normalisation: a low-pass version of the same field.
+     */
+    public double fbm(double x, double y, int maxOctaves) {
+        double sum = 0.0;
+        double amp = 1.0;
+        double px = x;
+        double py = y;
+        int n = Math.min(maxOctaves, octaves.length);
+        for (int i = 0; i < n; i++) {
+            sum += amp * octaves[i].noise2(px, py);
+            double nx = (px * ROT_COS - py * ROT_SIN) * lacunarity + 17.31;
+            double ny = (px * ROT_SIN + py * ROT_COS) * lacunarity - 9.73;
+            px = nx;
+            py = ny;
+            amp *= gain;
+        }
+        return sum * normaliser;
+    }
+
     public double fbm(double x, double y) {
         double sum = 0.0;
         double amp = 1.0;

@@ -42,6 +42,11 @@ neoForge {
                 programArguments.addAll('--quickPlayMultiplayer', project.property('multiplayer').toString())
                 systemProperty 'terrahaul.screenshots.join', 'true'
             }
+            // -PmemoryLog: log heap, process memory and renderer statistics every 10 s
+            if (project.hasProperty('memoryLog')) {
+                systemProperty 'terrahaul.screenshots.memory', 'true'
+                systemProperty 'terrahaul.screenshots.memoryInterval', project.property('memoryLog').toString().isEmpty() ? '200' : project.property('memoryLog').toString()
+            }
             if (project.hasProperty('vanillaFog')) {
                 systemProperty 'terrahaul.debug.vanillaFog', 'true'
             }
@@ -138,4 +143,13 @@ tasks.register('probe', JavaExec) {
     classpath = sourceSets.devtools.runtimeClasspath
     mainClass = 'com.terrahaul.devtools.Probe'
     args = (project.findProperty('args') ?: '12345 0 100 0 4').toString().split(' ').toList()
+}
+
+tasks.register('peakStudy', JavaExec) {
+    group = 'terrahaul'
+    description = 'Renders views and profiles of mountain summits (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.PeakStudy'
+    jvmArgs '-Xmx4G', '-Djava.awt.headless=true'
+    args = (project.findProperty('args') ?: '12345 build/peaks alpine_peaks 4').toString().split(' ').toList()
 }

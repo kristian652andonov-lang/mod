@@ -28,7 +28,8 @@ public final class TerrainFinder {
         VOLCANO,
         WATERFALL,
         LAKE_SITE,
-        FORMATION
+        FORMATION,
+        OVERHANG
     }
 
     /** Result of a search: block position of the match and a short label. */
@@ -39,7 +40,7 @@ public final class TerrainFinder {
 
     static {
         add("river", "a river", 24, s -> s.riverValley > 0.4 && s.riverWidth >= 2.5, s -> s.river > 0.2 && s.riverWidth >= 2.5, Kind.GRID);
-        add("great_river", "a great river (over 60 blocks wide)", 48, s -> s.riverValley > 0.3 && s.riverWidth >= 30, s -> s.river > 0.3 && s.riverWidth >= 30, Kind.GRID);
+        add("great_river", "a great river (100-200 blocks wide)", 64, s -> s.riverValley > 0.3 && s.riverWidth >= 50, s -> s.river > 0.3 && s.riverWidth >= 50, Kind.GRID);
         add("dry_river", "a dry riverbed", 24, s -> s.riverValley > 0.4 && s.dryRiver, s -> s.river > 0.2 && s.dryRiver, Kind.GRID);
         add("stream", "a mountain stream or forest creek", 12, s -> s.stream > 0.3, s -> s.stream > 0.5, Kind.GRID);
         add("lake", "a lake", 0, null, null, Kind.LAKE_SITE);
@@ -75,13 +76,16 @@ public final class TerrainFinder {
         add("hills", "rolling hills", 48, s -> s.erosion > -0.4 && s.erosion < 0.0 && s.mountain < 0.1 && s.height > 90, s -> s.peakness > 0.35, Kind.GRID);
         add("plains", "wide flat plains", 64, s -> s.erosion > 0.2 && s.erosion < 0.5 && s.mountain < 0.05 && s.height > 64 && s.height < 110, s -> s.river <= 0 && s.lake <= 0, Kind.GRID);
         add("windswept_hills", "windswept uplands", 48, s -> s.windswept > 0.6, s -> s.windswept > 0.8, Kind.GRID);
-        add("wetland", "a wetland or swamp", 48, s -> s.swamp > 0.6, s -> s.swamp > 0.8, Kind.GRID);
+        add("wetland", "a wetland or swamp", 48, s -> s.swamp > 0.6 && s.temperature > -0.45,
+            s -> s.swamp > 0.85 && s.temperature > -0.45 && s.height < 63.0, Kind.GRID);
         add("volcano", "a volcano", 0, null, null, Kind.VOLCANO);
         add("waterfall", "a waterfall", 0, null, null, Kind.WATERFALL);
         add("arch", "a natural stone arch", TerrainModel.ARCH, null, null, Kind.FORMATION);
         add("spire", "a rock spire", TerrainModel.SPIRE, null, null, Kind.FORMATION);
         add("hoodoo", "a hoodoo cluster", TerrainModel.HOODOO, null, null, Kind.FORMATION);
         add("sea_stack", "a sea stack", TerrainModel.SEA_STACK, null, null, Kind.FORMATION);
+        add("overhang", "a big curved cliff overhang", 16, s -> s.cliff > 0.1 || s.canyon > 0.2 || s.coastCliff > 0.3 || s.plateau > 0.1,
+            null, Kind.OVERHANG);
     }
 
     private TerrainFinder() {
@@ -109,6 +113,7 @@ public final class TerrainFinder {
             case HIGHEST -> findHighest(model, target, x, z, radius, cancelled);
             case GRID -> findGrid(model, target, x, z, radius, cancelled);
             case FORMATION -> findFormation(model, target.step(), x, z, radius, cancelled);
+            case OVERHANG -> findOverhang(model, target, x, z, radius, cancelled);
         };
     }
 
@@ -139,6 +144,38 @@ public final class TerrainFinder {
             }
             if (best != null) {
                 return best;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Nearest column under a big curved overhang with a radius of at least 9 blocks. Reports the
+     * point halfway up the overhang's underside, at the column 4 blocks out from the cliff face.
+     */
+    private static Result findOverhang(TerrainModel model, Target target, int x, int z, int radius, BooleanSupplier cancelled) {
+        ColumnSample s = new ColumnSample();
+        int step = target.step();
+        int rings = radius / step;
+        for (int r = 0; r <= rings; r++) {
+            if (cancelled.getAsBoolean()) {
+                return null;
+            }
+            for (int[] p : ring(r)) {
+                int px = (x + p[0] * step) & ~3;
+                int pz = (z + p[1] * step) & ~3;
+                model.sampleInto(px, pz, s);
+                if (!target.coarse().test(s)) {
+                    continue;
+                }
+                for (int dx = -12; dx <= 12; dx += 4) {
+                    for (int dz = -12; dz <= 12; dz += 4) {
+                        double[] o = com.terrahaul.worldgen.density.TerrainDetail.curvedOverhang(model, px + dx, pz + dz);
+                        if (o != null && o[1] >= 9.0 && o[2] >= 2.0 && o[2] <= 6.0) {
+                            return new Result(px + dx, (int) Math.round(o[0] - o[1] * 0.5), pz + dz, target.name());
+                        }
+                    }
+                }
             }
         }
         return null;
@@ -277,7 +314,7 @@ public final class TerrainFinder {
                     double dd = sq(w.x - x) + sq(w.z - z);
                     if (dd < bestD) {
                         bestD = dd;
-                        best = new Result(w.x, (int) Math.ceil(w.top) + 1, w.z, "waterfall");
+                        best = new Result(w.x, (int) w.top + 1, w.z, "waterfall");
                     }
                 }
             }

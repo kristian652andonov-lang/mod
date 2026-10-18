@@ -39,6 +39,6 @@ public record TerrainSettings(
     int seaLevel
 ) {
     public static final TerrainSettings DEFAULT = new TerrainSettings(
-        1.0, 15000.0, 3600.0, 1100.0, 560.0, 1180.0, 1960.0, 3400.0, 1.0, 1.0, 1.0, 1.0, 7600.0, 1.0, 63
+        1.0, 15000.0, 3600.0, 1100.0, 640.0, 1450.0, 1960.0, 3400.0, 1.0, 1.0, 1.0, 1.0, 7600.0, 1.0, 63
     );
 }

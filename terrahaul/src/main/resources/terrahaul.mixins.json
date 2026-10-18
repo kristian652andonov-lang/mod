@@ -15,10 +15,12 @@
     "StrongholdStructureMixin",
     "StructurePlacementAccessor",
     "SurfaceSystemMixin",
+    "WorldCarverMixin",
     "WorldDimensionsMixin"
   ],
   "client": [
-    "client.FogShapeMixin"
+    "client.FogShapeMixin",
+    "client.VertexBufferMixin"
   ],
   "injectors": {
     "defaultRequire": 1

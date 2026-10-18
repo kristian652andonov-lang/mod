@@ -40,6 +40,7 @@ public final class TerrainAwareStructures {
     private static final int CANDIDATES = 8;
     private static final double GOOD_ENOUGH = 10.0;
     private static final int CACHE_LIMIT = 50_000;
+    private static final double SEA_LEVEL = 63.0;
 
     private static volatile long activeSeed;
     private static volatile TerrainModel activeModel;
@@ -122,7 +123,10 @@ public final class TerrainAwareStructures {
             min = Math.min(min, s.height);
             max = Math.max(max, s.height);
             if (s.waterLevel > s.height + 0.5) {
-                penalty += s.isSea(63) ? 40.0 : 25.0;
+                penalty += 25.0;
+            } else if (s.height < SEA_LEVEL + 1.0) {
+                // ground at or below sea level is flooded: open sea or a sea-level lake
+                penalty += 40.0;
             }
             penalty += s.cliff * 15.0;
         }

@@ -14,6 +14,10 @@
       {
         "data": "giant",
         "weight": 20
+      },
+      {
+        "data": "ancient",
+        "weight": 6
       }
     ]
   }

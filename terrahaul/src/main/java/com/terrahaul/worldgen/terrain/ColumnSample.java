@@ -81,6 +81,14 @@ public final class ColumnSample {
     public double overhangTop;
     /** Highest model surface 8 blocks away; set together with {@link #overhangTop}. */
     public double overhangFar;
+    /**
+     * Big curved overhang: rim height of the cliff it hangs from, or NaN if not computed yet;
+     * {@link #bigOverhangDist} is this column's distance from the cliff face and
+     * {@link #bigOverhangRadius} the radius of its curved underside (0: none).
+     */
+    public double bigOverhangRim;
+    public double bigOverhangDist;
+    public double bigOverhangRadius;
     /** Geology province index (see {@link Geology}). */
     public int geology;
     /** Fine strata selector noise in [0, 1). */
@@ -140,6 +148,9 @@ public final class ColumnSample {
         trailDistance = o.trailDistance;
         overhangTop = o.overhangTop;
         overhangFar = o.overhangFar;
+        bigOverhangRim = o.bigOverhangRim;
+        bigOverhangDist = o.bigOverhangDist;
+        bigOverhangRadius = o.bigOverhangRadius;
         geology = o.geology;
         strata = o.strata;
         continentalness = o.continentalness;

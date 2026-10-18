@@ -26,7 +26,9 @@ public enum TreeSpecies implements StringRepresentable {
     CHERRY("cherry", Blocks.CHERRY_LOG, Blocks.CHERRY_WOOD, Blocks.CHERRY_LEAVES, null),
     AZALEA("azalea", Blocks.OAK_LOG, Blocks.OAK_WOOD, Blocks.AZALEA_LEAVES, Blocks.FLOWERING_AZALEA_LEAVES),
     DEAD("dead", Blocks.OAK_LOG, Blocks.OAK_WOOD, Blocks.OAK_LEAVES, null),
-    DEAD_SPRUCE("dead_spruce", Blocks.SPRUCE_LOG, Blocks.SPRUCE_WOOD, Blocks.SPRUCE_LEAVES, null);
+    DEAD_SPRUCE("dead_spruce", Blocks.SPRUCE_LOG, Blocks.SPRUCE_WOOD, Blocks.SPRUCE_LEAVES, null),
+    /** Fire-killed trees on volcano slopes: charred, leafless trunks and snags. */
+    BURNED("burned", Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_WOOD, Blocks.DARK_OAK_LEAVES, null);
 
     public static final Codec<TreeSpecies> CODEC = StringRepresentable.fromEnum(TreeSpecies::values);
 
@@ -70,6 +72,7 @@ public enum TreeSpecies implements StringRepresentable {
         return switch (this) {
             case MANGROVE -> ground.is(Blocks.MUD) || ground.is(Blocks.MUDDY_MANGROVE_ROOTS) || ground.is(BlockTags.DIRT) || ground.is(Blocks.CLAY);
             case ACACIA, DEAD -> ground.is(BlockTags.DIRT) || ground.is(BlockTags.SAND) || ground.is(Blocks.TERRACOTTA);
+            case BURNED -> ground.is(BlockTags.DIRT) || ground.is(Blocks.GRAVEL) || ground.is(Blocks.TUFF) || ground.is(Blocks.BASALT);
             case AZALEA -> ground.is(BlockTags.DIRT) || ground.is(Blocks.CLAY) || ground.is(Blocks.MOSS_BLOCK);
             default -> ground.is(BlockTags.DIRT);
         };

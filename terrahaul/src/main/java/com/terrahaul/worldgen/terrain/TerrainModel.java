@@ -109,6 +109,7 @@ public final class TerrainModel {
     private final Fractal trailWarpZ;
     private final Fractal trailWiggle;
     private final long trailSeed;
+    private final long hornSeed;
 
     private final ThreadLocal<Scratch> scratch;
     private final ConcurrentHashMap<Long, LakeSite> lakeSites = new ConcurrentHashMap<>();
@@ -184,6 +185,7 @@ public final class TerrainModel {
         this.trailWarpZ = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         this.trailWiggle = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         this.trailSeed = SeedMixer.derive(seed, ++salt);
+        this.hornSeed = SeedMixer.derive(seed, ++salt);
         this.scratch = ThreadLocal.withInitial(Scratch::new);
     }
 
@@ -208,6 +210,59 @@ public final class TerrainModel {
         return s.height > seaLevel + 1.5 && s.waterLevel == ColumnSample.NO_WATER && s.river <= 0.0 && s.lake <= 0.0
             && s.riverValley < 0.9 && s.cliff < 0.25 && s.canyon < 0.15 && s.mountain < 0.55 && s.steepness < 0.5
             && s.volcano < 0.15 && s.swamp < 0.55 && s.beach < 0.4 && !(s.baseTemperature > 0.6 && s.humidity < -0.1);
+    }
+
+    /**
+     * Pyramidal horn peaks on a jittered grid of {@code cell} blocks (about 70% of cells hold one).
+     * Each horn is a cone whose radius varies with direction, which gives it three or four steep
+     * faces separated by arêtes, like the Matterhorn or Ama Dablam. Returns 0..1, 1 at the apex.
+     */
+    private double hornField(double x, double z, double cell, int channel) {
+        int cx = (int) Math.floor(x / cell);
+        int cz = (int) Math.floor(z / cell);
+        double best = 0.0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                long h = SeedMixer.hash2(hornSeed + channel * 7919L, cx + dx, cz + dz);
+                if (SeedMixer.unit(h) > 0.7) {
+                    continue;
+                }
+                long h1 = SeedMixer.mix(h);
+                long h2 = SeedMixer.mix(h1);
+                long h3 = SeedMixer.mix(h2);
+                double sx = (cx + dx + 0.2 + 0.6 * SeedMixer.unit(h1)) * cell;
+                double sz = (cz + dz + 0.2 + 0.6 * SeedMixer.unit(h2)) * cell;
+                double px = x - sx;
+                double pz = z - sz;
+                double dist = Math.sqrt(px * px + pz * pz);
+                double reach = cell * 0.64;
+                if (dist >= reach * 1.32) {
+                    continue;
+                }
+                double strength = 0.72 + 0.28 * SeedMixer.unit(h3);
+                int faces = SeedMixer.unit(SeedMixer.mix(h3)) < 0.55 ? 3 : 4;
+                double phase = SeedMixer.unit(h3 * 31L) * Math.PI * 2.0;
+                double angle = Math.atan2(pz, px);
+                // arêtes: the radius peaks sharply (a cusp, not a lobe) in the directions of the
+                // ridges between the faces, so contour lines have corners and the edges stay crisp
+                double cusp = 1.0 - Math.abs(Math.sin(faces * (angle - phase) * 0.5));
+                double radius = reach * (0.82 + 0.5 * cusp * cusp * cusp);
+                double t = 1.0 - dist / radius;
+                if (t > 0.0) {
+                    best = Math.max(best, strength * Math.pow(t, 1.6));
+                }
+            }
+        }
+        return best;
+    }
+
+    /** The unblurred mountain mask (0..1) from erosion and mountain belts at warped coordinates. */
+    private double mountainMask(double wx, double wz, double es) {
+        double e = erosionNoise.fbm(wx / es, wz / es, 3) * 1.35;
+        double bs = es * 2.5;
+        double beltLine = 1.0 - Math.abs(beltNoise.fbm(wx / bs, wz / bs)) * 4.5;
+        double belt = smoothstep(0.0, 1.0, beltLine) * smoothstep(-0.25, 0.2, beltSegments.fbm(wx / (bs * 0.8), wz / (bs * 0.8)));
+        return smoothstep(-0.2, -0.82, clamp(e - 1.4 * belt, -1.0, 1.0));
     }
 
     /** Spacing of the trail network's Voronoi cells. */
@@ -308,6 +363,28 @@ public final class TerrainModel {
         computeColumn(x, z, out, true, scratch.get());
     }
 
+    /** Caves and carvers keep at least this many blocks below the surface of nearby surface water. */
+    public static final int WATER_GUARD = 14;
+
+    /**
+     * Highest planned water surface (lakes, elevated rivers, crater lakes) within about 12 blocks
+     * of {@code (x, z)}, or {@link ColumnSample#NO_WATER}.
+     */
+    public double nearbyWaterLevel(int x, int z) {
+        double best = ColumnSample.NO_WATER;
+        int bx = x & ~3;
+        int bz = z & ~3;
+        for (int dx = -12; dx <= 12; dx += 12) {
+            for (int dz = -12; dz <= 12; dz += 12) {
+                double w = sample(bx + dx, bz + dz).waterLevel;
+                if (w != ColumnSample.NO_WATER && w > best) {
+                    best = w;
+                }
+            }
+        }
+        return best;
+    }
+
     /**
      * Terrain height at block resolution, interpolated between the 4-block grid corners exactly
      * like the noise chunk interpolates the density function, so it matches the generated ground.
@@ -398,8 +475,9 @@ public final class TerrainModel {
         double erosion = clamp(e0 - 1.4 * beltStrength, -1.0, 1.0);
 
         double reliefLand = smoothstep(-0.2, -0.1, cEff);
-        double mountainE = smoothstep(-0.2, -0.82, erosion);
-        double mountain = mountainE * reliefLand;
+        // mountains follow the low-frequency part of the erosion field; the fine octaves would
+        // otherwise switch between lowland and high mountain within a few hundred blocks
+        double mountainE = smoothstep(-0.2, -0.82, clamp(erosionNoise.fbm(wx / es, wz / es, 3) * 1.35 - 1.4 * beltStrength, -1.0, 1.0));
 
         // ---- 4. base profile ------------------------------------------------------------------
         double base = TMath.curve(cEff, PROFILE_C, PROFILE_H);
@@ -409,6 +487,18 @@ public final class TerrainModel {
         double colossal = smoothstep(0.6, 0.84, 0.5 + 0.5 * colossalNoise.fbm(wx / (es * 3.3), wz / (es * 3.3)))
             * smoothstep(-0.02, 0.28, cEff) * Math.max(beltStrength, mountainE);
         double amp = settings.mountainHeight() * (0.32 + 0.95 * rangeI) + settings.colossalHeight() * colossal;
+        // even so, a range could rise from lowland to its full height within 200 blocks, as a
+        // sheer, bullet-shaped wall; blurring the mask over a distance that grows with the range's
+        // height gives tall mountains proportionally broad foothills
+        if (erosion < 0.45) {
+            double r = (120.0 + 0.3 * amp) * hs;
+            mountainE = (2.0 * mountainE + mountainMask(wx + r, wz, es) + mountainMask(wx - r, wz, es)
+                + mountainMask(wx, wz + r, es) + mountainMask(wx, wz - r, es)) / 6.0;
+        }
+        // mountains fade out over a few hundred blocks towards the coast (judged on the raw
+        // continentalness, which island boosts do not compress), so a range ends in foothills
+        // instead of rising from the beach as a 400-block wall
+        double mountain = mountainE * reliefLand * smoothstep(-0.2, 0.12, rawC);
 
         double gA = styleA.fbm(wx / (es * 1.7), wz / (es * 1.7));
         double gB = styleB.fbm(wx / (es * 1.7) + 50.0, wz / (es * 1.7) - 20.0);
@@ -433,28 +523,35 @@ public final class TerrainModel {
             double ampPre = amp * (alpineW + ancientW * 0.62);
             double wideW = smoothstep(140.0, 460.0, ampPre);
             double hugeW = smoothstep(620.0, 1150.0, ampPre);
-            double ridges = alpineRidges.ridged(rx / ms, rz / ms, 1.7);
+            double ridges = alpineRidges.ridged(rx / ms, rz / ms, 2.0);
+            double horns = hornField(rx, rz, 760.0 * hs, 0);
             if (wideW > 0.0) {
-                ridges = lerp(wideW, ridges, alpineRidges.ridged(rx / (ms * 2.6) + 71.3, rz / (ms * 2.6) - 33.1, 1.7));
+                ridges = lerp(wideW, ridges, alpineRidges.ridged(rx / (ms * 2.6) + 71.3, rz / (ms * 2.6) - 33.1, 2.0));
+                horns = lerp(wideW, horns, hornField(rx, rz, 1700.0 * hs, 1));
             }
             if (hugeW > 0.0) {
-                ridges = lerp(hugeW, ridges, alpineRidges.ridged(rx / (ms * 5.2) - 12.9, rz / (ms * 5.2) + 55.7, 1.6));
+                ridges = lerp(hugeW, ridges, alpineRidges.ridged(rx / (ms * 5.2) - 12.9, rz / (ms * 5.2) + 55.7, 1.9));
+                horns = lerp(hugeW, horns, hornField(rx, rz, 3000.0 * hs, 2));
             }
             eroded = 0.5 + 0.5 * mountainDetail.erodedFbm(rx / (ms * 0.45), rz / (ms * 0.45), 0.35, d);
-            double alpineShape = Math.pow(clamp01((ridges - 0.12) / 0.78), 1.25) * 0.9 + (eroded - 0.5) * 0.16 * ridges + 0.05;
+            // squaring the ridge field keeps its knife-edge crests but makes the flanks concave;
+            // crests rise towards the horns and sag into cols between them, so the highest points
+            // are pyramidal summits rather than long rounded ridge tops
+            double ridgeShape = Math.pow(clamp01((ridges - 0.1) / 0.9), 2.0) * 0.84 * (0.62 + 0.38 * Math.min(1.0, horns * 1.6));
+            double alpineShape = Math.max(ridgeShape, horns) + (eroded - 0.5) * 0.12 * ridges + 0.04;
             double domes = 0.5 + 0.5 * lerp(wideW, ancientDomes.fbm(rx / (ms * 1.5), rz / (ms * 1.5)),
                 ancientDomes.fbm(rx / (ms * 3.4) + 19.0, rz / (ms * 3.4) - 7.0));
             double ancientShape = smoothstep(0.08, 0.92, domes) * 0.86 + eroded * 0.12;
             double wallShape = smoothstep(0.05, 0.95, beltLine) * (0.72 + 0.28 * ridges);
             shape = alpineShape * alpineW + ancientShape * ancientW;
             shape = lerp(wallW * 0.8, shape, Math.max(shape, wallShape));
-            shape *= 0.42 + 0.58 * valleyCut;
+            // valleys cut tall massifs less deeply, relative to their height, so their sides
+            // do not become 1000-block walls
+            shape *= 1.0 - 0.58 * (1.0 - valleyCut) * (1.0 - 0.55 * hugeW);
             meadow = smoothstep(0.22, 0.55, meadowNoise.fbm(rx / (ms * 2.2), rz / (ms * 2.2)))
                 * (1.0 - 0.6 * alpineW) * smoothstep(0.25, 0.6, mountain) * (1.0 - colossal);
             shape = lerp(meadow * 0.85, shape, 0.3 + 0.08 * eroded);
-            // round off the very top so ridge intersections do not form single-column needles
             shape = clamp01(shape);
-            shape = shape - 0.12 * smoothstep(0.72, 1.0, shape) * (shape - 0.72);
         }
         double ampEff = amp * (alpineW + ancientW * 0.62);
         double mountainHeight = ampEff * Math.pow(mountain, 1.3) * shape
@@ -475,9 +572,31 @@ public final class TerrainModel {
         double plateauHeightValue = 0.0;
         double plateauEdge = 0.0;
         if (plateauBand > 0.0) {
-            double pv = plateauNoise.fbm(rx / (1500.0 * hs), rz / (1500.0 * hs)) + 0.16;
-            double pMask = smoothstep(-0.012, 0.012, pv);
+            double ps = 1500.0 * hs;
+            double pv = plateauNoise.fbm(rx / ps, rz / ps) + 0.16;
             double pH = 45.0 + 200.0 * (0.5 + 0.5 * plateauHeight.fbm(wx / (es * 2.0), wz / (es * 2.0)));
+            double pMask;
+            if (pv > 0.2) {
+                pMask = 1.0;
+            } else if (pv < -0.3) {
+                pMask = 0.0;
+            } else {
+                // a mesa edge: a caprock cliff at most ~28 blocks high above a concave talus apron
+                // whose width grows with the plateau's height, instead of a sheer 200-block wall
+                double pvx = plateauNoise.fbm((rx + 4.0) / ps, rz / ps) + 0.16;
+                double pvz = plateauNoise.fbm(rx / ps, (rz + 4.0) / ps) + 0.16;
+                double grad = Math.sqrt((pvx - pv) * (pvx - pv) + (pvz - pv) * (pvz - pv)) / 4.0;
+                double edgeDist = pv / Math.max(grad, 1.0E-7);
+                double cap = Math.min(28.0, 0.22 * pH);
+                double talusW = Math.max(20.0, (pH - cap) * 1.05);
+                if (edgeDist >= 0.0) {
+                    pMask = 1.0;
+                } else if (edgeDist > -talusW) {
+                    pMask = (1.0 - cap / pH) * Math.pow(1.0 + edgeDist / talusW, 1.6);
+                } else {
+                    pMask = 0.0;
+                }
+            }
             double top = TMath.terrace(pH + 14.0 * hillShape * smoothstep(0.02, 0.15, pv), 13.0, 0.72);
             plateau = plateauBand * pMask;
             plateauHeightValue = plateau * top;
@@ -508,22 +627,37 @@ public final class TerrainModel {
             oceanRidge = seaFloor * smoothstep(0.82, 0.97, ridge);
         }
 
-        // deep-sea trenches: long, narrow rifts in the abyssal plains with near-vertical walls whose
-        // floors drop to about Y -230..-340; the surface rule lines them with magma and basalt and
-        // the ocean vent feature builds hydrothermal chimneys on their floors
+        // deep-sea trenches: long rifts in the abyssal plains whose floors drop to about
+        // Y -230..-340. The cross-section is a steep-sided valley: a flat floor 40-80 blocks wide,
+        // then walls that rise at up to ~58 degrees with benches and flatten towards the rim, so a
+        // trench is several hundred blocks across instead of a vertical slot. The surface rule
+        // lines them with magma and basalt; the ocean vent feature builds chimneys on the floor.
         double trench = 0.0;
         double trenchFloor = 0.0;
         double abyss = smoothstep(-0.5, -0.66, cEff);
         if (abyss > 0.0) {
-            double line = 1.0 - Math.abs(trenchNoise.fbm(wx / (3200.0 * hs), wz / (3200.0 * hs))) * 40.0;
-            if (line > 0.25) {
+            double ts = 3200.0 * hs;
+            double tv = trenchNoise.fbm(wx / ts, wz / ts);
+            if (Math.abs(tv) < 0.16) {
                 double region = smoothstep(-0.1, 0.25, trenchRegion.fbm(wx / (5200.0 * hs) + 17.0, wz / (5200.0 * hs) - 41.0));
-                trench = smoothstep(0.25, 0.9, line) * region * abyss;
-                if (trench > 0.0) {
-                    double drop = 170.0 + 100.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (1800.0 * hs) - 70.0, wz / (1800.0 * hs) + 25.0));
-                    trenchFloor = Math.max(MIN_TRENCH_FLOOR, h - drop * region * abyss);
-                    // most of the drop happens just inside the rim, giving steep walls and a flat floor
-                    h = lerp(Math.pow(trench, 0.4), h, trenchFloor);
+                if (region > 0.0) {
+                    double tvx = trenchNoise.fbm((wx + 4.0) / ts, wz / ts);
+                    double tvz = trenchNoise.fbm(wx / ts, (wz + 4.0) / ts);
+                    double grad = Math.sqrt((tvx - tv) * (tvx - tv) + (tvz - tv) * (tvz - tv)) / 4.0;
+                    double dist = Math.abs(tv) / Math.max(grad, 1.0E-7);
+                    double drop = (170.0 + 100.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (1800.0 * hs) - 70.0, wz / (1800.0 * hs) + 25.0)))
+                        * region * abyss;
+                    double floorHalf = 20.0 + 20.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (900.0 * hs) + 5.0, wz / (900.0 * hs) - 9.0));
+                    double wall = Math.max(30.0, drop * 0.8);
+                    if (dist < floorHalf + wall) {
+                        double sw = clamp01((dist - floorHalf) / wall);
+                        double f = Math.pow(1.0 - sw, 1.3);
+                        // benches every ~24 blocks of depth break up the walls
+                        double depth = TMath.terrace(drop * f, 24.0, 0.55);
+                        trenchFloor = Math.max(MIN_TRENCH_FLOOR, h - drop);
+                        h = Math.max(trenchFloor, h - depth);
+                        trench = f * smoothstep(0.0, 0.3, region * abyss);
+                    }
                 }
             }
         }
@@ -531,8 +665,12 @@ public final class TerrainModel {
         // ---- 7. wetlands ---------------------------------------------------------------------
         double swamp = smoothstep(0.55, 0.72, erosion) * smoothstep(-0.11, 0.02, cEff) * (1.0 - mountain) * (1.0 - plateau);
         if (swamp > 0.0) {
-            double wet = sl + 0.4 + 2.6 * swampNoise.fbm(x / (110.0 * hs), z / (110.0 * hs));
-            h = lerp(swamp * 0.93, h, wet);
+            // a patchwork of shallow pools just below sea level (filled by the sea-level water
+            // table) between low, grassy hummocks and mud flats
+            double pools = swampNoise.fbm(x / (110.0 * hs), z / (110.0 * hs));
+            double hummocks = Math.max(0.0, swampNoise.fbm(x / (17.0 * hs) + 40.0, z / (17.0 * hs) - 25.0));
+            double wet = sl - 0.9 + 2.4 * pools + 1.6 * hummocks;
+            h = lerp(swamp * 0.97, h, wet);
         }
 
         // ---- 8. coasts: cliffs and fjords -----------------------------------------------------
@@ -540,7 +678,10 @@ public final class TerrainModel {
         double coastCliff = 0.0;
         if (coastZone > 0.0) {
             double cc = smoothstep(0.05, 0.35, coastCliffNoise.fbm(wx / (1900.0 * hs), wz / (1900.0 * hs)));
-            coastCliff = cc * coastZone * (0.35 + 0.65 * smoothstep(0.35, -0.5, erosion)) * (1.0 - swamp);
+            // mountains reaching the coast slope down into the sea instead of being sliced into a
+            // sheer wall hundreds of blocks high
+            coastCliff = cc * coastZone * (0.35 + 0.65 * smoothstep(0.35, -0.5, erosion)) * (1.0 - swamp)
+                * (1.0 - smoothstep(0.08, 0.35, mountain));
             if (coastCliff > 0.0) {
                 // seaward of the cliff line the ground stays sea floor, landward it is at least the cliff top
                 double t = (cEff + 0.2) / 0.1;
@@ -550,14 +691,30 @@ public final class TerrainModel {
                 h = lerp(coastCliff, h, profile);
             }
         }
+        // fjords: drowned glacial valleys with a U-shaped cross-section whose width grows with the
+        // height of the mountains they cut, so their walls are steep but never a slot
         double fjord = 0.0;
-        if (mountain > 0.15 && cEff < 0.1) {
-            double coldness = smoothstep(0.1, -0.4, temperatureBase(x, z));
-            double fv = Math.abs(fjordNoise.fbm(wx / (900.0 * hs), wz / (900.0 * hs)));
-            fjord = smoothstep(0.06, 0.0, fv) * smoothstep(0.1, -0.08, cEff) * smoothstep(0.15, 0.4, mountain) * (0.35 + 0.65 * coldness);
-            if (fjord > 0.0) {
-                double floor = sl - 18.0 - 22.0 * fjord;
-                h = lerp(smoothstep(0.0, 0.55, fjord), h, Math.min(h, floor));
+        double fjordMountain = mountainE * reliefLand;
+        if (fjordMountain > 0.15 && cEff < 0.1) {
+            double strength = smoothstep(0.1, -0.08, cEff) * smoothstep(0.15, 0.4, fjordMountain);
+            double fs = 900.0 * hs;
+            double fv = fjordNoise.fbm(wx / fs, wz / fs);
+            double fvx = fjordNoise.fbm((wx + 2.0) / fs, wz / fs);
+            double fvz = fjordNoise.fbm(wx / fs, (wz + 2.0) / fs);
+            double grad = Math.sqrt((fvx - fv) * (fvx - fv) + (fvz - fv) * (fvz - fv)) / 2.0;
+            double dist = Math.abs(fv) / Math.max(grad, 1.0E-7);
+            double floor = sl - 18.0 - 22.0 * strength;
+            double floorHalf = 26.0 + 30.0 * strength;
+            double wall = Math.max(70.0, (h - floor) * 1.1);
+            if (strength > 0.0 && dist < floorHalf + wall) {
+                double coldness = smoothstep(0.1, -0.4, temperatureBase(x, z));
+                strength *= 0.35 + 0.65 * coldness;
+                double sw = clamp01((dist - floorHalf) / wall);
+                double profile = floor + (h - floor) * (1.0 - (1.0 - sw) * (1.0 - sw));
+                if (profile < h) {
+                    h = lerp(smoothstep(0.0, 0.55, strength), h, profile);
+                }
+                fjord = strength * (1.0 - sw);
             }
         }
 
@@ -586,7 +743,7 @@ public final class TerrainModel {
         double aridity = smoothstep(0.1, 0.6, baseTemp) * smoothstep(0.1, -0.5, baseHum);
         double canyonReg = smoothstep(0.32, 0.6,
             canyonRegion.fbm(wx / (es * 2.2), wz / (es * 2.2)) * 0.9 + 0.25 * aridity + 0.3 * plateau + 0.12 * (settings.canyonFrequency() - 1.0))
-            * reliefLand * (1.0 - smoothstep(0.08, 0.3, mountain)) * (1.0 - swamp);
+            * reliefLand * (1.0 - smoothstep(0.08, 0.3, mountain)) * (1.0 - swamp) * (1.0 - smoothstep(0.02, 0.25, volcano));
         if (canyonReg > 0.001) {
             double cScale = 2600.0 * hs;
             double cv = canyonNoise.fbm(wx / cScale, wz / cScale);
@@ -596,9 +753,11 @@ public final class TerrainModel {
             double dist = Math.abs(cv) / Math.max(grad, 1.0E-7);
             double halfW = (38.0 + 120.0 * (0.5 + 0.5 * canyonWidth.fbm(wx / (1600.0 * hs), wz / (1600.0 * hs)))) * Math.sqrt(canyonReg);
             if (dist < halfW) {
-                double floor = Math.max(sl - 3.0, base + 3.0 + 6.0 * smoothstep(0.0, 1.0, plains));
+                // most canyons are dry; about a third carry a shallow sea-level stream on their floor
+                boolean wet = canyonRegion.fbm(wx / (es * 0.9) + 61.0, wz / (es * 0.9) - 17.0) > 0.25;
+                double floor = Math.max(wet ? sl - 3.0 : sl + 4.0, base + 3.0 + 6.0 * smoothstep(0.0, 1.0, plains));
                 // canyon depth is limited by its width so walls stay walls, not 300-block slots
-                double relief = Math.min(h - floor, 40.0 + halfW * 1.5);
+                double relief = Math.min(h - floor, 40.0 + halfW * 0.6);
                 floor = Math.max(floor, h - relief);
                 if (relief > 18.0) {
                     double t = dist / halfW;
@@ -606,8 +765,11 @@ public final class TerrainModel {
                     if (t < 0.24) {
                         profile = floor;
                     } else {
+                        // walls rise in steps of 8-18 blocks with ledges between them, like the
+                        // benches of the Grand Canyon, instead of one sheer face
                         double wallT = (t - 0.24) / 0.76;
-                        double stepped = TMath.terrace(Math.pow(wallT, 0.75) * relief, Math.max(10.0, relief / 4.2), 0.78);
+                        double step = Math.max(8.0, Math.min(18.0, relief / 6.0));
+                        double stepped = TMath.terrace(Math.pow(wallT, 0.75) * relief, step, 0.72);
                         profile = floor + stepped;
                     }
                     double pillar = canyonPillar(x, z, halfW);
@@ -635,7 +797,9 @@ public final class TerrainModel {
         double waterLevel = ColumnSample.NO_WATER;
         double rs = settings.riverScale() * hs;
         double presence = smoothstep(-0.5, -0.18, riverPresence.fbm(x / (rs * 1.9), z / (rs * 1.9)));
-        double riverMask = presence * smoothstep(-0.16, -0.11, cEff) * (1.0 - smoothstep(0.42, 0.8, mountain)) * (1.0 - island);
+        // rivers keep out of volcanoes so they never breach a crater rim and drain a crater lake
+        double riverMask = presence * smoothstep(-0.16, -0.11, cEff) * (1.0 - smoothstep(0.42, 0.8, mountain)) * (1.0 - island)
+            * (1.0 - smoothstep(0.02, 0.25, volcano));
         if (riverMask > 0.0) {
             double rwx = x + 280.0 * riverWarpX.fbm(x / (950.0 * hs), z / (950.0 * hs));
             double rwz = z + 280.0 * riverWarpZ.fbm(x / (950.0 * hs) + 9.1, z / (950.0 * hs) - 4.4);
@@ -646,8 +810,14 @@ public final class TerrainModel {
             riverDist = Math.abs(rv) / Math.max(grad, 1.0E-7);
             double great = smoothstep(0.62, 0.86, 0.5 + 0.5 * greatRiver.fbm(x / (rs * 2.6), z / (rs * 2.6)))
                 * smoothstep(0.25, 0.6, erosion) * smoothstep(0.5, 0.0, cEff);
-            riverHalfW = settings.riverWidth() * riverMask
-                * (3.0 + 12.0 * smoothstep(0.55, -0.12, cEff) + 100.0 * great) * (1.0 - 0.55 * mountain);
+            double normalHalfW = riverMask * (3.0 + 12.0 * smoothstep(0.55, -0.12, cEff)) * (1.0 - 0.55 * mountain);
+            // great rivers are 100-200 blocks wide along their whole course and keep that width
+            // down to the sea, only narrowing where the river itself fades out
+            double greatW = smoothstep(0.0, 0.3, great);
+            double greatHalfW = (50.0 + 50.0 * (0.5 + 0.5 * greatRiver.fbm(x / (rs * 0.7) + 31.7, z / (rs * 0.7) - 12.3)))
+                * smoothstep(0.0, 0.45, riverMask);
+            riverHalfW = settings.riverWidth() * lerp(greatW, normalHalfW, greatHalfW);
+            great = greatW;
             if (riverHalfW > 1.0) {
                 double depth = Math.min(2.5 + 0.13 * riverHalfW, 16.0);
                 riverLevel = Math.floor(sl + Math.max(0.0, base - 70.0) * 0.75);
@@ -694,12 +864,12 @@ public final class TerrainModel {
                 lake = sc.lakeResult;
                 lakeType = sc.lakeType;
                 lakeLevel = sc.lakeLevel;
-                if (lakeLevel > sl + 0.5 && sc.lakeInside) {
+                if (lakeLevel > sl + 0.5 && sc.lakeInside && !(dry && riverValley > 0.15)) {
                     waterLevel = Math.max(waterLevel, lakeLevel);
                 }
             }
         }
-        if (crater > 0.0 && craterWater > sl && h < craterWater) {
+        if (crater > 0.0 && craterWater > sl && h < craterWater && h >= uncarved - 1.0) {
             waterLevel = Math.max(waterLevel, craterWater);
             lakeType = LakeType.CRATER;
             lake = Math.max(lake, crater);
@@ -745,8 +915,9 @@ public final class TerrainModel {
         out.oceanRidge = oceanRidge;
         out.trailDistance = trailDistance(x, z);
         out.overhangTop = Double.NaN;
+        out.bigOverhangRim = Double.NaN;
         out.beach = (1.0 - coastCliff) * bump(h, sl - 3.0, sl + 1.0, sl + 5.0) * smoothstep(0.0, -0.16, cEff);
-        out.stream = streamFactor(vRaw, mountain, hillW, erosion, x, z);
+        out.stream = dry || aridity > 0.6 ? 0.0 : streamFactor(vRaw, mountain, hillW, erosion, x, z);
         out.cliff = clamp01(Math.max(Math.max(plateauEdge * 1.2, canyonWall), Math.max(coastCliff * smoothstep(sl, sl + 20.0, h),
             mountain * alpineW * smoothstep(0.5, 0.92, shape) * 0.7)));
         out.steepness = clamp01(Math.max(out.cliff, mountain * (0.3 + 0.7 * alpineW) * smoothstep(0.25, 0.8, shape)));
@@ -1278,9 +1449,11 @@ public final class TerrainModel {
     private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1}};
 
     /**
-     * Deterministic waterfall site for a grid cell, or {@code null}. A site exists where a cliff
-     * or a steep valley side drops at least 14 blocks within 12 blocks in a humid enough climate.
-     * The same computation is used by the waterfall feature and by {@code /terrahaul find}.
+     * Deterministic waterfall for a grid cell, or {@code null}. A waterfall needs a near-vertical
+     * drop of at least 12 blocks (a cliff, canyon step, mesa rim, fjord or sea cliff) in a climate
+     * that is not too dry. The whole plan (lip, curtain, plunge pool, feeding stream) is derived
+     * from the terrain model, so the waterfall feature always builds what {@code /terrahaul find}
+     * reports.
      */
     public WaterfallSite waterfallSite(int cellX, int cellZ) {
         long key = SeedMixer.hash2(siteSeed ^ 0xFA11L, cellX, cellZ);
@@ -1297,55 +1470,118 @@ public final class TerrainModel {
 
     private WaterfallSite computeWaterfallSite(int cellX, int cellZ) {
         long seedW = siteSeed ^ 0xFA11L;
-        if (SeedMixer.cellUnit(seedW, cellX, cellZ, 0) > 0.55) {
+        if (SeedMixer.cellUnit(seedW, cellX, cellZ, 0) > 0.6) {
             return NO_WATERFALL;
         }
         ColumnSample s = new ColumnSample();
         Scratch sc = scratch.get();
-        int bestX = 0;
-        int bestZ = 0;
-        int bestDir = -1;
-        double bestDrop = 0.0;
-        double bestTop = 0.0;
-        double bestBottom = 0.0;
-        // a few candidate points per cell, keep the one with the strongest drop
-        for (int attempt = 0; attempt < 4; attempt++) {
+        WaterfallSite best = null;
+        double bestScore = 0.0;
+        double[] prof = new double[40];
+        for (int attempt = 0; attempt < 6; attempt++) {
             int px = (int) ((cellX + 0.1 + 0.8 * SeedMixer.cellUnit(seedW, cellX, cellZ, 1 + attempt * 2)) * WATERFALL_CELL);
             int pz = (int) ((cellZ + 0.1 + 0.8 * SeedMixer.cellUnit(seedW, cellX, cellZ, 2 + attempt * 2)) * WATERFALL_CELL);
             computeColumn(px, pz, s, true, sc);
-            if (s.height < seaLevel + 10 || s.humidity < -0.35 || s.baseTemperature > 0.75 && s.humidity < 0.0
+            if (s.height < seaLevel + 8 || s.humidity < -0.3 || s.baseTemperature > 0.75 && s.humidity < 0.0
                 || s.waterLevel != ColumnSample.NO_WATER || s.river > 0.0 || s.lake > 0.0 || s.volcano > 0.3
-                || s.cliff < 0.25 && s.steepness < 0.35) {
+                || s.cliff < 0.15 && s.steepness < 0.3 && s.canyon < 0.2 && s.coastCliff < 0.2 && s.plateau < 0.2) {
                 continue;
             }
-            double top = s.height;
-            for (int d = 0; d < DIRS.length; d++) {
-                double len = d < 4 ? 12.0 : 8.5;
-                int qx = px + (int) (DIRS[d][0] * len);
-                int qz = pz + (int) (DIRS[d][1] * len);
-                computeColumn(qx, qz, s, true, sc);
-                double drop = top - Math.max(s.height, s.waterLevel == ColumnSample.NO_WATER ? s.height : s.waterLevel);
-                if (drop > bestDrop) {
-                    bestDrop = drop;
-                    bestDir = d;
-                    bestX = px;
-                    bestZ = pz;
-                    bestTop = top;
-                    bestBottom = Math.max(s.height, seaLevel - 1.0);
+            double humidity = s.humidity;
+            for (int d = 0; d < 4; d++) {
+                int dx = DIRS[d][0];
+                int dz = DIRS[d][1];
+                // height profile from 12 blocks behind to 27 blocks beyond the candidate
+                for (int k = -12; k < 28; k++) {
+                    prof[k + 12] = interpolatedHeight(px + dx * k, pz + dz * k);
+                }
+                WaterfallSite w = planWaterfall(prof, px, pz, dx, dz, humidity, seedW, cellX, cellZ);
+                if (w != null && w.score > bestScore) {
+                    bestScore = w.score;
+                    best = w;
                 }
             }
         }
-        if (bestDir < 0 || bestDrop < 14.0) {
-            return NO_WATERFALL;
+        return best == null ? NO_WATERFALL : best;
+    }
+
+    /** Fits a waterfall to a height profile along one direction, or returns {@code null}. */
+    private WaterfallSite planWaterfall(double[] prof, int px, int pz, int dx, int dz, double humidity, long seedW, int cellX, int cellZ) {
+        final int o = 12;
+        double t0 = prof[o];
+        // the ground behind the lip must not fall away (the stream comes from there)
+        for (int k = 1; k <= 8; k++) {
+            if (prof[o - k] < t0 - 2.0 || prof[o - k] > t0 + 30.0) {
+                return null;
+            }
+        }
+        // the lip: the last column of the high ground
+        int lip = 0;
+        double top = t0;
+        while (lip < 6 && prof[o + lip + 1] >= t0 - 1.5) {
+            lip++;
+            top = Math.min(top, prof[o + lip]);
+        }
+        int face = lip + 1;
+        if (prof[o + face] > top - 3.0) {
+            return null;
+        }
+        // the foot: where the drop flattens out
+        int foot = -1;
+        for (int k = face; k < 26; k++) {
+            if (prof[o + k] < top - 10.0 && prof[o + k] - prof[o + k + 1] < 1.0) {
+                foot = k;
+                break;
+            }
+        }
+        if (foot < 0) {
+            return null;
+        }
+        double bottom = prof[o + foot];
+        double drop = top - bottom;
+        // only near-vertical drops: the face may span at most a few blocks
+        if (drop < 12.0 || foot - face > 1 + (int) (drop / 10.0)) {
+            return null;
         }
         WaterfallSite w = new WaterfallSite();
-        w.x = bestX;
-        w.z = bestZ;
-        w.dirX = DIRS[bestDir][0];
-        w.dirZ = DIRS[bestDir][1];
-        w.top = bestTop;
-        w.bottom = bestBottom;
-        w.width = 1 + (int) (SeedMixer.cellUnit(seedW, cellX, cellZ, 20) * (bestDrop > 60 ? 4 : 2));
+        w.dirX = dx;
+        w.dirZ = dz;
+        w.x = px + dx * lip;
+        w.z = pz + dz * lip;
+        w.top = Math.floor(top);
+        w.bottom = Math.floor(bottom);
+        w.faceDist = foot - lip;
+        double wet = Math.max(0.0, humidity + 0.3);
+        int width = (int) Math.round(3.0 + drop / 9.0 + 5.0 * wet * SeedMixer.cellUnit(seedW, cellX, cellZ, 21));
+        width = Math.min(13, width) | 1;
+        // the cliff must carry the whole width: narrow the fall where the lip or the drop ends
+        int half = width / 2;
+        int px2 = -dz;
+        int pz2 = dx;
+        while (half > 0) {
+            boolean ok = true;
+            for (int side = -1; side <= 1; side += 2) {
+                int lx = w.x + px2 * half * side;
+                int lz = w.z + pz2 * half * side;
+                double lipH = interpolatedHeight(lx, lz);
+                double footH = interpolatedHeight(lx + dx * w.faceDist, lz + dz * w.faceDist);
+                if (Math.abs(lipH - top) > 2.5 || footH > bottom + 4.0) {
+                    ok = false;
+                }
+            }
+            if (ok) {
+                break;
+            }
+            half--;
+        }
+        w.width = half * 2 + 1;
+        w.poolSurface = (int) w.bottom;
+        w.poolAcross = half + 2.5 + Math.min(4.0, drop * 0.05);
+        w.poolAlong = Math.min(9.0, 3.5 + drop * 0.06);
+        w.poolDepth = (int) Math.min(6.0, 2.0 + drop / 25.0);
+        w.channel = 8 + (int) (6.0 * SeedMixer.cellUnit(seedW, cellX, cellZ, 22));
+        w.seed = SeedMixer.hash2(seedW, cellX, cellZ);
+        w.score = drop * w.width * (1.0 + wet);
         return w;
     }
 
@@ -1375,9 +1611,11 @@ public final class TerrainModel {
     private FormationSite computeFormationSite(int cellX, int cellZ) {
         long seedF = siteSeed ^ 0xF0F0L;
         double roll = SeedMixer.cellUnit(seedF, cellX, cellZ, 0);
-        if (roll > 0.45) {
+        // dry red-rock and desert country gets formations in 70% of cells, elsewhere 45%
+        if (roll > 0.7) {
             return NO_FORMATION;
         }
+        boolean common = roll <= 0.45;
         int px = (int) ((cellX + 0.2 + 0.6 * SeedMixer.cellUnit(seedF, cellX, cellZ, 1)) * FORMATION_CELL);
         int pz = (int) ((cellZ + 0.2 + 0.6 * SeedMixer.cellUnit(seedF, cellX, cellZ, 2)) * FORMATION_CELL);
         ColumnSample s = new ColumnSample();
@@ -1386,11 +1624,13 @@ public final class TerrainModel {
         boolean dry = s.baseTemperature > 0.4 && s.humidity < 0.15;
         int type = 0;
         if (s.height < seaLevel - 2 && s.height > seaLevel - 16 && s.coastCliff > 0.15) {
-            type = SEA_STACK;
+            type = common ? SEA_STACK : 0;
         } else if (s.height < seaLevel + 1 || s.waterLevel != ColumnSample.NO_WATER || s.river > 0.0 || s.lake > 0.0 || s.volcano > 0.2) {
             return NO_FORMATION;
         } else if (dry && (s.plateau > 0.2 || s.canyon > 0.1 || s.erosion > -0.4) && s.steepness < 0.5) {
-            type = pick < 0.55 ? ARCH : HOODOO;
+            type = pick < 0.4 ? ARCH : HOODOO;
+        } else if (!common) {
+            return NO_FORMATION;
         } else if ((s.mountain > 0.3 || s.cliff > 0.3) && s.peakness < 0.7) {
             type = pick < 0.6 ? SPIRE : 0;
         } else if (s.coastCliff > 0.3 && s.height > seaLevel + 4) {
@@ -1454,14 +1694,29 @@ public final class TerrainModel {
         public long seed;
     }
 
+    /**
+     * A planned waterfall. {@code (x, z)} is the lip column, the last column of the high ground,
+     * and {@code (dirX, dirZ)} the direction of the fall (a unit axis vector). The curtain hangs
+     * in the next column; the plunge pool lies at the foot, {@code faceDist} columns out.
+     */
     public static final class WaterfallSite {
         public int x;
         public int z;
         public int dirX;
         public int dirZ;
+        /** Y of the lip's top block, which is also the stream's water surface. */
         public double top;
         public double bottom;
         public int width;
+        public int faceDist;
+        public int poolSurface;
+        public double poolAcross;
+        public double poolAlong;
+        public int poolDepth;
+        /** Length of the stream feeding the lip. */
+        public int channel;
+        public long seed;
+        double score;
     }
 
     public static final class LakeSite {

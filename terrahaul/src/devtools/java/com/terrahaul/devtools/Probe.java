@@ -16,8 +16,8 @@ public final class Probe {
         ColumnSample s = new ColumnSample();
         for (int x = x0; x <= x1; x += step) {
             model.sampleInto(x, z, s);
-            System.out.printf(Locale.ROOT, "x=%d h=%.1f unc=%.1f mtn=%.2f peak=%.2f alp=%.2f wall=%.2f plat=%.2f cany=%.2f riv=%.2f valley=%.2f lake=%.2f volc=%.2f coast=%.2f E=%.2f C=%.2f cliff=%.2f%n",
-                x, s.height, s.uncarvedHeight, s.mountain, s.peakness, s.alpine, s.wall, s.plateau, s.canyon, s.river, s.riverValley, s.lake, s.volcano, s.coastCliff, s.erosion, s.continentalness, s.cliff);
+            System.out.printf(Locale.ROOT, "x=%d h=%.1f unc=%.1f mtn=%.2f peak=%.2f alp=%.2f wall=%.2f plat=%.2f cany=%.2f riv=%.2f valley=%.2f lake=%.2f volc=%.2f coast=%.2f E=%.2f C=%.2f cliff=%.2f fjord=%.2f isl=%.2f rawC=%.2f water=%.1f%n",
+                x, s.height, s.uncarvedHeight, s.mountain, s.peakness, s.alpine, s.wall, s.plateau, s.canyon, s.river, s.riverValley, s.lake, s.volcano, s.coastCliff, s.erosion, s.continentalness, s.cliff, s.fjord, s.island, s.rawContinentalness, s.waterLevel);
         }
     }
 }

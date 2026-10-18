@@ -89,7 +89,7 @@ def main(vanilla):
     write('terrahaul/worldgen/density_function/terrain/density.json',
           {"type": "minecraft:cache_once", "argument": terrain("density")})
     for out in ["preliminary", "continentalness", "erosion", "weirdness", "temperature", "humidity",
-                "depth", "surface_height", "cave_allowance"]:
+                "depth", "surface_height", "cave_allowance", "cavern_allowance"]:
         write(f'terrahaul/worldgen/density_function/terrain/{out}.json', terrain(out))
 
     T = "terrahaul:terrain/density"
@@ -98,12 +98,18 @@ def main(vanilla):
     cave_guard = add(1.5, mul(-3.0, "terrahaul:terrain/cave_allowance"))
     write('terrahaul/worldgen/density_function/caves/guard.json', {"type": "minecraft:cache_once", "argument": cave_guard})
     G = "terrahaul:caves/guard"
+    # positive where large caverns must not open: also within 40 blocks of the surface (measured
+    # sideways as well as down), so caverns never hollow the ground into floating slabs
+    cavern_guard = add(1.5, mul(-3.0, "terrahaul:terrain/cavern_allowance"))
+    write('terrahaul/worldgen/density_function/caves/cavern_guard.json', {"type": "minecraft:cache_once", "argument": cavern_guard})
+    CG = "terrahaul:caves/cavern_guard"
 
     # vanilla underground cave expression with the Terrahaul terrain distance in place of
     # sloped_cheese: cheese caverns, cave layers, entrances, 2D spaghetti and pillars
     cheese = add(mul(4.0, {"type": "minecraft:square", "argument": noise("minecraft:cave_layer", 1.0, 8.0)}),
                  add(clamp(add(0.27, noise("minecraft:cave_cheese", 1.0, 0.6666666666666666)), -1.0, 1.0),
                      clamp(add(1.5, mul(-0.64, T)), 0.0, 0.5)))
+    cheese = fmax(cheese, CG)
     underground = fmax(
         fmin(fmin(cheese, "minecraft:overworld/caves/entrances"),
              add("minecraft:overworld/caves/spaghetti_2d", "minecraft:overworld/caves/spaghetti_roughness_function")),
