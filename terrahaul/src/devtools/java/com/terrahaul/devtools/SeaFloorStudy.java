@@ -73,7 +73,7 @@ public final class SeaFloorStudy {
             }
             case "stats" -> stats(model);
             case "grottos" -> {
-                // census of grotto sites in a square around the origin; renders the first hidden one
+                // census of grotto sites in a square around the origin; renders the nearest hidden one and swim-through
                 int half = args.length > 3 ? Integer.parseInt(args[3]) : 5000;
                 GrottoPlan plan = GrottoPlan.of(planner);
                 int sites = 0;
@@ -81,6 +81,7 @@ public final class SeaFloorStudy {
                 double minMargin = Double.MAX_VALUE;
                 java.util.Map<String, Integer> kinds = new java.util.TreeMap<>();
                 GrottoPlan.Grotto firstDome = null;
+                GrottoPlan.Grotto firstSwim = null;
                 long t0 = System.nanoTime();
                 int cells = 0;
                 for (int cx = -half / GrottoPlan.CELL; cx < half / GrottoPlan.CELL; cx++) {
@@ -93,6 +94,12 @@ public final class SeaFloorStudy {
                         sites++;
                         kinds.merge(g.kind, 1, Integer::sum);
                         minMargin = Math.min(minMargin, g.margin);
+                        if (g.swim) {
+                            kinds.merge("swim-through", 1, Integer::sum);
+                            if (firstSwim == null || Math.hypot(g.mx, g.mz) < Math.hypot(firstSwim.mx, firstSwim.mz)) {
+                                firstSwim = g;
+                            }
+                        }
                         if (g.dome) {
                             domes++;
                             if (firstDome == null || Math.hypot(g.mx, g.mz) < Math.hypot(firstDome.mx, firstDome.mz)) {
@@ -108,10 +115,18 @@ public final class SeaFloorStudy {
                     int[] f = firstDome.front();
                     study(planner, dir, "hidden_grotto", f[0], f[2], 96, new TerrainFinder.Result(f[0], f[1], f[2], "hidden_grotto"));
                 }
+                if (firstSwim != null) {
+                    int[] f = firstSwim.front();
+                    study(planner, dir, "swim_through", f[0], f[2], 96, new TerrainFinder.Result(f[0], f[1], f[2], "swim_through"));
+                }
             }
             case "perf" -> perf(planner);
             default -> throw new IllegalArgumentException("unknown mode " + mode);
         }
+    }
+
+    static boolean isGrotto(String label) {
+        return label.endsWith("grotto") || label.equals("swim_through");
     }
 
     static void stats(TerrainModel model) {
@@ -267,8 +282,8 @@ public final class SeaFloorStudy {
             double l = Math.hypot(dx, dz);
             dx /= l;
             dz /= l;
-            boolean facing = found.label().equals("coral_reef") || found.label().endsWith("grotto");
-            if (found.label().endsWith("grotto")) {
+            boolean facing = found.label().equals("coral_reef") || isGrotto(found.label());
+            if (isGrotto(found.label())) {
                 for (GrottoPlan.Grotto g : GrottoPlan.of(planner).near(found.x() & ~15, found.z() & ~15)) {
                     if (g.front()[0] == found.x() && g.front()[2] == found.z()) {
                         dx = g.ux;
@@ -281,7 +296,7 @@ public final class SeaFloorStudy {
             ImageIO.write(area.perspective(found.x() + 0.5 - dx * back, camY, found.z() + 0.5 - dz * back, dx, dz, facing ? 2.0 : -14.0, 640, 360),
                 "png", new File(dir, name + "_view.png"));
         }
-        if (found != null && found.label().endsWith("grotto")) {
+        if (found != null && isGrotto(found.label())) {
             GrottoPlan plan = GrottoPlan.of(planner);
             for (GrottoPlan.Grotto g : plan.near(found.x() & ~15, found.z() & ~15)) {
                 int[] f = g.front();
@@ -289,7 +304,7 @@ public final class SeaFloorStudy {
                     continue;
                 }
                 System.out.printf(Locale.ROOT, "grotto %s%s: mouth %.0f %.0f dir %.2f %.2f floor %d opening %dx%.1f mouth plane %d tunnel %d chamber %.1f x %.1f x %.1f (floor %d) roof margin %.1f%n",
-                    g.kind, g.dome ? " (hidden, air dome)" : "", g.mx, g.mz, g.ux, g.uz, g.floor, g.ho, 2 * g.hw, g.um, g.lt, 2 * g.ra, 2 * g.rv, 2 * g.ry, g.chamberFloor, g.margin);
+                    g.kind, g.dome ? " (hidden, air dome)" : g.swim ? " (swim-through, far mouth at " + g.farMouth + ")" : "", g.mx, g.mz, g.ux, g.uz, g.floor, g.ho, 2 * g.hw, g.um, g.lt, 2 * g.ra, 2 * g.rv, 2 * g.ry, g.chamberFloor, g.margin);
                 int uMax = (int) Math.ceil(g.chamberU() + g.ra) + 8;
                 ImageIO.write(area.axis(g.mx, g.mz, g.ux, g.uz, -12, uMax, g.floor - 6, Math.max(g.floor + 34, planner.surf + 10), 6), "png",
                     new File(dir, name + "_axis.png"));

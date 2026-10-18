@@ -160,5 +160,5 @@ tasks.register('seaFloorStudy', JavaExec) {
     classpath = sourceSets.devtools.runtimeClasspath
     mainClass = 'com.terrahaul.devtools.SeaFloorStudy'
     jvmArgs '-Xmx3G', '-Djava.awt.headless=true'
-    args = (project.findProperty('args') ?: '12345 build/seafloor scan 0 0 96').toString().split(' ').toList()
+    args = (project.findProperty('args') ?: '12345 build/seafloor stats').toString().split(' ').toList()
 }

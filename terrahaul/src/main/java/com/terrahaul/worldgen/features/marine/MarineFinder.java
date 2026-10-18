@@ -18,7 +18,8 @@ import java.util.function.BooleanSupplier;
  *   <li>{@code seagrass_meadow}: above a seagrass meadow;</li>
  *   <li>{@code rocky_seabed}: next to rock ledges with boulders around;</li>
  *   <li>{@code sea_grotto}: in front of the mouth of an underwater grotto (label
- *       {@code hidden_grotto} for one with an air dome and beach inside).</li>
+ *       {@code hidden_grotto} for one with an air dome and beach inside, {@code swim_through} for
+ *       an arch through a ridge that opens on its far side).</li>
  * </ul>
  */
 public final class MarineFinder {
@@ -186,7 +187,7 @@ public final class MarineFinder {
                         if (d < bestD) {
                             bestD = d;
                             int[] f = g.front();
-                            best = new TerrainFinder.Result(f[0], f[1], f[2], g.dome ? "hidden_grotto" : "sea_grotto");
+                            best = new TerrainFinder.Result(f[0], f[1], f[2], g.dome ? "hidden_grotto" : g.swim ? "swim_through" : "sea_grotto");
                         }
                     }
                 }

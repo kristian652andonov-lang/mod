@@ -109,7 +109,7 @@ public final class ReefRaster {
         this.surf = p.surf;
         this.crest = p.crest;
         this.coralTop = p.coralTop;
-        this.grottos = GrottoPlan.of(p).near(v.coreMinX, v.coreMinZ);
+        this.grottos = GrottoPlan.of(p).nearCorridors(v);
     }
 
     private boolean blocksGrotto(double x, double z, double margin) {

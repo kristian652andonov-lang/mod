@@ -59,7 +59,7 @@ public final class RockRaster {
         this.v = v;
         this.p = v.planner();
         this.surf = p.surf;
-        this.grottos = GrottoPlan.of(p).near(v.coreMinX, v.coreMinZ);
+        this.grottos = GrottoPlan.of(p).nearCorridors(v);
     }
 
     private boolean blocksGrotto(double x, double z, double margin) {

@@ -20,11 +20,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * leads into a domed chamber with a sandy floor, lit by glowing sea pickles and glow lichen; at
  * warm mouths coral grows on the rim, at cool ones algae. About a third of the grottos near the
  * surface are hidden grottos: the tunnel climbs into a chamber whose dome rises above sea level,
- * holding a pocket of air over a small sand beach, like the Blue Grotto of Capri. Pure Java.
+ * holding a pocket of air over a small sand beach, like the Blue Grotto of Capri. Where the face
+ * belongs to a narrow ridge (a spur of a seamount or an island), the tunnel instead runs straight
+ * through it and opens on the far side: a natural arch to swim through. Pure Java.
  * <p>
  * Nothing may float, so the planner only accepts a grotto when the terrain model puts thick rock
  * all round it: a roof that thickens from the mouth inwards to 7 blocks or more (more under cliffs,
- * whose 3D detail can eat into the rock), side walls at least 3 blocks thick and solid rock behind
+ * whose 3D detail can eat into the rock; over a swim-through it thickens from both portals to 5 or
+ * more), side walls at least 3 blocks thick and solid rock behind
  * and around the chamber. Shapes too big for the rock are shrunk until they fit or rejected. The
  * features add two runtime guards on top: they never carve next to an existing air pocket (a land
  * cave), and never under a roof that the real world made thinner than planned.
@@ -82,6 +85,12 @@ public final class GrottoPlan {
         public double chamberY;
         /** Hidden grotto: the chamber dome rises above sea level and holds air. */
         public boolean dome;
+        /**
+         * Swim-through: the tunnel runs straight through a narrow ridge and opens on its far
+         * side, at {@link #farMouth} along the axis; there is no chamber.
+         */
+        public boolean swim;
+        public int farMouth;
         /** Smallest roof margin the planner found (blocks of rock beyond the minimum). */
         public double margin;
         public long seed;
@@ -151,7 +160,7 @@ public final class GrottoPlan {
             int pz = (int) Math.floor((cz + 0.1 + 0.8 * SeedMixer.cellUnit(seed, cx, cz, 2 + 2 * a)) * CELL);
             Grotto g = candidate(px, pz);
             if (g != null) {
-                double score = g.ra * g.rv + 3.0 * Math.min(g.margin, 6.0) + (g.kind.equals("slope") ? 0.0 : 20.0) + (g.dome ? 15.0 : 0.0);
+                double score = g.ra * g.rv + 3.0 * Math.min(g.margin, 6.0) + (g.kind.equals("slope") ? 0.0 : 20.0) + (g.dome ? 15.0 : 0.0) + (g.swim ? 60.0 : 0.0);
                 if (score > bestScore) {
                     bestScore = score;
                     best = g;
@@ -247,6 +256,12 @@ public final class GrottoPlan {
             cliffMax = Math.max(cliffMax, q.cliff);
         }
         t.rimSpecies = temperature > 0.42 ? p.species((int) mx, (int) mz, sl - t.floor, unit(t.seed, 7), null) : -1;
+        // swim-through: behind a narrow ridge the ground drops to the tunnel floor again, so the
+        // tunnel can run straight through the ridge like an arch and open on its far side
+        Grotto swim = swimThrough(t, cliffMax);
+        if (swim != null) {
+            return swim;
+        }
         // hidden grotto: the tunnel climbs into a chamber that holds air under its dome
         if (unit(t.seed, 8) < 0.35 && t.floor >= sl - 16) {
             Grotto d = copy(t);
@@ -263,6 +278,100 @@ public final class GrottoPlan {
         t.chamberFloor = t.floor - 1;
         t.chamberY = t.chamberFloor + t.ry;
         return fit(t, cliffMax) ? t : null;
+    }
+
+    private Grotto swimThrough(Grotto t, double cliffMax) {
+        int exit = -1;
+        for (int u = t.um + 6; u <= t.um + 26; u++) {
+            if (h(t.mx + t.ux * u, t.mz + t.uz * u) < t.floor + 0.5) {
+                exit = u;
+                break;
+            }
+        }
+        if (exit < 0) {
+            return null;
+        }
+        // open sea beyond the far portal
+        double ex = t.mx + t.ux * (exit + 3);
+        double ez = t.mz + t.uz * (exit + 3);
+        ColumnSample q = model.sample(((int) Math.floor(ex) + 2) & ~3, ((int) Math.floor(ez) + 2) & ~3);
+        if (!q.isSea(sl) || h(ex, ez) > t.floor + 0.5) {
+            return null;
+        }
+        Grotto w = copy(t);
+        w.swim = true;
+        w.ra = 0.0;
+        w.rv = 0.0;
+        w.ry = 0.0;
+        w.chamberFloor = t.floor;
+        w.chamberY = t.floor;
+        for (int tries = 0; tries < 6; tries++) {
+            // the portals: where the rock over the arch first and last reaches the lintel thickness
+            double lintel = w.floor + w.ho + 2.5;
+            w.um = -1;
+            w.farMouth = -1;
+            for (int u = 0; u < exit; u++) {
+                if (h(t.mx + t.ux * u, t.mz + t.uz * u) >= lintel) {
+                    if (w.um < 0) {
+                        w.um = u;
+                    }
+                    w.farMouth = u;
+                }
+            }
+            if (w.um < 0 || w.um > 12) {
+                return null;
+            }
+            w.lt = exit - w.um;
+            double margin = checkSwim(w, cliffMax);
+            if (margin >= 0.0) {
+                w.margin = margin;
+                w.active = true;
+                return w;
+            }
+            if (margin == Double.NEGATIVE_INFINITY || w.ho <= 3 && w.hw <= 1.5) {
+                return null;
+            }
+            w.ho = Math.max(3, w.ho - 1);
+            w.hw = Math.max(1.5, w.hw - 0.5);
+        }
+        return null;
+    }
+
+    /**
+     * Rock margin over a swim-through: the roof thickens from both portals towards the middle (to
+     * at least 5 blocks plus an allowance for cliff detail), and the side walls stay 3 blocks thick.
+     */
+    private double checkSwim(Grotto t, double cliffMax) {
+        if (t.farMouth - t.um < 4) {
+            return -1.0;
+        }
+        double vx = -t.uz;
+        double vz = t.ux;
+        double roof = 5.0 + 8.0 * cliffMax;
+        double min = Double.MAX_VALUE;
+        double ceil = t.floor + t.ho;
+        for (int u = t.um; u <= t.farMouth; u++) {
+            int k = Math.min(u - t.um, t.farMouth - u);
+            for (double v = -Math.ceil(t.hw + 1.0); v <= Math.ceil(t.hw + 1.0); v += 1.0) {
+                double x = t.mx + t.ux * u + vx * v;
+                double z = t.mz + t.uz * u + vz * v;
+                ColumnSample s = model.sample(((int) Math.floor(x) + 2) & ~3, ((int) Math.floor(z) + 2) & ~3);
+                if (s.lake > 0.0 || s.river > 0.0 || s.waterLevel != ColumnSample.NO_WATER) {
+                    return Double.NEGATIVE_INFINITY;
+                }
+                double margin = h(x, z) - ceil - Math.min(roof, 1.5 + 1.2 * k) - 1.0;
+                if (Math.abs(v) >= Math.ceil(t.hw) - 0.5) {
+                    double sx = x + vx * Math.signum(v) * 3.0;
+                    double sz = z + vz * Math.signum(v) * 3.0;
+                    margin = Math.min(margin, h(sx, sz) - (ceil + 1.5));
+                }
+                min = Math.min(min, margin);
+                if (margin < 0.0) {
+                    return margin;
+                }
+            }
+        }
+        return min;
     }
 
     private static Grotto copy(Grotto t) {
@@ -421,7 +530,7 @@ public final class GrottoPlan {
             }
         }
         // chamber: an ellipsoid over a flat floor, its outline roughened by noise
-        if (!carved && y >= t.chamberFloor) {
+        if (!carved && !t.swim && y >= t.chamberFloor) {
             double cu = (u - t.chamberU()) / t.ra;
             double cv = v / t.rv;
             double cy = (y + 0.5 - t.chamberY) / t.ry;
@@ -450,7 +559,9 @@ public final class GrottoPlan {
     public static boolean inCorridor(Grotto t, double x, double z, double margin) {
         double u = t.u(x, z);
         double v = t.v(x, z);
-        return u >= -10.0 - margin && u <= t.um + 1.0 + margin && Math.abs(v) <= t.hw + 4.0 + margin;
+        boolean front = u >= -10.0 - margin && u <= t.um + 1.0 + margin;
+        boolean back = t.swim && u >= t.farMouth - 1.0 - margin && u <= t.um + t.lt + 10.0 + margin;
+        return (front || back) && Math.abs(v) <= t.hw + 4.0 + margin;
     }
 
     /** True if a grotto may reach the chunk at {@code (minX, minZ)}. */
@@ -464,18 +575,41 @@ public final class GrottoPlan {
      * rim of the mouth.
      */
     public void build(MarineVolume vol) {
-        for (Grotto t : near(vol.coreMinX, vol.coreMinZ)) {
+        for (Grotto t : near(vol)) {
             build(vol, t);
         }
     }
 
     /** The grottos that may reach the chunk at {@code (minX, minZ)} (including a margin of one block). */
     public java.util.List<Grotto> near(int minX, int minZ) {
+        return near(minX, minZ, minX + 15, minZ + 15, 0);
+    }
+
+    /** The grottos that may reach the core of a volume (including a margin of one block). */
+    public java.util.List<Grotto> near(MarineVolume v) {
+        return near(v.coreMinX, v.coreMinZ, v.coreMinX + v.coreSizeX - 1, v.coreMinZ + v.coreSizeZ - 1, 0);
+    }
+
+    /**
+     * The grottos whose mouth corridors may matter to objects planned for the core of a volume:
+     * objects reaching up to 26 blocks, whose sites lie up to 26 blocks from the core, around
+     * corridors reaching up to 56 blocks from the mouth. Every chunk that plans an object must see
+     * the same grottos, or the object would be cut at a chunk border.
+     */
+    public java.util.List<Grotto> nearCorridors(MarineVolume v) {
+        return near(v.coreMinX, v.coreMinZ, v.coreMinX + v.coreSizeX - 1, v.coreMinZ + v.coreSizeZ - 1, CORRIDOR_EXTRA);
+    }
+
+    /** Extra distance {@link #nearCorridors} looks beyond {@link #REACH}. */
+    public static final int CORRIDOR_EXTRA = 64;
+
+    private java.util.List<Grotto> near(int minX, int minZ, int maxX, int maxZ, int extra) {
+        int r = REACH + 1 + extra;
         java.util.List<Grotto> list = new java.util.ArrayList<>(2);
-        for (int cx = Math.floorDiv(minX - REACH - 1, CELL); cx <= Math.floorDiv(minX + 16 + REACH, CELL); cx++) {
-            for (int cz = Math.floorDiv(minZ - REACH - 1, CELL); cz <= Math.floorDiv(minZ + 16 + REACH, CELL); cz++) {
+        for (int cx = Math.floorDiv(minX - r, CELL); cx <= Math.floorDiv(maxX + r, CELL); cx++) {
+            for (int cz = Math.floorDiv(minZ - r, CELL); cz <= Math.floorDiv(maxZ + r, CELL); cz++) {
                 Grotto t = grotto(cx, cz);
-                if (t != null && t.mx + REACH + 1 >= minX && t.mx - REACH - 1 <= minX + 15 && t.mz + REACH + 1 >= minZ && t.mz - REACH - 1 <= minZ + 15) {
+                if (t != null && t.mx + r >= minX && t.mx - r <= maxX && t.mz + r >= minZ && t.mz - r <= maxZ) {
                     list.add(t);
                 }
             }
@@ -572,7 +706,7 @@ public final class GrottoPlan {
 
     /** Coral (warm water) or algae (cool water) on the rock around the mouth. */
     private void rim(MarineVolume vol, Grotto t, int x, int z, double u, int bottom, int top, long salt) {
-        if (Math.abs(u - t.um) > 2.5) {
+        if (Math.abs(u - t.um) > 2.5 && !(t.swim && Math.abs(u - t.farMouth) <= 2.5)) {
             return;
         }
         for (int y = bottom; y <= Math.min(top, p.surf); y++) {
