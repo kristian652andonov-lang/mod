@@ -1,6 +1,8 @@
 package com.terrahaul.client.dev;
 
 import com.terrahaul.Terrahaul;
+import com.terrahaul.client.MemoryHint;
+import com.terrahaul.client.render.RenderMemory;
 import com.terrahaul.worldgen.TerrahaulGeneration;
 import com.terrahaul.worldgen.terrain.TerrainFinder;
 import com.terrahaul.worldgen.terrain.TerrainModel;
@@ -224,7 +226,10 @@ public final class ClientScreenshotTest {
         }
     }
 
-    /** Logs heap use, process memory and the renderer's section statistics. */
+    /**
+     * Logs heap use, process memory, the renderer's section statistics, the vertex buffers that
+     * exist, and {@link MemoryHint}'s estimate of the live heap for comparison with the measured one.
+     */
     static void logMemory(Minecraft mc, String label) {
         Runtime rt = Runtime.getRuntime();
         long used = (rt.totalMemory() - rt.freeMemory()) >> 20;
@@ -243,6 +248,12 @@ public final class ClientScreenshotTest {
         }
         Terrahaul.LOGGER.info("[screenshots] memory at {}: heap used {} MB (live {} MB) of max {} MB, process RSS {}, renderer: {}", label,
             used, live, rt.maxMemory() >> 20, rss, mc.levelRenderer.getSectionStatistics());
+        if (mc.level != null) {
+            int distance = mc.options.getEffectiveRenderDistance();
+            Terrahaul.LOGGER.info("[screenshots] buffers at {}: {}; estimated live heap {} MB at render distance {} (recommended max heap {} MB)", label,
+                RenderMemory.describe(mc), Math.round(MemoryHint.estimatedLiveHeapMb(distance, mc.level.getSectionsCount(), mc.hasSingleplayerServer())),
+                distance, Math.round(MemoryHint.recommendedHeapMb(distance, mc.level.getSectionsCount(), mc.hasSingleplayerServer())));
+        }
     }
 
     private static boolean nearbyChunksLoaded(Minecraft mc, int radius) {
