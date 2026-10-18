@@ -1,0 +1,6 @@
+{
+  "type": "terrahaul:vanilla_fallback",
+  "config": {
+    "feature": "minecraft:disk_sand"
+  }
+}

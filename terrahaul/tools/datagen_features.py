@@ -47,6 +47,59 @@ def oceans():
     placed('ocean_vents', 'terrahaul:ocean_vents', [])
     add_features('ocean_vents', '#minecraft:is_ocean', 'terrahaul:ocean_vents', 'local_modifications')
     with_conditions('terrahaul/neoforge/biome_modifier/ocean_vents.json', [{"type": "terrahaul:config", "key": "ocean_vents"}])
+    sea_floor()
+
+
+OCEAN_BIOMES = ["minecraft:ocean", "minecraft:deep_ocean", "minecraft:warm_ocean", "minecraft:lukewarm_ocean",
+                "minecraft:deep_lukewarm_ocean", "minecraft:cold_ocean", "minecraft:deep_cold_ocean",
+                "minecraft:frozen_ocean", "minecraft:deep_frozen_ocean"]
+# vanilla ocean decoration that Terrahaul's sea floors replace: coral, sea pickles, kelp and seagrass,
+# and the round sand, clay and gravel disks (the surface rule already patches sediment coherently)
+OCEAN_REPLACED = {
+    "vegetal_decoration": ["warm_ocean_vegetation", "sea_pickle", "kelp_cold", "kelp_warm", "seagrass_warm", "seagrass_normal",
+                           "seagrass_cold", "seagrass_deep", "seagrass_deep_cold", "seagrass_deep_warm"],
+    "underground_ores": ["disk_sand", "disk_clay", "disk_gravel"],
+}
+STEP_INDEX = {"raw_generation": 0, "lakes": 1, "local_modifications": 2, "underground_structures": 3,
+              "surface_structures": 4, "strongholds": 5, "underground_ores": 6, "underground_decoration": 7,
+              "fluid_springs": 8, "vegetal_decoration": 9, "top_layer_modification": 10}
+
+
+def vanilla_biome_step(biome, step):
+    with open(os.path.join(VANILLA, 'worldgen', 'biome', biome.split(':')[1] + '.json')) as f:
+        steps = json.load(f)["features"]
+    i = STEP_INDEX[step]
+    return steps[i] if i < len(steps) else []
+
+
+def sea_floor():
+    # Terrahaul sea floors; no-ops outside Terrahaul worlds (they need the terrain model). Added to every
+    # overworld biome: grotto chambers and sea columns can lie in chunks without an ocean biome nearby,
+    # and the features return at once away from the sea
+    for name, step, conditions in (("seafloor_rocks", "local_modifications", CONFIG_DETAILS),
+                                   ("sea_grottos", "underground_decoration", CONFIG_FORMATIONS),
+                                   ("coral_reefs", "vegetal_decoration", None),
+                                   ("sea_vegetation", "vegetal_decoration", None)):
+        configured(name, 'terrahaul:' + name, {})
+        placed(name, 'terrahaul:' + name, [])
+        add_features('sea/' + name, '#minecraft:is_overworld', 'terrahaul:' + name, step)
+        if conditions:
+            with_conditions(f'terrahaul/neoforge/biome_modifier/sea/{name}.json', conditions)
+    # vanilla coral, kelp, seagrass and disks leave the ocean biomes; terrahaul:vanilla_fallback puts each
+    # back with its vanilla placement but only places it outside Terrahaul worlds, because biome
+    # modifiers apply to every world using these biomes
+    for step, features in OCEAN_REPLACED.items():
+        holders = {}
+        for feature in features:
+            holders[feature] = [b for b in OCEAN_BIOMES if 'minecraft:' + feature in vanilla_biome_step(b, step)]
+        biomes = sorted({b for bs in holders.values() for b in bs})
+        remove_features(f'sea/remove_vanilla_{step}', biomes, ['minecraft:' + f for f in features], [step])
+        for feature in features:
+            with open(os.path.join(VANILLA, 'worldgen', 'placed_feature', feature + '.json')) as f:
+                vanilla = json.load(f)
+            configured(f'sea/vanilla/{feature}', 'terrahaul:vanilla_fallback', {"feature": vanilla["feature"]})
+            placed(f'sea/vanilla/{feature}', f'terrahaul:sea/vanilla/{feature}', vanilla["placement"])
+            add_features(f'sea/vanilla/{feature}', holders[feature], f'terrahaul:sea/vanilla/{feature}', step)
 
 
 def water():

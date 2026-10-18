@@ -7,6 +7,11 @@ import com.terrahaul.worldgen.features.FallenLogConfiguration;
 import com.terrahaul.worldgen.features.FallenLogFeature;
 import com.terrahaul.worldgen.features.OceanVentFeature;
 import com.terrahaul.worldgen.features.RockFormationFeature;
+import com.terrahaul.worldgen.features.marine.CoralReefFeature;
+import com.terrahaul.worldgen.features.marine.SeaGrottoFeature;
+import com.terrahaul.worldgen.features.marine.SeaVegetationFeature;
+import com.terrahaul.worldgen.features.marine.SeafloorRocksFeature;
+import com.terrahaul.worldgen.features.marine.VanillaFallbackFeature;
 import com.terrahaul.worldgen.trees.ProceduralTreeConfiguration;
 import com.terrahaul.worldgen.trees.ProceduralTreeFeature;
 import com.terrahaul.worldgen.water.SurfaceWaterFeature;
@@ -38,6 +43,18 @@ public final class TerrahaulFeatures {
         FEATURES.register("boulder", () -> new BoulderFeature(BoulderConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, RockFormationFeature> ROCK_FORMATIONS =
         FEATURES.register("rock_formations", () -> new RockFormationFeature(NoneFeatureConfiguration.CODEC));
+
+    // sea floors (see worldgen/features/marine)
+    public static final DeferredHolder<Feature<?>, SeafloorRocksFeature> SEAFLOOR_ROCKS =
+        FEATURES.register("seafloor_rocks", () -> new SeafloorRocksFeature(NoneFeatureConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, SeaGrottoFeature> SEA_GROTTOS =
+        FEATURES.register("sea_grottos", () -> new SeaGrottoFeature(NoneFeatureConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, CoralReefFeature> CORAL_REEFS =
+        FEATURES.register("coral_reefs", () -> new CoralReefFeature(NoneFeatureConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, SeaVegetationFeature> SEA_VEGETATION =
+        FEATURES.register("sea_vegetation", () -> new SeaVegetationFeature(NoneFeatureConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, VanillaFallbackFeature> VANILLA_FALLBACK =
+        FEATURES.register("vanilla_fallback", () -> new VanillaFallbackFeature(VanillaFallbackFeature.Config.CODEC));
 
     private TerrahaulFeatures() {
     }
