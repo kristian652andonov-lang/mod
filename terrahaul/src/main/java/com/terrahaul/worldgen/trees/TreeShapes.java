@@ -15,11 +15,12 @@ import java.util.random.RandomGenerator;
  * and fork again on the way, so limbs leave at natural angles, fork twice or more and thin out by
  * the pipe model; trees with a central leader (birch, jungle, pine) send short branches from the
  * trunk to the sites instead. Every cluster sits on a twig tip, which keeps all leaves within six
- * blocks of wood. Conifers are drawn as whorls of drooping branches carrying needle sprays.
+ * blocks of wood. Conifers are drawn as whorls of drooping needle skirts on branches that run along
+ * their undersides; Scots pines carry flat needle pads instead.
  * <p>
  * Trunks taper, lean, bow and twist a little, and stand on a ground-following root flare. Sizes are
  * chosen so that every tree stays within {@link TreeBlueprint#MAX_REACH} of its trunk, and ancient
- * trees within {@link TreeBlueprint#ANCIENT_REACH}.
+ * trees within {@link TreeBlueprint#ANCIENT_REACH}; the development tool reports any clipping.
  */
 public final class TreeShapes {
     private static final V UP = new V(0, 1, 0);
@@ -162,7 +163,11 @@ public final class TreeShapes {
             return cx.length - 1;
         }
 
-        /** The trunk centre at height {@code y} (clamped to the trunk). */
+        /**
+         * The trunk centre at height {@code y} (clamped to the trunk). Branches start at whole
+         * layers, where this is exactly the centre of the drawn layer, so they always begin inside
+         * a trunk block.
+         */
         V at(double y) {
             double yy = Math.max(0.0, Math.min(top(), y));
             int i = (int) Math.floor(yy);
@@ -183,28 +188,33 @@ public final class TreeShapes {
             return new V(cx[t] - cx[b], Math.max(1, t - b), cz[t] - cz[b]).norm();
         }
 
+        /**
+         * Draws the layers. Where the centre shifts sideways from one layer to the next, a joint
+         * runs along the upper layer from above the old centre to the new one, so a crooked trunk
+         * stays face-connected instead of touching only at edges.
+         */
         void draw(TreeBlueprint bp) {
-            int px = 0;
-            int pz = 0;
-            boolean single = false;
-            for (int y = 0; y <= top(); y++) {
+            draw(bp, 0);
+        }
+
+        /** Draws the layers from {@code from} up (mangrove trunks start on their root cluster). */
+        void draw(TreeBlueprint bp, int from) {
+            for (int y = from; y <= top(); y++) {
                 bp.trunkLayer(cx[y], y, cz[y], r[y]);
-                if (r[y] < 0.45) {
-                    int x = TreeBlueprint.round(cx[y]);
-                    int z = TreeBlueprint.round(cz[y]);
-                    if (single && (x != px || z != pz)) {
-                        // a single-block trunk that shifts sideways gets a joint block, so it stays
-                        // face-connected instead of touching only at an edge
-                        bp.log(px, y, pz, TreeBlueprint.LOG_Y);
-                        if (x != px && z != pz) {
-                            bp.log(x, y, pz, TreeBlueprint.LOG_Y);
-                        }
+                if (y == from) {
+                    continue;
+                }
+                int px = TreeBlueprint.round(cx[y - 1]);
+                int pz = TreeBlueprint.round(cz[y - 1]);
+                int x = TreeBlueprint.round(cx[y]);
+                int z = TreeBlueprint.round(cz[y]);
+                while (px != x || pz != z) {
+                    bp.log(px, y, pz, TreeBlueprint.LOG_Y);
+                    if (px != x) {
+                        px += Integer.signum(x - px);
+                    } else {
+                        pz += Integer.signum(z - pz);
                     }
-                    px = x;
-                    pz = z;
-                    single = true;
-                } else {
-                    single = false;
                 }
             }
         }
@@ -394,6 +404,8 @@ public final class TreeShapes {
         V chord = e.sub(s);
         double len = chord.len();
         if (len < 0.4) {
+            // still join the two blocks, which may differ although the points are close
+            bp.path(s.x, s.y, s.z, e.x, e.y, e.z, (byte) 0);
             return dir;
         }
         V cn = chord.mul(1.0 / len);
@@ -450,7 +462,7 @@ public final class TreeShapes {
             V c = centroid(g);
             V axis = trunk.at(c.y);
             double hd = Math.sqrt((c.x - axis.x) * (c.x - axis.x) + (c.z - axis.z) * (c.z - axis.z));
-            double oy = Math.max(minY, Math.min(maxY, c.y - hd * tan));
+            double oy = Math.rint(Math.max(minY, Math.min(maxY, c.y - hd * tan)));
             V o = trunk.at(oy);
             V out = new V(c.x - o.x, 0, c.z - o.z).norm();
             V dir = out.mul(Math.cos(elevation)).add(new V(0, Math.sin(elevation), 0));
@@ -652,7 +664,7 @@ public final class TreeShapes {
         double y0 = h * 0.38;
         double y1 = h - 3.0;
         for (int i = 0; i < padsN; i++) {
-            double y = y0 + (y1 - y0) * i / Math.max(1, padsN - 1) + range(r, -0.4, 0.4);
+            double y = Math.rint(y0 + (y1 - y0) * i / Math.max(1, padsN - 1) + range(r, -0.4, 0.4));
             a += Math.PI * range(r, 0.55, 1.0) * (i % 2 == 0 ? 1 : -1) + Math.PI;
             V o = t.at(y);
             double len = h * range(r, 0.42, 0.55) * (1.0 - 0.35 * i / Math.max(1, padsN));
@@ -746,7 +758,7 @@ public final class TreeShapes {
         bp.puff(top.x, h, top.z, rc * 0.9, 1.1, 0.95);
         // a couple of short side branches below the crown, each with a small tuft
         for (int i = 0; i < tufts; i++) {
-            double y = range(r, h * 0.22, base - 0.5);
+            double y = Math.rint(range(r, h * 0.22, base - 0.5));
             V o = t.at(y);
             double a = angle(r);
             double len = range(r, 1.4, 2.4) + size.ordinal() * 0.2;
@@ -1064,7 +1076,7 @@ public final class TreeShapes {
         Style lat = new Style(0.3, 0.12, 0.12, 0.6, 0.5, 1);
         double la = angle(r);
         for (int i = 0; i < laterals; i++) {
-            double y = range(r, h * 0.55, h * 0.72);
+            double y = Math.rint(range(r, h * 0.55, h * 0.72));
             V o = t.at(y);
             la += range(r, 1.7, 2.7);
             double len = rx * range(r, 0.45, 0.65);
@@ -1138,8 +1150,8 @@ public final class TreeShapes {
             }
             default -> {
                 fork = range(r, 5, 6);
-                r0 = range(r, 2.0, 2.4);
-                r1 = 1.4;
+                r0 = range(r, 1.7, 2.0);
+                r1 = 1.3;
                 rx = range(r, 15.5, 17.5);
                 pr = 4.2;
                 limbs = range(r, 4, 5);
@@ -1156,7 +1168,8 @@ public final class TreeShapes {
         List<V> sites = crownSites(bp, centre, rx, ry, count, pr * 1.2, 0.0, -1.0, 0.0, 0.15, pr + 0.4);
         Style st = new Style(0.25, 0.12, 0.22, 0.5, 0.45, limbs);
         decurrent(bp, top, t.topDirection(), sites, r1, 0, st, pads(pr, 1.3, 0.95));
-        roots(bp, c, size, r0, 0.8);
+        // savanna trees spread their roots wide but shallow: a low flare
+        roots(bp, c, size, r0, 0.65);
     }
 
     // =========================================================================================
@@ -1297,9 +1310,9 @@ public final class TreeShapes {
         }
         int fork = Math.max(rootHeight + 1, (int) (h * 0.6));
         Trunk t = trunk(r, fork, c, r0, r0, range(r, 0.0, 0.8), range(r, 0.0, 0.6), 0.2);
-        for (int y = rootHeight; y <= fork; y++) {
-            bp.trunkLayer(t.cx[y], y, t.cz[y], t.r[y]);
-        }
+        t.draw(bp, rootHeight);
+        // join the leaning trunk's foot to the top of the root cluster
+        bp.path(c, rootHeight, c, t.cx[rootHeight], rootHeight, t.cz[rootHeight], (byte) 0);
         // prop roots arch out from the trunk and land in the mud
         double a0 = angle(r);
         for (int i = 0; i < props; i++) {
@@ -1494,6 +1507,8 @@ public final class TreeShapes {
         double c = r0 > 0 ? 0.5 : 0.0;
         Trunk t = trunk(r, h - 1, c, r0, r0, range(r, 0.0, 0.06 * h), range(r, 0.0, 0.5), 0.0);
         t.draw(bp);
+        // break the top first, so the stubs below never hang on blocks that broke away
+        jaggedTop(bp, h, 2);
         for (int y = Math.max(1, h / 5); y < h - 2; y += range(r, 2, 3)) {
             double s = (double) y / h;
             int spokes = range(r, 1, 3);
@@ -1508,7 +1523,6 @@ public final class TreeShapes {
                 bp.path(o.x, y, o.z, e.x, e.y, e.z, (byte) 0);
             }
         }
-        jaggedTop(bp, h, 2);
         roots(bp, c, size.smaller(), r0, 0.8);
     }
 
@@ -1548,12 +1562,13 @@ public final class TreeShapes {
         }
         Trunk t = trunk(r, h - 1, c, r0, r0 >= 0.95 ? 0.7 : r0, range(r, 0.0, 0.1 * h), range(r, 0.0, 0.6), 0.1);
         t.draw(bp);
+        jaggedTop(bp, h, r0 > 0 ? 3 : 1);
         Style st = new Style(0.3, 0.05, 0.2, 0.5, 0.5, 1);
         int stubs = size == TreeSize.YOUNG ? 0 : range(r, 1, 2 + Math.min(3, size.ordinal()));
         double sa = angle(r);
         for (int i = 0; i < stubs; i++) {
             // short, nearly level stubs spread around and along the stem
-            double y = range(r, h * 0.3, h - 2.5);
+            double y = Math.rint(range(r, h * 0.3, h - 2.5));
             V o = t.at(y);
             sa += range(r, 1.6, 2.8);
             double len = range(r, 0.9, 1.7) + t.radius(y);
@@ -1562,7 +1577,7 @@ public final class TreeShapes {
         }
         if (size.atLeast(TreeSize.MEDIUM) && r.nextFloat() < 0.5f) {
             // one limb that broke off further out, with a short side twig
-            double y = range(r, h * 0.45, h - 3.0);
+            double y = Math.rint(range(r, h * 0.45, h - 3.0));
             V o = t.at(y);
             double a = sa + range(r, 1.6, 2.8);
             double len = range(r, 2.5, 4.0) + t.radius(y);
@@ -1573,13 +1588,12 @@ public final class TreeShapes {
         }
         if (size.atLeast(TreeSize.MEDIUM) && r.nextFloat() < 0.25f) {
             // a dead second leader from a fork, broken shorter than the main stem
-            double y = h * range(r, 0.5, 0.65);
+            double y = Math.rint(h * range(r, 0.5, 0.65));
             V o = t.at(y);
             double a = angle(r);
             V e = o.add(horizontal(a, range(r, 1.5, 2.5))).add(new V(0, (h - y) * range(r, 0.4, 0.7), 0));
             limbTo(bp, o, UP, e, 0, 0, st);
         }
-        jaggedTop(bp, h, r0 > 0 ? 3 : 1);
         if (r0 >= 0.7 && r.nextFloat() < 0.6f) {
             fireScar(bp, t, c, r0);
         }

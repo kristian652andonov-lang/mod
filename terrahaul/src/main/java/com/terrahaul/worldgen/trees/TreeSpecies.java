@@ -51,9 +51,4 @@ public enum TreeSpecies {
     public boolean isConifer() {
         return this == SPRUCE || this == PINE || this == FIR || this == DEAD_SPRUCE;
     }
-
-    /** Dead and burned trees carry no leaves. */
-    public boolean isLeafless() {
-        return this == DEAD || this == DEAD_SPRUCE || this == BURNED;
-    }
 }
