@@ -17,9 +17,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(FogShape.class)
 public abstract class FogShapeMixin {
+    /** Development switch to compare against vanilla fog ({@code -Dterrahaul.debug.vanillaFog=true}). */
+    private static final boolean VANILLA_FOG = Boolean.getBoolean("terrahaul.debug.vanillaFog");
+
     @Inject(method = "getIndex", at = @At("HEAD"), cancellable = true)
     private void terrahaul$tallWorldFog(CallbackInfoReturnable<Integer> cir) {
-        if ((Object) this == FogShape.CYLINDER) {
+        if ((Object) this == FogShape.CYLINDER && !VANILLA_FOG) {
             var level = Minecraft.getInstance().level;
             if (level != null && level.effects() instanceof TerrahaulSkyEffects) {
                 cir.setReturnValue(2);

@@ -29,9 +29,11 @@ Each run created a fresh world and ran `AutoTest`:
   - rivers (water-filled channels with gravel, sand or cobble beds) and deep oceans;
   - trenches: the floor reached Y −306, lined with magma, blackstone, basalt and smooth basalt;
   - sea cliffs, canyons, trails (`dirt_path` top blocks in every land area tested), and plains.
-- **Biomes:** surface biomes are coherent with the terrain, for example frozen and jagged peaks
-  and snowy slopes on the colossal peak, savanna plateau on mountain walls, rivers in river
-  channels, and deep frozen ocean in the abyss. After the depth fix, cave biomes at the surface
+- **Biomes:** surface biomes follow the terrain, for example:
+  - frozen peaks, jagged peaks and snowy slopes on the colossal peak;
+  - frozen and stony peaks on a mountain wall;
+  - river biomes in river channels;
+  - deep frozen ocean over the cold abyss. After the depth fix, cave biomes at the surface
   of the colossal peak dropped from 204 to 1 sampled column (and no deep dark).
 - **Caves:** cave volume (air, water or lava) is about 4–14% in Y −512..−64 and 8–13% in
   Y −64..0 over land.
@@ -100,6 +102,15 @@ Each run created a fresh world and ran `AutoTest`:
   - winding dirt trails with junctions across hills;
   - fuzzy strata on sea cliffs and hillsides;
   - grass breaking into stone on steep slopes.
+
+- **Tall-world fog:** the same camera in a deep gorge at the foot of the colossal peak was
+  captured twice at render distance 10. Once used Terrahaul's fog shape and once used vanilla's
+  cylinder fog (debug switch `-PvanillaFog`). With Terrahaul's fog, a snowy ridge several hundred
+  blocks away vertically is visible; with vanilla's fog it is completely hidden. The rest of the
+  frame is identical.
+- **Screenshot harness lesson:** with software rendering, distant teleports need the
+  "all sections rendered" state to hold for several seconds. Before that wait was added, distant
+  shots showed only sky.
 
 ## Client and dedicated server over the network
 - A dedicated server (`runServer`, fresh Terrahaul world, offline mode) and a separate client

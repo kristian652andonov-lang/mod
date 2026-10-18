@@ -42,6 +42,9 @@ neoForge {
                 programArguments.addAll('--quickPlayMultiplayer', project.property('multiplayer').toString())
                 systemProperty 'terrahaul.screenshots.join', 'true'
             }
+            if (project.hasProperty('vanillaFog')) {
+                systemProperty 'terrahaul.debug.vanillaFog', 'true'
+            }
             // -PcreateWorldCheck: open the Create World screen, log the selected world type, screenshot it
             if (project.hasProperty('createWorldCheck')) {
                 systemProperty 'terrahaul.screenshots.createWorld', 'true'
