@@ -145,13 +145,39 @@ final class WaterPalette {
         return lava || volcanic() ? Blocks.BASALT.defaultBlockState() : Blocks.STONE.defaultBlockState();
     }
 
+    /**
+     * Rock of the steps of a planned cascade or fall: travertine (calcite) in limestone country
+     * and humid warm forests, mossy stone in other forests, plain stone in the cold, basalt on
+     * volcanoes.
+     */
+    BlockState planSill(byte material, int x, int y, int z, boolean isTop) {
+        return switch (material) {
+            case FallPlan.MAT_TRAVERTINE -> isTop && humid() && model.detail3(1, x / 4.0, y / 4.0, z / 4.0) > 0.0
+                ? Blocks.MOSS_BLOCK.defaultBlockState() : Blocks.CALCITE.defaultBlockState();
+            case FallPlan.MAT_COLD -> Blocks.STONE.defaultBlockState();
+            case FallPlan.MAT_VOLCANIC -> Blocks.SMOOTH_BASALT.defaultBlockState();
+            default -> isTop ? Blocks.MOSS_BLOCK.defaultBlockState() : Blocks.MOSSY_COBBLESTONE.defaultBlockState();
+        };
+    }
+
+    /** Bed of a planned pool: light sand, calcite and clay under travertine cascades (turquoise water). */
+    BlockState planBed(byte material, int x, int y, int z) {
+        if (material == FallPlan.MAT_TRAVERTINE) {
+            return patch > 0.3 ? Blocks.CALCITE.defaultBlockState() : patch > -0.2 ? Blocks.SAND.defaultBlockState() : Blocks.CLAY.defaultBlockState();
+        }
+        if (material == FallPlan.MAT_VOLCANIC) {
+            return Blocks.SMOOTH_BASALT.defaultBlockState();
+        }
+        return patch > 0.0 ? Blocks.GRAVEL.defaultBlockState() : Blocks.SAND.defaultBlockState();
+    }
+
     /** Ground a plan shaped: beds, rock, shores, dams and ribs. */
-    BlockState shaped(byte role, int x, int y, int z, boolean isTop, boolean wet) {
+    BlockState shaped(byte role, byte material, boolean planned, int x, int y, int z, boolean isTop, boolean wet) {
         return switch (role) {
-            case WaterSolver.ROLE_BED -> isTop ? bed(x, y, z) : Blocks.STONE.defaultBlockState();
+            case WaterSolver.ROLE_BED -> isTop ? (planned ? planBed(material, x, y, z) : bed(x, y, z)) : Blocks.STONE.defaultBlockState();
             case WaterSolver.ROLE_ROCK -> rock(x, y, z);
-            case WaterSolver.ROLE_RIB -> sill(x, y, z, false);
-            case WaterSolver.ROLE_DAM -> isTop && !wet && humid() ? Blocks.MOSS_BLOCK.defaultBlockState() : Blocks.CALCITE.defaultBlockState();
+            case WaterSolver.ROLE_RIB -> planSill(material, x, y, z, false);
+            case WaterSolver.ROLE_DAM -> planSill(material, x, y, z, isTop && !wet);
             case WaterSolver.ROLE_SHORE -> isTop ? (wet ? bed(x, y, z) : shoreTop()) : Blocks.DIRT.defaultBlockState();
             default -> isTop ? (wet ? bed(x, y, z) : bank(true, false)) : bank(false, false);
         };

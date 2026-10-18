@@ -2,5 +2,5 @@
   "type": "neoforge:add_features",
   "biomes": "#minecraft:is_overworld",
   "features": "terrahaul:waterfall",
-  "step": "fluid_springs"
+  "step": "vegetal_decoration"
 }

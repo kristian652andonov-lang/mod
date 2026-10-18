@@ -117,7 +117,7 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
             for (int y = Math.min(natural, ground); y <= ground; y++) {
                 BlockState s = level.getBlockState(pos.set(x, y, z));
                 if (!s.blocksMotion() || y == ground && lv != WaterSolver.NONE && WaterPalette.soil(s)) {
-                    level.setBlock(pos, palette.shaped(ws.role[k], x, y, z, y == ground, lv != WaterSolver.NONE), 2);
+                    level.setBlock(pos, palette.shaped(ws.role[k], ws.material[k], ws.planned[k], x, y, z, y == ground, lv != WaterSolver.NONE), 2);
                     placed = true;
                 }
             }
@@ -130,8 +130,14 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
             for (int y = from; y <= solidTop; y++) {
                 BlockState s = level.getBlockState(pos.set(x, y, z));
                 if (!s.blocksMotion() || step == WaterSolver.SILL && !s.getFluidState().isEmpty()) {
-                    BlockState block = step == WaterSolver.SILL || lava ? palette.sill(x, y, z, lava)
-                        : palette.bank(y == solidTop, ws.role[k] == WaterSolver.ROLE_DAM);
+                    BlockState block;
+                    if (ws.planned[k] && (step == WaterSolver.SILL || ws.role[k] == WaterSolver.ROLE_DAM)) {
+                        block = palette.planSill(ws.material[k], x, y, z, y == solidTop);
+                    } else if (step == WaterSolver.SILL || lava) {
+                        block = palette.sill(x, y, z, lava);
+                    } else {
+                        block = palette.bank(y == solidTop, false);
+                    }
                     level.setBlock(pos, block, 2);
                     placed = true;
                 }

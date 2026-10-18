@@ -1,5 +1,7 @@
 package com.terrahaul.worldgen.terrain;
 
+import com.terrahaul.worldgen.water.FallPlan;
+import com.terrahaul.worldgen.water.FallPlanner;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -80,6 +82,7 @@ public final class TerrainFinder {
             s -> s.swamp > 0.85 && s.temperature > -0.45 && s.height < 63.0, Kind.GRID);
         add("volcano", "a volcano", 0, null, null, Kind.VOLCANO);
         add("waterfall", "a waterfall", 0, null, null, Kind.WATERFALL);
+        add("cascade", "a forest cascade of pools", 1, null, null, Kind.WATERFALL);
         add("arch", "a natural stone arch", TerrainModel.ARCH, null, null, Kind.FORMATION);
         add("spire", "a rock spire", TerrainModel.SPIRE, null, null, Kind.FORMATION);
         add("hoodoo", "a hoodoo cluster", TerrainModel.HOODOO, null, null, Kind.FORMATION);
@@ -108,7 +111,7 @@ public final class TerrainFinder {
     public static Result find(TerrainModel model, Target target, int x, int z, int radius, BooleanSupplier cancelled) {
         return switch (target.kind()) {
             case VOLCANO -> findVolcano(model, x, z, radius);
-            case WATERFALL -> findWaterfall(model, x, z, radius, cancelled);
+            case WATERFALL -> findWaterfall(model, target.step() == 1, x, z, radius, cancelled);
             case LAKE_SITE -> findLake(model, target.step(), x, z, radius);
             case HIGHEST -> findHighest(model, target, x, z, radius, cancelled);
             case GRID -> findGrid(model, target, x, z, radius, cancelled);
@@ -262,11 +265,36 @@ public final class TerrainFinder {
                 double dd = sq(lake.x - x) + sq(lake.z - z);
                 if (dd < bestD) {
                     bestD = dd;
-                    best = new Result((int) lake.x, (int) lake.level + 1, (int) lake.z, LakeType.name(lake.type));
+                    best = lakeShore(model, lake);
                 }
             }
         }
         return best;
+    }
+
+    /**
+     * A spot on the lake's shore, just above the water, where the player stands looking over the
+     * lake: the nearest dry ground on eight rays from the centre.
+     */
+    private static Result lakeShore(TerrainModel model, TerrainModel.LakeSite lake) {
+        ColumnSample s = new ColumnSample();
+        Result best = null;
+        double bestR = Double.MAX_VALUE;
+        for (int a = 0; a < 8; a++) {
+            double dx = Math.cos(a * Math.PI / 4.0);
+            double dz = Math.sin(a * Math.PI / 4.0);
+            for (double r = lake.radius * 0.3; r < Math.min(bestR, lake.ringRadius); r += 3.0) {
+                int x = (int) Math.floor(lake.x + dx * r);
+                int z = (int) Math.floor(lake.z + dz * r);
+                model.sampleInto(x, z, s);
+                if (!s.bodyInside && s.height >= lake.level - 0.5) {
+                    bestR = r;
+                    best = new Result(x, (int) Math.ceil(s.height) + 1, z, LakeType.name(lake.type));
+                    break;
+                }
+            }
+        }
+        return best != null ? best : new Result((int) lake.x, (int) lake.level + 1, (int) lake.z, LakeType.name(lake.type));
     }
 
     private static TerrainModel.LakeSite nearestLakeOfType(TerrainModel model, int x, int z, int radius, boolean great, int type) {
@@ -297,32 +325,40 @@ public final class TerrainFinder {
         return null;
     }
 
-    private static Result findWaterfall(TerrainModel model, int x, int z, int radius, BooleanSupplier cancelled) {
-        int cell = TerrainModel.WATERFALL_CELL;
+    /**
+     * Nearest planned waterfall (or cascade). Only plans that are built are reported, and the
+     * result is the plan's viewpoint: dry ground with the fall in plain sight.
+     */
+    private static Result findWaterfall(TerrainModel model, boolean cascade, int x, int z, int radius, BooleanSupplier cancelled) {
+        FallPlanner planner = FallPlanner.of(model);
+        int cell = cascade ? FallPlanner.CASCADE_CELL : FallPlanner.FALL_CELL;
         int cx = Math.floorDiv(x, cell);
         int cz = Math.floorDiv(z, cell);
         int rings = radius / cell + 1;
+        Result best = null;
+        double bestD = Double.MAX_VALUE;
         for (int r = 0; r <= rings; r++) {
             if (cancelled.getAsBoolean()) {
                 return null;
             }
-            Result best = null;
-            double bestD = Double.MAX_VALUE;
             for (int[] p : ring(r)) {
-                TerrainModel.WaterfallSite w = model.waterfallSite(cx + p[0], cz + p[1]);
+                FallPlan w = cascade ? planner.cascade(cx + p[0], cz + p[1]) : planner.fall(cx + p[0], cz + p[1]);
                 if (w != null) {
-                    double dd = sq(w.x - x) + sq(w.z - z);
+                    double dd = sq(w.viewX - x) + sq(w.viewZ - z);
                     if (dd < bestD) {
                         bestD = dd;
-                        best = new Result(w.x, (int) w.top + 1, w.z, "waterfall");
+                        String label = cascade ? "cascade (" + w.width() + " pools)"
+                            : "waterfall (" + w.typeName() + ", " + w.width() + " wide, " + w.drop() + " high)";
+                        best = new Result(w.viewX, w.viewY, w.viewZ, label);
                     }
                 }
             }
-            if (best != null) {
+            // a plan in a farther ring can still be nearer than one found in this ring
+            if (best != null && Math.sqrt(bestD) < (r - 0.5) * cell) {
                 return best;
             }
         }
-        return null;
+        return best;
     }
 
     private static Result findFormation(TerrainModel model, int type, int x, int z, int radius, BooleanSupplier cancelled) {

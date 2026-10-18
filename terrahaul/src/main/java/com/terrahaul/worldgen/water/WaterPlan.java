@@ -34,6 +34,8 @@ public interface WaterPlan {
         public boolean rib;
         /** Material role of the shaped ground, one of the {@code WaterSolver.ROLE_*} constants. */
         public byte role;
+        /** Material family of the plan's dams, sills and beds ({@code FallPlan.MAT_*}). */
+        public byte material;
 
         public void reset(int natural) {
             ground = natural;
@@ -41,6 +43,7 @@ public interface WaterPlan {
             style = WaterSolver.STYLE_FALL;
             rib = false;
             role = WaterSolver.ROLE_NATURAL;
+            material = 0;
         }
     }
 }

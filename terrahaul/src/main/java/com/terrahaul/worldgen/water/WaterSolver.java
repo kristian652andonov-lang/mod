@@ -96,6 +96,9 @@ public final class WaterSolver {
     public final int[] solidTop = new int[N];
     /** A boulder sits on the sill, one block above the water. */
     public final boolean[] boulder = new boolean[N];
+    /** The column belongs to a plan, whose material family is {@link #material}. */
+    public final boolean[] planned = new boolean[N];
+    public final byte[] material = new byte[N];
 
     private final WaterPlan.Shape shape = new WaterPlan.Shape();
     private final double[] streamBuf = new double[2];
@@ -152,6 +155,8 @@ public final class WaterSolver {
         step[k] = FLAT;
         upper[k] = NONE;
         boulder[k] = false;
+        planned[k] = false;
+        material[k] = 0;
         for (WaterPlan plan : plans) {
             if (x >= plan.minX() && x <= plan.maxX() && z >= plan.minZ() && z <= plan.maxZ()) {
                 shape.reset(g);
@@ -161,9 +166,13 @@ public final class WaterSolver {
                     style[k] = shape.style;
                     rib[k] = shape.rib;
                     role[k] = shape.role;
+                    material[k] = shape.material;
+                    planned[k] = true;
                     shaped[k] = true;
                     kind[k] = shape.level == NONE ? DRY : shape.level <= seaLevel ? SEA : PLAN;
-                    if (kind[k] == SEA) {
+                    if (kind[k] == SEA || kind[k] == DRY && ground[k] <= seaLevel - 2) {
+                        // carved below sea level: the sea or a lake at sea level fills it
+                        kind[k] = SEA;
                         level[k] = seaLevel;
                     }
                     finish(k);
@@ -327,7 +336,7 @@ public final class WaterSolver {
         if (factor <= 0.0 || nc.lake > 0.0) {
             return;
         }
-        double halfWidth = 0.8 + 1.6 * factor;
+        double halfWidth = 1.25 + 1.5 * factor;
         model.streamInfo(x, z, streamBuf);
         double d = streamBuf[0];
         int lv = (int) streamBuf[1];

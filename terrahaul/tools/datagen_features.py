@@ -56,7 +56,8 @@ def water():
     add_features('surface_water', '#minecraft:is_overworld', 'terrahaul:surface_water', 'lakes')
     configured('waterfall', 'terrahaul:waterfall', {})
     placed('waterfall', 'terrahaul:waterfall', [])
-    add_features('waterfall', '#minecraft:is_overworld', 'terrahaul:waterfall', 'fluid_springs')
+    # decoration of planned waterfalls and cascades (built in the lakes step by surface_water)
+    add_features('waterfall', '#minecraft:is_overworld', 'terrahaul:waterfall', 'vegetal_decoration')
 
 
 CONFIG_TREES = [{"type": "terrahaul:config", "key": "replace_vanilla_trees"}]

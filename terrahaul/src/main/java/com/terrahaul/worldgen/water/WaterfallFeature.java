@@ -3,35 +3,41 @@ package com.terrahaul.worldgen.water;
 import com.mojang.serialization.Codec;
 import com.terrahaul.worldgen.TerrahaulGeneration;
 import com.terrahaul.worldgen.noise.SeedMixer;
+import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.TerrainModel;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoublePlantBlock;
+import net.minecraft.world.level.block.MultifaceBlock;
+import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
-import net.minecraft.world.level.material.Fluids;
 
 /**
- * Waterfalls at the deterministic sites of {@link TerrainModel#waterfallSite(int, int)}.
- * <p>
- * Each waterfall is a stream that rises from a spring in the high ground, runs a few blocks to the
- * lip of a cliff and falls as a curtain, 1-13 blocks wide, into a plunge pool at the foot. Wide
- * curtains are split into strands by ribs of mossy rock, the wet cliff behind the water is mossy,
- * and where the ground at the foot slopes away a dam of tumbled rock holds the pool. The falling
- * water is placed as a complete column, so even tall falls are visible immediately and stay
- * stable without fluid ticks.
- * <p>
- * The plan comes entirely from the site, and every chunk the waterfall covers builds the columns
- * it owns, so a waterfall may span several chunks.
+ * The living surroundings of planned waterfalls and cascades ({@link FallPlanner}). The water,
+ * the bowl and the pools are built earlier by {@link SurfaceWaterFeature}; this feature runs in
+ * the vegetation step, on the final terrain, and decorates its own chunk only:
+ * <ul>
+ *   <li>rock kept wet by spray turns to moss and mossy stone in coherent patches, behind the
+ *       curtain and on the bowl walls near it (not in cold climates);</li>
+ *   <li>glow lichen grows on the walls just above the plunge pool;</li>
+ *   <li>vines hang down the walls of the bowl where it is humid;</li>
+ *   <li>ferns and moss carpets grow on the shores and on the dams of cascades;</li>
+ *   <li>lily pads float on the still lowest pool of a cascade.</li>
+ * </ul>
  */
 public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
-    /** Furthest a waterfall's blocks reach from its lip. */
-    private static final int REACH = 32;
+    private static final Direction[] SIDES = {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST};
 
     public WaterfallFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -45,170 +51,181 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
             return false;
         }
         ChunkPos chunk = new ChunkPos(context.origin());
-        int cell = TerrainModel.WATERFALL_CELL;
-        boolean placed = false;
-        for (int cx = Math.floorDiv(chunk.getMinBlockX() - REACH, cell); cx <= Math.floorDiv(chunk.getMaxBlockX() + REACH, cell); cx++) {
-            for (int cz = Math.floorDiv(chunk.getMinBlockZ() - REACH, cell); cz <= Math.floorDiv(chunk.getMaxBlockZ() + REACH, cell); cz++) {
-                TerrainModel.WaterfallSite site = model.waterfallSite(cx, cz);
-                if (site != null && site.x + REACH >= chunk.getMinBlockX() && site.x - REACH <= chunk.getMaxBlockX()
-                    && site.z + REACH >= chunk.getMinBlockZ() && site.z - REACH <= chunk.getMaxBlockZ()) {
-                    placed |= build(level, site, chunk);
-                }
-            }
-        }
-        return placed;
-    }
-
-    private static boolean build(WorldGenLevel level, TerrainModel.WaterfallSite site, ChunkPos chunk) {
-        int top = (int) site.top;
-        int half = site.width / 2;
-        int curtainU = 1;
-        double poolCentre = site.faceDist + site.poolAlong * 0.45;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        boolean placed = false;
-        for (int x = chunk.getMinBlockX(); x <= chunk.getMaxBlockX(); x++) {
-            for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++) {
-                int u = (x - site.x) * site.dirX + (z - site.z) * site.dirZ;
-                int v = (x - site.x) * -site.dirZ + (z - site.z) * site.dirX;
-                if (u < -site.channel - 2 || u > REACH || Math.abs(v) > REACH) {
-                    continue;
-                }
-                int ground = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
-                // ---- the feeding stream, from a spring in the high ground to the lip ----------
-                if (u <= 0) {
-                    double t = (double) -u / site.channel;
-                    int chanHalf = (int) Math.round(half * (1.0 - 0.55 * t) + jitter(site.seed, u, 3) * 0.6);
-                    if (u >= -site.channel && Math.abs(v) <= chanHalf) {
-                        placed |= stream(level, pos, x, z, ground, top, u == -site.channel);
-                    } else if (u >= -site.channel - 1 && Math.abs(v) <= chanHalf + 1) {
-                        placed |= bank(level, pos, x, z, ground, top);
-                    }
-                    if (u == 0 && Math.abs(v) <= half) {
-                        mossFace(level, pos, x + site.dirX, z + site.dirZ, x, z, top, site.poolSurface);
-                    }
-                    continue;
-                }
-                // ---- the curtain, split into strands by ribs of rock on wide falls ---------------
-                if (u == curtainU && Math.abs(v) <= half) {
-                    boolean rib = site.width >= 7 && Math.abs(v) < half && SeedMixer.unit(SeedMixer.hash2(site.seed, v, 7)) < 0.18;
-                    placed |= rib ? rib(level, pos, x, z, top, site.poolSurface) : curtain(level, pos, x, z, top, site.poolSurface);
-                    continue;
-                }
-                if (u == curtainU && Math.abs(v) == half + 1) {
-                    // keep the stream's water from spilling sideways off the lip
-                    placed |= bank(level, pos, x - site.dirX, z - site.dirZ, level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x - site.dirX, z - site.dirZ) - 1, top);
-                }
-                // ---- the plunge pool and its rim ------------------------------------------------
-                double ru = (u - poolCentre) / site.poolAlong;
-                double rv = v / site.poolAcross;
-                double r = Math.sqrt(ru * ru + rv * rv) + 0.12 * jitter(site.seed, x, z);
-                if (u >= curtainU && r <= 1.0) {
-                    if (ground <= site.poolSurface + 4 || u == curtainU) {
-                        int depth = Math.max(1, (int) Math.round(site.poolDepth * Math.sqrt(1.0 - r * r)));
-                        placed |= pool(level, pos, x, z, ground, site.poolSurface, depth);
-                    }
-                } else if (u >= curtainU && r <= 1.4 && ground < site.poolSurface) {
-                    placed |= dam(level, pos, x, z, ground, site.poolSurface, site.seed);
-                }
-            }
-        }
-        return placed;
-    }
-
-    /** Stream bed: water two blocks deep at the lip's level, the hillside dug back above it. */
-    private static boolean stream(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int z, int ground, int top, boolean spring) {
-        if (ground < top - 1) {
-            // low ground behind the lip: build the bed up instead of leaving water in the air
-            for (int y = ground + 1; y <= top - 2; y++) {
-                level.setBlock(pos.set(x, y, z), Blocks.STONE.defaultBlockState(), 2);
-            }
-        }
-        level.setBlock(pos.set(x, top - 2, z), spring ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : Blocks.GRAVEL.defaultBlockState(), 2);
-        level.setBlock(pos.set(x, top - 1, z), Blocks.WATER.defaultBlockState(), 2);
-        level.setBlock(pos.set(x, top, z), Blocks.WATER.defaultBlockState(), 2);
-        // clear the hillside above the stream; a spring leaves a low rock roof over its source
-        int clearTo = spring ? top + 2 : Math.min(ground, top + 12);
-        for (int y = top + 1; y <= clearTo; y++) {
-            BlockState existing = level.getBlockState(pos.set(x, y, z));
-            if (!existing.isAir() && !existing.is(BlockTags.LOGS)) {
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
-            }
-        }
-        return true;
-    }
-
-    /** Raises a bank to the water surface where the ground beside the stream is lower. */
-    private static boolean bank(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int z, int ground, int top) {
-        if (ground >= top) {
+        List<WaterPlan> plans = new ArrayList<>();
+        FallPlanner.plansNear(model, chunk.getMinBlockX(), chunk.getMinBlockZ(), chunk.getMaxBlockX(), chunk.getMaxBlockZ(), plans);
+        if (plans.isEmpty()) {
             return false;
         }
-        for (int y = ground + 1; y <= top; y++) {
-            BlockState existing = level.getBlockState(pos.set(x, y, z));
-            if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || !existing.getFluidState().isEmpty()) {
-                level.setBlock(pos, y == top ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : Blocks.STONE.defaultBlockState(), 2);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        WaterPlan.Shape shape = new WaterPlan.Shape();
+        boolean placed = false;
+        for (WaterPlan wp : plans) {
+            FallPlan p = (FallPlan) wp;
+            ColumnSample climate = model.sample((p.lookX + 2) & ~3, (p.lookZ + 2) & ~3);
+            boolean cold = climate.temperature < -0.2;
+            boolean humid = climate.humidity > 0.05 && !cold;
+            for (int x = Math.max(p.minX(), chunk.getMinBlockX()); x <= Math.min(p.maxX(), chunk.getMaxBlockX()); x++) {
+                for (int z = Math.max(p.minZ(), chunk.getMinBlockZ()); z <= Math.min(p.maxZ(), chunk.getMaxBlockZ()); z++) {
+                    int natural = (int) Math.ceil(model.interpolatedHeight(x, z)) - 1;
+                    shape.reset(natural);
+                    if (!p.shape(x, z, natural, shape)) {
+                        continue;
+                    }
+                    placed |= p.type == FallPlan.CASCADE
+                        ? decorateCascade(level, model, p, shape, pos, x, z, humid)
+                        : decorateFall(level, model, p, shape, pos, x, z, humid, cold);
+                }
             }
         }
-        return true;
+        return placed;
     }
 
-    /** A falling column from the lip down to the pool, cutting a shallow notch where rock is in the way. */
-    private static boolean curtain(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int z, int top, int poolSurface) {
-        BlockState falling = Fluids.FLOWING_WATER.getFlowing(8, true).createLegacyBlock();
-        for (int y = top; y > poolSurface; y--) {
-            BlockState existing = level.getBlockState(pos.set(x, y, z));
-            if (existing.is(Blocks.BEDROCK)) {
-                break;
-            }
-            level.setBlock(pos, y == top ? Fluids.FLOWING_WATER.getFlowing(7, false).createLegacyBlock() : falling, 2);
-        }
-        return true;
-    }
-
-    /** A rib of mossy rock dividing the curtain, from the pool up to the lip. */
-    private static boolean rib(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int z, int top, int poolSurface) {
-        for (int y = poolSurface + 1; y <= top; y++) {
-            level.setBlock(pos.set(x, y, z), (x + y + z & 3) == 0 ? Blocks.MOSS_BLOCK.defaultBlockState() : Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
-        }
-        return true;
-    }
-
-    /** The wet cliff behind the curtain turns mossy. */
-    private static void mossFace(WorldGenLevel level, BlockPos.MutableBlockPos pos, int curtainX, int curtainZ, int x, int z, int top, int poolSurface) {
-        for (int y = top - 1; y > poolSurface; y--) {
-            BlockState existing = level.getBlockState(pos.set(x, y, z));
-            if (existing.is(BlockTags.BASE_STONE_OVERWORLD) || existing.is(BlockTags.DIRT)) {
-                level.setBlock(pos, (x * 7 + y * 3 + z & 3) == 0 ? Blocks.MOSS_BLOCK.defaultBlockState() : Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
+    private static boolean decorateFall(WorldGenLevel level, TerrainModel model, FallPlan p, WaterPlan.Shape shape, BlockPos.MutableBlockPos pos,
+                                        int x, int z, boolean humid, boolean cold) {
+        boolean placed = false;
+        int u = p.u(x, z);
+        int v = p.v(x, z);
+        // how close the column is to the curtain, which keeps nearby rock wet
+        double spray = Math.hypot(Math.max(0, u - 1), Math.max(0, Math.abs(v) - p.halfWidth));
+        int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
+        if (!cold && spray <= 7.0) {
+            // wet rock: every rock block of the column with an open side, from the pool up to the lip
+            for (int y = p.pool + 1; y <= Math.min(top, p.top); y++) {
+                BlockState s = level.getBlockState(pos.set(x, y, z));
+                if (!isRock(s) || !openSide(level, pos, x, y, z)) {
+                    continue;
+                }
+                double n = model.detail3(4, x / 5.0, y / 5.0, z / 5.0) - 0.06 * spray;
+                if (n > 0.12) {
+                    level.setBlock(pos.set(x, y, z), Blocks.MOSS_BLOCK.defaultBlockState(), 2);
+                    placed = true;
+                } else if (n > -0.15) {
+                    level.setBlock(pos.set(x, y, z), Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
+                    placed = true;
+                }
             }
         }
-    }
-
-    /** A pool column: dug out below the surface, water to the surface, gravel and sand on the bed. */
-    private static boolean pool(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int z, int ground, int surface, int depth) {
-        int bed = surface - depth;
-        level.setBlock(pos.set(x, bed, z), (x + z & 1) == 0 ? Blocks.GRAVEL.defaultBlockState() : Blocks.SAND.defaultBlockState(), 2);
-        for (int y = bed + 1; y <= surface; y++) {
-            level.setBlock(pos.set(x, y, z), Blocks.WATER.defaultBlockState(), 2);
-        }
-        for (int y = surface + 1; y <= ground; y++) {
-            BlockState existing = level.getBlockState(pos.set(x, y, z));
-            if (!existing.isAir() && existing.getFluidState().isEmpty()) {
-                level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+        if (shape.role == WaterSolver.ROLE_ROCK || u <= 0 && spray <= 3.0) {
+            // glow lichen just above the pool, vines hanging from the bowl's rim where it is humid
+            for (int y = p.pool + 1; y <= p.pool + 3; y++) {
+                placed |= lichen(level, pos, x, y, z, hash(p, x, y * 31 + z) < 0.12);
+            }
+            if (humid && hash(p, x, z) < 0.18) {
+                placed |= vines(level, pos, x, top + 1, z, 2 + (int) (7 * hash(p, z, x)));
             }
         }
-        return true;
-    }
-
-    /** Tumbled rock raised to the pool's surface where the ground at the foot falls away. */
-    private static boolean dam(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int z, int ground, int surface, long seed) {
-        for (int y = ground + 1; y <= surface; y++) {
-            double n = SeedMixer.unit(SeedMixer.hash3(seed, x, y, z));
-            BlockState rock = n < 0.35 ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : n < 0.75 ? Blocks.COBBLESTONE.defaultBlockState() : Blocks.STONE.defaultBlockState();
-            level.setBlock(pos.set(x, y, z), y == surface && n < 0.5 ? Blocks.MOSS_BLOCK.defaultBlockState() : rock, 2);
+        if (humid && (shape.role == WaterSolver.ROLE_SHORE || shape.role == WaterSolver.ROLE_NATURAL && u < 0)) {
+            placed |= plants(level, pos, p, x, top, z);
         }
-        return true;
+        return placed;
     }
 
-    private static double jitter(long seed, int a, int b) {
-        return SeedMixer.unit(SeedMixer.hash2(seed ^ 0x51DE, a, b)) * 2.0 - 1.0;
+    private static boolean decorateCascade(WorldGenLevel level, TerrainModel model, FallPlan p, WaterPlan.Shape shape, BlockPos.MutableBlockPos pos,
+                                           int x, int z, boolean humid) {
+        int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
+        int surface = level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z) - 1;
+        if (shape.level != WaterSolver.NONE) {
+            // lily pads on the lowest, stillest pool
+            BlockState water = level.getBlockState(pos.set(x, surface, z));
+            if (shape.level == p.pool + 1 && water.is(Blocks.WATER) && water.getFluidState().isSource() && hash(p, x, z) < 0.07
+                && level.getBlockState(pos.set(x, surface + 1, z)).isAir()) {
+                level.setBlock(pos, Blocks.LILY_PAD.defaultBlockState(), 2);
+                return true;
+            }
+            return false;
+        }
+        if (humid && (shape.role == WaterSolver.ROLE_DAM || shape.role == WaterSolver.ROLE_NATURAL)) {
+            return plants(level, pos, p, x, top, z);
+        }
+        return false;
+    }
+
+    /** Ferns and moss carpets on a shore or dam top, if it is soil or moss with air above. */
+    private static boolean plants(WorldGenLevel level, BlockPos.MutableBlockPos pos, FallPlan p, int x, int top, int z) {
+        BlockState ground = level.getBlockState(pos.set(x, top, z));
+        if (!level.getBlockState(pos.set(x, top + 1, z)).isAir()) {
+            return false;
+        }
+        double h = hash(p, x * 3, z * 5);
+        if (ground.is(Blocks.MOSS_BLOCK) && h < 0.45) {
+            level.setBlock(pos.set(x, top + 1, z), Blocks.MOSS_CARPET.defaultBlockState(), 2);
+            return true;
+        }
+        if (!ground.is(BlockTags.DIRT)) {
+            return false;
+        }
+        if (h < 0.1 && level.getBlockState(pos.set(x, top + 2, z)).isAir()) {
+            level.setBlock(pos.set(x, top + 1, z), Blocks.LARGE_FERN.defaultBlockState().setValue(DoublePlantBlock.HALF, DoubleBlockHalf.LOWER), 2);
+            level.setBlock(pos.set(x, top + 2, z), Blocks.LARGE_FERN.defaultBlockState().setValue(DoublePlantBlock.HALF, DoubleBlockHalf.UPPER), 2);
+            return true;
+        }
+        if (h < 0.35) {
+            level.setBlock(pos.set(x, top + 1, z), Blocks.FERN.defaultBlockState(), 2);
+            return true;
+        }
+        return false;
+    }
+
+    /** Glow lichen in an open block against a rock face beside it. */
+    private static boolean lichen(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z, boolean grow) {
+        if (!grow || !level.getBlockState(pos.set(x, y, z)).isAir()) {
+            return false;
+        }
+        for (Direction d : SIDES) {
+            BlockState wall = level.getBlockState(pos.set(x + d.getStepX(), y, z + d.getStepZ()));
+            if (isRock(wall) || wall.is(Blocks.MOSS_BLOCK)) {
+                level.setBlock(pos.set(x, y, z), Blocks.GLOW_LICHEN.defaultBlockState().setValue(MultifaceBlock.getFaceProperty(d), true), 2);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A strand of vines hanging down from the top of a wall into the open air beside it. */
+    private static boolean vines(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z, int length) {
+        boolean placed = false;
+        for (Direction d : SIDES) {
+            int ax = x + d.getStepX();
+            int az = z + d.getStepZ();
+            // the open air next to this column, below its top
+            int yy = y - 1;
+            if (!level.getBlockState(pos.set(ax, yy, az)).isAir() || !level.getBlockState(pos.set(x, yy, z)).isSolid()) {
+                continue;
+            }
+            if (ax >> 4 != x >> 4 || az >> 4 != z >> 4) {
+                // the strand would hang in the neighbouring chunk, which decorates its own columns
+                continue;
+            }
+            Direction toWall = d.getOpposite();
+            BlockState vine = Blocks.VINE.defaultBlockState().setValue(VineBlock.getPropertyForFace(toWall), true);
+            for (int i = 0; i < length; i++) {
+                if (!level.getBlockState(pos.set(ax, yy - i, az)).isAir() || !level.getBlockState(pos.set(x, yy - i, z)).isSolid()) {
+                    break;
+                }
+                level.setBlock(pos.set(ax, yy - i, az), vine, 2);
+                placed = true;
+            }
+            break;
+        }
+        return placed;
+    }
+
+    private static boolean openSide(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z) {
+        for (Direction d : SIDES) {
+            BlockState s = level.getBlockState(pos.set(x + d.getStepX(), y, z + d.getStepZ()));
+            if (s.isAir() || !s.getFluidState().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isRock(BlockState s) {
+        return s.is(BlockTags.BASE_STONE_OVERWORLD) || s.is(Blocks.COBBLESTONE) || s.is(Blocks.CALCITE) || s.is(Blocks.SANDSTONE)
+            || s.is(Blocks.RED_SANDSTONE) || s.is(BlockTags.TERRACOTTA);
+    }
+
+    private static double hash(FallPlan p, int a, int b) {
+        return SeedMixer.unit(SeedMixer.hash2(p.seed ^ 0x5EEDL, a, b));
     }
 }
