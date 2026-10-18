@@ -595,12 +595,23 @@ def resources():
     layer('high_water_spring', 'minecraft:spring_water', 10, uniform(320, 1600), 'fluid_springs')
 
 
+def ruins():
+    # ruined houses, signposts and lamp posts beside trails, sunken ruins on mid-depth sea floors.
+    # Sites come from the terrain model (no-op outside Terrahaul worlds); every overworld chunk runs
+    # the feature, so ruins spanning chunk borders are always completed. Trail types follow the
+    # trails config at runtime (there is no data-pack condition for it).
+    configured('ruins', 'terrahaul:ruins', {})
+    placed('ruins', 'terrahaul:ruins', [])
+    add_features('ruins', '#minecraft:is_overworld', 'terrahaul:ruins', 'surface_structures')
+
+
 def main():
     water()
     oceans()
     trees()
     details()
     resources()
+    ruins()
 
 
 if __name__ == '__main__':

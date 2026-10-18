@@ -1,5 +1,6 @@
 package com.terrahaul.worldgen.terrain;
 
+import com.terrahaul.worldgen.ruins.RuinSites;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -18,6 +19,7 @@ public final class TerrainFinder {
      * A search target and how to look for it. For {@link Kind#GRID} and {@link Kind#HIGHEST} the
      * step is the sampling distance in blocks; for {@link Kind#LAKE_SITE} it holds the
      * {@link LakeType} to look for (0 = any lake) and for {@link Kind#FORMATION} the formation type.
+     * For {@link Kind#RUIN} it is the {@link RuinSites} site type.
      */
     public record Target(String name, String description, int step, Predicate<ColumnSample> coarse, Predicate<ColumnSample> exact, Kind kind) {
     }
@@ -29,7 +31,8 @@ public final class TerrainFinder {
         WATERFALL,
         LAKE_SITE,
         FORMATION,
-        OVERHANG
+        OVERHANG,
+        RUIN
     }
 
     /** Result of a search: block position of the match and a short label. */
@@ -86,6 +89,10 @@ public final class TerrainFinder {
         add("sea_stack", "a sea stack", TerrainModel.SEA_STACK, null, null, Kind.FORMATION);
         add("overhang", "a big curved cliff overhang", 16, s -> s.cliff > 0.1 || s.canyon > 0.2 || s.coastCliff > 0.3 || s.plateau > 0.1,
             null, Kind.OVERHANG);
+        add("trail_ruin", "a ruined house beside a trail", RuinSites.TRAIL_RUIN, null, null, Kind.RUIN);
+        add("signpost", "a signpost at a trail junction or trail end", RuinSites.SIGNPOST, null, null, Kind.RUIN);
+        add("path_lights", "old lamp posts along a trail", RuinSites.PATH_LIGHTS, null, null, Kind.RUIN);
+        add("sunken_ruin", "sunken ruins on the sea floor", RuinSites.SUNKEN_RUIN, null, null, Kind.RUIN);
     }
 
     private TerrainFinder() {
@@ -114,6 +121,7 @@ public final class TerrainFinder {
             case GRID -> findGrid(model, target, x, z, radius, cancelled);
             case FORMATION -> findFormation(model, target.step(), x, z, radius, cancelled);
             case OVERHANG -> findOverhang(model, target, x, z, radius, cancelled);
+            case RUIN -> RuinSites.find(model, target.step(), x, z, radius, cancelled);
         };
     }
 

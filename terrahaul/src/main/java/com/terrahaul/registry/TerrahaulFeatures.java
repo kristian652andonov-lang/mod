@@ -7,6 +7,7 @@ import com.terrahaul.worldgen.features.FallenLogConfiguration;
 import com.terrahaul.worldgen.features.FallenLogFeature;
 import com.terrahaul.worldgen.features.OceanVentFeature;
 import com.terrahaul.worldgen.features.RockFormationFeature;
+import com.terrahaul.worldgen.ruins.RuinsFeature;
 import com.terrahaul.worldgen.trees.ProceduralTreeConfiguration;
 import com.terrahaul.worldgen.trees.ProceduralTreeFeature;
 import com.terrahaul.worldgen.water.SurfaceWaterFeature;
@@ -38,6 +39,8 @@ public final class TerrahaulFeatures {
         FEATURES.register("boulder", () -> new BoulderFeature(BoulderConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, RockFormationFeature> ROCK_FORMATIONS =
         FEATURES.register("rock_formations", () -> new RockFormationFeature(NoneFeatureConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, RuinsFeature> RUINS =
+        FEATURES.register("ruins", () -> new RuinsFeature(NoneFeatureConfiguration.CODEC));
 
     private TerrahaulFeatures() {
     }

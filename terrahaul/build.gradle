@@ -153,3 +153,12 @@ tasks.register('peakStudy', JavaExec) {
     jvmArgs '-Xmx4G', '-Djava.awt.headless=true'
     args = (project.findProperty('args') ?: '12345 build/peaks alpine_peaks 4').toString().split(' ').toList()
 }
+
+tasks.register('ruinStudy', JavaExec) {
+    group = 'terrahaul'
+    description = 'Statistics, maps and renders of trail ruins, signposts, lamp posts and sunken ruins (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.RuinStudy'
+    jvmArgs '-Xmx3G', '-Djava.awt.headless=true'
+    args = (project.findProperty('args') ?: 'stats 12345 4096').toString().split(' ').toList()
+}
