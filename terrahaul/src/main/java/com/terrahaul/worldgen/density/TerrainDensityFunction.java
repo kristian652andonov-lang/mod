@@ -79,7 +79,7 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
             case WEIRDNESS -> s.weirdness;
             case TEMPERATURE -> s.temperature;
             case HUMIDITY -> s.humidity;
-            case DEPTH -> (depthSurface(s.height, x, z) - y) / 128.0;
+            case DEPTH -> (depthSurface(s, x, z) - y) / 128.0;
             case SURFACE_HEIGHT -> s.height;
             case CAVE_ALLOWANCE -> caveAllowance(s, x, y, z);
             case CAVERN_ALLOWANCE -> Math.min(caveAllowance(s, x, y, z), cavernAllowance(s, x, y, z));
@@ -92,15 +92,22 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
      * height would put the sample point tens of blocks "underground" and pick cave biomes
      * (dripstone caves, deep dark) for exposed rock faces.
      */
-    private double depthSurface(double height, int x, int z) {
-        double h = height;
-        for (int r = 8; r <= 20; r += 12) {
-            h = Math.min(h, model.sample(x + r, z).height);
-            h = Math.min(h, model.sample(x - r, z).height);
-            h = Math.min(h, model.sample(x, z + r).height);
-            h = Math.min(h, model.sample(x, z - r).height);
+    private double depthSurface(ColumnSample s, int x, int z) {
+        if (Double.isNaN(s.depthSurface)) {
+            double h = s.height;
+            for (int r = 8; r <= 20; r += 12) {
+                h = Math.min(h, model.sample(x + r, z).height);
+                h = Math.min(h, model.sample(x - r, z).height);
+                h = Math.min(h, model.sample(x, z + r).height);
+                h = Math.min(h, model.sample(x, z - r).height);
+            }
+            // only cache for the column the sample belongs to (density is sampled on its corners)
+            if (s.x == x && s.z == z) {
+                s.depthSurface = h;
+            }
+            return h;
         }
-        return h;
+        return s.depthSurface;
     }
 
     /**
@@ -128,7 +135,7 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
         if (s.height < settings.seaLevel() && s.waterLevel == ColumnSample.NO_WATER && s.lake <= 0.0 && s.river <= 0.0) {
             // under the sea, caves stay at least 40 blocks below the lowest nearby sea floor, so
             // they never undercut the floor into slabs or open sideways into trench walls
-            double below = depthSurface(s.height, x, z) - y;
+            double below = depthSurface(s, x, z) - y;
             guard = Math.min(guard, Math.max(0.0, (below - 40.0) / 24.0));
         }
         return guard;
@@ -145,7 +152,7 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
         if (s.height - y > 120.0) {
             return 1.0;
         }
-        double below = depthSurface(s.height, x, z) - y;
+        double below = depthSurface(s, x, z) - y;
         return Math.min(1.0, Math.max(0.0, (below - 40.0) / 20.0));
     }
 

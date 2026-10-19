@@ -1379,6 +1379,7 @@ public final class TerrainModel {
         out.oceanRidge = oceanRidge;
         out.trailDistance = trailDistance(x, z);
         out.overhangTop = Double.NaN;
+        out.depthSurface = Double.NaN;
         out.bigOverhangRim = Double.NaN;
         out.detailTop = Integer.MIN_VALUE;
         out.beach = (1.0 - coastCliff) * bump(h, sl - 3.0, sl + 1.0, sl + 5.0) * smoothstep(0.0, -0.16, cEff);

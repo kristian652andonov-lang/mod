@@ -107,6 +107,11 @@ public final class ColumnSample {
      * the 3D terrain detail ({@code NaN} until then); {@link #overhangDir} is that direction.
      */
     public double overhangTop;
+    /**
+     * Lowest model surface within 20 blocks, used for biome depth and cave guards, or NaN until
+     * {@code TerrainDensityFunction} first needs it; cached here because it takes 8 neighbour samples.
+     */
+    public double depthSurface;
     /** Lowest model surface 4 blocks away; set together with {@link #overhangTop}. */
     public double overhangFar;
     /** Index of the direction of {@link #overhangTop} in {@code TerrainDetail}'s direction table. */
