@@ -179,7 +179,7 @@ public final class FallPlanner {
 
     private static final int[][] AXES = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
     /** Highest fall on a slope that is not a cliff (the bowl in front is cut into the slope). */
-    private static final int MAX_SLOPE_DROP = 34;
+    private static final int MAX_SLOPE_DROP = 40;
 
     private FallPlan planFall(int cx, int cz) {
         double roll = SeedMixer.cellUnit(fallSeed, cx, cz, 0);
@@ -297,6 +297,8 @@ public final class FallPlanner {
         int lipX = px + lip * dx;
         int lipZ = pz + lip * dz;
         int top = (int) Math.ceil(prof[lip + o]) - 2;
+        // falls on slopes (not cliffs) vary in height from cell to cell
+        int slopeDrop = 14 + (int) Math.round((MAX_SLOPE_DROP - 14) * SeedMixer.cellUnit(fallSeed, cx, cz, 24));
         // the foot: where the slope flattens out, or the first water
         int foot = Integer.MIN_VALUE;
         int pool = 0;
@@ -314,7 +316,7 @@ public final class FallPlanner {
             }
             // where the slope flattens out, or on a long slope once the drop is big enough: a fall
             // at the head of a deeper gorge would mean cutting away a whole hillside
-            if (h < top - 6 && ((h - prof[k + o + 4]) / 4.0 < 0.35 || top - h >= MAX_SLOPE_DROP)) {
+            if (h < top - 6 && ((h - prof[k + o + 4]) / 4.0 < 0.35 || top - h >= slopeDrop)) {
                 foot = k;
                 pool = (int) Math.floor(h) - 1;
                 break;
@@ -550,16 +552,19 @@ public final class FallPlanner {
             double ex = x + 0.5;
             double ey = g + 2.62;
             double ez = z + 0.5;
+            // the foot of the fall, where it meets the pool, counts double
             int seen = 0;
-            for (int[] t : targets) {
-                double tx = p.lipX + p.dirX - t[0] * p.dirZ + 0.5;
-                double tz = p.lipZ + p.dirZ + t[0] * p.dirX + 0.5;
-                if (visible(ps, p, shape, ex, ey, ez, tx, t[1] + 0.5, tz)) {
+            int weight = 0;
+            for (int t = 0; t < targets.length; t++) {
+                double tx = p.lipX + p.dirX - targets[t][0] * p.dirZ + 0.5;
+                double tz = p.lipZ + p.dirZ + targets[t][0] * p.dirX + 0.5;
+                if (visible(ps, p, shape, ex, ey, ez, tx, targets[t][1] + 0.5, tz)) {
                     seen++;
+                    weight += t < 3 ? 2 : 1;
                 }
             }
             double dist = Math.hypot(ex - (p.lookX + 0.5), ez - (p.lookZ + 0.5));
-            double score = seen / (double) targets.length - 0.2 * Math.abs(Math.log(Math.max(4.0, dist) / Math.max(10.0, 1.2 * drop)));
+            double score = weight / 12.0 - 0.2 * Math.abs(Math.log(Math.max(4.0, dist) / Math.max(10.0, 1.2 * drop)));
             if (seen * 2 >= targets.length && score > best) {
                 best = score;
                 p.viewX = x;

@@ -1,6 +1,8 @@
 package com.terrahaul.devtools;
 
+import com.terrahaul.worldgen.noise.SeedMixer;
 import com.terrahaul.worldgen.terrain.ColumnSample;
+import com.terrahaul.worldgen.terrain.TerrainFinder;
 import com.terrahaul.worldgen.terrain.TerrainModel;
 import com.terrahaul.worldgen.terrain.TerrainSettings;
 import com.terrahaul.worldgen.terrain.WaterBody;
@@ -45,6 +47,7 @@ public final class WaterStudy {
                 Integer.parseInt(args[5]), new File(args[6]));
             case "rivers" -> rivers(model, Integer.parseInt(args[2]));
             case "lakes" -> lakes(model, Integer.parseInt(args[2]));
+            case "finder" -> finder(model, Integer.parseInt(args[2]));
             case "falls" -> falls(model, Integer.parseInt(args[2]), new File(args[3]), args.length > 4 ? Integer.parseInt(args[4]) : 8,
                 args.length > 5 ? args[5] : "all");
             case "fallinfo" -> {
@@ -352,7 +355,7 @@ public final class WaterStudy {
             for (String e : st.examples) {
                 System.out.println("    " + e);
             }
-            tiles.add(render(area, model.seaLevel(), KINDS[reg[2]]));
+            tiles.add(withView(model, area, render(area, model.seaLevel(), KINDS[reg[2]])));
         }
         System.out.printf(Locale.ROOT, "TOTAL %d regions, %d chunks: %d water cols, %d sills, %d chutes, stream cols %d (sills %d), "
                 + "banks %s, steps %s, mismatches %d, source-air %d, water-above-air %d, %.2f ms/chunk%n",
@@ -360,6 +363,44 @@ public final class WaterStudy {
             hist(total.bankHist), hist(total.stepHist), total.mismatches, total.sourceFacingAir, total.waterAboveAir,
             total.nanos / 1.0e6 / Math.max(1, total.chunks));
         sheet(tiles, new File(dir, "solve_" + model.seed() + ".png"));
+    }
+
+    /**
+     * Adds a first-person view of the area's most interesting water (a step, else any water) seen
+     * from 14 blocks away and 7 blocks above it, beside the top view.
+     */
+    private static BufferedImage withView(TerrainModel model, Area area, BufferedImage top) {
+        int best = -1;
+        int bestScore = -1;
+        for (int t = 0; t < area.w * area.h; t++) {
+            int x = t % area.w;
+            int z = t / area.w;
+            if (x < 20 || z < 20 || x >= area.w - 20 || z >= area.h - 20 || area.level[t] == WaterSolver.NONE) {
+                continue;
+            }
+            int score = area.step[t] == WaterSolver.CHUTE ? 3 : area.step[t] == WaterSolver.SILL ? 2 : 1;
+            if (score > bestScore) {
+                bestScore = score;
+                best = t;
+            }
+        }
+        if (best < 0) {
+            return top;
+        }
+        int tx = area.ax + best % area.w;
+        int tz = area.az + best / area.w;
+        int ty = area.level[best];
+        double ex = tx - 10;
+        double ez = tz - 10;
+        int k = area.at((int) ex, (int) ez);
+        double ey = Math.max(area.solidTop[k], area.level[k]) + 7.0;
+        BufferedImage view = WaterView.render(model, area, ex, ey, ez, tx + 0.5, ty, tz + 0.5, 360, top.getHeight());
+        BufferedImage img = new BufferedImage(top.getWidth() + view.getWidth(), top.getHeight(), BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        g.drawImage(top, 0, 0, null);
+        g.drawImage(view, top.getWidth(), 0, null);
+        g.dispose();
+        return img;
     }
 
     static void accumulate(Stats total, Stats st) {
@@ -630,6 +671,103 @@ public final class WaterStudy {
         g.drawImage(top, 0, sideH, null);
         g.dispose();
         return img;
+    }
+
+    // =========================================================================================
+    // finder
+    // =========================================================================================
+
+    /**
+     * Runs {@code /terrahaul find} for the water targets from {@code n} origins and checks each
+     * result on the solved world around it: waterfalls and cascades must be in sight (falling
+     * water within 48 blocks of a dry viewpoint), lakes and rivers must have water near, dry
+     * rivers none, streams stream water.
+     */
+    private static void finder(TerrainModel model, int n) {
+        String[] targets = {"waterfall", "cascade", "lake", "river", "great_river", "dry_river", "stream"};
+        long seed = model.seed();
+        for (String name : targets) {
+            TerrainFinder.Target target = TerrainFinder.targets().get(name);
+            if (target == null) {
+                continue;
+            }
+            int ok = 0;
+            int found = 0;
+            long nanos = 0;
+            List<String> bad = new ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                int ox = (int) ((SeedMixer.unit(SeedMixer.hash2(seed, i, 1)) - 0.5) * 40000);
+                int oz = (int) ((SeedMixer.unit(SeedMixer.hash2(seed, i, 2)) - 0.5) * 40000);
+                long t0 = System.nanoTime();
+                TerrainFinder.Result r = TerrainFinder.find(model, target, ox, oz, 6000, () -> false);
+                nanos += System.nanoTime() - t0;
+                if (r == null) {
+                    continue;
+                }
+                found++;
+                String why = validate(model, name, r);
+                if (why == null) {
+                    ok++;
+                } else if (bad.size() < 4) {
+                    bad.add(r.x() + "," + r.y() + "," + r.z() + ": " + why);
+                }
+            }
+            System.out.printf(Locale.ROOT, "%-12s found %d of %d, valid %d, %.0f ms per search%n", name, found, n, ok, nanos / 1e6 / n);
+            for (String b : bad) {
+                System.out.println("    " + b);
+            }
+        }
+    }
+
+    private static String validate(TerrainModel model, String name, TerrainFinder.Result r) {
+        int reach = name.equals("great_river") ? 160 : 48;
+        int ccx = Math.floorDiv(r.x() - reach, 16);
+        int ccz = Math.floorDiv(r.z() - reach, 16);
+        int nx = Math.floorDiv(r.x() + reach, 16) - ccx + 1;
+        int nz = Math.floorDiv(r.z() + reach, 16) - ccz + 1;
+        Stats st = new Stats();
+        Area area = solveArea(model, ccx, ccz, nx, nz, st);
+        if (st.sourceFacingAir > 0 || st.mismatches > 0) {
+            return "invariants broken nearby (" + st.examples + ")";
+        }
+        int k0 = area.at(r.x(), r.z());
+        boolean standingInWater = area.level[k0] != WaterSolver.NONE && area.level[k0] > area.ground[k0] + 1 && r.y() <= area.level[k0];
+        int chutes = 0;
+        int water = 0;
+        int stream = 0;
+        int elevated = 0;
+        double nearestWater = Double.MAX_VALUE;
+        for (int z = area.az; z < area.az + area.h; z++) {
+            for (int x = area.ax; x < area.ax + area.w; x++) {
+                double d = Math.hypot(x - r.x(), z - r.z());
+                if (d > reach) {
+                    continue;
+                }
+                int k = area.at(x, z);
+                if (area.level[k] == WaterSolver.NONE) {
+                    continue;
+                }
+                water++;
+                nearestWater = Math.min(nearestWater, d);
+                if (area.step[k] == WaterSolver.CHUTE) {
+                    chutes++;
+                }
+                if (area.kind[k] == WaterSolver.STREAM) {
+                    stream++;
+                }
+                if (area.kind[k] != WaterSolver.SEA) {
+                    elevated++;
+                }
+            }
+        }
+        return switch (name) {
+            case "waterfall", "cascade" -> standingInWater ? "viewpoint in water" : chutes < 1 ? "no falling water near" : null;
+            case "lake" -> nearestWater > 24 ? "no water within 24 blocks" : null;
+            case "river", "great_river" -> nearestWater > 24 ? "no water within 24 blocks" : null;
+            case "dry_river" -> nearestWater < 16 ? "water " + Math.round(nearestWater) + " blocks away" : null;
+            case "stream" -> stream < 4 ? "no stream water near (" + stream + " columns)" : null;
+            default -> null;
+        };
     }
 
     // =========================================================================================

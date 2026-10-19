@@ -186,16 +186,17 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
         }
 
         // ---- seal everything that must hold water but is open --------------------------------
-        if (lv == WaterSolver.NONE || step == WaterSolver.SILL) {
-            int need = ws.holdLevel(i, j);
-            if (need != WaterSolver.NONE) {
-                int holdFrom = ws.holdFrom(i, j);
-                for (int y = holdFrom; y <= need; y++) {
-                    BlockState s = level.getBlockState(pos.set(x, y, z));
-                    if (!s.blocksMotion() && s.getFluidState().isEmpty()) {
-                        level.setBlock(pos, y > solidTop ? palette.bank(y == need, false) : palette.seal(lava), 2);
-                        placed = true;
-                    }
+        // (a cave, a ravine or a hollow of the 3D terrain detail beside or under the water: in a
+        // dry column up to the water's surface, in a water column below its bed)
+        int need = ws.holdLevel(i, j);
+        if (need != WaterSolver.NONE) {
+            boolean wet = lv != WaterSolver.NONE && step != WaterSolver.SILL;
+            int holdTo = wet ? Math.min(need, ground) : need;
+            for (int y = ws.holdFrom(i, j); y <= holdTo; y++) {
+                BlockState s = level.getBlockState(pos.set(x, y, z));
+                if (!s.blocksMotion() && s.getFluidState().isEmpty()) {
+                    level.setBlock(pos, y > solidTop ? palette.bank(y == need, false) : palette.seal(lava), 2);
+                    placed = true;
                 }
             }
         }

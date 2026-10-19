@@ -20,7 +20,8 @@
   ],
   "client": [
     "client.FogShapeMixin",
-    "client.VertexBufferMixin"
+    "client.VertexBufferMixin",
+    "client.WaterFluidMistMixin"
   ],
   "injectors": {
     "defaultRequire": 1
