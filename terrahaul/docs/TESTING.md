@@ -11,6 +11,11 @@ This page records what was actually tested, how, and with what result. It also l
   screenshot harness.
 - The data generators (`tools/*.py`) were re-run and produced identical files apart from intended
   changes, which shows they are deterministic.
+- **The built JAR in a standalone server:** NeoForge 21.1.262 was installed with the official
+  installer (`--installServer`), `terrahaul-1.0.0.jar` was put into `mods/`, and
+  `level-type=terrahaul\:terrahaul` was set. The server loaded the mod and its mixins, created a
+  Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
+  for four minutes without an exception and stopped cleanly.
 
 ## Second feedback round: fresh world, every new feature (seed 12345)
 A dedicated server created a fresh Terrahaul world and `AutoTest` located 25 landforms with
@@ -65,6 +70,26 @@ each (9x9 around spawn and the volcano) and inspected the blocks. The log had no
   The two cleanup passes cost a few percent (comparing the same areas before and after). The
   structure "beard" mixin (`BeardifierMixin`) took jigsaw-structure areas from about 15% of the
   profile to 3%.
+
+### Client screenshots (software rendering, render distance 10)
+The development client loaded a copy of the test world and took 32 screenshots, from finder
+results and biome searches, plus 13 retakes from better viewpoints. Reviewed by eye:
+- **Looked right:** the volcano crater lake in a tuff and scoria cone with dark radial streaks;
+  the deep-sea trench (benched deepslate walls, magma floor, vent chimneys, a shipwreck); the
+  coral reef (single-species colonies in patches, fans, seagrass on sand); a sunken ruin among
+  kelp; a broken mud-brick cottage beside a gravel trail; a signpost and a stretch of broken
+  path lights along trails; the hoodoo field; a curved overhang on a badlands butte; the wetland
+  (pools, mud, lily pads, weeping trees); a dry riverbed in savanna; a savanna lake; a frozen
+  great river; a mountain wall with a stream falling down its face; forests of oak, birch,
+  jungle, dark oak and cherry.
+- **Found and fixed from the screenshots:** a swamp biome search led to a snowy mountain (swamp
+  biomes are now kept to the marshes); an arch lay against a steep slope (arches now need gentle
+  ground).
+- **Not judged:** the views of the alpine and colossal peaks were too far away or above the
+  cloud layer to show the peak shapes well; the cascade view showed a single pool at the edge of
+  a desert; the waterfall was partly hidden by jungle; a low view of the volcano's flanks ended
+  inside the terrain, so the forested and burned flank zones were not seen in game (only in the
+  `volcanoStudy` renders).
 
 ### Offline checks (devtools, no game)
 Each part of this round was also checked with the pure-Java devtools on the terrain model:
