@@ -1422,6 +1422,10 @@ public final class TerrainModel {
             // inland continentalness (above) and the highest erosion band: swamp and mangrove
             // swamp biomes on the marshes
             eOut = Math.max(eOut, 0.56);
+        } else if (swamp < 0.25) {
+            // the biome source gives swamps to the whole highest erosion band, which away from the
+            // marshes covers mountains and cold uplands: keep it to the marshes and their fringe
+            eOut = Math.min(eOut, 0.44);
         }
         if (plateau > 0.5) {
             eOut = clamp(eOut, -0.37, -0.23);
