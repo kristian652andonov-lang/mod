@@ -30,10 +30,10 @@ public final class Transect {
             int z = (int) Math.round(z0 + (z1 - z0) * t) & ~3;
             model.sampleInto(x, z, s);
             System.out.printf(Locale.ROOT,
-                "%6d %6d h=%7.1f unc=%7.1f wat=%6s mtn=%.2f wall=%.2f pk=%.2f plat=%.2f cany=%.2f cFl=%5.0f coast=%.2f fjord=%.2f trench=%.2f tFl=%5.0f volc=%.2f crat=%.2f riv=%.2f rv=%.2f rw=%5.1f lake=%.2f swamp=%.2f isl=%.2f cliff=%.2f E=%.2f C=%.2f rawC=%.2f T=%.2f H=%.2f%n",
+                "%6d %6d h=%7.1f unc=%7.1f wat=%6s mtn=%.2f wall=%.2f pk=%.2f plat=%.2f cany=%.2f cFl=%5.0f coast=%.2f fjord=%.2f trench=%.2f tFl=%5.0f volc=%.2f crat=%.2f riv=%.2f rv=%.2f rw=%5.1f lake=%.2f swamp=%.2f wind=%.2f isl=%.2f cliff=%.2f pre=%.1f E=%.2f C=%.2f rawC=%.2f T=%.2f H=%.2f%n",
                 x, z, s.height, s.uncarvedHeight, s.waterLevel == ColumnSample.NO_WATER ? "-" : String.format(Locale.ROOT, "%.0f", s.waterLevel),
                 s.mountain, s.wall, s.peakness, s.plateau, s.canyon, s.canyonFloor, s.coastCliff, s.fjord, s.trench, s.trenchFloor, s.volcano, s.crater,
-                s.river, s.riverValley, s.riverWidth, s.lake, s.swamp, s.island, s.cliff, s.erosion, s.continentalness, s.rawContinentalness, s.temperature, s.humidity);
+                s.river, s.riverValley, s.riverWidth, s.lake, s.swamp, s.windswept, s.island, s.cliff, s.preWaterHeight, s.erosion, s.continentalness, s.rawContinentalness, s.temperature, s.humidity);
         }
     }
 }

@@ -17,6 +17,11 @@ public final class ColumnSample {
     /** Height before rivers, lakes and canyons were carved; used for valley walls. */
     public double uncarvedHeight;
     /**
+     * Height after canyons were carved but before rivers and lakes were, so audits can tell the
+     * walls of water bodies from those of the landforms they cut through.
+     */
+    public double preWaterHeight;
+    /**
      * Surface of a water body above sea level (elevated river or lake), or {@link #NO_WATER}.
      * Water at or below sea level is placed by the vanilla fluid system and is not recorded here.
      */
@@ -128,6 +133,7 @@ public final class ColumnSample {
         z = o.z;
         height = o.height;
         uncarvedHeight = o.uncarvedHeight;
+        preWaterHeight = o.preWaterHeight;
         waterLevel = o.waterLevel;
         lavaLevel = o.lavaLevel;
         cliff = o.cliff;

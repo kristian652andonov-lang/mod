@@ -147,10 +147,11 @@ public final class AutoTest {
     }
 
     /**
-     * Counts floating terrain fragments: groups of terrain blocks in the top 60 blocks of every
-     * column of the area that do not connect to the ground (see {@link FloatingFragments}), and
-     * logs the largest ones with their position. Terrain is any full, solid, fluid-free block
-     * except logs and leaves, so trees neither count as fragments nor hold one up.
+     * Counts floating terrain fragments: groups of terrain blocks near the surface (from each
+     * column's top down to 60 blocks below the lowest top of it and its neighbours) that do not
+     * connect to the ground (see {@link FloatingFragments}), and logs the largest ones with their
+     * position. Terrain is any full, solid, fluid-free block except logs and leaves, so trees
+     * neither count as fragments nor hold one up.
      */
     private static void floatingFragments(ServerLevel level, int cx, int cz, int radius, List<String> report) {
         int size = (radius * 2 + 1) * 16;
@@ -172,7 +173,7 @@ public final class AutoTest {
         }
         long t0 = System.nanoTime();
         FloatingFragments.Result r = FloatingFragments.scan((x, y, z) -> terrain(level, pos.set(x, y, z)), x0, z0, size, size, top, 60, 10);
-        report.add(String.format(Locale.ROOT, "  floating terrain (top 60 blocks of %dx%d columns, %.0f ms): %s",
+        report.add(String.format(Locale.ROOT, "  floating terrain (surface windows of 60 blocks, %dx%d columns, %.0f ms): %s",
             size, size, (System.nanoTime() - t0) / 1e6, r.summary()));
         for (FloatingFragments.Fragment f : r.largest()) {
             report.add("    fragment: " + f);

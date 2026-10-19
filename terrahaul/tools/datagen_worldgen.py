@@ -104,6 +104,17 @@ def main(vanilla):
     write('terrahaul/worldgen/density_function/caves/cavern_guard.json', {"type": "minecraft:cache_once", "argument": cavern_guard})
     CG = "terrahaul:caves/cavern_guard"
 
+    # vanilla cave entrances are the minimum of large chambers (the cave_entrance noise, tens of
+    # blocks across) and spaghetti tunnels. Above Y 30 the chambers form at any depth; just under
+    # the surface they hollow it out like caverns and leave thin roofs and floating slabs, so they
+    # get the cavern guard too, while the tunnels still open at the surface
+    with open(os.path.join(vanilla, 'worldgen', 'density_function', 'overworld', 'caves', 'entrances.json')) as f:
+        vanilla_entrances = json.load(f)['argument']
+    assert vanilla_entrances['type'] == 'minecraft:min'
+    write('terrahaul/worldgen/density_function/caves/entrances.json', {"type": "minecraft:cache_once", "argument": fmin(
+        fmax(vanilla_entrances['argument1'], CG), vanilla_entrances['argument2'])})
+    E = "terrahaul:caves/entrances"
+
     # vanilla underground cave expression with the Terrahaul terrain distance in place of
     # sloped_cheese: cheese caverns, cave layers, entrances, 2D spaghetti and pillars
     cheese = add(mul(4.0, {"type": "minecraft:square", "argument": noise("minecraft:cave_layer", 1.0, 8.0)}),
@@ -111,11 +122,11 @@ def main(vanilla):
                      clamp(add(1.5, mul(-0.64, T)), 0.0, 0.5)))
     cheese = fmax(cheese, CG)
     underground = fmax(
-        fmin(fmin(cheese, "minecraft:overworld/caves/entrances"),
+        fmin(fmin(cheese, E),
              add("minecraft:overworld/caves/spaghetti_2d", "minecraft:overworld/caves/spaghetti_roughness_function")),
         rc("minecraft:overworld/caves/pillars", -1000000.0, 0.03, -1000000.0, "minecraft:overworld/caves/pillars"))
     underground = fmax(underground, G)
-    near_surface = rc(T, -1000000.0, -1.0, T, fmin(T, fmax(mul(5.0, "minecraft:overworld/caves/entrances"), G)))
+    near_surface = rc(T, -1000000.0, -1.0, T, fmin(T, fmax(mul(5.0, E), G)))
     caved = rc(T, -1000000.0, 1.5625, near_surface, underground)
     write('terrahaul/worldgen/density_function/terrain/caved.json', caved)
 

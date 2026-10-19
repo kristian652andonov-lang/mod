@@ -43,11 +43,17 @@ public final class WallAudit {
     static final double SHEER_SLOPE = 4.0;
     static final double STEEP_SLOPE = 2.5;
     static final String[] CLASSES = {"trench", "fjord", "volcano", "canyon", "coast_cliff", "plateau_edge", "lake", "river",
-        "mountain_wall", "mountain", "swamp", "sea_floor", "other"};
+        "mountain_wall", "mountain", "swamp", "windswept", "sea_floor", "island_shelf", "other"};
+    static final int LAKE = 6;
+    static final int RIVER = 7;
+    static final int SEA_FLOOR = 12;
+    static final int ISLAND_SHELF = 13;
+    static final int OTHER = 14;
     /** Marker colours: trench blue, fjord cyan, volcano red, canyon orange, coast yellow, plateau brown,
-     *  lake light blue, river dark blue, wall magenta, mountain purple, swamp green, sea floor lilac, other white. */
+     *  lake light blue, river dark blue, wall magenta, mountain purple, swamp green, windswept olive,
+     *  sea floor lilac, island shelf pink, other white. */
     static final int[] COLORS = {0x2040FF, 0x00C0C0, 0xFF2020, 0xFF8000, 0xFFFF00, 0xC08040, 0x40A0FF, 0x0060FF,
-        0xFF00FF, 0xA000A0, 0x00FF00, 0x8080FF, 0xFFFFFF};
+        0xFF00FF, 0xA000A0, 0x00FF00, 0x909020, 0x8080FF, 0xFF90C0, 0xFFFFFF};
     private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
 
     private WallAudit() {
@@ -176,7 +182,7 @@ public final class WallAudit {
             int fx = minX + (foot % n) * 4;
             int fz = minZ + (foot / n) * 4;
             model.sampleInto(fx, fz, b);
-            int cls = classify(a, b, sl);
+            int cls = classify(a, b, sl, isSheer ? sheer[p] : isSteep ? steep[p] : drop6[p]);
             if (isSheer) {
                 hits.add(new Hit(cls, SHEER, x, z, fx, fz, sheer[p], 0.0));
             }
@@ -187,7 +193,7 @@ public final class WallAudit {
                 hits.add(new Hit(cls, DROP6, x, z, x, z, drop6[p], 0.0));
             }
             if (isSlot) {
-                hits.add(new Hit(classify(a, a, sl), SLOT, x, z, x, z, slotDepth[p], slotWidth[p]));
+                hits.add(new Hit(classify(a, a, sl, slotDepth[p]), SLOT, x, z, x, z, slotDepth[p], slotWidth[p]));
             }
         }
 
@@ -330,36 +336,43 @@ public final class WallAudit {
     }
 
     /**
-     * The landform responsible for a wall between {@code top} and {@code foot}: the strongest of
-     * the carving landforms, weighted so that a weak fringe of one does not outrank the core of
-     * another. Mountains (and their walls) only win where no carving landform is present.
+     * The landform responsible for a wall of height {@code wall} between {@code top} and
+     * {@code foot}. Rivers and lakes are carved last, so a wall whose foot (or top) they lowered by
+     * more than half its height is theirs, whatever landform they cut through. Otherwise the
+     * strongest of the other landforms wins, weighted so that a weak fringe of one does not outrank
+     * the core of another; mountains (and their walls) only win where nothing else is present.
      */
-    static int classify(ColumnSample top, ColumnSample foot, int sl) {
+    static int classify(ColumnSample top, ColumnSample foot, int sl, double wall) {
+        double waterCut = Math.max(foot.preWaterHeight - foot.height, top.preWaterHeight - top.height);
+        if (waterCut > 0.5 * wall) {
+            return Math.max(top.riverValley, foot.riverValley) > 0.0 || top.river > 0.0 || foot.river > 0.0 ? RIVER : LAKE;
+        }
         double[] score = new double[CLASSES.length];
         score[0] = Math.max(top.trench, foot.trench) * 2.0;
         score[1] = Math.max(top.fjord, foot.fjord) * 2.0;
         score[2] = Math.max(Math.max(top.volcano, foot.volcano), Math.max(top.crater, foot.crater)) * 1.5;
         score[3] = Math.max(top.canyon, foot.canyon) * 2.0;
         score[4] = Math.max(top.coastCliff, foot.coastCliff) * 1.5;
-        score[5] = Math.max(top.plateau, foot.plateau) * (1.0 - 0.8 * Math.max(top.mountain, foot.mountain));
-        // lake shores are carved (below the uncarved height) without being canyon or river
-        boolean carved = top.uncarvedHeight - top.height > 4.0 || foot.uncarvedHeight - foot.height > 4.0;
-        boolean shore = carved && Math.max(top.canyon, foot.canyon) < 0.02 && Math.max(top.riverValley, foot.riverValley) < 0.05;
-        score[6] = top.lake > 0.0 || foot.lake > 0.0 || shore ? 1.2 : 0.0;
+        // a plateau edge (caprock and talus) lies between the plateau and the land below it; a
+        // wall inside the plateau is caused by whatever stands on it
+        score[5] = Math.abs(top.plateau - foot.plateau) * 2.5;
+        score[6] = top.lake > 0.0 || foot.lake > 0.0 ? 1.2 : 0.0;
         score[7] = Math.max(top.riverValley, foot.riverValley) * 1.2;
         score[8] = Math.max(top.wall, foot.wall) * 1.2;
-        score[9] = Math.max(top.mountain, foot.mountain) * 0.8;
+        // mountain flanks, and walls where the mountain mask itself jumps
+        score[9] = Math.max(top.mountain, foot.mountain) * 0.8 + Math.abs(top.mountain - foot.mountain) * 3.0;
         score[10] = Math.max(top.swamp, foot.swamp);
-        int best = 12;
+        score[11] = Math.max(top.windswept, foot.windswept);
+        int best = OTHER;
         double bestScore = 0.1;
-        for (int c = 0; c < 11; c++) {
+        for (int c = 0; c < SEA_FLOOR; c++) {
             if (score[c] > bestScore) {
                 bestScore = score[c];
                 best = c;
             }
         }
-        if (best == 12 && top.height < sl && foot.height < sl) {
-            return 11;
+        if (best == OTHER && top.height < sl && foot.height < sl) {
+            return top.island > 0.0 || foot.island > 0.0 ? ISLAND_SHELF : SEA_FLOOR;
         }
         return best;
     }

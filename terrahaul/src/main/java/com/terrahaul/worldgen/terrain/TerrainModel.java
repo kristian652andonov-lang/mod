@@ -442,10 +442,17 @@ public final class TerrainModel {
         double c = continentValue(wx, wz);
         double rawC = c;
         double archMask = smoothstep(0.12, 0.42, archipelago.fbm(wx / (cs * 1.4), wz / (cs * 1.4)));
+        // the ocean's large structures (island regions, abyssal relief, trenches) fade in and out
+        // with the low-pass continent field: they are hundreds of blocks high, and the full field can
+        // fall from shelf to abyss depths within a hundred blocks, which left their edges as walls
+        double cLow = c < -0.12 ? continentLow(wx, wz) : c;
         // islands stay away from the deepest ocean and fade out before the continental shore
-        double islandRegion = archMask * smoothstep(-1.05, -0.4, c) * smoothstep(-0.12, -0.24, c);
+        double islandRegion = archMask > 0.0 && c < -0.12
+            ? archMask * smoothstep(-1.05, -0.4, cLow) * smoothstep(-0.12, -0.24, c) : 0.0;
         double island = 0.0;
         double islandShelf = ColumnSample.NO_WATER;
+        // lower bound of the distance (in blocks) inland from an archipelago island's shore
+        double islandInland = 0.0;
         if (islandRegion > 0.0 && c < -0.12) {
             // towards the edge of an archipelago (and the deepest ocean) islands become fewer and
             // smaller rather than lower: lowering them sank whole banks within a few dozen blocks
@@ -454,11 +461,15 @@ public final class TerrainModel {
             double fade = 1.0 - islandRegion;
             double iv = islands.fbm(wx / (ISLAND_SCALE * hs), wz / (ISLAND_SCALE * hs)) - 0.6 * fade - 3.0 * fade * fade * fade;
             island = smoothstep(0.16, 0.44, iv);
-            islandShelf = islandShelf(c, iv);
+            double shore = islandShore(c);
+            if (!Double.isNaN(shore)) {
+                islandShelf = islandShelf(iv, shore);
+                islandInland = Math.max(0.0, (iv - shore) * ISLAND_SCALE * hs / SHELF_FIELD_RATE);
+            }
         }
         double mushroom = 0.0;
-        if (c < -0.7) {
-            mushroom = mushroomIsland(x, z) * smoothstep(-0.7, -0.9, c);
+        if (cLow < -0.7) {
+            mushroom = mushroomIsland(x, z) * smoothstep(-0.7, -0.9, cLow);
             island = Math.max(island, mushroom);
         }
         out.island = island;
@@ -567,7 +578,8 @@ public final class TerrainModel {
         // the island field lifts an island's ground to sea level within a few blocks of its shore;
         // relief on islands grows towards their interior instead, so hills do not end in cliffs
         double reliefInland = island > 0.0
-            ? Math.min(reliefLand, Math.max(smoothstep(-0.2, -0.1, rawC), smoothstep(0.35, 0.95, island))) : reliefLand;
+            ? Math.min(reliefLand, Math.max(smoothstep(-0.2, -0.1, rawC),
+                Math.max(smoothstep(0.0, ISLAND_RELIEF_RAMP, islandInland), smoothstep(0.35, 0.95, mushroom)))) : reliefLand;
         double hillW = bump(erosion, -0.6, -0.16, 0.34) * reliefInland * (1.0 - mountain);
         double hillHeight = 0.0;
         if (hillW > 0.0) {
@@ -582,14 +594,17 @@ public final class TerrainModel {
         // island they would end at its shore as a wall into the sea.
         double erosionLow = clamp(erosionNoise.fbm(wx / es, wz / es, 3) * 1.35 - 1.4 * beltStrength, -1.0, 1.0);
         double plateauRegion = smoothstep(-0.05, 0.2, plateauHeight.fbm(wx / (es * 1.3) - 40.0, wz / (es * 1.3) + 13.0));
-        // the plateau band follows only the first erosion octave (mountains are excluded by the
-        // mountain mask): a plateau is up to 245 blocks high, so its band may change by no more
-        // than about 0.005 per block
+        // the plateau band follows only the first erosion octave: a plateau is up to 245 blocks
+        // high, so its band may change by no more than about 0.005 per block. Plateaus give way to
+        // mountain ranges (whose blurred mask changes as slowly): stacked on a range's flank, a
+        // plateau's edge doubled its relief into one long, steep face
         double plateauBand = bump(erosionNoise.fbm(wx / es, wz / es, 1) * 1.35, -0.52, -0.31, -0.12)
-            * smoothstep(-0.04, 0.12, rawC) * (1.0 - 0.75 * mountain) * plateauRegion;
+            * smoothstep(-0.04, 0.12, rawC) * (1.0 - smoothstep(0.05, 0.35, mountain)) * plateauRegion;
         double plateau = 0.0;
         double plateauHeightValue = 0.0;
         double plateauEdge = 0.0;
+        // height of the plateau's top here, whether or not this column is on its edge
+        double plateauTop = 0.0;
         if (plateauBand > 0.0) {
             double ps = 1500.0 * hs;
             double pv = plateauNoise.fbm(rx / ps, rz / ps) + 0.16;
@@ -612,6 +627,7 @@ public final class TerrainModel {
             double top = TMath.terrace(pH + 14.0 * hillShape * smoothstep(0.02, 0.15, pv), 13.0, 0.72);
             plateau = plateauBand * pMask;
             plateauHeightValue = plateau * top;
+            plateauTop = plateauBand * top;
             plateauEdge = plateauBand * (1.0 - Math.abs(2.0 * pMask - 1.0));
         }
 
@@ -628,7 +644,9 @@ public final class TerrainModel {
 
         // ocean floors: rolling abyssal plains, long ridges and rare seamounts instead of a flat bed;
         // kept well below sea level so no unintended islands appear
-        double seaFloor = smoothstep(-0.34, -0.5, cEff);
+        // (low-pass continentalness, raised like cEff where islands stand)
+        double cLowEff = cLow + (cEff - c);
+        double seaFloor = smoothstep(-0.34, -0.5, cLowEff);
         double oceanRidge = 0.0;
         if (seaFloor > 0.0) {
             double rolling = 7.0 * hillNoise.fbm(x / (240.0 * hs) + 711.0, z / (240.0 * hs) - 403.0);
@@ -639,55 +657,10 @@ public final class TerrainModel {
             oceanRidge = seaFloor * smoothstep(0.82, 0.97, ridge);
         }
 
-        // deep-sea trenches: long rifts in the abyssal plains whose floors drop to about
-        // Y -230..-340. The cross-section is a steep-sided valley: a flat floor 40-80 blocks wide,
-        // then walls that rise at up to ~58 degrees with benches and flatten towards the rim, so a
-        // trench is several hundred blocks across instead of a vertical slot. The surface rule
-        // lines them with magma and basalt; the ocean vent feature builds chimneys on the floor.
-        double trench = 0.0;
-        double trenchFloor = 0.0;
-        double abyss = smoothstep(-0.5, -0.66, cEff);
-        if (abyss > 0.0) {
-            double ts = 3200.0 * hs;
-            double tv = trenchNoise.fbm(wx / ts, wz / ts);
-            if (Math.abs(tv) < 0.16) {
-                double region = smoothstep(-0.1, 0.25, trenchRegion.fbm(wx / (5200.0 * hs) + 17.0, wz / (5200.0 * hs) - 41.0));
-                if (region > 0.0) {
-                    double tvx = trenchNoise.fbm((wx + 4.0) / ts, wz / ts);
-                    double tvz = trenchNoise.fbm(wx / ts, (wz + 4.0) / ts);
-                    double grad = Math.sqrt((tvx - tv) * (tvx - tv) + (tvz - tv) * (tvz - tv)) / 4.0;
-                    // never over less than the gradient 95% of the field stays below: between two
-                    // close branches the gradient vanishes and the plain estimate left a thin spike
-                    grad = Math.max(grad, TRENCH_FIELD_RATE / ts);
-                    double dist = Math.abs(tv) / grad;
-                    double drop = (170.0 + 100.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (1800.0 * hs) - 70.0, wz / (1800.0 * hs) + 25.0)))
-                        * region * abyss;
-                    double floorHalf = 20.0 + 20.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (900.0 * hs) + 5.0, wz / (900.0 * hs) - 9.0));
-                    double wall = Math.max(40.0, drop * 0.9);
-                    // the trench only exists while |tv| < 0.16; where that band is narrow the floor and
-                    // then the depth shrink, so the walls flatten out before it instead of being cut off
-                    double reach = 0.15 / grad;
-                    if (floorHalf + wall > reach) {
-                        floorHalf = Math.max(6.0, Math.min(floorHalf, reach * 0.2));
-                        double avail = Math.max(0.0, reach - floorHalf);
-                        if (wall > avail) {
-                            drop *= avail / wall;
-                            wall = Math.max(avail, 1.0);
-                        }
-                    }
-                    if (dist < floorHalf + wall) {
-                        double sw = clamp01((dist - floorHalf) / wall);
-                        double f = Math.pow(1.0 - sw, 1.3);
-                        // benches every 18-30 blocks of depth break up the walls
-                        double step = 18.0 + 12.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (700.0 * hs) - 31.0, wz / (700.0 * hs) + 12.0));
-                        double depth = TMath.terrace(drop * f, step, 0.55);
-                        trenchFloor = Math.max(MIN_TRENCH_FLOOR, h - drop);
-                        h = Math.max(trenchFloor, h - depth);
-                        trench = f * smoothstep(0.0, 0.3, region * abyss);
-                    }
-                }
-            }
-        }
+        // deep-sea trenches (see trench)
+        h = trench(h, wx, wz, smoothstep(-0.5, -0.66, cLowEff), sc);
+        double trench = sc.trench;
+        double trenchFloor = sc.trenchFloor;
 
         // ---- 7. wetlands ---------------------------------------------------------------------
         // marshes belong to temperate and warm lowlands: in a frozen climate the biome source gives
@@ -695,6 +668,12 @@ public final class TerrainModel {
         double baseTemp = temperatureBase(x, z);
         double swamp = smoothstep(0.55, 0.72, erosion) * smoothstep(-0.11, 0.02, cEff) * (1.0 - mountain) * (1.0 - plateau)
             * smoothstep(-0.45, -0.32, baseTemp);
+        // Marshes fill the low ground within about 30 blocks of sea level, where the water table
+        // floods their pools: higher plains and hills next to a marsh keep their height (and are
+        // no marsh) instead of being pulled down to it in a wall, and the wetland's flag and swamp
+        // biome stay off them. Measured, the old fade kept the flag on plains 35 blocks above the
+        // sea, where only one marsh column in ten held water.
+        swamp *= smoothstep(sl + 30.0, sl + 12.0, h);
         if (swamp > 0.0) {
             // a patchwork of shallow pools just below sea level (filled by the sea-level water
             // table) between low, grassy hummocks and mud flats, small ponds in the hollows between
@@ -704,9 +683,8 @@ public final class TerrainModel {
             double creek = Math.abs(swampNoise.fbm(x / (75.0 * hs) - 90.0, z / (75.0 * hs) + 33.0, 2));
             double wet = sl - 0.8 + 2.4 * pools + 1.6 * Math.max(0.0, hummocks) - 1.5 * smoothstep(-0.28, -0.5, hummocks);
             wet = Math.min(wet, sl - 1.8 + 14.0 * creek);
-            // only low ground floods: hills and uplands next to a marsh keep their height instead
-            // of being pulled down to it in a wall wherever the wetland band begins
-            h = lerp(swamp * 0.97 * smoothstep(sl + 42.0, sl + 16.0, h), h, wet);
+            // the marsh's core lies at the water table, its fringe rises to the land around
+            h = lerp(smoothstep(0.0, 0.6, swamp), h, wet);
         }
 
         // ---- 8. coasts: cliffs and fjords -----------------------------------------------------
@@ -727,40 +705,20 @@ public final class TerrainModel {
         // floor, or a trench, instead of rising from it as sheer-sided slabs (applied after the
         // coastal cliffs, whose sea floor would cut into it, and before fjords, which cut through it)
         if (islandShelf > h) {
-            trench *= clamp01(1.0 - (islandShelf - h) / 40.0);
-            h = islandShelf;
+            // the shelf fades with the archipelago: its rise above the sea floor is limited by a
+            // budget that shrinks to nothing at the edge of the island region (over hundreds of
+            // blocks), where it would otherwise end as a wall above the abyss
+            double raise = Math.min(islandShelf - h, SHELF_RAISE * islandRegion);
+            trench *= clamp01(1.0 - raise / 40.0);
+            h += raise;
         }
-        // fjords: drowned glacial valleys with a U-shaped cross-section whose width grows with the
-        // height of the mountains they cut, so their walls are steep but never a slot. They cut the
-        // mountainous coasts of continents, not islands. Inland the trough's floor climbs (gently at
-        // first, then steeper) until it meets the mountains as a hanging valley; fading the carving
-        // out instead left a wall hundreds of blocks high at the head of every fjord.
-        double fjord = 0.0;
-        double fjordMountain = mountainE * reliefLand * (1.0 - smoothstep(0.0, 0.15, island));
-        if (fjordMountain > 0.15 && cEff < FJORD_INLAND) {
-            double coldness = smoothstep(0.1, -0.4, temperatureBase(x, z));
-            double strength = smoothstep(0.15, 0.4, fjordMountain) * (0.35 + 0.65 * coldness);
-            double inland = clamp01((cEff + 0.08) / (FJORD_INLAND + 0.08));
-            double floor = sl - 18.0 - 22.0 * strength + 120.0 * inland + 420.0 * inland * inland * inland;
-            if (h > floor) {
-                double fs = 900.0 * hs;
-                double fv = fjordNoise.fbm(wx / fs, wz / fs);
-                double fvx = fjordNoise.fbm((wx + 2.0) / fs, wz / fs);
-                double fvz = fjordNoise.fbm(wx / fs, (wz + 2.0) / fs);
-                double grad = Math.sqrt((fvx - fv) * (fvx - fv) + (fvz - fv) * (fvz - fv)) / 2.0;
-                // distance to the trough's axis; never over less than the gradient 95% of the field
-                // stays below, so it cannot jump where the gradient vanishes
-                double dist = Math.abs(fv) / Math.max(grad, FJORD_FIELD_RATE / fs);
-                double floorHalf = 26.0 + 30.0 * strength;
-                double wall = Math.max(70.0, (h - floor) * 1.1);
-                if (dist < floorHalf + wall) {
-                    double sw = clamp01((dist - floorHalf) / wall);
-                    double profile = floor + (h - floor) * (1.0 - (1.0 - sw) * (1.0 - sw));
-                    h = lerp(smoothstep(0.0, 0.3, strength) * (1.0 - smoothstep(0.8, 1.0, inland)), h, profile);
-                    fjord = strength * (1.0 - sw) * (1.0 - smoothstep(0.15, 0.5, inland));
-                }
-            }
-        }
+        // fjords (see fjord). Towards the sea a trough fades out offshore, where its floor and the
+        // sea floor lie at the same depth: fading it with the land's relief left a wall across the
+        // trough at the coastline. Archipelagos have none (judged on the slowly varying island
+        // region: an island's own field rises within a few blocks of its shore and cut troughs off)
+        double fjordMountain = mountainE * smoothstep(-0.36, -0.22, cEff) * (1.0 - islandRegion) * (1.0 - smoothstep(0.0, 0.15, island));
+        h = fjordMountain > 0.12 && cEff < FJORD_INLAND ? fjord(h, x, z, wx, wz, cEff, fjordMountain, sc) : h;
+        double fjord = fjordMountain > 0.12 && cEff < FJORD_INLAND ? sc.fjord : 0.0;
 
         // ---- 9. volcanoes ---------------------------------------------------------------------
         double volcano = 0.0;
@@ -784,49 +742,23 @@ public final class TerrainModel {
         double canyonWall = 0.0;
         double baseHum = humidityBase(x, z);
         double aridity = smoothstep(0.1, 0.6, baseTemp) * smoothstep(0.1, -0.5, baseHum);
+        // plateaus favour canyons through their band, not their edge mask: the region decides the
+        // canyon's depth, which jumped by a hundred blocks across a mesa edge and tilted the floor
         double canyonReg = smoothstep(0.32, 0.6,
-            canyonRegion.fbm(wx / (es * 2.2), wz / (es * 2.2)) * 0.9 + 0.25 * aridity + 0.3 * plateau + 0.12 * (settings.canyonFrequency() - 1.0))
-            * reliefInland * (1.0 - smoothstep(0.03, 0.45, mountain)) * (1.0 - swamp) * (1.0 - smoothstep(0.02, 0.25, volcano));
+            canyonRegion.fbm(wx / (es * 2.2), wz / (es * 2.2)) * 0.9 + 0.25 * aridity + 0.3 * plateauBand + 0.12 * (settings.canyonFrequency() - 1.0))
+            * reliefInland * (1.0 - smoothstep(0.02, 0.3, mountain)) * (1.0 - swamp) * (1.0 - smoothstep(0.02, 0.25, volcano));
         if (canyonReg > 0.001) {
-            double cScale = 2600.0 * hs;
-            double cv = canyonNoise.fbm(wx / cScale, wz / cScale);
-            double cvx = canyonNoise.fbm((wx + 3.0) / cScale, wz / cScale);
-            double cvz = canyonNoise.fbm(wx / cScale, (wz + 3.0) / cScale);
-            double grad = Math.sqrt((cvx - cv) * (cvx - cv) + (cvz - cv) * (cvz - cv)) / 3.0;
-            double dist = Math.abs(cv) / Math.max(grad, CANYON_FIELD_RATE / cScale);
-            double width = 0.5 + 0.5 * canyonWidth.fbm(wx / (1600.0 * hs), wz / (1600.0 * hs));
-            double floorHalf = (8.0 + 30.0 * width) * Math.sqrt(canyonReg);
-            if (dist < floorHalf + CANYON_REACH) {
-                // most canyons are dry; about a quarter are cut down to sea level and carry a stream
-                boolean wet = canyonRegion.fbm(wx / (es * 0.9) + 61.0, wz / (es * 0.9) - 17.0) > 0.25;
-                double floor = Math.max(wet ? sl + 1.0 : sl + 4.0, base + 3.0 + 6.0 * smoothstep(0.0, 1.0, plains));
-                // depth is bounded (the walls widen with it, see canyonWallRise); on high plateaus
-                // the floor rises instead
-                floor = Math.max(floor, h - (70.0 + 130.0 * width) * canyonReg);
-                double relief = h - floor;
-                if (relief > 12.0) {
-                    // soft layers weather to 30-45 degree talus slopes, varying along the canyon
-                    double soft = 0.6 + 0.4 * (0.5 + 0.5 * canyonWidth.fbm(wx / (700.0 * hs) + 40.0, wz / (700.0 * hs) - 15.0));
-                    // benches wander a little, so the walls are not parallel to the canyon's axis
-                    double u = dist - floorHalf + 5.0 * canyonWidth.fbm(wx / (55.0 * hs) - 9.0, wz / (55.0 * hs) + 4.0);
-                    double profile = floor + (u > 0.0 ? canyonWallRise(floor, u, soft, relief + 1.0) : 0.0);
-                    double canyonW = canyonWallWidth(floor, relief, soft);
-                    profile = Math.max(profile, canyonButte(x, z, floor, relief, soft, dist, floorHalf));
-                    if (wet && floor < sl + 1.5 && dist < 1.5 + 2.5 * width) {
-                        // the stream: a shallow channel below sea level, filled by the water table
-                        profile = Math.min(profile, sl - 1.0 - 1.5 * (1.0 - dist / (1.5 + 2.5 * width)));
-                    }
-                    if (profile < h) {
-                        double strength = smoothstep(12.0, 30.0, relief);
-                        double wallT = clamp01(u / Math.max(canyonW, 1.0));
-                        h = lerp(strength, h, profile);
-                        canyon = strength * (1.0 - smoothstep(0.7, 1.0, wallT));
-                        canyonFloor = floor;
-                        canyonWall = strength * smoothstep(0.0, 6.0, u) * (1.0 - smoothstep(0.85, 1.0, wallT));
-                    }
-                }
-            }
+            // depth is bounded (the walls widen with it, see canyonWallRise); on high plateaus the
+            // floor rises instead. The bound is measured from the land the canyon is cut into with
+            // plateau edges filled up to the plateau's top: measured from each column's own height,
+            // the floor tilted across canyons that cross an escarpment and their uphill wall became
+            // one sheer face instead of a staircase
+            h = canyon(h, x, z, wx, wz, canyonReg, base, plains, h - plateauHeightValue + plateauTop, sc);
+            canyon = sc.canyon;
+            canyonFloor = sc.canyonFloor;
+            canyonWall = sc.canyonWall;
         }
+        double preWater = h;
 
         // ---- 11. rivers -------------------------------------------------------------------------
         double river = 0.0;
@@ -926,6 +858,7 @@ public final class TerrainModel {
         // ---- 13. classification and climate ---------------------------------------------------
         out.height = h;
         out.uncarvedHeight = uncarved;
+        out.preWaterHeight = preWater;
         out.waterLevel = waterLevel;
         out.mountain = mountain;
         out.peakness = mountain > 0.05 ? lerp(smoothstep(0.05, 0.4, mountain), hillShape * 0.6, shape) : hillShape * 0.6 * smoothstep(0.0, 0.5, hillW);
@@ -1021,6 +954,162 @@ public final class TerrainModel {
         }
         double sign = variantNoise.fbm(x / (1900.0 * hs), z / (1900.0 * hs)) >= 0.0 ? 1.0 : -1.0;
         out.weirdness = sign * w;
+    }
+
+    // =========================================================================================
+    // Trenches, fjords and canyons (carving helpers of computeColumn)
+    // =========================================================================================
+
+    /**
+     * Deep-sea trenches: long rifts in the abyssal plains ({@code abyss} > 0) whose floors drop to
+     * about Y -230..-340. The cross-section is a steep-sided valley: a flat floor 40-80 blocks wide,
+     * then walls that rise at up to ~58 degrees with benches and flatten towards the rim, so a
+     * trench is several hundred blocks across instead of a vertical slot. The surface rule lines
+     * them with magma and basalt; the ocean vent feature builds chimneys on the floor. Returns the
+     * new ground height and sets {@code sc.trench} and {@code sc.trenchFloor}.
+     */
+    private double trench(double h, double wx, double wz, double abyss, Scratch sc) {
+        sc.trench = 0.0;
+        sc.trenchFloor = 0.0;
+        if (abyss <= 0.0) {
+            return h;
+        }
+        double ts = 3200.0 * hs;
+        double tv = trenchNoise.fbm(wx / ts, wz / ts);
+        if (Math.abs(tv) >= 0.16) {
+            return h;
+        }
+        double region = smoothstep(-0.1, 0.25, trenchRegion.fbm(wx / (5200.0 * hs) + 17.0, wz / (5200.0 * hs) - 41.0));
+        if (region <= 0.0) {
+            return h;
+        }
+        double tvx = trenchNoise.fbm((wx + 4.0) / ts, wz / ts);
+        double tvz = trenchNoise.fbm(wx / ts, (wz + 4.0) / ts);
+        double grad = Math.sqrt((tvx - tv) * (tvx - tv) + (tvz - tv) * (tvz - tv)) / 4.0;
+        // never over less than the gradient 95% of the field stays below: between two close
+        // branches the gradient vanishes and the plain estimate left a thin spike
+        grad = Math.max(grad, TRENCH_FIELD_RATE / ts);
+        double dist = Math.abs(tv) / grad;
+        double drop = (170.0 + 100.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (1800.0 * hs) - 70.0, wz / (1800.0 * hs) + 25.0)))
+            * region * abyss;
+        double floorHalf = 20.0 + 20.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (900.0 * hs) + 5.0, wz / (900.0 * hs) - 9.0));
+        double wall = Math.max(40.0, drop * 0.9);
+        // the trench only exists while |tv| < 0.16; where that band is narrow the floor and then
+        // the depth shrink, so the walls flatten out before it instead of being cut off
+        double reach = 0.15 / grad;
+        if (floorHalf + wall > reach) {
+            floorHalf = Math.max(6.0, Math.min(floorHalf, reach * 0.2));
+            double avail = Math.max(0.0, reach - floorHalf);
+            if (wall > avail) {
+                drop *= avail / wall;
+                wall = Math.max(avail, 1.0);
+            }
+        }
+        if (dist >= floorHalf + wall) {
+            return h;
+        }
+        double sw = clamp01((dist - floorHalf) / wall);
+        double f = Math.pow(1.0 - sw, 1.3);
+        // benches every 18-30 blocks of depth break up the walls
+        double step = 18.0 + 12.0 * (0.5 + 0.5 * trenchRegion.fbm(wx / (700.0 * hs) - 31.0, wz / (700.0 * hs) + 12.0));
+        double depth = TMath.terrace(drop * f, step, 0.55);
+        sc.trenchFloor = Math.max(MIN_TRENCH_FLOOR, h - drop);
+        sc.trench = f * smoothstep(0.0, 0.3, region * abyss);
+        return Math.max(sc.trenchFloor, h - depth);
+    }
+
+    /**
+     * Fjords: drowned glacial valleys with a U-shaped cross-section whose width grows with the
+     * height of the mountains they cut, so their walls are steep but never a slot. They cut the
+     * mountainous coasts of continents ({@code fjordMountain}), not islands. Inland the trough's
+     * floor climbs (gently at first, then steeper) until it meets the mountains as a hanging valley;
+     * fading the carving out instead left a wall hundreds of blocks high at the head of every fjord.
+     * Returns the new ground height and sets {@code sc.fjord}.
+     */
+    private double fjord(double h, int x, int z, double wx, double wz, double cEff, double fjordMountain, Scratch sc) {
+        sc.fjord = 0.0;
+        double coldness = smoothstep(0.1, -0.4, temperatureBase(x, z));
+        // where the trough runs out of the mountains it fades over a wide range of the mountain
+        // mask, which can rise by 0.1 within 15 blocks at the edge of a range: a narrow range made
+        // the trough end in a head wall as deep as the fjord. The climate only sets how deep and
+        // wide the trough is.
+        double presence = smoothstep(0.12, 0.7, fjordMountain);
+        double strength = presence * (0.35 + 0.65 * coldness);
+        double inland = clamp01((cEff + 0.08) / (FJORD_INLAND + 0.08));
+        double floor = seaLevel - 18.0 - 22.0 * strength + 120.0 * inland + 420.0 * inland * inland * inland;
+        if (h <= floor) {
+            return h;
+        }
+        double fs = 900.0 * hs;
+        double fv = fjordNoise.fbm(wx / fs, wz / fs);
+        double fvx = fjordNoise.fbm((wx + 2.0) / fs, wz / fs);
+        double fvz = fjordNoise.fbm(wx / fs, (wz + 2.0) / fs);
+        double grad = Math.sqrt((fvx - fv) * (fvx - fv) + (fvz - fv) * (fvz - fv)) / 2.0;
+        // distance to the trough's axis; never over less than the gradient 95% of the field stays
+        // below, so it cannot jump where the gradient vanishes
+        double dist = Math.abs(fv) / Math.max(grad, FJORD_FIELD_RATE / fs);
+        double floorHalf = 26.0 + 30.0 * strength;
+        double wall = Math.max(70.0, (h - floor) * 1.1);
+        if (dist >= floorHalf + wall) {
+            return h;
+        }
+        double sw = clamp01((dist - floorHalf) / wall);
+        double profile = floor + (h - floor) * (1.0 - (1.0 - sw) * (1.0 - sw));
+        sc.fjord = strength * (1.0 - sw) * (1.0 - smoothstep(0.15, 0.5, inland));
+        return lerp(presence * (1.0 - smoothstep(0.55, 1.0, inland)), h, profile);
+    }
+
+    /**
+     * Canyons in a canyon region of strength {@code canyonReg}: walls stepped into the world's
+     * strata (see {@link #canyonWallRise}) down to a floor near the lowland level, at most
+     * 70-200 blocks below {@code refH}, the land the canyon is cut into. Most canyons are dry;
+     * about a quarter are cut down to sea level and carry a stream. Returns the new ground height
+     * and sets {@code sc.canyon}, {@code sc.canyonFloor} and {@code sc.canyonWall}.
+     */
+    private double canyon(double h, int x, int z, double wx, double wz, double canyonReg, double base, double plains, double refH, Scratch sc) {
+        sc.canyon = 0.0;
+        sc.canyonFloor = 0.0;
+        sc.canyonWall = 0.0;
+        double cScale = 2600.0 * hs;
+        double cv = canyonNoise.fbm(wx / cScale, wz / cScale);
+        double cvx = canyonNoise.fbm((wx + 3.0) / cScale, wz / cScale);
+        double cvz = canyonNoise.fbm(wx / cScale, (wz + 3.0) / cScale);
+        double grad = Math.sqrt((cvx - cv) * (cvx - cv) + (cvz - cv) * (cvz - cv)) / 3.0;
+        double dist = Math.abs(cv) / Math.max(grad, CANYON_FIELD_RATE / cScale);
+        double width = 0.5 + 0.5 * canyonWidth.fbm(wx / (1600.0 * hs), wz / (1600.0 * hs));
+        double floorHalf = (8.0 + 30.0 * width) * Math.sqrt(canyonReg);
+        if (dist >= floorHalf + CANYON_REACH) {
+            return h;
+        }
+        double es = settings.erosionScale() * hs;
+        boolean wet = canyonRegion.fbm(wx / (es * 0.9) + 61.0, wz / (es * 0.9) - 17.0) > 0.25;
+        int sl = seaLevel;
+        double floor = Math.max(wet ? sl + 1.0 : sl + 4.0, base + 3.0 + 6.0 * smoothstep(0.0, 1.0, plains));
+        floor = Math.max(floor, refH - (70.0 + 130.0 * width) * canyonReg);
+        double relief = h - floor;
+        if (relief <= 12.0) {
+            return h;
+        }
+        // soft layers weather to 30-45 degree talus slopes, varying along the canyon
+        double soft = 0.6 + 0.4 * (0.5 + 0.5 * canyonWidth.fbm(wx / (700.0 * hs) + 40.0, wz / (700.0 * hs) - 15.0));
+        // benches wander a little, so the walls are not parallel to the canyon's axis
+        double u = dist - floorHalf + 5.0 * canyonWidth.fbm(wx / (55.0 * hs) - 9.0, wz / (55.0 * hs) + 4.0);
+        double profile = floor + (u > 0.0 ? canyonWallRise(floor, u, soft, relief + 1.0) : 0.0);
+        double canyonW = canyonWallWidth(floor, relief, soft);
+        profile = Math.max(profile, canyonButte(x, z, floor, relief, soft, dist, floorHalf));
+        if (wet && floor < sl + 1.5 && dist < 1.5 + 2.5 * width) {
+            // the stream: a shallow channel below sea level, filled by the water table
+            profile = Math.min(profile, sl - 1.0 - 1.5 * (1.0 - dist / (1.5 + 2.5 * width)));
+        }
+        if (profile >= h) {
+            return h;
+        }
+        double strength = smoothstep(12.0, 30.0, relief);
+        double wallT = clamp01(u / Math.max(canyonW, 1.0));
+        sc.canyon = strength * (1.0 - smoothstep(0.7, 1.0, wallT));
+        sc.canyonFloor = floor;
+        sc.canyonWall = strength * smoothstep(0.0, 6.0, u) * (1.0 - smoothstep(0.85, 1.0, wallT));
+        return lerp(strength, h, profile);
     }
 
     // =========================================================================================
@@ -1201,6 +1290,19 @@ public final class TerrainModel {
         return continentValue(wx, wz);
     }
 
+    /**
+     * Low-pass continentalness (the three lowest octaves of {@link #continentValue}), which changes
+     * several times more slowly than the full field.
+     */
+    private double continentLow(double wx, double wz) {
+        double cs = settings.continentScale() * hs;
+        double c = continent.fbm(wx / cs, wz / cs, 3) * 2.4 + 0.02;
+        if (c < -0.45) {
+            c -= 0.28 * smoothstep(-0.45, -1.05, c);
+        }
+        return c;
+    }
+
     /** Continentalness at warped coordinates, before islands are added. */
     private double continentValue(double wx, double wz) {
         double cs = settings.continentScale() * hs;
@@ -1242,18 +1344,36 @@ public final class TerrainModel {
      * ocean floor to sea level within only 10-30 blocks at an island's edge, which made islands
      * sheer-sided slabs standing on the ocean floor (or in a trench). Instead, the shelf descends
      * from the island's shore (where the island's base height reaches two blocks below sea level),
-     * deepening with the distance from it, gently at
-     * first and steeper further out: islands sit on a shallow platform whose flanks descend into
-     * the abyss. The distance is the field's shortfall below the shore value over the steepest
+     * deepening with the distance from it, gently at first and then at up to 45 degrees: islands
+     * sit on a shallow platform whose flanks descend into the abyss. The distance is the field's shortfall below the shore value over the steepest
      * gradient the field reaches, a lower bound of the true distance that changes by at most a
      * block per block, so the shelf's slope is bounded everywhere (a local estimate, shortfall over
      * the local gradient, jumps wherever the field curves). The shelf never rises above two blocks
      * below sea level, so the land of the islands is untouched.
      */
-    private double islandShelf(double c, double iv) {
+    private double islandShelf(double iv, double shore) {
+        double level = seaLevel - 2.0;
+        if (iv >= shore) {
+            return level;
+        }
+        double k = (shore - iv) * ISLAND_SCALE * hs / SHELF_FIELD_RATE;
+        // a shallow platform (slope 0.4) that steepens to at most 45 degrees: a quadratic flank
+        // reached 75 degrees a hundred blocks down and stood as a wall above the abyss
+        if (k < SHELF_BREAK) {
+            return level - (0.4 * k + 0.01 * k * k);
+        }
+        return level - (0.4 * SHELF_BREAK + 0.01 * SHELF_BREAK * SHELF_BREAK) - (k - SHELF_BREAK);
+    }
+
+    /**
+     * Island-field value of the shore of archipelago islands at continentalness {@code c}: where
+     * an island's base height reaches two blocks below sea level, or {@code NaN} where islands
+     * here stay submerged.
+     */
+    private double islandShore(double c) {
         double level = seaLevel - 2.0;
         if (islandBase(c, 0.44) < level) {
-            return ColumnSample.NO_WATER;
+            return Double.NaN;
         }
         // the island's base height grows with the island field: bisect for the shore
         double lo = 0.16;
@@ -1266,12 +1386,19 @@ public final class TerrainModel {
                 hi = mid;
             }
         }
-        if (iv >= hi) {
-            return level;
-        }
-        double k = (hi - iv) * ISLAND_SCALE * hs / SHELF_FIELD_RATE;
-        return level - (1.2 * k + 0.015 * k * k);
+        return hi;
     }
+
+    /** Distance from the shore (in blocks of the shelf's distance bound) where the shelf reaches 45 degrees. */
+    private static final double SHELF_BREAK = 30.0;
+    /**
+     * Distance (in blocks of the shelf's distance bound) inland from an island's shore over which
+     * its hills and plains rise to their full height: the island field itself can climb from the
+     * shore to the island's core within a few blocks, which stood the hills at the shore as cliffs.
+     */
+    private static final double ISLAND_RELIEF_RAMP = 90.0;
+    /** Largest rise of an island shelf above the sea floor, in the core of an archipelago. */
+    private static final double SHELF_RAISE = 520.0;
 
     /** Base (continentalness profile) height of an island at island-field value {@code iv}. */
     private static double islandBase(double c, double iv) {
@@ -2006,6 +2133,12 @@ public final class TerrainModel {
         double craterWaterLevel;
         double craterLavaLevel;
         boolean volcanoCraterMode;
+        double trench;
+        double trenchFloor;
+        double fjord;
+        double canyon;
+        double canyonFloor;
+        double canyonWall;
         double lakeResult;
         int lakeType;
         double lakeLevel;

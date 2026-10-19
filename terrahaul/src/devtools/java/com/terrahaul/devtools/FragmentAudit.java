@@ -85,7 +85,88 @@ public final class FragmentAudit {
         for (FloatingFragments.Fragment fr : r.largest()) {
             System.out.println("    " + fr);
         }
+        if (r.fragments() > 0) {
+            fullCheck(f, size);
+        }
         return r;
+    }
+
+    /**
+     * Exact check of an area: a flood fill through every solid block of the whole simulated
+     * volume, from its bottom layer and its four sides, so connections below the scan window of
+     * {@link FloatingFragments} count too. Prints the solid blocks it cannot reach, grouped into
+     * 6-connected components.
+     */
+    static void fullCheck(Field f, int size) {
+        int y0 = f.y0;
+        int h = (f.ny - 1) * 8;
+        long cells = (long) size * size * h;
+        java.util.BitSet solid = new java.util.BitSet((int) cells);
+        for (int dx = 0; dx < size; dx++) {
+            for (int dz = 0; dz < size; dz++) {
+                for (int k = 0; k < h; k++) {
+                    if (f.solid(dx, y0 + k, dz)) {
+                        solid.set((dx * size + dz) * h + k);
+                    }
+                }
+            }
+        }
+        java.util.BitSet seen = new java.util.BitSet((int) cells);
+        int[] queue = new int[(int) Math.min(cells, Integer.MAX_VALUE - 8)];
+        int tail = 0;
+        for (int i = solid.nextSetBit(0); i >= 0; i = solid.nextSetBit(i + 1)) {
+            int k = i % h;
+            int c = i / h;
+            int dx = c / size;
+            int dz = c % size;
+            if (k == 0 || dx == 0 || dz == 0 || dx == size - 1 || dz == size - 1) {
+                seen.set(i);
+                queue[tail++] = i;
+            }
+        }
+        flood(solid, seen, queue, 0, tail, size, h);
+        java.util.BitSet floating = (java.util.BitSet) solid.clone();
+        floating.andNot(seen);
+        java.util.List<int[]> parts = new java.util.ArrayList<>();
+        for (int i = floating.nextSetBit(0); i >= 0; i = floating.nextSetBit(i + 1)) {
+            if (seen.get(i)) {
+                continue;
+            }
+            seen.set(i);
+            queue[0] = i;
+            int end = flood(solid, seen, queue, 0, 1, size, h);
+            int c = i / h;
+            parts.add(new int[]{end, f.x0 + c / size, y0 + i % h, f.z0 + c % size});
+        }
+        parts.sort((a, b) -> Integer.compare(b[0], a[0]));
+        long blocks = parts.stream().mapToLong(p -> p[0]).sum();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < Math.min(5, parts.size()); i++) {
+            int[] p = parts.get(i);
+            sb.append(String.format(Locale.ROOT, " [%d blocks at %d %d %d]", p[0], p[1], p[2], p[3]));
+        }
+        System.out.printf(Locale.ROOT, "    full 3D check: %d floating components, %d blocks%s%n", parts.size(), blocks, sb);
+    }
+
+    /** Breadth-first fill over solid blocks from queue[head, tail); returns the number of blocks visited. */
+    private static int flood(java.util.BitSet solid, java.util.BitSet seen, int[] queue, int head, int tail, int size, int h) {
+        int start = head;
+        while (head < tail) {
+            int i = queue[head++];
+            int k = i % h;
+            int c = i / h;
+            int dx = c / size;
+            int dz = c % size;
+            int[] next = {k > 0 ? i - 1 : -1, k < h - 1 ? i + 1 : -1, dx > 0 ? i - size * h : -1, dx < size - 1 ? i + size * h : -1,
+                dz > 0 ? i - h : -1, dz < size - 1 ? i + h : -1};
+            for (int n : next) {
+                if (n >= 0 && solid.get(n) && !seen.get(n)) {
+                    seen.set(n);
+                    queue[tail++] = n;
+                }
+            }
+        }
+        return tail - start;
     }
 
     private static void slice(TerrainModel model, int cx, int cz, boolean alongX, int half, int y0, int y1, File out) throws Exception {

@@ -22,7 +22,10 @@ import java.util.Arrays;
  *       way down: carving can recess faces and notch rims from above, but never undercut rock.</li>
  *   <li>Ledges and overhangs are added on top with {@code max}, so carving never cuts them, and
  *       each of their solid corners is kept only if the corner next to it towards the cliff is
- *       solid too; the chain ends in the cliff's own ground.</li>
+ *       solid too; the chain ends in the cliff's own ground. A ledge corner rests directly on the
+ *       cliff column; an overhang corner rests on the overhang corner of the next column in, which
+ *       is why the overhang is part of the density of every column under it, however far below
+ *       the column's own surface lies.</li>
  * </ul>
  * Detail is only evaluated near the surface and where the terrain model marks steep ground, which
  * keeps the cost low.
@@ -36,6 +39,15 @@ public final class TerrainDetail {
     private static final double MIN_DROP = 10.0;
     /** Smallest cliff that can carry a big curved overhang. */
     private static final double BIG_DROP = 24.0;
+    /**
+     * Largest radius of a big overhang's curved underside: on tall cliffs the arc spans five
+     * interpolation columns, enough for the curve to read as one.
+     */
+    private static final double MAX_RADIUS = 20.0;
+    /** Farthest a column under a big overhang lies from its rim column, in cells. */
+    private static final int MAX_CELLS = 5;
+    /** Most the ground one cell behind a cliff's rim may rise above it for an overhang to hang from it. */
+    private static final double FLAT_TOP = 4.0;
     /** Axis directions; neighbouring corner columns are always 4 blocks (one cell) apart. */
     private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
@@ -49,13 +61,13 @@ public final class TerrainDetail {
             return t;
         }
         double v = t >= -BAND ? t + detail(model, s, x, y, z) : t;
-        if (t < 0.0 && t > -40.0) {
-            if (s.cliff > 0.05 || s.steepness > 0.35 || s.coastCliff > 0.2 || s.canyon > 0.2 || s.plateau > 0.1) {
-                v = Math.max(v, ledge(model, s, x, y, z));
-            }
-            v = Math.max(v, overhang(model, s, x, y, z));
+        if (t > -40.0 && (s.cliff > 0.05 || s.steepness > 0.35 || s.coastCliff > 0.2 || s.canyon > 0.2 || s.plateau > 0.1)) {
+            v = Math.max(v, ledge(model, s, x, y, z));
         }
-        return v;
+        // overhangs are added at every height: a column under an overhang may lie hundreds of
+        // blocks below it, and leaving the overhang out there (while the columns further out, over
+        // higher ground, kept their part chained to it) cut the overhang into floating pieces
+        return Math.max(v, overhang(model, s, x, y, z));
     }
 
     /** Density of the ground alone (no ledges or overhangs) at a corner. */
@@ -272,9 +284,10 @@ public final class TerrainDetail {
     }
 
     /**
-     * The big curved overhangs a column belongs to, one plan per direction: looking 4 to 16 blocks
+     * The big curved overhangs a column belongs to, one plan per direction: looking 4 to 20 blocks
      * along the direction for the nearest rim of a cliff facing this way (a rise of at least
-     * {@value #BIG_DROP} blocks within two cells, most of it within one). Everything about an
+     * {@value #BIG_DROP} blocks within two cells, most of it within one, with level ground behind
+     * the rim). Everything about an
      * overhang - whether there is one (a smooth 2D mask picks about a third of cliff length),
      * its radius and lip - depends only on the rim column and its two outer neighbours, so every
      * column under the same overhang agrees on its shape.
@@ -294,7 +307,7 @@ public final class TerrainDetail {
         for (int dir = 0; dir < 4; dir++) {
             int dx = DIRS[dir][0] * 4;
             int dz = DIRS[dir][1] * 4;
-            for (int k = 1; k <= 4; k++) {
+            for (int k = 1; k <= MAX_CELLS; k++) {
                 int rx = x + dx * k;
                 int rz = z + dz * k;
                 double hRim = model.sample(rx, rz).height;
@@ -304,13 +317,16 @@ public final class TerrainDetail {
                 if (hRim - hOut < 0.6 * BIG_DROP || rise < BIG_DROP) {
                     continue;
                 }
-                // the nearest cliff decides, whether it carries an overhang or not
+                // the nearest cliff decides, whether it carries an overhang or not. Only the top of
+                // a cliff does: the overhang continues the flat ground behind the rim out over the
+                // drop, and hung from a rim in the middle of a steep slope it was a bulge with more
+                // slope rising above it
                 double mask = model.detail3(7, rx / 170.0, 3.0, rz / 170.0);
-                if (mask >= 0.22) {
+                if (mask >= 0.22 && model.sample(rx + dx, rz + dz).height <= hRim + FLAT_TOP) {
                     double lip = Math.min(12.0, 9.0 + 0.05 * rise);
                     double strength = mask >= 0.4 ? 1.0 : (mask - 0.22) / 0.18;
                     // leave at least 8 blocks of headroom between the underside and the ground below
-                    double r = Math.min(Math.min(15.0, 0.45 * rise), rise - lip - 8.0) * strength;
+                    double r = Math.min(Math.min(MAX_RADIUS, 0.45 * rise), rise - lip - 8.0) * strength;
                     if (r >= 6.0 && 4.0 * k - 2.0 < r) {
                         plan[dir * 4] = k;
                         plan[dir * 4 + 1] = hRim;
