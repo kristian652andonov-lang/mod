@@ -1,0 +1,8 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:deep_lukewarm_ocean"
+  ],
+  "features": "terrahaul:sea/vanilla/seagrass_deep_warm",
+  "step": "vegetal_decoration"
+}

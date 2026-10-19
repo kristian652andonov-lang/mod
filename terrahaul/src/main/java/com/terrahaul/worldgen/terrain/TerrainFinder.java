@@ -29,7 +29,9 @@ public final class TerrainFinder {
         WATERFALL,
         LAKE_SITE,
         FORMATION,
-        OVERHANG
+        OVERHANG,
+        /** Sea-floor features, found by {@code MarineFinder} with the sea-floor planners. */
+        MARINE
     }
 
     /** Result of a search: block position of the match and a short label. */
@@ -86,6 +88,12 @@ public final class TerrainFinder {
         add("sea_stack", "a sea stack", TerrainModel.SEA_STACK, null, null, Kind.FORMATION);
         add("overhang", "a big curved cliff overhang", 16, s -> s.cliff > 0.1 || s.canyon > 0.2 || s.coastCliff > 0.3 || s.plateau > 0.1,
             null, Kind.OVERHANG);
+        add("coral_reef", "a coral reef (in front of its reef front)", 0, null, null, Kind.MARINE);
+        add("patch_reef", "a patch reef", 0, null, null, Kind.MARINE);
+        add("kelp_forest", "a kelp forest", 0, null, null, Kind.MARINE);
+        add("seagrass_meadow", "a seagrass meadow", 0, null, null, Kind.MARINE);
+        add("rocky_seabed", "a rocky sea floor with ledges and boulders", 0, null, null, Kind.MARINE);
+        add("sea_grotto", "an underwater grotto", 0, null, null, Kind.MARINE);
     }
 
     private TerrainFinder() {
@@ -114,6 +122,7 @@ public final class TerrainFinder {
             case GRID -> findGrid(model, target, x, z, radius, cancelled);
             case FORMATION -> findFormation(model, target.step(), x, z, radius, cancelled);
             case OVERHANG -> findOverhang(model, target, x, z, radius, cancelled);
+            case MARINE -> com.terrahaul.worldgen.features.marine.MarineFinder.find(model, target.name(), x, z, radius, cancelled);
         };
     }
 

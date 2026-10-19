@@ -180,3 +180,12 @@ tasks.register('treeStudy', JavaExec) {
     jvmArgs '-Xmx2G', '-Djava.awt.headless=true'
     args = (project.findProperty('args') ?: 'build/trees all 3 4').toString().split(' ').toList()
 }
+
+tasks.register('seaFloorStudy', JavaExec) {
+    group = 'terrahaul'
+    description = 'Renders and checks Terrahaul sea floors (reefs, kelp, rocks, grottos) without Minecraft (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.SeaFloorStudy'
+    jvmArgs '-Xmx3G', '-Djava.awt.headless=true'
+    args = (project.findProperty('args') ?: '12345 build/seafloor stats').toString().split(' ').toList()
+}

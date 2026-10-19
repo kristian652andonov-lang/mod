@@ -1,0 +1,8 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:ocean"
+  ],
+  "features": "terrahaul:sea/vanilla/seagrass_normal",
+  "step": "vegetal_decoration"
+}

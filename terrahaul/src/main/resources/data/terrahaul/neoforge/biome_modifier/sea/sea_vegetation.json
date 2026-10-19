@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#minecraft:is_overworld",
+  "features": "terrahaul:sea_vegetation",
+  "step": "vegetal_decoration"
+}

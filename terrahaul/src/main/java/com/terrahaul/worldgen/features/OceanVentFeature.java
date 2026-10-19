@@ -22,14 +22,15 @@ import net.minecraft.world.level.material.Fluids;
 /**
  * Hydrothermal vents: chimneys of basalt and blackstone with glowing magma, rising from the floors
  * of deep-sea trenches and, more rarely, from the crests of mid-ocean ridges. Each sits on a low
- * mound of blackstone and magma, is 3-14 blocks tall and is only built in open water. The feature
- * needs the terrain model and does nothing outside Terrahaul worlds.
+ * mound of blackstone and basalt, is 3-14 blocks tall and is only built in open water. The magma
+ * is banded inside the chimney, never under open water, because magma placed by a feature turns
+ * the water above it into a bubble column reaching all the way to the surface. The feature needs
+ * the terrain model and does nothing outside Terrahaul worlds.
  */
 public final class OceanVentFeature extends Feature<NoneFeatureConfiguration> {
     private static final BlockState BASALT = Blocks.BASALT.defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Y);
     private static final BlockState BLACKSTONE = Blocks.BLACKSTONE.defaultBlockState();
     private static final BlockState MAGMA = Blocks.MAGMA_BLOCK.defaultBlockState();
-    private static final BlockState TUFF = Blocks.TUFF.defaultBlockState();
     private static final BlockState SMOOTH_BASALT = Blocks.SMOOTH_BASALT.defaultBlockState();
 
     public OceanVentFeature(Codec<NoneFeatureConfiguration> codec) {
@@ -74,7 +75,9 @@ public final class OceanVentFeature extends Feature<NoneFeatureConfiguration> {
             }
         }
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        // mound of blackstone and magma around the foot
+        // mound around the foot: a magma core under the chimney (covered by it), a blackstone ring
+        // and a rim of smooth basalt. Magma is never left with water right above it: placed by a
+        // feature it would turn the water above into a bubble column pulling down to the floor.
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
                 double r = Math.sqrt(dx * dx + dz * dz);
@@ -82,25 +85,28 @@ public final class OceanVentFeature extends Feature<NoneFeatureConfiguration> {
                     continue;
                 }
                 int ground = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x + dx, z + dz);
-                int rise = r < 1.0 ? 2 : r < 1.8 ? 1 : random.nextInt(2);
+                int rise = r < 1.0 ? 1 : r < 1.8 ? 1 : random.nextInt(2);
                 for (int dy = 0; dy < rise; dy++) {
                     pos.set(x + dx, ground + dy, z + dz);
                     if (isWater(level, pos)) {
-                        setBlock(level, pos, random.nextFloat() < 0.25 ? MAGMA : random.nextFloat() < 0.6 ? BLACKSTONE : SMOOTH_BASALT);
+                        setBlock(level, pos, r < 1.8 ? BLACKSTONE : SMOOTH_BASALT);
                     }
                 }
             }
         }
-        // chimney: a basalt core flecked with magma, thickened by a blackstone collar near the base
+        // chimney: a basalt core with bands of glowing magma inside it, always capped by basalt,
+        // a blackstone collar around its lower half and a blackstone crust on top
+        int phase = random.nextInt(4);
         for (int dy = 0; dy < height; dy++) {
             pos.set(x, floor + dy, z);
             boolean top = dy == height - 1;
-            setBlock(level, pos, top || random.nextFloat() < 0.18 ? MAGMA : BASALT);
+            boolean band = (dy + phase) % 4 == 0 && dy < height - 2;
+            setBlock(level, pos, top ? BLACKSTONE : band ? MAGMA : BASALT);
             if (dy < height / 2) {
                 for (Direction dir : Direction.Plane.HORIZONTAL) {
                     BlockPos side = pos.relative(dir);
-                    if (random.nextFloat() < 0.7 - dy * 0.08 && isWater(level, side)) {
-                        setBlock(level, side, random.nextFloat() < 0.3 ? TUFF : BLACKSTONE);
+                    if (isWater(level, side)) {
+                        setBlock(level, side, BLACKSTONE);
                     }
                 }
             }
