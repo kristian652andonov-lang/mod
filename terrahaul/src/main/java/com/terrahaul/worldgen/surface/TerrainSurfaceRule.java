@@ -308,6 +308,13 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             boolean underFluid = ctx.waterHeight != Integer.MIN_VALUE && ctx.waterHeight > y;
             boolean planned = col.waterLevel != ColumnSample.NO_WATER && y < col.waterLevel;
             Holder<Biome> biome = ctx.biome.get();
+            // ---- dry riverbeds: a wash of gravel bars and pale sand, in the badlands too -------------
+            if (col.dryRiver && d <= 1 && !face && !underFluid && !planned) {
+                BlockState wash = dryWash(x, y, z);
+                if (wash != null) {
+                    return wash;
+                }
+            }
             if (biome.is(BiomeTags.IS_BADLANDS) && !(d <= 2 && (underFluid || planned) && (col.river > 0.0 || col.lake > 0.0 || planned))) {
                 // keep vanilla's terracotta bands everywhere except on the beds of rivers and lakes
                 return null;
@@ -698,6 +705,38 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                 result = MUD;
             } else {
                 result = reach + (hot > 0.35 ? 0.3 : -0.1) > 0.0 ? SAND : GRAVEL;
+            }
+            if (falling(result) && !supported(x, y, z)) {
+                return consolidated(result);
+            }
+            return result;
+        }
+
+        /**
+         * The floor of a river that has run dry: gravel bars and sheets of pale sand with a few
+         * cobbles, in patches a few blocks across, and patches of the same on the banks right beside
+         * it, so the old channel shows against the land around it (red sand and terracotta in
+         * the badlands, sand or grass elsewhere). The bed is otherwise above any water, so the bed
+         * rule (which needs water) never reaches it. Returns {@code null} where the ground keeps
+         * its normal surface.
+         */
+        private BlockState dryWash(int x, int y, int z) {
+            double bars = patch(x, z, 5.0, 3);
+            if (col.river <= 0.0) {
+                // the banks right beside the old channel (out to 80% of its half-width), in patches
+                // that fray out away from it
+                double out = col.riverDistance - 1.0;
+                if (col.riverWidth <= 0.0 || out > 0.8 || bars < 0.1 + 0.9 * out) {
+                    return null;
+                }
+            }
+            BlockState result;
+            if (bars > 0.55 && patch(x, z, 2.0, 7) > 0.35) {
+                result = COBBLESTONE;
+            } else if (bars > -0.05) {
+                result = GRAVEL;
+            } else {
+                result = SAND;
             }
             if (falling(result) && !supported(x, y, z)) {
                 return consolidated(result);
