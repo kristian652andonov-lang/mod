@@ -193,7 +193,9 @@ public final class AutoTest {
             java.util.Map<String, Integer> blocks = new java.util.TreeMap<>();
             String detail = fragmentBlocks(level, f, blocks);
             boolean terrain = blocks.keySet().stream().allMatch(id -> com.terrahaul.worldgen.features.FloatingTerrainCleanup.isTerrain(
-                net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(net.minecraft.resources.ResourceLocation.withDefaultNamespace(id)).defaultBlockState()));
+                net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(net.minecraft.resources.ResourceLocation.withDefaultNamespace(id)).defaultBlockState()))
+                // packed ice in water is an iceberg (or a piece of one), which the cleanup keeps
+                && !(blocks.containsKey("packed_ice") && detail.contains("water="));
             if (terrain) {
                 naturalBlocks += f.blocks();
                 histogram[f.blocks() == 1 ? 0 : f.blocks() < 10 ? 1 : f.blocks() < 100 ? 2 : f.blocks() < 1000 ? 3 : 4]++;

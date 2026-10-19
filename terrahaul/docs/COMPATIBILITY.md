@@ -116,9 +116,10 @@ and `CreateWorldScreen.recreated`.
   | World | Area | ms per chunk |
   |---|---|---|
   | Vanilla | spawn area | about 54 |
-  | Terrahaul | lowland/plains | about 85–93 |
-  | Terrahaul | oceans, trenches, sea cliffs | about 105–139 |
-  | Terrahaul | mountains and canyons | about 186–249 |
+  | Terrahaul | lowland, plains, wetlands, rivers | about 130–175 |
+  | Terrahaul | oceans, reefs, trenches, sea cliffs | about 105–155 |
+  | Terrahaul | mountains, canyons, plateaus, volcanoes | about 170–260 |
+  | Terrahaul | colossal peaks | about 335 |
 
   Pre-generating the world, for example with a pre-generation mod, is recommended for servers.
   World saves are also larger: deep caves and tall mountains store more non-empty sections.

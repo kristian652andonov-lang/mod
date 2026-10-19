@@ -12,7 +12,76 @@ This page records what was actually tested, how, and with what result. It also l
 - The data generators (`tools/*.py`) were re-run and produced identical files apart from intended
   changes, which shows they are deterministic.
 
-## Dedicated server (`runServer --nogui`, `level-type=terrahaul:terrahaul`, seed 12345)
+## Second feedback round: fresh world, every new feature (seed 12345)
+A dedicated server created a fresh Terrahaul world and `AutoTest` located 25 landforms with
+`/terrahaul find`'s finder (search radius 30 000 blocks from 0,0), generated 7x7 chunks around
+each (9x9 around spawn and the volcano) and inspected the blocks. The log had no exceptions.
+
+- **Every finder target was found:** volcano, waterfall, cascade, overhang, alpine_peaks,
+  colossal_peak, mountain_wall, trench, canyon, plateau, wetland, great_river, dry_river, lake,
+  coral_reef, kelp_forest, trail_ruin, sunken_ruin, hoodoo, arch, fjord, sea_cliff, hills,
+  path_lights and signpost. Most searches took under 0.3 s; overhang (3.1 s), mountain_wall
+  (1.3 s) and coral_reef (1.3 s) were the slowest.
+- **The wetland is a swamp:** all 784 sampled columns around the wetland result are swamp (the
+  first run of this round, before marshes were restricted to warmer climates, found one next to
+  snowfields in a cold taiga).
+- **Floating terrain:** each area is scanned for groups of solid blocks near the surface that do
+  not connect to the ground (60-block windows below every column's top, confirmed through the
+  whole area). Groups made only of natural terrain blocks are counted; icebergs and structure
+  pieces are listed apart.
+
+  | Run | Terrain fragments in 26 areas | Blocks |
+  |---|---|---|
+  | Start of this round | about 550 (in nearly every land area; up to 44 blocks, e.g. a floating summit tip) | about 950 |
+  | With the cleanup passes and the boulder fix | 0 that float freely | 0 |
+
+  What the last run still lists are vanilla icebergs and their loose underwater ice (kept on
+  purpose), one packed-ice block on an ice-spikes peak, a few loose gravel and mossy cobblestone
+  blocks under an ocean ruin (chunks under ocean ruins and shipwrecks are not cleaned), and a few
+  blocks that rest against tree trunks or ruin slabs (the scan does not count wood or slabs as
+  ground). Most fragments came from boulders: a bug scattered loose rock through each
+  boulder's bounding box.
+- **Trees:** 2 022 trees (wood groups) in the 26 areas: none floating (no wood group without
+  ground below or beside it) and no leaves that would decay.
+- **Structures:** villages, pillager outpost, desert pyramid, swamp hut, mansion, stronghold,
+  mineshaft, ancient city, trial chambers and ocean monument were located and had a structure
+  start, as before.
+- **Chunk generation time** (ms per chunk, including neighbours, single runs on 4 vCPUs):
+
+  | Area | ms/chunk | Area | ms/chunk |
+  |---|---|---|---|
+  | spawn plains | 141 | wetland | 131 |
+  | volcano | 233 | great river | 144 |
+  | waterfall | 145 | dry river | 224 |
+  | cascade | 170 | lake | 175 |
+  | overhang (Y ~1060) | 259 | coral reef | 133 |
+  | alpine peaks | 180 | kelp forest | 119 |
+  | colossal peak | 335 | trail ruin | 141 |
+  | mountain wall | 227 | sunken ruin | 117 |
+  | trench | 107 | hoodoo field | 175 |
+  | canyon | 172 | arch | 136 |
+  | plateau | 202 | fjord / sea cliff | 119 / 153 |
+
+  The two cleanup passes cost a few percent (comparing the same areas before and after). The
+  structure "beard" mixin (`BeardifierMixin`) took jigsaw-structure areas from about 15% of the
+  profile to 3%.
+
+### Offline checks (devtools, no game)
+Each part of this round was also checked with the pure-Java devtools on the terrain model:
+- `wallAudit` over 16k x 16k blocks of seeds 12345, 1, 42 and -7777: no wall classes left that
+  end in sheer cut-offs (trenches, fjords, coasts, mesas, canyons; numbers in the commit log).
+- `finderAudit`: every grid, summit and overhang target is found from three origins on four seeds.
+- `fragmentAudit`: no floating fragments in the model around overhangs, canyons, sea cliffs,
+  plateaus and alpine peaks.
+- `treeStudy`: every species and size, no wood left unattached before pruning.
+- `ruinStudy`: about 1 ruin per km of trail, 0 floating cells in all plans; deterministic across
+  threads and generation order.
+- `formationStudy`, `fadeStudy`, `seaFloorStudy`, `waterStudy`, `volcanoStudy`, `peakStudy`:
+  renders and statistics reviewed by eye.
+- `SeedMixer.hash2`: no collisions among 361 201 cells (mirrored cells collided before, which made
+  lakes, volcanoes and waterfalls depend on chunk generation order).
+
+## Dedicated server, first release (`runServer --nogui`, `level-type=terrahaul:terrahaul`, seed 12345)
 Each run created a fresh world and ran `AutoTest`:
 - **Startup:** the server starts and reports `Done` in about 9 s with the spawn area generated.
 - **World height:** the dimension type reports `min_y=-512`, `max_build=2032`,
@@ -154,4 +223,10 @@ tested on a real GPU.
 - **Long play sessions, many players, memory over time and world sizes beyond a few thousand
   blocks from spawn.**
 - **Every seed:** results above are from seed 12345, with spot checks of other locations in that
-  world.
+  world. The offline devtools covered seeds 1, 42 and -7777 as well, but in game only seed 12345
+  was generated.
+- **The new features with other mods' features:** the floating-terrain cleanup was only run with
+  vanilla and Terrahaul features. A mod that places natural stone, dirt or sand as a floating
+  shape on purpose before the `fluid_springs` step would have it removed.
+- **Sign text, chest loot and archaeology in ruins** were not opened in game; the ruins were only
+  checked for floating blocks and seen in screenshots.
