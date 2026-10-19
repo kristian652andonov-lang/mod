@@ -216,3 +216,16 @@ tasks.register('ruinStudy', JavaExec) {
     jvmArgs '-Xmx3G', '-Djava.awt.headless=true'
     args = (project.findProperty('args') ?: 'stats 12345 4096').toString().split(' ').toList()
 }
+
+// terrain audits (development only): sheer walls and slots per landform, finder target checks,
+// floating fragments of the 3D terrain density, a line transect, a perspective snapshot and
+// wetland statistics of the model
+['wallAudit': 'WallAudit', 'finderAudit': 'FinderAudit', 'fragmentAudit': 'FragmentAudit', 'transect': 'Transect', 'snapshot': 'Snapshot', 'wetlandStats': 'WetlandStats'].each { name, cls ->
+    tasks.register(name, JavaExec) {
+        group = 'terrahaul'
+        classpath = sourceSets.devtools.runtimeClasspath
+        mainClass = "com.terrahaul.devtools.${cls}"
+        jvmArgs '-Xmx5G', '-Djava.awt.headless=true'
+        args = (project.findProperty('args') ?: '').toString().split(' ').findAll { !it.isEmpty() }.toList()
+    }
+}

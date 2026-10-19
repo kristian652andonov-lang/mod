@@ -17,6 +17,11 @@ public final class ColumnSample {
     /** Height before rivers, lakes and canyons were carved; used for valley walls. */
     public double uncarvedHeight;
     /**
+     * Height after canyons were carved but before rivers and lakes were, so audits can tell the
+     * walls of water bodies from those of the landforms they cut through.
+     */
+    public double preWaterHeight;
+    /**
      * Surface of a water body above sea level (elevated river or lake), or {@link #NO_WATER}.
      * Water at or below sea level is placed by the vanilla fluid system and is not recorded here.
      */
@@ -98,20 +103,43 @@ public final class ColumnSample {
     /** Distance to the nearest trail centre line in blocks (large where there is none). */
     public double trailDistance;
     /**
-     * Highest model surface within 8 blocks, computed on demand by the overhang density
-     * ({@code NaN} until then).
+     * Highest model surface 4 blocks away (any of the four axis directions), computed on demand by
+     * the 3D terrain detail ({@code NaN} until then); {@link #overhangDir} is that direction.
      */
     public double overhangTop;
-    /** Highest model surface 8 blocks away; set together with {@link #overhangTop}. */
+    /** Lowest model surface 4 blocks away; set together with {@link #overhangTop}. */
     public double overhangFar;
+    /** Index of the direction of {@link #overhangTop} in {@code TerrainDetail}'s direction table. */
+    public int overhangDir;
     /**
-     * Big curved overhang: rim height of the cliff it hangs from, or NaN if not computed yet;
-     * {@link #bigOverhangDist} is this column's distance from the cliff face and
-     * {@link #bigOverhangRadius} the radius of its curved underside (0: none).
+     * Big curved overhang over this column, the largest of the four directions: rim height of the
+     * cliff it hangs from, or NaN if not computed yet; {@link #bigOverhangDist} is this column's
+     * distance from the cliff face and {@link #bigOverhangRadius} the radius of its curved
+     * underside (0: none). The per-direction plans are in {@link #overhangPlan}.
      */
     public double bigOverhangRim;
     public double bigOverhangDist;
     public double bigOverhangRadius;
+    /**
+     * Per direction (4 entries of 4 values: cells to the rim column, rim height, radius, lip
+     * thickness) the big curved overhangs this column belongs to; allocated and owned by
+     * {@code TerrainDetail}.
+     */
+    public double[] overhangPlan;
+    /**
+     * The overhang plans of this column before the check that they continue along the cliff, with
+     * the column's x and z in the last two entries (they depend on the position alone); allocated
+     * and owned by {@code TerrainDetail}.
+     */
+    public double[] overhangRawPlan;
+    /**
+     * Raw 3D detail values at the interpolation corners of this column, cached by
+     * {@code TerrainDetail} ({@code NaN}: not computed; allocated on first use); index 0 is the
+     * corner at {@link #detailTop}, then every 8 blocks down.
+     */
+    public double[] detailCache;
+    /** Corner height of {@code detailCache[0]}, or {@link Integer#MIN_VALUE} when the cache is empty. */
+    public int detailTop = Integer.MIN_VALUE;
     /** Geology province index (see {@link Geology}). */
     public int geology;
     /** Fine strata selector noise in [0, 1). */
@@ -134,6 +162,7 @@ public final class ColumnSample {
         z = o.z;
         height = o.height;
         uncarvedHeight = o.uncarvedHeight;
+        preWaterHeight = o.preWaterHeight;
         waterLevel = o.waterLevel;
         lavaLevel = o.lavaLevel;
         cliff = o.cliff;
@@ -176,11 +205,11 @@ public final class ColumnSample {
         trenchFloor = o.trenchFloor;
         oceanRidge = o.oceanRidge;
         trailDistance = o.trailDistance;
-        overhangTop = o.overhangTop;
-        overhangFar = o.overhangFar;
-        bigOverhangRim = o.bigOverhangRim;
-        bigOverhangDist = o.bigOverhangDist;
-        bigOverhangRadius = o.bigOverhangRadius;
+        // the lazily computed 3D detail caches belong to the model's own samples; a copy recomputes
+        // them on demand
+        overhangTop = Double.NaN;
+        bigOverhangRim = Double.NaN;
+        detailTop = Integer.MIN_VALUE;
         geology = o.geology;
         strata = o.strata;
         continentalness = o.continentalness;

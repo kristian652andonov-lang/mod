@@ -33,7 +33,8 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
  * <p>
  * The routine generates chunks at several locations of the Overworld (lowlands, mountains,
  * rivers, coasts), measures generation time, checks the vertical range, lighting and heightmaps,
- * renders top-down maps of the generated blocks, writes a text report and stops the server.
+ * counts floating terrain fragments, renders top-down maps of the generated blocks, writes a text
+ * report and stops the server.
  */
 public final class AutoTest {
     private AutoTest() {
@@ -133,6 +134,7 @@ public final class AutoTest {
             dumpRiverColumn(level, model, cx, cz, radius, report);
             oreHistogram(level, cx, cz, radius, report);
             surfaceCensus(level, cx, cz, radius, report);
+            floatingFragments(level, cx, cz, radius, report);
             areaIndex++;
         }
         if (Boolean.parseBoolean(System.getProperty("terrahaul.autotest.structures", "true"))) {
@@ -142,6 +144,47 @@ public final class AutoTest {
         for (String line : report) {
             Terrahaul.LOGGER.info("[autotest] {}", line);
         }
+    }
+
+    /**
+     * Counts floating terrain fragments: groups of terrain blocks near the surface (from each
+     * column's top down to 60 blocks below the lowest top of it and its neighbours) that do not
+     * connect to the ground (see {@link FloatingFragments}), and logs the largest ones with their
+     * position. Terrain is any full, solid, fluid-free block except logs, leaves and bee nests, so
+     * trees neither count as fragments nor hold one up.
+     */
+    private static void floatingFragments(ServerLevel level, int cx, int cz, int radius, List<String> report) {
+        int size = (radius * 2 + 1) * 16;
+        int x0 = (cx - radius) << 4;
+        int z0 = (cz - radius) << 4;
+        int[] top = new int[size * size];
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int floor = level.getMinBuildHeight();
+        for (int dx = 0; dx < size; dx++) {
+            for (int dz = 0; dz < size; dz++) {
+                int x = x0 + dx;
+                int z = z0 + dz;
+                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
+                while (y > floor && !terrain(level, pos.set(x, y, z))) {
+                    y--;
+                }
+                top[dx * size + dz] = y > floor ? y : Integer.MIN_VALUE;
+            }
+        }
+        long t0 = System.nanoTime();
+        FloatingFragments.Result r = FloatingFragments.scan((x, y, z) -> terrain(level, pos.set(x, y, z)), x0, z0, size, size, top, 60, 10);
+        report.add(String.format(Locale.ROOT, "  floating terrain (surface windows of 60 blocks, %dx%d columns, %.0f ms): %s",
+            size, size, (System.nanoTime() - t0) / 1e6, r.summary()));
+        for (FloatingFragments.Fragment f : r.largest()) {
+            report.add("    fragment: " + f);
+        }
+    }
+
+    private static boolean terrain(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return !state.isAir() && state.getFluidState().isEmpty() && !state.is(net.minecraft.tags.BlockTags.LOGS)
+            && !state.is(net.minecraft.tags.BlockTags.LEAVES) && !state.is(net.minecraft.tags.BlockTags.BEEHIVES)
+            && state.isCollisionShapeFullBlock(level, pos);
     }
 
     /** Counts the top solid block of every column and the blocks 1..15 below it. */
