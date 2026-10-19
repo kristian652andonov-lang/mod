@@ -124,6 +124,15 @@ public final class WaterStudy {
             case "dump" -> dump(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]), Integer.parseInt(args[5]));
             case "walls" -> walls(model, Integer.parseInt(args[2]));
             case "survey" -> survey(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]));
+            case "findat" -> {
+                // what /terrahaul find reports for the water targets from one origin
+                int x = Integer.parseInt(args[2]);
+                int z = Integer.parseInt(args[3]);
+                for (String name : new String[]{"waterfall", "cascade", "lake", "river", "great_river", "dry_river", "stream"}) {
+                    TerrainFinder.Result r = TerrainFinder.find(model, TerrainFinder.targets().get(name), x, z, 8000, () -> false);
+                    System.out.println(name + ": " + (r == null ? "none" : r.x() + " " + r.y() + " " + r.z() + " (" + r.label() + ")"));
+                }
+            }
             case "lakecheck" -> lakeCheck(model, Integer.parseInt(args[2]));
             case "corners" -> {
                 int x0 = Integer.parseInt(args[2]) & ~3;
