@@ -92,9 +92,10 @@ public final class FinderAudit {
                 if (s.river <= 0.0 || !s.dryRiver) {
                     return "not a dry river bed";
                 }
-                for (int dx = -8; dx <= 8; dx += 4) {
-                    for (int dz = -8; dz <= 8; dz += 4) {
-                        model.sampleInto(r.x() + dx, r.z() + dz, s);
+                // the generated ground interpolates the 4-block grid columns, so those decide
+                for (int dx = -8; dx <= 12; dx += 4) {
+                    for (int dz = -8; dz <= 12; dz += 4) {
+                        model.sampleInto((r.x() + dx) & ~3, (r.z() + dz) & ~3, s);
                         if (s.waterLevel != ColumnSample.NO_WATER && s.waterLevel > s.height || s.height < sl - 0.5) {
                             return "water within 8 blocks";
                         }

@@ -150,8 +150,8 @@ public final class AutoTest {
      * Counts floating terrain fragments: groups of terrain blocks near the surface (from each
      * column's top down to 60 blocks below the lowest top of it and its neighbours) that do not
      * connect to the ground (see {@link FloatingFragments}), and logs the largest ones with their
-     * position. Terrain is any full, solid, fluid-free block except logs and leaves, so trees
-     * neither count as fragments nor hold one up.
+     * position. Terrain is any full, solid, fluid-free block except logs, leaves and bee nests, so
+     * trees neither count as fragments nor hold one up.
      */
     private static void floatingFragments(ServerLevel level, int cx, int cz, int radius, List<String> report) {
         int size = (radius * 2 + 1) * 16;
@@ -183,7 +183,8 @@ public final class AutoTest {
     private static boolean terrain(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         return !state.isAir() && state.getFluidState().isEmpty() && !state.is(net.minecraft.tags.BlockTags.LOGS)
-            && !state.is(net.minecraft.tags.BlockTags.LEAVES) && state.isCollisionShapeFullBlock(level, pos);
+            && !state.is(net.minecraft.tags.BlockTags.LEAVES) && !state.is(net.minecraft.tags.BlockTags.BEEHIVES)
+            && state.isCollisionShapeFullBlock(level, pos);
     }
 
     /** Counts the top solid block of every column and the blocks 1..15 below it. */

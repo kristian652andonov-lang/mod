@@ -80,7 +80,10 @@ public final class TerrainFinder {
             s -> s.trailDistance < 1.2 && TerrainModel.trailGround(s, 63), Kind.GRID);
         add("beach", "a sandy beach", 32, s -> s.beach > 0.4, s -> s.beach > 0.6 && Math.abs(s.height - 64.0) < 3.0, Kind.GRID);
         add("sea_cliff", "rocky sea cliffs", 32, s -> s.coastCliff > 0.3 && s.height > 70, s -> s.coastCliff > 0.3 && s.height > 76, Kind.GRID);
-        add("island", "an island", 64, s -> s.island > 0.3 && s.height > 64, s -> s.island > 0.4 && s.height > 66, Kind.GRID);
+        // archipelago islands fade out towards the continental shore, where the last of them join
+        // the mainland
+        add("island", "an island", 64, s -> s.island > 0.3 && s.height > 64,
+            s -> s.island > 0.4 && s.height > 66 && s.rawContinentalness < -0.22, Kind.GRID);
         add("mushroom_island", "a mushroom island", 96, s -> s.continentalness < -1.05 && s.height > 63, s -> s.continentalness < -1.05 && s.height > 66, Kind.GRID);
         add("fjord", "a fjord", 48, s -> s.fjord > 0.4, s -> s.fjord > 0.6 && s.height < 57.0, Kind.GRID);
         add("mountain", "a mountain range", 64, s -> s.mountain > 0.6 && s.height > 250, s -> s.mountain > 0.6 && s.peakness > 0.6, Kind.GRID);
@@ -115,7 +118,7 @@ public final class TerrainFinder {
             int w = waterWidth(m, x, z);
             return w >= 96 && w <= 230;
         });
-        site("dry_river", (m, s, x, z) -> waterWithin(m, x, z, 12) == 0);
+        site("dry_river", (m, s, x, z) -> waterWithin(m, x, z, 16) == 0);
         site("stream", (m, s, x, z) -> {
             ColumnSample c = m.sample((x + 2) & ~3, (z + 2) & ~3);
             return c.stream > 0.0 && c.waterLevel == ColumnSample.NO_WATER && m.interpolatedHeight(x, z) > m.seaLevel() + 1.0
@@ -129,6 +132,9 @@ public final class TerrainFinder {
         site("valley", (m, s, x, z) -> maxWithin(m, x, z, 240) > s.height + 80.0);
         site("plains", (m, s, x, z) -> maxWithin(m, x, z, 48) - minWithin(m, x, z, 48) < 8.0);
         site("wetland", (m, s, x, z) -> waterWithin(m, x, z, 20) >= 20);
+        // walls on both sides: the canyon flag alone was also set on shallow ends of canyons
+        // whose floor rises to the land around
+        site("canyon", (m, s, x, z) -> wallSides(m, x, z, s.height, 112, 28.0) >= 4);
     }
 
     /** A check of a candidate's neighbourhood. */
@@ -254,6 +260,7 @@ public final class TerrainFinder {
         candidates.sort((a, b) -> Long.compare(a[0], b[0]));
         SiteCheck site = SITES.get(target.name());
         int checks = 0;
+        int climbs = 0;
         for (long[] c : candidates) {
             int x = cx + (int) c[1];
             int z = cz + (int) c[2];
@@ -268,44 +275,82 @@ public final class TerrainFinder {
                 }
             }
             if (SUMMITS.contains(target.name())) {
-                // the summit, unless the climb left the landform (a higher peak of another style)
+                // the summit; if the climb left the landform (a higher peak of another style) this
+                // candidate has no summit of its own, and its flank is no answer
                 int[] top = climb(model, x, z);
                 ColumnSample peak = new ColumnSample();
                 model.sampleInto(top[0], top[1], peak);
                 if (target.coarse().test(peak)) {
                     return new Result(top[0], surfaceY(peak), top[1], target.name());
                 }
+                if (++climbs > 6) {
+                    break;
+                }
+                continue;
             }
             return new Result(x, surfaceY(s), z, target.name());
         }
         return null;
     }
 
-    /** Climbs from (x, z) to the local summit: steepest ascent with steps halving from 32 to 1 block. */
+    /** Radius of the neighbourhood searched for a higher top after each ascent, in blocks. */
+    private static final int SUMMIT_REACH = 48;
+
+    /**
+     * Climbs from (x, z) to the summit on the 4-block grid the generated terrain is interpolated
+     * from (between grid columns the ground never rises above them): steepest ascent with steps
+     * halving from 32 to 4 blocks, then a look around for anything higher within
+     * {@value #SUMMIT_REACH} blocks and a new ascent from there. Ridged peaks have shoulders and
+     * lesser tops a few dozen blocks from the summit, on which a plain ascent stopped up to 100
+     * blocks below it.
+     */
     private static int[] climb(TerrainModel model, int x, int z) {
         ColumnSample s = new ColumnSample();
+        x &= ~3;
+        z &= ~3;
         model.sampleInto(x, z, s);
         double best = s.height;
-        for (int step = 32; step >= 1; step /= 2) {
-            boolean moved = true;
-            while (moved) {
-                moved = false;
-                int bx = x;
-                int bz = z;
-                for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}}) {
-                    model.sampleInto(x + d[0] * step, z + d[1] * step, s);
-                    if (s.height > best) {
-                        best = s.height;
-                        bx = x + d[0] * step;
-                        bz = z + d[1] * step;
+        for (int round = 0; round < 16; round++) {
+            for (int step = 32; step >= 4; step /= 2) {
+                boolean moved = true;
+                while (moved) {
+                    moved = false;
+                    int bx = x;
+                    int bz = z;
+                    for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}}) {
+                        model.sampleInto(x + d[0] * step, z + d[1] * step, s);
+                        if (s.height > best) {
+                            best = s.height;
+                            bx = x + d[0] * step;
+                            bz = z + d[1] * step;
+                        }
+                    }
+                    if (bx != x || bz != z) {
+                        x = bx;
+                        z = bz;
+                        moved = true;
                     }
                 }
-                if (bx != x || bz != z) {
-                    x = bx;
-                    z = bz;
-                    moved = true;
+            }
+            int bx = x;
+            int bz = z;
+            for (int dx = -SUMMIT_REACH; dx <= SUMMIT_REACH; dx += 4) {
+                for (int dz = -SUMMIT_REACH; dz <= SUMMIT_REACH; dz += 4) {
+                    if (dx * dx + dz * dz <= SUMMIT_REACH * SUMMIT_REACH) {
+                        model.sampleInto(x + dx, z + dz, s);
+                        if (s.height > best) {
+                            best = s.height;
+                            bx = x + dx;
+                            bz = z + dz;
+                        }
+                    }
                 }
             }
+            if (bx == x && bz == z) {
+                break;
+            }
+            x = bx;
+            z = bz;
         }
         return new int[]{x, z};
     }
@@ -330,6 +375,24 @@ public final class TerrainFinder {
             best = Math.min(best, (int) Math.round(run * 2 * unit));
         }
         return best;
+    }
+
+    /**
+     * Number of the eight compass directions in which the ground rises at least {@code rise}
+     * blocks above {@code h} within {@code r} blocks of (x, z).
+     */
+    private static int wallSides(TerrainModel model, int x, int z, double h, int r, double rise) {
+        int sides = 0;
+        for (int a = 0; a < 8; a++) {
+            double ang = a * Math.PI / 4.0;
+            for (int d = 8; d <= r; d += 8) {
+                if (model.sample((int) Math.round(x + d * Math.cos(ang)) & ~3, (int) Math.round(z + d * Math.sin(ang)) & ~3).height >= h + rise) {
+                    sides++;
+                    break;
+                }
+            }
+        }
+        return sides;
     }
 
     /** Number of 4-block grid columns within r blocks that are under water. */

@@ -594,10 +594,9 @@ public final class TerrainModel {
         // island they would end at its shore as a wall into the sea.
         double erosionLow = clamp(erosionNoise.fbm(wx / es, wz / es, 3) * 1.35 - 1.4 * beltStrength, -1.0, 1.0);
         double plateauRegion = smoothstep(-0.05, 0.2, plateauHeight.fbm(wx / (es * 1.3) - 40.0, wz / (es * 1.3) + 13.0));
-        // the plateau band follows only the first erosion octave: a plateau is up to 245 blocks
-        // high, so its band may change by no more than about 0.005 per block. Plateaus give way to
-        // mountain ranges (whose blurred mask changes as slowly): stacked on a range's flank, a
-        // plateau's edge doubled its relief into one long, steep face
+        // the plateau band follows only the first erosion octave, and plateaus give way to mountain
+        // ranges (whose blurred mask changes as slowly): stacked on a range's flank, a plateau's
+        // edge doubled its relief into one long, steep face
         double plateauBand = bump(erosionNoise.fbm(wx / es, wz / es, 1) * 1.35, -0.52, -0.31, -0.12)
             * smoothstep(-0.04, 0.12, rawC) * (1.0 - smoothstep(0.05, 0.35, mountain)) * plateauRegion;
         double plateau = 0.0;
@@ -606,29 +605,10 @@ public final class TerrainModel {
         // height of the plateau's top here, whether or not this column is on its edge
         double plateauTop = 0.0;
         if (plateauBand > 0.0) {
-            double ps = 1500.0 * hs;
-            double pv = plateauNoise.fbm(rx / ps, rz / ps) + 0.16;
-            double pH = 45.0 + 200.0 * (0.5 + 0.5 * plateauHeight.fbm(wx / (es * 2.0), wz / (es * 2.0)));
-            // a mesa edge: a caprock cliff of 12-28 blocks above a concave talus apron as wide as
-            // the plateau is high, instead of a sheer 200-block wall. The distance to the rim is the
-            // field's value over a rate that 95% of its gradients stay below: a local estimate
-            // (value over gradient) jumps near the field's extrema and raised narrow fins and walls.
-            double edgeDist = pv * ps / PLATEAU_FIELD_RATE;
-            double cap = Math.min(12.0 + 16.0 * (0.5 + 0.5 * plateauHeight.fbm(wx / (420.0 * hs) + 77.0, wz / (420.0 * hs) - 5.0)), 0.22 * pH);
-            double talusW = Math.max(16.0, (pH - cap) * 0.85);
-            double pMask;
-            if (edgeDist >= 0.0) {
-                pMask = 1.0;
-            } else if (edgeDist > -talusW) {
-                pMask = (1.0 - cap / pH) * Math.pow(1.0 + edgeDist / talusW, 1.5);
-            } else {
-                pMask = 0.0;
-            }
-            double top = TMath.terrace(pH + 14.0 * hillShape * smoothstep(0.02, 0.15, pv), 13.0, 0.72);
-            plateau = plateauBand * pMask;
-            plateauHeightValue = plateau * top;
-            plateauTop = plateauBand * top;
-            plateauEdge = plateauBand * (1.0 - Math.abs(2.0 * pMask - 1.0));
+            plateauHeightValue = plateau(rx, rz, wx, wz, plateauBand, hillShape, sc);
+            plateau = sc.plateau;
+            plateauTop = sc.plateauTop;
+            plateauEdge = sc.plateauEdge;
         }
 
         double windswept = bump(erosionLow, 0.4, 0.5, 0.6) * smoothstep(-0.02, 0.1, rawC) * reliefLand;
@@ -681,7 +661,9 @@ public final class TerrainModel {
             double pools = swampNoise.fbm(x / (110.0 * hs), z / (110.0 * hs));
             double hummocks = swampNoise.fbm(x / (17.0 * hs) + 40.0, z / (17.0 * hs) - 25.0);
             double creek = Math.abs(swampNoise.fbm(x / (75.0 * hs) - 90.0, z / (75.0 * hs) + 33.0, 2));
-            double wet = sl - 0.8 + 2.4 * pools + 1.6 * Math.max(0.0, hummocks) - 1.5 * smoothstep(-0.28, -0.5, hummocks);
+            // (about 45% of the marsh core stands in water 1-2 blocks deep; with more weight on the
+            // large pool field two thirds did, as open lakes dotted with islets)
+            double wet = sl - 0.2 + 1.6 * pools + 1.8 * Math.max(0.0, hummocks) - 1.6 * smoothstep(-0.28, -0.5, hummocks);
             wet = Math.min(wet, sl - 1.8 + 14.0 * creek);
             // the marsh's core lies at the water table, its fringe rises to the land around
             h = lerp(smoothstep(0.0, 0.6, swamp), h, wet);
@@ -957,8 +939,48 @@ public final class TerrainModel {
     }
 
     // =========================================================================================
-    // Trenches, fjords and canyons (carving helpers of computeColumn)
+    // Plateaus, trenches, fjords and canyons (shaping helpers of computeColumn)
     // =========================================================================================
+
+    /**
+     * Plateaus (mesas) in a plateau band of strength {@code band}. Inside the plateau field the
+     * edge is a mesa rim: a caprock cliff of 12-28 blocks above a concave talus apron a little
+     * wider than the plateau is high, instead of a sheer 200-block wall. The distance to the rim
+     * is the field's value over a rate that 95% of its gradients stay below: a local estimate
+     * (value over gradient) jumps near the field's extrema and raised narrow fins and walls.
+     * <p>
+     * Where the band itself fades the plateau has no rim to stand behind, so its top is held under
+     * a ramp that rises {@value #PLATEAU_RAMP_SLOPE} blocks per block at the band's 95th-percentile
+     * rate of change: scaling the whole height with the band raised the tallest plateaus from the
+     * lowland at 70 degrees over 200 blocks. The top stays flat (terraced) where the band is strong
+     * enough to carry it. Returns the plateau's height above the land around and sets
+     * {@code sc.plateau}, {@code sc.plateauTop} (the top here, rim or not) and {@code sc.plateauEdge}.
+     */
+    private double plateau(double rx, double rz, double wx, double wz, double band, double hillShape, Scratch sc) {
+        double es = settings.erosionScale() * hs;
+        double ps = 1500.0 * hs;
+        double pv = plateauNoise.fbm(rx / ps, rz / ps) + 0.16;
+        double pH = 45.0 + 200.0 * (0.5 + 0.5 * plateauHeight.fbm(wx / (es * 2.0), wz / (es * 2.0)));
+        double edgeDist = pv * ps / PLATEAU_FIELD_RATE;
+        double cap = Math.min(12.0 + 16.0 * (0.5 + 0.5 * plateauHeight.fbm(wx / (420.0 * hs) + 77.0, wz / (420.0 * hs) - 5.0)), 0.22 * pH);
+        // the talus is 1.1 times as wide as it is high (54 degrees below the caprock, flattening
+        // towards its foot): at 0.85 it reached 70 degrees where the field changes fastest
+        double talusW = Math.max(16.0, (pH - cap) * 1.1);
+        double pMask;
+        if (edgeDist >= 0.0) {
+            pMask = 1.0;
+        } else if (edgeDist > -talusW) {
+            pMask = (1.0 - cap / pH) * Math.pow(1.0 + edgeDist / talusW, 1.5);
+        } else {
+            pMask = 0.0;
+        }
+        double ramp = PLATEAU_RAMP_SLOPE * hs / PLATEAU_BAND_RATE * band;
+        double top = TMath.terrace(Math.min(pH + 14.0 * hillShape * smoothstep(0.02, 0.15, pv), ramp), 13.0, 0.72);
+        sc.plateau = band * pMask;
+        sc.plateauTop = top;
+        sc.plateauEdge = band * (1.0 - Math.abs(2.0 * pMask - 1.0));
+        return pMask * top;
+    }
 
     /**
      * Deep-sea trenches: long rifts in the abyssal plains ({@code abyss} > 0) whose floors drop to
@@ -1215,8 +1237,20 @@ public final class TerrainModel {
         return best;
     }
 
+    /**
+     * Key of a site cell in the site caches (volcanoes, lakes, waterfalls, rock formations).
+     * {@link SeedMixer#hash2} is no key: it gives the cells (x, z) and (-x, -z) the same value for
+     * about a third of all cells, so whichever of the two was computed first was returned for both,
+     * and lakes, volcanoes and waterfalls depended on the order in which chunks were generated
+     * (measured after scanning two 16k-block areas: 3-6% of the lake cells held the site of their
+     * mirror cell, which made the terrain differ between runs and lakes or waterfalls vanish).
+     */
+    private static long siteKey(long gridSeed, int cx, int cz) {
+        return SeedMixer.mix(((long) cx << 32 | cz & 0xFFFFFFFFL) ^ gridSeed);
+    }
+
     private VolcanoSite volcanoSite(int cx, int cz, double cell) {
-        long key = SeedMixer.hash2(volcanoSeed, cx, cz);
+        long key = siteKey(volcanoSeed, cx, cz);
         VolcanoSite cached = volcanoSites.get(key);
         if (cached == null) {
             cached = computeVolcanoSite(cx, cz, cell);
@@ -1329,6 +1363,13 @@ public final class TerrainModel {
      * for a 4-octave field: median 3.3, 95th percentile 6.6).
      */
     private static final double PLATEAU_FIELD_RATE = 6.6;
+    /**
+     * Change of the plateau band per block that 95% of its gradients stay below where it fades
+     * (measured over 40,000 points of two seeds: median 0.0045, 95th percentile 0.010, maximum 0.025).
+     */
+    private static final double PLATEAU_BAND_RATE = 0.010;
+    /** Steepest rise of a plateau's top where its band fades, in blocks per block (about 60 degrees). */
+    private static final double PLATEAU_RAMP_SLOPE = 1.8;
     /** Change of the trench field per 3200 blocks that 95% of its gradients stay below (2 octaves). */
     private static final double TRENCH_FIELD_RATE = 5.6;
     /** Change of the canyon field per 2600 blocks that 95% of its gradients stay below (3 octaves). */
@@ -1703,7 +1744,7 @@ public final class TerrainModel {
     }
 
     private LakeSite lakeSite(int cx, int cz, double cell, long gridSeed, boolean great) {
-        long key = SeedMixer.hash2(gridSeed, cx, cz);
+        long key = siteKey(gridSeed, cx, cz);
         LakeSite cached = lakeSites.get(key);
         if (cached != null) {
             return cached.active ? cached : null;
@@ -1848,7 +1889,7 @@ public final class TerrainModel {
      * reports.
      */
     public WaterfallSite waterfallSite(int cellX, int cellZ) {
-        long key = SeedMixer.hash2(siteSeed ^ 0xFA11L, cellX, cellZ);
+        long key = siteKey(siteSeed ^ 0xFA11L, cellX, cellZ);
         WaterfallSite cached = waterfallSites.get(key);
         if (cached == null) {
             cached = computeWaterfallSite(cellX, cellZ);
@@ -1988,7 +2029,7 @@ public final class TerrainModel {
     public static final int SEA_STACK = 4;
 
     public FormationSite formationSite(int cellX, int cellZ) {
-        long key = SeedMixer.hash2(siteSeed ^ 0xF0F0L, cellX, cellZ);
+        long key = siteKey(siteSeed ^ 0xF0F0L, cellX, cellZ);
         FormationSite cached = formationSites.get(key);
         if (cached == null) {
             cached = computeFormationSite(cellX, cellZ);
@@ -2133,6 +2174,9 @@ public final class TerrainModel {
         double craterWaterLevel;
         double craterLavaLevel;
         boolean volcanoCraterMode;
+        double plateau;
+        double plateauTop;
+        double plateauEdge;
         double trench;
         double trenchFloor;
         double fjord;

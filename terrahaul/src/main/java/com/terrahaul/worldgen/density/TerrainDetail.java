@@ -40,12 +40,17 @@ public final class TerrainDetail {
     /** Smallest cliff that can carry a big curved overhang. */
     private static final double BIG_DROP = 24.0;
     /**
-     * Largest radius of a big overhang's curved underside: on tall cliffs the arc spans five
+     * Largest radius of a big overhang's curved underside: on tall cliffs the arc spans four
      * interpolation columns, enough for the curve to read as one.
      */
-    private static final double MAX_RADIUS = 20.0;
-    /** Farthest a column under a big overhang lies from its rim column, in cells. */
-    private static final int MAX_CELLS = 5;
+    private static final double MAX_RADIUS = 16.0;
+    /**
+     * Farthest a column under a big overhang lies from its rim column, in cells. The noise fill of
+     * a chunk is bounded by the highest surface within 16 blocks of it (see
+     * {@code NoiseBasedChunkGeneratorMixin}), so an overhang may reach at most 16 blocks out from
+     * its rim column: further out its top would be cut off flat at a chunk border.
+     */
+    private static final int MAX_CELLS = 4;
     /** Most the ground one cell behind a cliff's rim may rise above it for an overhang to hang from it. */
     private static final double FLAT_TOP = 4.0;
     /** Axis directions; neighbouring corner columns are always 4 blocks (one cell) apart. */
@@ -284,13 +289,11 @@ public final class TerrainDetail {
     }
 
     /**
-     * The big curved overhangs a column belongs to, one plan per direction: looking 4 to 20 blocks
-     * along the direction for the nearest rim of a cliff facing this way (a rise of at least
-     * {@value #BIG_DROP} blocks within two cells, most of it within one, with level ground behind
-     * the rim). Everything about an
-     * overhang - whether there is one (a smooth 2D mask picks about a third of cliff length),
-     * its radius and lip - depends only on the rim column and its two outer neighbours, so every
-     * column under the same overhang agrees on its shape.
+     * The big curved overhangs a column belongs to, one plan per direction (see {@link #rawPlan}).
+     * A column keeps an overhang only where the overhang runs along the cliff for at least three
+     * columns, its own and two neighbours on one side or one on each side, with rims at about the
+     * same height: the rim conditions hold on single columns here and there, and the overhang of
+     * a single column stood out from the cliff as a fin one or two blocks thick.
      */
     private static double[] plan(TerrainModel model, ColumnSample s, int x, int z) {
         if (s.overhangPlan != null && !Double.isNaN(s.bigOverhangRim)) {
@@ -304,6 +307,61 @@ public final class TerrainDetail {
         s.bigOverhangRim = s.height;
         s.bigOverhangRadius = 0.0;
         s.bigOverhangDist = 1.0E9;
+        double[] raw = rawPlan(model, s, x, z);
+        for (int dir = 0; dir < 4; dir++) {
+            int k = (int) raw[dir * 4];
+            if (k <= 0) {
+                continue;
+            }
+            // along the cliff: across the direction of the overhang
+            int px = DIRS[dir][1] != 0 ? 4 : 0;
+            int pz = DIRS[dir][0] != 0 ? 4 : 0;
+            double rim = raw[dir * 4 + 1];
+            double lip = raw[dir * 4 + 3];
+            boolean left = continues(model, x - px, z - pz, dir, k, rim, lip);
+            boolean right = continues(model, x + px, z + pz, dir, k, rim, lip);
+            if (!(left && right || left && continues(model, x - 2 * px, z - 2 * pz, dir, k, rim, lip)
+                || right && continues(model, x + 2 * px, z + 2 * pz, dir, k, rim, lip))) {
+                continue;
+            }
+            System.arraycopy(raw, dir * 4, plan, dir * 4, 4);
+            double r = raw[dir * 4 + 2];
+            if (r > s.bigOverhangRadius) {
+                s.bigOverhangRim = rim;
+                s.bigOverhangRadius = r;
+                s.bigOverhangDist = 4.0 * k - 2.0;
+            }
+        }
+        return plan;
+    }
+
+    /** Whether the column at (x, z) has a raw overhang plan like {@code k, rim} in direction {@code dir}. */
+    private static boolean continues(TerrainModel model, int x, int z, int dir, int k, double rim, double lip) {
+        double[] raw = rawPlan(model, model.sample(x, z), x, z);
+        int kn = (int) raw[dir * 4];
+        return kn > 0 && Math.abs(kn - k) <= 1 && Math.abs(raw[dir * 4 + 1] - rim) <= lip;
+    }
+
+    /**
+     * The big curved overhangs a column could belong to, one plan per direction: looking 4 to 16
+     * blocks along the direction for the nearest rim of a cliff facing this way (a rise of at
+     * least {@value #BIG_DROP} blocks within two cells, most of it within one, with level ground
+     * behind the rim). Everything about an overhang - whether there is one (a smooth 2D mask picks
+     * about a third of cliff length), its radius and lip - depends only on the rim column and its
+     * two outer neighbours, so every column under the same overhang agrees on its shape. The plan
+     * depends on the position alone; it is cached in the column sample, keyed by the position in
+     * its last two entries.
+     */
+    private static double[] rawPlan(TerrainModel model, ColumnSample s, int x, int z) {
+        double[] raw = s.overhangRawPlan;
+        if (raw != null && raw[16] == x && raw[17] == z) {
+            return raw;
+        }
+        if (raw == null) {
+            raw = new double[18];
+            s.overhangRawPlan = raw;
+        }
+        Arrays.fill(raw, 0.0);
         for (int dir = 0; dir < 4; dir++) {
             int dx = DIRS[dir][0] * 4;
             int dz = DIRS[dir][1] * 4;
@@ -314,35 +372,34 @@ public final class TerrainDetail {
                 double hOut = model.sample(rx - dx, rz - dz).height;
                 double hOut2 = model.sample(rx - 2 * dx, rz - 2 * dz).height;
                 double rise = hRim - Math.min(hOut, hOut2);
-                if (hRim - hOut < 0.6 * BIG_DROP || rise < BIG_DROP) {
+                // only the top of a cliff carries an overhang: it continues the flat ground behind
+                // the rim out over the drop (hung from a rim in the middle of a steep slope it was a
+                // bulge with more slope rising above it). A column of the face itself, with the
+                // ground rising behind it, is passed over in the search for the top; stopping there
+                // left only the column next to the rim under the overhang, a stub a few blocks long
+                if (hRim - hOut < 0.6 * BIG_DROP || rise < BIG_DROP || model.sample(rx + dx, rz + dz).height > hRim + FLAT_TOP) {
                     continue;
                 }
-                // the nearest cliff decides, whether it carries an overhang or not. Only the top of
-                // a cliff does: the overhang continues the flat ground behind the rim out over the
-                // drop, and hung from a rim in the middle of a steep slope it was a bulge with more
-                // slope rising above it
+                // the nearest cliff top decides, whether it carries an overhang or not
                 double mask = model.detail3(7, rx / 170.0, 3.0, rz / 170.0);
-                if (mask >= 0.22 && model.sample(rx + dx, rz + dz).height <= hRim + FLAT_TOP) {
+                if (mask >= 0.22) {
                     double lip = Math.min(12.0, 9.0 + 0.05 * rise);
                     double strength = mask >= 0.4 ? 1.0 : (mask - 0.22) / 0.18;
                     // leave at least 8 blocks of headroom between the underside and the ground below
                     double r = Math.min(Math.min(MAX_RADIUS, 0.45 * rise), rise - lip - 8.0) * strength;
                     if (r >= 6.0 && 4.0 * k - 2.0 < r) {
-                        plan[dir * 4] = k;
-                        plan[dir * 4 + 1] = hRim;
-                        plan[dir * 4 + 2] = r;
-                        plan[dir * 4 + 3] = lip;
-                        if (r > s.bigOverhangRadius) {
-                            s.bigOverhangRim = hRim;
-                            s.bigOverhangRadius = r;
-                            s.bigOverhangDist = 4.0 * k - 2.0;
-                        }
+                        raw[dir * 4] = k;
+                        raw[dir * 4 + 1] = hRim;
+                        raw[dir * 4 + 2] = r;
+                        raw[dir * 4 + 3] = lip;
                     }
                 }
                 break;
             }
         }
-        return plan;
+        raw[16] = x;
+        raw[17] = z;
+        return raw;
     }
 
     /**

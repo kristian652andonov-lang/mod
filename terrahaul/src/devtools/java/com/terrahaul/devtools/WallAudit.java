@@ -43,17 +43,18 @@ public final class WallAudit {
     static final double SHEER_SLOPE = 4.0;
     static final double STEEP_SLOPE = 2.5;
     static final String[] CLASSES = {"trench", "fjord", "volcano", "canyon", "coast_cliff", "plateau_edge", "lake", "river",
-        "mountain_wall", "mountain", "swamp", "windswept", "sea_floor", "island_shelf", "other"};
+        "mountain_wall", "mountain", "swamp", "windswept", "sea_floor", "island_shelf", "other", "mountain_seam"};
     static final int LAKE = 6;
     static final int RIVER = 7;
     static final int SEA_FLOOR = 12;
     static final int ISLAND_SHELF = 13;
     static final int OTHER = 14;
+    static final int MOUNTAIN_SEAM = 15;
     /** Marker colours: trench blue, fjord cyan, volcano red, canyon orange, coast yellow, plateau brown,
      *  lake light blue, river dark blue, wall magenta, mountain purple, swamp green, windswept olive,
-     *  sea floor lilac, island shelf pink, other white. */
+     *  sea floor lilac, island shelf pink, other white, mountain seam black. */
     static final int[] COLORS = {0x2040FF, 0x00C0C0, 0xFF2020, 0xFF8000, 0xFFFF00, 0xC08040, 0x40A0FF, 0x0060FF,
-        0xFF00FF, 0xA000A0, 0x00FF00, 0x909020, 0x8080FF, 0xFF90C0, 0xFFFFFF};
+        0xFF00FF, 0xA000A0, 0x00FF00, 0x909020, 0x8080FF, 0xFF90C0, 0xFFFFFF, 0x000000};
     private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
 
     private WallAudit() {
@@ -341,8 +342,14 @@ public final class WallAudit {
      * more than half its height is theirs, whatever landform they cut through. Otherwise the
      * strongest of the other landforms wins, weighted so that a weak fringe of one does not outrank
      * the core of another; mountains (and their walls) only win where nothing else is present.
+     * A wall across which the mountain mask itself jumps (by more than 0.02 per block, three times
+     * as fast as at the steepest edge of a range) is a seam in the mask, whatever stands there.
      */
     static int classify(ColumnSample top, ColumnSample foot, int sl, double wall) {
+        double apart = Math.max(4.0, Math.hypot(top.x - foot.x, top.z - foot.z));
+        if (Math.abs(top.mountain - foot.mountain) / apart > 0.02) {
+            return MOUNTAIN_SEAM;
+        }
         double waterCut = Math.max(foot.preWaterHeight - foot.height, top.preWaterHeight - top.height);
         if (waterCut > 0.5 * wall) {
             return Math.max(top.riverValley, foot.riverValley) > 0.0 || top.river > 0.0 || foot.river > 0.0 ? RIVER : LAKE;

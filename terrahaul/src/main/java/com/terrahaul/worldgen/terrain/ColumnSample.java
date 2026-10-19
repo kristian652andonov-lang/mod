@@ -104,6 +104,12 @@ public final class ColumnSample {
      */
     public double[] overhangPlan;
     /**
+     * The overhang plans of this column before the check that they continue along the cliff, with
+     * the column's x and z in the last two entries (they depend on the position alone); allocated
+     * and owned by {@code TerrainDetail}.
+     */
+    public double[] overhangRawPlan;
+    /**
      * Raw 3D detail values at the interpolation corners of this column, cached by
      * {@code TerrainDetail} ({@code NaN}: not computed; allocated on first use); index 0 is the
      * corner at {@link #detailTop}, then every 8 blocks down.

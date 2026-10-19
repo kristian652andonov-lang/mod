@@ -15,8 +15,10 @@ import java.util.Locale;
  * neighbours, so that on steep faces the windows of neighbouring columns overlap and real
  * connections are followed. Solid blocks are joined across faces (6-connectivity). A group is
  * grounded when it contains a block at the bottom of its column's window (the solid ground
- * continues below) or touches the side of the area (it may continue outside, so it is not judged);
- * every other group is a floating fragment.
+ * continues below) or touches the side of the area (it may continue outside, so it is not judged).
+ * Every other group is followed once more through all solid blocks of the area, below the windows
+ * too, and is a floating fragment only if it reaches neither the side of the area nor 64 blocks
+ * below its lowest block.
  */
 public final class FloatingFragments {
     /** Solidity of a block, {@code true} for terrain material. */
@@ -153,6 +155,14 @@ public final class FloatingFragments {
                 }
             }
             if (!grounded) {
+                // the windows hide connections that dip below them (around the foot of an overhang,
+                // say): follow the group through the whole area before calling it floating
+                int sc = column(offset, start, c);
+                int sdx = sc / sizeZ;
+                grounded = reachesGround(solid, x0 + sdx, bottom[sc] + start - (int) offset[sc], z0 + sc - sdx * sizeZ,
+                    x0, z0, sizeX, sizeZ, minY - CONFIRM_DEPTH);
+            }
+            if (!grounded) {
                 count++;
                 blocks += size;
                 histogram[size == 1 ? 0 : size < 10 ? 1 : size < 100 ? 2 : size < 1000 ? 3 : 4]++;
@@ -161,6 +171,45 @@ public final class FloatingFragments {
         }
         found.sort(Comparator.comparingInt(Fragment::blocks).reversed());
         return new Result(count, blocks, histogram, new ArrayList<>(found.subList(0, Math.min(keep, found.size()))));
+    }
+
+    /** How far below its lowest block a group must reach, through any solid blocks, to be grounded. */
+    private static final int CONFIRM_DEPTH = 64;
+    /** Most blocks the confirmation visits; a group that large is taken to be grounded. */
+    private static final int CONFIRM_BUDGET = 200_000;
+
+    /**
+     * Whether the solid blocks connected to (x, y, z) reach down to {@code groundY} or the side of
+     * the area, following them anywhere in the area (not only in the scan windows).
+     */
+    private static boolean reachesGround(Solid solid, int x, int y, int z, int x0, int z0, int sizeX, int sizeZ, int groundY) {
+        java.util.HashSet<Long> seen = new java.util.HashSet<>();
+        java.util.ArrayDeque<long[]> queue = new java.util.ArrayDeque<>();
+        queue.add(new long[]{x, y, z});
+        seen.add(key(x, y, z));
+        int[][] dirs = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+        while (!queue.isEmpty()) {
+            long[] p = queue.poll();
+            int px = (int) p[0];
+            int py = (int) p[1];
+            int pz = (int) p[2];
+            if (py <= groundY || px <= x0 || pz <= z0 || px >= x0 + sizeX - 1 || pz >= z0 + sizeZ - 1 || seen.size() > CONFIRM_BUDGET) {
+                return true;
+            }
+            for (int[] d : dirs) {
+                int nx = px + d[0];
+                int ny = py + d[1];
+                int nz = pz + d[2];
+                if (solid.test(nx, ny, nz) && seen.add(key(nx, ny, nz))) {
+                    queue.add(new long[]{nx, ny, nz});
+                }
+            }
+        }
+        return false;
+    }
+
+    private static long key(int x, int y, int z) {
+        return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFF);
     }
 
     private static int lower(int a, int b) {
