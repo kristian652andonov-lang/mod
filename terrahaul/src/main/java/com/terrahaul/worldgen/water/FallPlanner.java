@@ -84,8 +84,9 @@ public final class FallPlanner {
         }
     }
 
+    /** Collision-free key of a cell, spread by an odd multiplier so the maps' hashes do not cluster. */
     private static long key(int cx, int cz) {
-        return ((long) cx << 32) ^ (cz & 0xFFFFFFFFL);
+        return (((long) cx << 32) ^ (cz & 0xFFFFFFFFL)) * 0x9E3779B97F4A7C15L;
     }
 
     private static FallPlan cached(ConcurrentHashMap<Long, FallPlan> map, long key, java.util.function.Supplier<FallPlan> compute) {
