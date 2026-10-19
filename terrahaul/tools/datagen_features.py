@@ -50,6 +50,10 @@ def terrain_cleanup():
     configured('terrain_cleanup_late', 'terrahaul:terrain_cleanup_late', {})
     placed('terrain_cleanup_late', 'terrahaul:terrain_cleanup_late', [])
     add_features('terrain_cleanup_late', '#minecraft:is_overworld', 'terrahaul:terrain_cleanup_late', 'fluid_springs')
+    # last of all, still water facing an opening is sealed off with rock
+    configured('water_wall_sealer', 'terrahaul:water_wall_sealer', {})
+    placed('water_wall_sealer', 'terrahaul:water_wall_sealer', [])
+    add_features('water_wall_sealer', '#minecraft:is_overworld', 'terrahaul:water_wall_sealer', 'top_layer_modification')
 
 
 def oceans():

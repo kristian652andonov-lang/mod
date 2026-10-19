@@ -135,6 +135,7 @@ public final class AutoTest {
             oreHistogram(level, cx, cz, radius, report);
             surfaceCensus(level, cx, cz, radius, report);
             floatingFragments(level, cx, cz, radius, report);
+            waterWalls(level, cx, cz, radius, report);
             TreeDump.audit(level, cx, cz, radius, report);
             areaIndex++;
         }
@@ -296,6 +297,39 @@ public final class AutoTest {
             report.add(sb.toString());
         }
         report.add("  legend: " + legend);
+    }
+
+    /**
+     * Counts walls of water: faces of still water (or lava) source blocks above the ground of
+     * their column that touch air beside or below them, and logs a few of them.
+     */
+    private static void waterWalls(ServerLevel level, int cx, int cz, int radius, List<String> report) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int faces = 0;
+        List<String> examples = new ArrayList<>();
+        net.minecraft.core.Direction[] sides = {net.minecraft.core.Direction.DOWN, net.minecraft.core.Direction.NORTH,
+            net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.WEST, net.minecraft.core.Direction.EAST};
+        for (int x = (cx - radius) << 4; x < (cx + radius + 1) << 4; x++) {
+            for (int z = (cz - radius) << 4; z < (cz + radius + 1) << 4; z++) {
+                int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+                int floor = level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z) - 1;
+                for (int y = top; y > floor; y--) {
+                    var fluid = level.getFluidState(pos.set(x, y, z));
+                    if (fluid.isEmpty() || !fluid.isSource()) {
+                        continue;
+                    }
+                    for (var d : sides) {
+                        if (level.getBlockState(pos.set(x, y, z).move(d)).isAir()) {
+                            faces++;
+                            if (examples.size() < 6) {
+                                examples.add(x + " " + y + " " + z + " " + d.getName());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        report.add("  water walls: " + faces + " faces of still water facing air" + (examples.isEmpty() ? "" : ", e.g. " + String.join("; ", examples)));
     }
 
     /** The block types of a floating fragment and what lies around it, found from its seed block. */

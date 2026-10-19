@@ -8,6 +8,7 @@ import com.terrahaul.worldgen.features.FallenLogFeature;
 import com.terrahaul.worldgen.features.FloatingTerrainCleanup;
 import com.terrahaul.worldgen.features.OceanVentFeature;
 import com.terrahaul.worldgen.features.RockFormationFeature;
+import com.terrahaul.worldgen.features.WaterWallSealer;
 import com.terrahaul.worldgen.features.marine.CoralReefFeature;
 import com.terrahaul.worldgen.features.marine.SeaGrottoFeature;
 import com.terrahaul.worldgen.features.marine.SeaVegetationFeature;
@@ -33,6 +34,8 @@ public final class TerrahaulFeatures {
         FEATURES.register("terrain_cleanup", () -> new FloatingTerrainCleanup(NoneFeatureConfiguration.CODEC, false));
     public static final DeferredHolder<Feature<?>, FloatingTerrainCleanup> TERRAIN_CLEANUP_LATE =
         FEATURES.register("terrain_cleanup_late", () -> new FloatingTerrainCleanup(NoneFeatureConfiguration.CODEC, true));
+    public static final DeferredHolder<Feature<?>, WaterWallSealer> WATER_WALL_SEALER =
+        FEATURES.register("water_wall_sealer", () -> new WaterWallSealer(NoneFeatureConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, SurfaceWaterFeature> SURFACE_WATER =
         FEATURES.register("surface_water", () -> new SurfaceWaterFeature(NoneFeatureConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, OceanVentFeature> OCEAN_VENTS =
