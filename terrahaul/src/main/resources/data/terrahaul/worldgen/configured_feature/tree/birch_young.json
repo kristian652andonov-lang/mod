@@ -5,11 +5,11 @@
     "sizes": [
       {
         "data": "young",
-        "weight": 30
+        "weight": 300
       },
       {
         "data": "small",
-        "weight": 20
+        "weight": 200
       }
     ]
   }

@@ -5,11 +5,11 @@
     "sizes": [
       {
         "data": "small",
-        "weight": 30
+        "weight": 300
       },
       {
         "data": "medium",
-        "weight": 30
+        "weight": 300
       }
     ],
     "vines": 0.15,

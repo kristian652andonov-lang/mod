@@ -1,18 +1,38 @@
 package com.terrahaul.worldgen.trees;
 
-import net.minecraft.core.Direction;
-import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.random.RandomGenerator;
 
 /**
  * Shape grammars for every species. Each generator receives a size class and draws the tree into a
- * {@link TreeBlueprint} using trunks, branches, leaf clusters and roots. Sizes are chosen so that
- * even giant specimens stay within {@link TreeBlueprint#MAX_REACH} of the trunk.
+ * {@link TreeBlueprint} (plain Java, so the development tool {@code TreeStudy} can render them).
+ * <p>
+ * Broadleaf crowns are built backwards from their outline: leaf-cluster sites are scattered through
+ * the crown's envelope (a lumpy ellipsoid, a flat slab for acacias, an umbrella for jungle giants),
+ * then a branch system is grown to reach every site. In decurrent trees (oak, cherry, dark oak,
+ * acacia, mangrove) the trunk divides into a few main limbs that each head for one group of sites
+ * and fork again on the way, so limbs leave at natural angles, fork twice or more and thin out by
+ * the pipe model; trees with a central leader (birch, jungle, pine) send short branches from the
+ * trunk to the sites instead. Every cluster sits on a twig tip, which keeps all leaves within six
+ * blocks of wood. Conifers are drawn as whorls of drooping needle skirts on branches that run along
+ * their undersides; Scots pines carry flat needle pads instead.
+ * <p>
+ * Trunks taper, lean, bow and twist a little, and stand on a ground-following root flare. Sizes are
+ * chosen so that every tree stays within {@link TreeBlueprint#MAX_REACH} of its trunk, and ancient
+ * trees within {@link TreeBlueprint#ANCIENT_REACH}; the development tool reports any clipping.
  */
 public final class TreeShapes {
+    private static final V UP = new V(0, 1, 0);
+
     private TreeShapes() {
+    }
+
+    /** Builds a tree of the given species and size into a new blueprint. */
+    public static TreeBlueprint create(TreeSpecies species, TreeSize size, RandomGenerator random) {
+        TreeBlueprint bp = new TreeBlueprint(species, random, size == TreeSize.ANCIENT ? TreeBlueprint.ANCIENT_REACH : TreeBlueprint.MAX_REACH);
+        build(bp, size);
+        return bp;
     }
 
     public static void build(TreeBlueprint bp, TreeSize size) {
@@ -21,11 +41,11 @@ public final class TreeShapes {
                 case OAK -> ancientOak(bp, false);
                 case SWAMP_OAK -> ancientOak(bp, true);
                 case DARK_OAK -> ancientDarkOak(bp);
-                case SPRUCE -> ancientConifer(bp, false);
-                case PINE -> ancientConifer(bp, true);
-                case JUNGLE -> ancientJungle(bp);
-                case ACACIA -> ancientAcacia(bp);
-                case CHERRY -> ancientCherry(bp);
+                case SPRUCE -> spruce(bp, TreeSize.ANCIENT);
+                case PINE -> pine(bp, TreeSize.ANCIENT);
+                case JUNGLE -> jungle(bp, TreeSize.ANCIENT);
+                case ACACIA -> acacia(bp, TreeSize.ANCIENT);
+                case CHERRY -> cherry(bp, TreeSize.ANCIENT);
                 default -> build(bp, TreeSize.GIANT);
             }
             return;
@@ -43,565 +63,1113 @@ public final class TreeShapes {
             case MANGROVE -> mangrove(bp, size);
             case CHERRY -> cherry(bp, size);
             case AZALEA -> azalea(bp, size);
-            case DEAD, DEAD_SPRUCE, BURNED -> dead(bp, size);
+            case DEAD -> dead(bp, size);
+            case DEAD_SPRUCE -> deadSpruce(bp, size);
+            case BURNED -> burned(bp, size);
         }
     }
 
-    private static int range(RandomSource r, int min, int max) {
+    // =========================================================================================
+    // Geometry helpers
+    // =========================================================================================
+
+    private record V(double x, double y, double z) {
+        V add(V o) {
+            return new V(x + o.x, y + o.y, z + o.z);
+        }
+
+        V sub(V o) {
+            return new V(x - o.x, y - o.y, z - o.z);
+        }
+
+        V mul(double s) {
+            return new V(x * s, y * s, z * s);
+        }
+
+        double len() {
+            return Math.sqrt(x * x + y * y + z * z);
+        }
+
+        V norm() {
+            double l = len();
+            return l < 1e-9 ? UP : mul(1.0 / l);
+        }
+
+        V cross(V o) {
+            return new V(y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.x);
+        }
+
+        double dist2(V o) {
+            double dx = x - o.x;
+            double dy = y - o.y;
+            double dz = z - o.z;
+            return dx * dx + dy * dy + dz * dz;
+        }
+    }
+
+    private static int range(RandomGenerator r, int min, int max) {
         return min + r.nextInt(max - min + 1);
     }
 
-    private static double range(RandomSource r, double min, double max) {
+    private static double range(RandomGenerator r, double min, double max) {
         return min + r.nextDouble() * (max - min);
     }
 
-    // =========================================================================================
-    // Ancient trees: rare specimens about twice the size of a giant, with root systems to match
-    // =========================================================================================
+    private static double angle(RandomGenerator r) {
+        return r.nextDouble() * Math.PI * 2.0;
+    }
 
-    /** A huge spreading oak: a trunk 5-6 blocks wide splitting into massive limbs. */
-    private static void ancientOak(TreeBlueprint bp, boolean swamp) {
-        RandomSource r = bp.random();
-        double flat = swamp ? 0.7 : 1.0;
-        int h = range(r, 13, 18);
-        double tr = range(r, 2.0, 2.6);
-        bp.taperedTrunk(h, tr, tr * 0.55);
-        flare(bp, tr + 0.6, 2);
-        int limbs = range(r, 6, 8);
-        double a0 = r.nextDouble() * Math.PI * 2;
-        for (int i = 0; i < limbs; i++) {
-            double a = a0 + i * Math.PI * 2 / limbs + range(r, -0.3, 0.3);
-            double sy = range(r, h * 0.55, h);
-            double len = range(r, 9.5, 13.5);
-            double ex = Math.cos(a) * len;
-            double ez = Math.sin(a) * len;
-            double ey = sy + range(r, 3.0, 7.0);
-            // limbs leave the trunk rising steeply, then level out
-            double mx = Math.cos(a) * len * 0.4;
-            double mz = Math.sin(a) * len * 0.4;
-            bp.curvedBranch(0, sy, 0, mx, ey + 1.0, mz, ex, ey, ez, range(r, 1.0, 1.4));
-            double br = range(r, 4.0, 5.0);
-            bp.blob(ex, ey + 1.2, ez, br, br * 0.62 * flat, br, 0.9);
-            for (int k = 0; k < 2; k++) {
-                double t = range(r, 0.45, 0.75);
-                double px = ex * t;
-                double pz = ez * t;
-                double py = sy + (ey - sy) * t + 1.0;
-                double sa = a + (k == 0 ? 1 : -1) * range(r, 0.6, 1.0);
-                double sl = range(r, 4.5, 6.5);
-                double sx = px + Math.cos(sa) * sl;
-                double sz = pz + Math.sin(sa) * sl;
-                double sY = py + range(r, 1.5, 3.5);
-                bp.branch(px, py, pz, sx, sY, sz, 0.5);
-                double sbr = range(r, 3.4, 4.2);
-                bp.blob(sx, sY + 0.8, sz, sbr, sbr * 0.65 * flat, sbr, 0.9);
-            }
+    private static V horizontal(double a, double len) {
+        return new V(Math.cos(a) * len, 0, Math.sin(a) * len);
+    }
+
+    private static V centroid(List<V> pts) {
+        double x = 0;
+        double y = 0;
+        double z = 0;
+        for (V p : pts) {
+            x += p.x;
+            y += p.y;
+            z += p.z;
         }
-        bp.blob(0, h + 4, 0, 6.0, 3.6 * flat, 6.0, 0.9);
-        bp.rootSystem(range(r, 8, 10), tr, range(r, 9.0, 12.0), 3.5, 1.2);
+        return new V(x / pts.size(), y / pts.size(), z / pts.size());
     }
 
-    /** A massive dark oak under a heavy dome 30 blocks across. */
-    private static void ancientDarkOak(TreeBlueprint bp) {
-        RandomSource r = bp.random();
-        int h = range(r, 12, 17);
-        double tr = range(r, 2.3, 2.9);
-        bp.taperedTrunk(h, tr, tr * 0.6);
-        flare(bp, tr + 0.7, 2);
-        crown(bp, 0, h, range(r, 9, 11), 0.42, range(r, 9.0, 12.0), 0.5, 3.0, 1.0, range(r, 4.8, 5.6), 0.72);
-        bp.blob(0, h + 2, 0, 7.0, 3.6, 7.0, 0.95);
-        bp.rootSystem(range(r, 8, 11), tr, range(r, 9.0, 12.0), 3.0, 1.3);
+    /** A random unit vector perpendicular to {@code n}. */
+    private static V perpendicular(V n, RandomGenerator r) {
+        V a = Math.abs(n.y) < 0.9 ? n.cross(UP).norm() : n.cross(new V(1, 0, 0)).norm();
+        V b = n.cross(a).norm();
+        double t = angle(r);
+        return a.mul(Math.cos(t)).add(b.mul(Math.sin(t)));
     }
 
-    /** Towering spruces and pines, 45-60 blocks tall, with trunks 4-5 blocks wide at the base. */
-    private static void ancientConifer(TreeBlueprint bp, boolean pine) {
-        RandomSource r = bp.random();
-        int h = pine ? range(r, 42, 52) : range(r, 46, 60);
-        double tr = range(r, 1.8, 2.4);
-        bp.taperedTrunk(h - 1, tr, 0.0);
-        flare(bp, tr + 0.5, 2);
-        if (pine) {
-            int crownStart = (int) (h * range(r, 0.66, 0.74));
-            for (int y = (int) (h * 0.3); y < crownStart; y += 3) {
-                if (r.nextFloat() < 0.5) {
-                    double a = r.nextDouble() * Math.PI * 2;
-                    bp.branch(0, y, 0, Math.cos(a) * (tr + 1.5), y + 0.5, Math.sin(a) * (tr + 1.5), 0);
+    // -----------------------------------------------------------------------------------------
+    // Trunks
+    // -----------------------------------------------------------------------------------------
+
+    /** A trunk as one centre point and radius per layer, from the base (layer 0) to the top. */
+    private static final class Trunk {
+        final double[] cx;
+        final double[] cz;
+        final double[] r;
+
+        Trunk(int layers) {
+            cx = new double[layers];
+            cz = new double[layers];
+            r = new double[layers];
+        }
+
+        int top() {
+            return cx.length - 1;
+        }
+
+        /**
+         * The trunk centre at height {@code y} (clamped to the trunk). Branches start at whole
+         * layers, where this is exactly the centre of the drawn layer, so they always begin inside
+         * a trunk block.
+         */
+        V at(double y) {
+            double yy = Math.max(0.0, Math.min(top(), y));
+            int i = (int) Math.floor(yy);
+            int j = Math.min(top(), i + 1);
+            double f = yy - i;
+            return new V(cx[i] + (cx[j] - cx[i]) * f, y, cz[i] + (cz[j] - cz[i]) * f);
+        }
+
+        double radius(double y) {
+            int i = (int) Math.max(0, Math.min(top(), Math.round(y)));
+            return r[i];
+        }
+
+        /** The direction the trunk grows in at its top. */
+        V topDirection() {
+            int t = top();
+            int b = Math.max(0, t - 3);
+            return new V(cx[t] - cx[b], Math.max(1, t - b), cz[t] - cz[b]).norm();
+        }
+
+        /**
+         * Draws the layers. Where the centre shifts sideways from one layer to the next, a joint
+         * runs along the upper layer from above the old centre to the new one, so a crooked trunk
+         * stays face-connected instead of touching only at edges.
+         */
+        void draw(TreeBlueprint bp) {
+            draw(bp, 0);
+        }
+
+        /** Draws the layers from {@code from} up (mangrove trunks start on their root cluster). */
+        void draw(TreeBlueprint bp, int from) {
+            for (int y = from; y <= top(); y++) {
+                bp.trunkLayer(cx[y], y, cz[y], r[y]);
+                if (y == from) {
+                    continue;
                 }
-            }
-            for (int i = 0; i < 9; i++) {
-                double a = r.nextDouble() * Math.PI * 2;
-                double sy = range(r, crownStart, h - 3.0);
-                double len = range(r, 4.0, 7.0);
-                double ex = Math.cos(a) * len;
-                double ez = Math.sin(a) * len;
-                double ey = sy + range(r, 0.5, 2.0);
-                bp.branch(0, sy, 0, ex, ey, ez, 0.5);
-                bp.blob(ex, ey + 0.4, ez, range(r, 3.6, 4.6), 2.0, range(r, 3.6, 4.6), 0.88);
-            }
-            bp.blob(0, h, 0, 5.0, 2.8, 5.0, 0.9);
-        } else {
-            double maxR = range(r, 8.0, 9.5);
-            int start = (int) (h * 0.36);
-            boolean whorl = true;
-            for (int y = start; y <= h; y++) {
-                double t = (double) (y - start) / Math.max(1, h - start);
-                double radius = maxR * Math.pow(1.0 - t, 0.9) + 0.6;
-                bp.disc(0, y, 0, whorl ? radius : radius * 0.55, whorl ? 0.92 : 0.8);
-                if (whorl && radius > 3.6) {
-                    int spokes = 5 + r.nextInt(3);
-                    double s0 = r.nextDouble() * Math.PI;
-                    for (int i = 0; i < spokes; i++) {
-                        double a = s0 + i * Math.PI * 2 / spokes;
-                        bp.branch(0, y, 0, Math.cos(a) * (radius - 2.0), y - 0.6, Math.sin(a) * (radius - 2.0), 0);
+                int px = TreeBlueprint.round(cx[y - 1]);
+                int pz = TreeBlueprint.round(cz[y - 1]);
+                int x = TreeBlueprint.round(cx[y]);
+                int z = TreeBlueprint.round(cz[y]);
+                while (px != x || pz != z) {
+                    bp.log(px, y, pz, TreeBlueprint.LOG_Y);
+                    if (px != x) {
+                        px += Integer.signum(x - px);
+                    } else {
+                        pz += Integer.signum(z - pz);
                     }
                 }
-                whorl = !whorl;
-            }
-            bp.leaf(0, h + 1, 0);
-            bp.leaf(0, h + 2, 0);
-        }
-        bp.rootSystem(range(r, 7, 9), tr, range(r, 8.0, 11.0), 3.0, 1.0);
-    }
-
-    /** An emergent jungle giant with great plank buttresses and an umbrella canopy. */
-    private static void ancientJungle(TreeBlueprint bp) {
-        RandomSource r = bp.random();
-        int h = range(r, 38, 48);
-        double tr = range(r, 1.7, 2.2);
-        bp.taperedTrunk(h - 1, tr, 1.0);
-        bp.rootSystem(range(r, 6, 8), tr, range(r, 10.0, 13.0), range(r, 6.0, 8.0), 0.5);
-        canopyPads(bp, 0, h, range(r, 5, 6), range(r, 9.0, 12.0), range(r, 5.8, 6.8), 1.0);
-        canopyPads(bp, 0, (int) (h * 0.7), range(r, 3, 4), range(r, 6.0, 8.0), range(r, 4.2, 5.0), 0.9);
-        bp.disc(0, h + 1, 0, 6.0, 0.9);
-        bp.disc(0, h + 2, 0, 3.5, 0.85);
-    }
-
-    /** A broad, flat-topped acacia on a thick, short trunk, like an old savanna landmark. */
-    private static void ancientAcacia(TreeBlueprint bp) {
-        RandomSource r = bp.random();
-        int straight = range(r, 5, 7);
-        double tr = range(r, 1.4, 1.8);
-        bp.taperedTrunk(straight, tr, tr * 0.7);
-        int forks = range(r, 3, 4);
-        double a0 = r.nextDouble() * Math.PI * 2;
-        for (int i = 0; i < forks; i++) {
-            double a = a0 + i * Math.PI * 2 / forks + range(r, -0.4, 0.4);
-            double len = range(r, 7.0, 10.0);
-            double ex = Math.cos(a) * len;
-            double ez = Math.sin(a) * len;
-            double ey = straight + range(r, 5.0, 8.0);
-            bp.curvedBranch(0, straight, 0, ex * 0.3, ey - 1.0, ez * 0.3, ex, ey, ez, 0.8);
-            int py = Mth.floor(ey) + 1;
-            double pr = range(r, 6.0, 7.5);
-            bp.disc(ex, py, ez, pr, 0.95);
-            bp.disc(ex, py + 1, ez, pr * 0.6, 0.9);
-        }
-        bp.rootSystem(range(r, 6, 8), tr, range(r, 8.0, 10.0), 2.0, 0.9);
-    }
-
-    /** A wide old cherry whose arching limbs carry clouds of blossom. */
-    private static void ancientCherry(TreeBlueprint bp) {
-        RandomSource r = bp.random();
-        int h = range(r, 7, 10);
-        double tr = range(r, 1.3, 1.7);
-        bp.taperedTrunk(h, tr, tr * 0.6);
-        int limbs = range(r, 5, 7);
-        double a0 = r.nextDouble() * Math.PI * 2;
-        for (int i = 0; i < limbs; i++) {
-            double a = a0 + i * Math.PI * 2 / limbs + range(r, -0.3, 0.3);
-            double len = range(r, 9.0, 12.5);
-            double ex = Math.cos(a) * len;
-            double ez = Math.sin(a) * len;
-            double sy = range(r, h * 0.6, h);
-            double ey = sy + range(r, 2.0, 5.0);
-            bp.curvedBranch(0, sy, 0, ex * 0.35, ey + 3.0, ez * 0.35, ex, ey, ez, 0.7);
-            double br = range(r, 4.2, 5.2);
-            bp.blob(ex, ey + 0.5, ez, br, br * 0.6, br, 0.92);
-        }
-        bp.blob(0, h + 4, 0, 5.5, 3.0, 5.5, 0.92);
-        bp.rootSystem(range(r, 6, 8), tr, range(r, 7.0, 9.0), 1.8, 0.9);
-    }
-
-    // =========================================================================================
-    // Oak: broad rounded crowns of several leaf clusters on spreading limbs
-    // =========================================================================================
-
-    private static void oak(TreeBlueprint bp, TreeSize size, boolean swamp) {
-        RandomSource r = bp.random();
-        double flat = swamp ? 0.65 : 1.0;
-        switch (size) {
-            case YOUNG -> {
-                int h = range(r, 2, 4);
-                bp.trunk(0, h - 1, 0);
-                bp.blob(0, h, 0, range(r, 1.6, 2.2), 1.6 * flat, range(r, 1.6, 2.2), 0.95);
-            }
-            case SMALL -> {
-                int h = range(r, 4, 6);
-                bp.trunk(0, h - 1, 0);
-                int branches = range(r, 2, 3);
-                double a0 = r.nextDouble() * Math.PI * 2;
-                for (int i = 0; i < branches; i++) {
-                    double a = a0 + i * Math.PI * 2 / branches + range(r, -0.4, 0.4);
-                    double len = range(r, 1.5, 2.5);
-                    double sy = range(r, h * 0.55, h - 1.0);
-                    double ex = Math.cos(a) * len;
-                    double ez = Math.sin(a) * len;
-                    double ey = sy + range(r, 1.0, 2.0);
-                    bp.branch(0, sy, 0, ex, ey, ez, 0);
-                    bp.blob(ex, ey + 0.5, ez, range(r, 2.0, 2.6), 1.8 * flat, range(r, 2.0, 2.6), 0.92);
-                }
-                bp.blob(0, h + 0.5, 0, 2.4, 2.0 * flat, 2.4, 0.95);
-            }
-            case MEDIUM -> {
-                int h = range(r, 6, 10);
-                bp.trunk(0, h - 1, 0);
-                crown(bp, 0, h, range(r, 3, 5), 0.42, range(r, 3.0, 5.5), 1.5, 3.2, 0.0, range(r, 2.6, 3.3), flat);
-                bp.blob(0, h + 0.5, 0, 3.0, 2.3 * flat, 3.0, 0.92);
-                if (r.nextFloat() < 0.4) {
-                    bp.surfaceRoots(3, 2, 0.0);
-                }
-            }
-            case LARGE -> {
-                int h = range(r, 9, 14);
-                bp.trunk(0, h - 1, 0.5);
-                flare(bp, 0.5, 1);
-                crown(bp, 0.5, h, range(r, 5, 7), 0.38, range(r, 5.0, 7.5), 1.0, 3.5, 0.55, range(r, 3.0, 3.8), flat);
-                bp.blob(0.5, h + 1, 0.5, 3.6, 2.6 * flat, 3.6, 0.9);
-                bp.surfaceRoots(range(r, 4, 6), 3, 1.0);
-            }
-            case GIANT, ANCIENT -> {
-                int h = range(r, 12, 18);
-                bp.trunk(0, h - 1, 1.3);
-                flare(bp, 2.0, 2);
-                crown(bp, 0, h, range(r, 6, 9), 0.33, range(r, 7.5, 10.0), 0.6, 3.0, 0.85, range(r, 3.6, 4.4), flat);
-                bp.blob(0, h + 2, 0, 4.4, 3.0 * flat, 4.4, 0.9);
-                bp.surfaceRoots(range(r, 6, 8), 4, 1.8);
             }
         }
     }
 
     /**
-     * Spreading crown: limbs leave the trunk between {@code startFrac * h} and the top and end in
-     * leaf clusters; thick limbs also grow a sub-branch with its own cluster.
+     * A trunk up to layer {@code top} standing at {@code (c, 0, c)}: it leans by {@code lean} blocks
+     * in total, bows sideways by up to {@code bend} blocks and sways irregularly by up to
+     * {@code wobble} blocks (gnarled trunks), and narrows from {@code r0} at the foot to {@code r1}
+     * at the top, faster near the ground like the trunk of an old tree.
      */
-    private static void crown(TreeBlueprint bp, double c, int h, int limbs, double startFrac, double length, double riseMin, double riseMax,
-                              double thickness, double blobRadius, double flat) {
-        RandomSource r = bp.random();
-        double a0 = r.nextDouble() * Math.PI * 2;
-        for (int i = 0; i < limbs; i++) {
-            double a = a0 + i * Math.PI * 2 / limbs + range(r, -0.35, 0.35);
-            double sy = range(r, h * startFrac, h - 1.0);
-            double len = length * range(r, 0.75, 1.05);
-            double ex = c + Math.cos(a) * len;
-            double ez = c + Math.sin(a) * len;
-            double ey = sy + range(r, riseMin, riseMax) * (len / Math.max(1.0, length)) + 1.0;
-            bp.branch(c, sy, c, ex, ey, ez, thickness);
-            double br = blobRadius * range(r, 0.85, 1.1);
-            bp.blob(ex, ey + 0.8, ez, br, br * 0.68 * flat, br, 0.9);
-            if (thickness > 0.3 || r.nextFloat() < 0.35) {
-                double t = range(r, 0.45, 0.7);
-                double mx = c + (ex - c) * t;
-                double mz = c + (ez - c) * t;
-                double my = sy + (ey - sy) * t;
-                double sa = a + (r.nextBoolean() ? 1 : -1) * range(r, 0.6, 1.1);
-                double sl = len * range(r, 0.35, 0.5);
-                double sx = mx + Math.cos(sa) * sl;
-                double sz = mz + Math.sin(sa) * sl;
-                double sY = my + range(r, 1.0, 2.5);
-                bp.branch(mx, my, mz, sx, sY, sz, 0);
-                double sbr = blobRadius * range(r, 0.7, 0.9);
-                bp.blob(sx, sY + 0.6, sz, sbr, sbr * 0.7 * flat, sbr, 0.9);
+    private static Trunk trunk(RandomGenerator r, int top, double c, double r0, double r1, double lean, double bend, double wobble) {
+        Trunk t = new Trunk(Math.max(1, top + 1));
+        double la = angle(r);
+        double ba = la + (r.nextBoolean() ? 1 : -1) * range(r, 0.9, 2.2);
+        double p1 = angle(r);
+        double p2 = angle(r);
+        double f1 = range(r, 0.45, 0.7);
+        double f2 = range(r, 0.35, 0.6);
+        int n = t.top();
+        for (int y = 0; y <= n; y++) {
+            double s = (double) y / Math.max(1, n);
+            double off = lean * Math.pow(s, 1.4);
+            double bow = bend * Math.sin(Math.PI * s);
+            double wx = wobble * (Math.sin(y * f1 + p1) - Math.sin(p1));
+            double wz = wobble * (Math.sin(y * f2 + p2) - Math.sin(p2));
+            t.cx[y] = c + Math.cos(la) * off + Math.cos(ba) * bow + wx;
+            t.cz[y] = c + Math.sin(la) * off + Math.sin(ba) * bow + wz;
+            t.r[y] = r1 + (r0 - r1) * Math.pow(1.0 - s, 1.6);
+        }
+        return t;
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Crowns
+    // -----------------------------------------------------------------------------------------
+
+    /** Draws a leaf cluster (or other ending) at a twig tip; {@code dir} is the twig's direction. */
+    @FunctionalInterface
+    private interface Leafer {
+        void grow(TreeBlueprint bp, V tip, V dir);
+    }
+
+    /**
+     * Branching style.
+     *
+     * @param follow    how far a limb first continues its parent's direction before turning to its goal (0..1)
+     * @param arch      upward bow of limbs as a fraction of their length (negative: sagging)
+     * @param gnarl     sideways kink of limbs as a fraction of their length
+     * @param forkFrac  where between its start and its group of sites a limb forks again
+     * @param pipe      radius split exponent (0.5: area-preserving pipe model; lower keeps limbs thicker)
+     * @param mainLimbs number of main limbs the trunk divides into
+     */
+    private record Style(double follow, double arch, double gnarl, double forkFrac, double pipe, int mainLimbs) {
+    }
+
+    /** Approximate number of clusters of radius {@code rc} needed to clothe an ellipsoidal crown. */
+    private static int clusterCount(double rx, double ry, double rc, double coverage) {
+        double p = 1.6075;
+        double a = Math.pow(rx * ry, p);
+        double b = Math.pow(rx * rx, p);
+        double area = 4.0 * Math.PI * Math.pow((2.0 * a + b) / 3.0, 1.0 / p);
+        return Math.max(1, (int) Math.round(coverage * area / (Math.PI * rc * rc)));
+    }
+
+    /**
+     * Scatters up to {@code count} cluster sites through an ellipsoidal crown envelope with a lumpy
+     * outline, at least {@code spacing} apart.
+     *
+     * @param shellMin minimum normalised distance from the centre (sites sit in the outer shell)
+     * @param bottom   minimum normalised height (cuts off the crown's underside)
+     * @param hollow   raises that cut towards the middle, so the crown's underside arches like an
+     *                 umbrella over the limbs instead of hiding them
+     * @param lump     amplitude of the outline's lobes
+     * @param margin   distance kept from the blueprint's reach
+     */
+    private static List<V> crownSites(TreeBlueprint bp, V c, double rx, double ry, int count, double spacing, double shellMin, double bottom,
+                                      double hollow, double lump, double margin) {
+        RandomGenerator r = bp.random();
+        double p1 = angle(r);
+        double p2 = angle(r);
+        double limit = bp.reach() - margin;
+        double s2 = spacing * spacing;
+        List<V> pts = new ArrayList<>();
+        int attempts = count * 40;
+        while (pts.size() < count && attempts-- > 0) {
+            double u = r.nextDouble() * 2.0 - 1.0;
+            double v = r.nextDouble() * 2.0 - 1.0;
+            double w = r.nextDouble() * 2.0 - 1.0;
+            double d2 = u * u + v * v + w * w;
+            if (d2 > 1.0 || d2 < shellMin * shellMin || v < bottom + hollow * (1.0 - u * u - w * w)) {
+                continue;
             }
+            double a = Math.atan2(w, u);
+            double k = 1.0 + lump * (0.6 * Math.sin(2.0 * a + p1) + 0.4 * Math.sin(3.0 * a + p2));
+            V p = new V(c.x + u * rx * k, c.y + v * ry, c.z + w * rx * k);
+            if (Math.abs(p.x) > limit || Math.abs(p.z) > limit) {
+                continue;
+            }
+            boolean free = true;
+            for (V q : pts) {
+                if (p.dist2(q) < s2) {
+                    free = false;
+                    break;
+                }
+            }
+            if (free) {
+                pts.add(p);
+            }
+        }
+        return pts;
+    }
+
+    /** Groups points by proximity (k-means seeded with mutually distant points). */
+    private static List<List<V>> cluster(List<V> pts, int k) {
+        List<List<V>> groups = new ArrayList<>();
+        if (k <= 1 || pts.size() <= 1) {
+            groups.add(new ArrayList<>(pts));
+            return groups;
+        }
+        k = Math.min(k, pts.size());
+        V[] seeds = new V[k];
+        V c = centroid(pts);
+        for (int i = 0; i < k; i++) {
+            V best = pts.get(0);
+            double bestD = -1;
+            for (V p : pts) {
+                double d = Double.MAX_VALUE;
+                if (i == 0) {
+                    d = p.dist2(c);
+                } else {
+                    for (int j = 0; j < i; j++) {
+                        d = Math.min(d, p.dist2(seeds[j]));
+                    }
+                }
+                if (d > bestD) {
+                    bestD = d;
+                    best = p;
+                }
+            }
+            seeds[i] = best;
+        }
+        int[] assign = new int[pts.size()];
+        for (int it = 0; it < 6; it++) {
+            for (int i = 0; i < pts.size(); i++) {
+                double bestD = Double.MAX_VALUE;
+                for (int j = 0; j < k; j++) {
+                    double d = pts.get(i).dist2(seeds[j]);
+                    if (d < bestD) {
+                        bestD = d;
+                        assign[i] = j;
+                    }
+                }
+            }
+            for (int j = 0; j < k; j++) {
+                List<V> members = new ArrayList<>();
+                for (int i = 0; i < pts.size(); i++) {
+                    if (assign[i] == j) {
+                        members.add(pts.get(i));
+                    }
+                }
+                if (!members.isEmpty()) {
+                    seeds[j] = centroid(members);
+                }
+            }
+        }
+        for (int j = 0; j < k; j++) {
+            List<V> members = new ArrayList<>();
+            for (int i = 0; i < pts.size(); i++) {
+                if (assign[i] == j) {
+                    members.add(pts.get(i));
+                }
+            }
+            if (!members.isEmpty()) {
+                groups.add(members);
+            }
+        }
+        return groups;
+    }
+
+    /**
+     * Draws a limb from {@code s} to {@code e} that leaves {@code s} partly along {@code dir} and
+     * curves towards its goal, bowed and kinked by the style; returns its direction at the end.
+     */
+    private static V limbTo(TreeBlueprint bp, V s, V dir, V e, double r0, double r1, Style st) {
+        RandomGenerator r = bp.random();
+        V chord = e.sub(s);
+        double len = chord.len();
+        if (len < 0.4) {
+            // still join the two blocks, which may differ although the points are close
+            bp.path(s.x, s.y, s.z, e.x, e.y, e.z, (byte) 0);
+            return dir;
+        }
+        V cn = chord.mul(1.0 / len);
+        V start = dir.norm().mul(st.follow).add(cn.mul(1.0 - st.follow)).norm();
+        V ctrl = s.add(start.mul(len * 0.5)).add(new V(0, st.arch * len, 0)).add(perpendicular(cn, r).mul(st.gnarl * len * r.nextDouble()));
+        bp.curve(s.x, s.y, s.z, ctrl.x, ctrl.y, ctrl.z, e.x, e.y, e.z, r0, r1);
+        return e.sub(ctrl).norm();
+    }
+
+    /**
+     * Decurrent branching: from {@code s}, the sites are split into groups; a limb heads for each
+     * group, forks part way and the process repeats until single twigs reach single sites.
+     */
+    private static void decurrent(TreeBlueprint bp, V s, V dir, List<V> sites, double radius, int depth, Style st, Leafer leafer) {
+        int n = sites.size();
+        if (n == 0) {
+            return;
+        }
+        RandomGenerator r = bp.random();
+        if (depth > 0 && n <= 2 || depth >= 5) {
+            for (V t : sites) {
+                double rr = radius * Math.pow(1.0 / n, st.pipe);
+                V d = limbTo(bp, s, dir, t, rr, rr * 0.6, st);
+                leafer.grow(bp, t, d);
+            }
+            return;
+        }
+        int k = depth == 0 ? Math.min(n, st.mainLimbs) : Math.min(n, n >= 7 ? 3 : 2);
+        for (List<V> g : cluster(sites, k)) {
+            double rc = radius * Math.pow(g.size() / (double) n, st.pipe);
+            if (g.size() == 1) {
+                V d = limbTo(bp, s, dir, g.get(0), rc, rc * 0.6, st);
+                leafer.grow(bp, g.get(0), d);
+                continue;
+            }
+            V c = centroid(g);
+            V f = s.add(c.sub(s).mul(st.forkFrac * range(r, 0.8, 1.15)));
+            V d = limbTo(bp, s, dir, f, rc, rc * 0.85, st);
+            decurrent(bp, f, d, g, rc * 0.85, depth + 1, st, leafer);
         }
     }
 
-    /** Bark-covered root flare around the base of a thick trunk. */
-    private static void flare(TreeBlueprint bp, double radius, int height) {
-        int r = Mth.ceil(radius) + 1;
-        for (int y = 0; y < height; y++) {
-            double rr = radius + 0.9 - y * 0.5;
-            for (int dx = -r; dx <= r + 1; dx++) {
-                for (int dz = -r; dz <= r + 1; dz++) {
-                    double ddx = dx - 0.5 * (radius <= 0.6 ? 1 : 0);
-                    double ddz = dz - 0.5 * (radius <= 0.6 ? 1 : 0);
-                    if (ddx * ddx + ddz * ddz <= rr * rr && bp.random().nextFloat() < 0.85) {
-                        bp.wood(dx, y, dz);
-                    }
+    /**
+     * Branches from a central leader: neighbouring sites share a branch that leaves the trunk below
+     * them, rising at {@code elevation} radians, and forks into one twig per site.
+     */
+    private static void excurrent(TreeBlueprint bp, Trunk trunk, List<V> sites, double elevation, double minY, double maxY, double radius,
+                                  Style st, Leafer leafer) {
+        if (sites.isEmpty()) {
+            return;
+        }
+        double tan = Math.tan(elevation);
+        for (List<V> g : cluster(sites, Math.max(1, (sites.size() + 1) / 2))) {
+            V c = centroid(g);
+            V axis = trunk.at(c.y);
+            double hd = Math.sqrt((c.x - axis.x) * (c.x - axis.x) + (c.z - axis.z) * (c.z - axis.z));
+            double oy = Math.rint(Math.max(minY, Math.min(maxY, c.y - hd * tan)));
+            V o = trunk.at(oy);
+            V out = new V(c.x - o.x, 0, c.z - o.z).norm();
+            V dir = out.mul(Math.cos(elevation)).add(new V(0, Math.sin(elevation), 0));
+            if (g.size() == 1) {
+                V d = limbTo(bp, o, dir, c, radius, 0, st);
+                leafer.grow(bp, c, d);
+            } else {
+                V f = o.add(c.sub(o).mul(0.6));
+                V d = limbTo(bp, o, dir, f, radius, radius * 0.7, st);
+                for (V t : g) {
+                    leafer.grow(bp, t, limbTo(bp, f, d, t, radius * 0.5, 0, st));
                 }
             }
         }
     }
 
+    /** Short hidden twigs inside a big cluster, so its far side stays within six blocks of wood. */
+    private static void innerTwigs(TreeBlueprint bp, V tip, double r) {
+        RandomGenerator rnd = bp.random();
+        int n = 3;
+        double a0 = angle(rnd);
+        for (int i = 0; i < n; i++) {
+            double a = a0 + i * Math.PI * 2.0 / n;
+            V e = tip.add(horizontal(a, r * 0.5)).add(new V(0, r * 0.35, 0));
+            bp.path(tip.x, tip.y, tip.z, e.x, e.y, e.z, (byte) 0);
+        }
+    }
+
+    /** Round, puffy clusters sitting on their twig tips. */
+    private static Leafer puffs(double rc, double flat, double density) {
+        return (bp, tip, dir) -> {
+            double rr = rc * range(bp.random(), 0.88, 1.12);
+            bp.puff(tip.x, tip.y + rr * flat * 0.4, tip.z, rr, flat, density);
+            if (rr > 2.9) {
+                innerTwigs(bp, tip, rr);
+            }
+        };
+    }
+
+    /** Puffy clusters with hanging strands of leaves below (weeping crowns, cherry fringes). */
+    private static Leafer weeping(double rc, double flat, double density, int strands, int maxLen) {
+        Leafer puff = puffs(rc, flat, density);
+        return (bp, tip, dir) -> {
+            puff.grow(bp, tip, dir);
+            RandomGenerator r = bp.random();
+            // strands hang from the outer part of the cluster, most of them short
+            for (int i = 0; i < strands; i++) {
+                double a = angle(r);
+                double d = rc * range(r, 0.5, 0.95);
+                int len = r.nextBoolean() ? 1 : range(r, 1, maxLen);
+                bp.strand(TreeBlueprint.round(tip.x + Math.cos(a) * d), TreeBlueprint.round(tip.y), TreeBlueprint.round(tip.z + Math.sin(a) * d), len);
+            }
+        };
+    }
+
+    /** Flat-bottomed cloud pads (acacia, pine, bonsai-like oaks). */
+    private static Leafer pads(double pr, double thick, double density) {
+        return (bp, tip, dir) -> bp.pad(tip.x, TreeBlueprint.round(tip.y) + 1, tip.z, pr * range(bp.random(), 0.85, 1.12), thick, density);
+    }
+
+    /** A bare twig fork at a limb end (dead trees). */
+    private static Leafer bareTwigs(double len) {
+        return (bp, tip, dir) -> {
+            RandomGenerator r = bp.random();
+            if (r.nextFloat() < 0.35f) {
+                return; // broken off
+            }
+            int n = 1 + r.nextInt(2);
+            for (int i = 0; i < n; i++) {
+                V d = dir.add(perpendicular(dir, r).mul(0.8)).add(new V(0, 0.3, 0)).norm();
+                V e = tip.add(d.mul(len * range(r, 0.6, 1.1)));
+                bp.path(tip.x, tip.y, tip.z, e.x, e.y, e.z, (byte) 0);
+            }
+        };
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Roots
+    // -----------------------------------------------------------------------------------------
+
+    /** The usual ground-following root system for a trunk of the given size; {@code scale} widens it. */
+    private static void roots(TreeBlueprint bp, double c, TreeSize size, double trunkR, double scale) {
+        RandomGenerator r = bp.random();
+        switch (size) {
+            case YOUNG -> {
+                if (r.nextFloat() < 0.5f) {
+                    bp.rootSystem(c, 2, trunkR, 1.6, 0.0, 0.45);
+                }
+            }
+            case SMALL -> bp.rootSystem(c, 3, trunkR, 2.4 * scale, 0.35 * scale, 0.45);
+            case MEDIUM -> bp.rootSystem(c, range(r, 3, 5), trunkR, 3.4 * scale, 0.8 * scale, 0.5);
+            case LARGE -> bp.rootSystem(c, range(r, 4, 6), trunkR, 4.8 * scale, 1.4 * scale, 0.7);
+            case GIANT -> bp.rootSystem(c, range(r, 6, 8), trunkR, 6.5 * scale, 2.3 * scale, 1.0);
+            case ANCIENT -> bp.rootSystem(c, range(r, 8, 11), trunkR, range(r, 10.0, 13.0) * scale, range(r, 3.4, 4.4) * scale, 1.5);
+        }
+    }
+
     // =========================================================================================
-    // Birch: slender white trunks with narrow, airy crowns
+    // Oak: broad rounded crowns; swamp oaks weep; a few oaks grow like bonsai
+    // =========================================================================================
+
+    private static void oak(TreeBlueprint bp, TreeSize size, boolean swamp) {
+        RandomGenerator r = bp.random();
+        if (!swamp && size.atLeast(TreeSize.SMALL) && !size.atLeast(TreeSize.GIANT) && r.nextFloat() < 0.12f) {
+            bonsaiOak(bp, size);
+            return;
+        }
+        int fork;
+        double r0;
+        double r1;
+        double rx;
+        double rc;
+        double c = 0.0;
+        int limbs;
+        switch (size) {
+            case YOUNG -> {
+                fork = range(r, 1, 2);
+                r0 = 0;
+                r1 = 0;
+                rx = range(r, 1.8, 2.3);
+                rc = 1.7;
+                limbs = 2;
+            }
+            case SMALL -> {
+                fork = range(r, 2, 3);
+                r0 = 0;
+                r1 = 0;
+                rx = range(r, 2.8, 3.6);
+                rc = 2.1;
+                limbs = 2;
+            }
+            case MEDIUM -> {
+                fork = range(r, 3, 5);
+                r0 = swamp ? 0.7 : 0;
+                r1 = 0;
+                c = swamp ? 0.5 : 0.0;
+                rx = range(r, 4.6, 6.0);
+                rc = 2.6;
+                limbs = range(r, 2, 3);
+            }
+            case LARGE -> {
+                fork = range(r, 4, 6);
+                r0 = swamp ? 1.3 : 0.7;
+                r1 = swamp ? 0.7 : 0.7;
+                c = swamp ? 0.0 : 0.5;
+                rx = range(r, 6.5, 8.0);
+                rc = 2.9;
+                limbs = 3;
+            }
+            default -> {
+                fork = range(r, 5, 7);
+                r0 = 1.7;
+                r1 = 1.1;
+                rx = range(r, 9.0, 10.8);
+                rc = 3.0;
+                limbs = range(r, 3, 4);
+            }
+        }
+        if (swamp && size.atLeast(TreeSize.MEDIUM)) {
+            // the weeping crown needs headroom above the water
+            fork += range(r, 1, 2);
+        }
+        double ry = rx * (swamp ? range(r, 0.55, 0.65) : range(r, 0.62, 0.74));
+        double lean = swamp ? range(r, 0.4, 1.4) + fork * 0.1 : range(r, 0.0, 0.22 * fork);
+        Trunk t = trunk(r, fork, c, r0, r1, lean, range(r, 0.0, swamp ? 0.9 : 0.5), swamp ? 0.3 : 0.12);
+        t.draw(bp);
+        V top = t.at(fork);
+        V centre = new V(top.x + (top.x - c) * 0.5, fork + ry * 0.62, top.z + (top.z - c) * 0.5);
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, rc, 0.75), rc * 1.2, 0.45, -0.6, 0.4, 0.25, rc + 0.6);
+        Style st = new Style(0.45, swamp ? -0.06 : 0.08, 0.14, 0.45, 0.42, limbs);
+        Leafer leafer = swamp ? weeping(rc * 0.95, 0.68, 0.92, 3 + (int) (rc * 0.5), 3) : puffs(rc, 0.75, 0.92);
+        decurrent(bp, top, t.topDirection(), sites, r1, 0, st, leafer);
+        if (swamp) {
+            // buttressed, flared wet base
+            if (size.atLeast(TreeSize.SMALL)) {
+                bp.rootSystem(c, range(r, 5, 7), r0, 2.5 + 1.2 * size.ordinal(), 0.9 + 0.55 * size.ordinal(), 0.6 + 0.1 * size.ordinal());
+            }
+        } else {
+            roots(bp, c, size, r0, 1.0);
+        }
+    }
+
+    /** Bonsai-like oak: a twisting trunk with long, nearly level limbs ending in layered cloud pads. */
+    private static void bonsaiOak(TreeBlueprint bp, TreeSize size) {
+        RandomGenerator r = bp.random();
+        int h = switch (size) {
+            case SMALL -> range(r, 6, 8);
+            case MEDIUM -> range(r, 8, 11);
+            default -> range(r, 11, 14);
+        };
+        double scale = h / 10.0;
+        double r0 = size == TreeSize.LARGE ? 0.7 : 0.0;
+        double c = size == TreeSize.LARGE ? 0.5 : 0.0;
+        Trunk t = trunk(r, h - 2, c, r0, 0.0, range(r, 1.2, 2.4) * scale, range(r, 1.0, 2.0) * scale, 0.45);
+        t.draw(bp);
+        Style st = new Style(0.2, -0.12, 0.18, 0.5, 0.45, 1);
+        int padsN = size == TreeSize.SMALL ? 2 : size == TreeSize.MEDIUM ? 3 : 4;
+        double a = angle(r);
+        double y0 = h * 0.38;
+        double y1 = h - 3.0;
+        for (int i = 0; i < padsN; i++) {
+            double y = Math.rint(y0 + (y1 - y0) * i / Math.max(1, padsN - 1) + range(r, -0.4, 0.4));
+            a += Math.PI * range(r, 0.55, 1.0) * (i % 2 == 0 ? 1 : -1) + Math.PI;
+            V o = t.at(y);
+            double len = h * range(r, 0.42, 0.55) * (1.0 - 0.35 * i / Math.max(1, padsN));
+            V end = o.add(horizontal(a, len)).add(new V(0, range(r, 0.5, 1.5), 0));
+            limbTo(bp, o, horizontal(a, 1).add(new V(0, -0.3, 0)), end, 0, 0, st);
+            bp.pad(end.x, TreeBlueprint.round(end.y) + 1, end.z, range(r, 2.4, 3.3) * Math.max(0.85, scale), range(r, 1.5, 2.2), 0.95);
+        }
+        // the apex pad above the leaning crown
+        V top = t.at(h - 2);
+        V apex = top.add(new V((top.x - c) * 0.3, 1.0, (top.z - c) * 0.3));
+        limbTo(bp, top, t.topDirection(), apex, 0, 0, st);
+        bp.pad(apex.x, TreeBlueprint.round(apex.y) + 1, apex.z, range(r, 2.6, 3.4) * Math.max(0.85, scale), range(r, 1.8, 2.4), 0.95);
+        roots(bp, c, size, r0, 1.1);
+    }
+
+    /** A huge spreading oak: a trunk 6-7 blocks wide dividing into massive limbs under a vast dome. */
+    private static void ancientOak(TreeBlueprint bp, boolean swamp) {
+        RandomGenerator r = bp.random();
+        int fork = range(r, 7, 10);
+        double r0 = range(r, 2.8, 3.3);
+        double r1 = r0 * 0.66;
+        double rx = range(r, 15.0, 17.5);
+        double ry = rx * (swamp ? 0.5 : range(r, 0.56, 0.64));
+        double rc = 3.2;
+        Trunk t = trunk(r, fork, 0.0, r0, r1, range(r, 0.0, 1.2), range(r, 0.2, 0.8), 0.2);
+        t.draw(bp);
+        V top = t.at(fork);
+        V centre = new V(top.x, fork + ry * 0.55, top.z);
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, rc, 0.8), rc * 1.15, 0.4, -0.6, 0.45, 0.18, rc + 0.6);
+        Style st = new Style(0.5, swamp ? -0.04 : 0.1, 0.12, 0.42, 0.4, range(r, 4, 5));
+        Leafer leafer = swamp ? weeping(rc, 0.68, 0.92, 7, 3) : puffs(rc, 0.72, 0.92);
+        decurrent(bp, top, UP, sites, r1, 0, st, leafer);
+        roots(bp, 0.0, TreeSize.ANCIENT, r0, swamp ? 1.15 : 1.0);
+    }
+
+    // =========================================================================================
+    // Birch: slender white trunk, a few short side branches with tufts, full irregular crown
     // =========================================================================================
 
     private static void birch(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
-        int h = switch (size) {
-            case YOUNG -> range(r, 3, 4);
-            case SMALL -> range(r, 5, 7);
-            case MEDIUM -> range(r, 8, 12);
-            case LARGE -> range(r, 12, 17);
-            case GIANT, ANCIENT -> range(r, 17, 23);
-        };
-        bp.trunk(0, h - 1, 0);
-        double crownStart = h * (size == TreeSize.YOUNG ? 0.4 : 0.5);
-        int branches = switch (size) {
-            case YOUNG, SMALL -> 1;
-            case MEDIUM -> range(r, 3, 4);
-            case LARGE -> range(r, 4, 6);
-            case GIANT, ANCIENT -> range(r, 5, 7);
-        };
-        double baseR = switch (size) {
-            case YOUNG -> 1.4;
-            case SMALL -> 1.8;
-            case MEDIUM -> 2.1;
-            case LARGE -> 2.4;
-            case GIANT, ANCIENT -> 2.7;
-        };
-        double density = range(r, 0.78, 0.95);
-        for (int i = 0; i < branches; i++) {
-            double a = r.nextDouble() * Math.PI * 2;
-            double sy = range(r, crownStart, h - 1.0);
-            double len = range(r, 1.0, size.ordinal() >= 3 ? 3.5 : 2.2);
-            double ex = Math.cos(a) * len;
-            double ez = Math.sin(a) * len;
-            double ey = sy + range(r, 1.0, 2.5);
-            bp.branch(0, sy, 0, ex, ey, ez, 0);
-            bp.blob(ex, ey + 0.5, ez, baseR, baseR * 1.2, baseR, density);
+        RandomGenerator r = bp.random();
+        int h;
+        double rx;
+        double rc;
+        double r0 = 0.0;
+        double c = 0.0;
+        int tufts;
+        switch (size) {
+            case YOUNG -> {
+                h = range(r, 3, 4);
+                rx = 1.5;
+                rc = 1.4;
+                tufts = 0;
+            }
+            case SMALL -> {
+                h = range(r, 6, 8);
+                rx = range(r, 1.9, 2.3);
+                rc = 1.6;
+                tufts = 1;
+            }
+            case MEDIUM -> {
+                h = range(r, 9, 13);
+                rx = range(r, 2.5, 3.1);
+                rc = 1.8;
+                tufts = range(r, 1, 2);
+            }
+            case LARGE -> {
+                h = range(r, 13, 18);
+                rx = range(r, 3.0, 3.7);
+                rc = 2.0;
+                tufts = range(r, 2, 3);
+            }
+            default -> {
+                h = range(r, 18, 24);
+                rx = range(r, 3.6, 4.3);
+                rc = 2.2;
+                tufts = range(r, 2, 3);
+                r0 = 0.7;
+                c = 0.5;
+            }
         }
-        // column of foliage hugging the upper trunk
-        for (double y = crownStart + 1; y <= h; y += 2.2) {
-            bp.blob(range(r, -0.5, 0.5), y, range(r, -0.5, 0.5), baseR * 0.85, 1.6, baseR * 0.85, density);
+        Trunk t = trunk(r, h - 1, c, r0, 0.0, range(r, 0.0, 0.07 * h), range(r, 0.0, 0.6), 0.12);
+        t.draw(bp);
+        double base = h * range(r, 0.42, 0.52);
+        double ry = (h - base) * 0.5 + 0.8;
+        V centre = t.at(base + ry - 0.3);
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, rc, 0.95), rc * 1.05, 0.2, -0.85, 0.0, 0.3, rc + 0.6);
+        Style st = new Style(0.25, 0.04, 0.1, 0.5, 0.5, 1);
+        excurrent(bp, t, sites, Math.toRadians(range(r, 52, 64)), base - 1.0, h - 1.5, 0.0, st, puffs(rc, 0.95, 0.9));
+        V top = t.at(h - 1);
+        bp.puff(top.x, h, top.z, rc * 0.9, 1.1, 0.95);
+        // a couple of short side branches below the crown, each with a small tuft
+        for (int i = 0; i < tufts; i++) {
+            double y = Math.rint(range(r, h * 0.22, base - 0.5));
+            V o = t.at(y);
+            double a = angle(r);
+            double len = range(r, 1.4, 2.4) + size.ordinal() * 0.2;
+            V e = o.add(horizontal(a, len)).add(new V(0, len * range(r, 0.7, 1.1), 0));
+            limbTo(bp, o, horizontal(a, 1).add(UP).norm(), e, 0, 0, st);
+            bp.puff(e.x, e.y + 0.5, e.z, range(r, 1.1, 1.5), 0.8, 0.9);
         }
-        bp.blob(0, h + 0.5, 0, baseR * 0.8, baseR, baseR * 0.8, 0.95);
+        if (size.atLeast(TreeSize.MEDIUM)) {
+            roots(bp, c, size.smaller(), r0, 0.9);
+        }
     }
 
     // =========================================================================================
     // Conifers
     // =========================================================================================
 
-    private static void spruce(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
-        int h;
-        double maxR;
-        double trunkR;
-        double bare;
-        switch (size) {
-            case YOUNG -> { h = range(r, 3, 5); maxR = 1.4; trunkR = 0; bare = 0.15; }
-            case SMALL -> { h = range(r, 6, 9); maxR = range(r, 2.0, 2.7); trunkR = 0; bare = 0.18; }
-            case MEDIUM -> { h = range(r, 10, 16); maxR = range(r, 3.0, 3.9); trunkR = 0; bare = 0.22; }
-            case LARGE -> { h = range(r, 17, 26); maxR = range(r, 4.2, 5.2); trunkR = 0.5; bare = 0.28; }
-            default -> { h = range(r, 27, 42); maxR = range(r, 5.8, 7.0); trunkR = 1.0; bare = 0.34; }
-        }
-        bp.trunk(0, h - 1, trunkR);
-        double cx = trunkR == 0.5 ? 0.5 : 0.0;
-        int start = (int) (h * bare);
-        boolean whorl = true;
-        for (int y = start; y <= h; y++) {
-            double t = (double) (y - start) / Math.max(1, h - start);
-            double radius = maxR * Math.pow(1.0 - t, 0.85) + 0.6;
-            // alternating full whorls and thin interlayers give the layered spruce silhouette
-            double layerR = whorl ? radius : radius * 0.55;
-            bp.disc(cx, y, cx, layerR, whorl ? 0.92 : 0.8);
-            if (whorl && radius > 2.2) {
-                // droop: the rim of a whorl hangs one block lower
-                int rim = Mth.ceil(layerR);
-                for (int i = 0; i < 6; i++) {
-                    double a = r.nextDouble() * Math.PI * 2;
-                    bp.leaf(Mth.floor(cx + Math.cos(a) * (rim - 0.8)), y - 1, Mth.floor(cx + Math.sin(a) * (rim - 0.8)));
-                }
-                if (radius > 3.6) {
-                    // branch logs inside wide whorls keep every needle within six blocks of wood
-                    int spokes = 4 + r.nextInt(3);
-                    double a0 = r.nextDouble() * Math.PI;
-                    for (int i = 0; i < spokes; i++) {
-                        double a = a0 + i * Math.PI * 2 / spokes;
-                        double len = radius - 2.2;
-                        bp.branch(cx, y, cx, cx + Math.cos(a) * len, y - 0.4, cx + Math.sin(a) * len, 0);
+    /**
+     * Layers of drooping branches from {@code start} to the top. Each whorl is a skirt of needles,
+     * two blocks thick near the trunk and one at its ragged rim, sagging towards the rim and carried
+     * by branches along its underside that fork towards the rim. The skirt radius follows
+     * {@code maxR * (1 - s)^profile} from the lowest whorl ({@code s = 0}) to the top, giving the
+     * layered cone of spruces and firs with darker gaps between the layers.
+     *
+     * @param droop      how far a skirt sags per block of radius
+     * @param thickLimbs radius of the long lower branches of big trees (0: thin)
+     */
+    private static void whorls(TreeBlueprint bp, Trunk t, int start, int h, double maxR, int spacing, double droop, double profile,
+                               double density, double thickLimbs) {
+        RandomGenerator r = bp.random();
+        double a0 = angle(r);
+        int y = start;
+        while (y < h - 2) {
+            double s = (double) (y - start) / Math.max(1, h - 1 - start);
+            double rad = maxR * Math.pow(1.0 - s, profile) * range(r, 0.88, 1.08) + 0.6;
+            V o = t.at(y);
+            if (rad < 1.6) {
+                bp.disc(o.x, y, o.z, rad + 0.4, 0.92);
+                bp.disc(o.x, y + 1, o.z, rad * 0.6, 0.85);
+            } else {
+                skirt(bp, o, y, rad, droop, density);
+                int spokes = Math.max(4, Math.min(11, (int) Math.round(rad * 1.1)));
+                a0 += 2.4;
+                for (int i = 0; i < spokes; i++) {
+                    double a = a0 + i * Math.PI * 2.0 / spokes + range(r, -0.2, 0.2);
+                    double len = rad * range(r, 0.62, 0.78);
+                    double sag = droop * len * 0.6;
+                    V end = o.add(horizontal(a, len)).add(new V(0, -sag, 0));
+                    bp.limb(o.x, y, o.z, end.x, end.y, end.z, len > 5.0 ? thickLimbs : 0.0, 0.0);
+                    if (rad > 4.0) {
+                        V mid = o.add(horizontal(a, len * 0.55)).add(new V(0, -sag * 0.4, 0));
+                        V side = mid.add(horizontal(a + (r.nextBoolean() ? 0.6 : -0.6), len * 0.45)).add(new V(0, -sag * 0.5, 0));
+                        bp.path(mid.x, mid.y, mid.z, side.x, side.y, side.z, (byte) 0);
                     }
                 }
             }
-            whorl = !whorl;
+            // needles close around the trunk between the layers
+            bp.disc(o.x, y + 2, o.z, 1.2, 0.8);
+            y += spacing + (spacing > 1 && r.nextFloat() < 0.3f ? 1 : 0);
         }
-        bp.leaf(0, h + 1, 0);
-        bp.leaf(0, h + 2, 0);
-        if (size.ordinal() >= TreeSize.LARGE.ordinal()) {
-            bp.surfaceRoots(range(r, 4, 6), 3, trunkR + 0.5);
+        // the leader above the last small whorls
+        V top = t.at(h - 1);
+        int tx = TreeBlueprint.round(top.x);
+        int tz = TreeBlueprint.round(top.z);
+        bp.disc(top.x, h - 2, top.z, 1.7, 0.95);
+        bp.disc(top.x, h - 1, top.z, 1.4, 0.95);
+        bp.leaf(tx, h, tz);
+        bp.leaf(tx, h + 1, tz);
+        if (h > 12) {
+            bp.leaf(tx, h + 2, tz);
         }
     }
 
-    private static void pine(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
-        int h;
-        double trunkR;
-        double crownR;
-        switch (size) {
-            case YOUNG -> { h = range(r, 4, 6); trunkR = 0; crownR = 1.5; }
-            case SMALL -> { h = range(r, 8, 12); trunkR = 0; crownR = 2.2; }
-            case MEDIUM -> { h = range(r, 14, 20); trunkR = 0; crownR = 3.0; }
-            case LARGE -> { h = range(r, 20, 28); trunkR = 0.5; crownR = 3.8; }
-            default -> { h = range(r, 28, 38); trunkR = 1.0; crownR = 4.6; }
-        }
-        bp.trunk(0, h - 1, trunkR);
-        double c = trunkR == 0.5 ? 0.5 : 0.0;
-        int crownStart = (int) (h * range(r, 0.62, 0.72));
-        // a tall bare trunk with a few dead stubs, then an irregular rounded crown
-        for (int y = (int) (h * 0.3); y < crownStart; y += 3) {
-            if (r.nextFloat() < 0.45) {
-                double a = r.nextDouble() * Math.PI * 2;
-                bp.branch(c, y, c, c + Math.cos(a) * 1.5, y + 0.5, c + Math.sin(a) * 1.5, 0);
+    /** One drooping skirt of needles around {@code o}, its top at {@code y + 1} by the trunk. */
+    private static void skirt(TreeBlueprint bp, V o, int y, double rad, double droop, double density) {
+        RandomGenerator r = bp.random();
+        double p1 = angle(r);
+        double p2 = angle(r);
+        int ri = TreeBlueprint.ceil(rad * 1.25) + 1;
+        int ix = TreeBlueprint.round(o.x);
+        int iz = TreeBlueprint.round(o.z);
+        for (int x = ix - ri; x <= ix + ri; x++) {
+            for (int z = iz - ri; z <= iz + ri; z++) {
+                double dx = x - o.x;
+                double dz = z - o.z;
+                double a = Math.atan2(dz, dx);
+                double edge = rad * (1.0 + 0.14 * Math.sin(3.0 * a + p1) + 0.08 * Math.sin(5.0 * a + p2));
+                double d = Math.sqrt(dx * dx + dz * dz) / edge;
+                if (d > 1.0 || d > 0.8 && r.nextDouble() < (d - 0.8) / 0.2 * 0.6) {
+                    continue;
+                }
+                int top = TreeBlueprint.round(y + 1 - droop * rad * Math.pow(d, 1.6));
+                int thick = d < 0.75 ? 2 : 1;
+                for (int yy = top - thick + 1; yy <= top; yy++) {
+                    if (r.nextDouble() < density) {
+                        bp.leaf(x, yy, z);
+                    }
+                }
             }
         }
-        int limbs = 3 + size.ordinal();
-        for (int i = 0; i < limbs; i++) {
-            double a = r.nextDouble() * Math.PI * 2;
-            double sy = range(r, crownStart, h - 2.0);
-            double len = crownR * range(r, 0.5, 0.9);
-            double ex = c + Math.cos(a) * len;
-            double ez = c + Math.sin(a) * len;
-            double ey = sy + range(r, 0.5, 1.5);
-            bp.branch(c, sy, c, ex, ey, ez, 0);
-            bp.blob(ex, ey + 0.3, ez, crownR * 0.65, 1.5, crownR * 0.65, 0.88);
+    }
+
+    private static void spruce(TreeBlueprint bp, TreeSize size) {
+        RandomGenerator r = bp.random();
+        int h;
+        double r0;
+        double r1 = 0.0;
+        double c = 0.0;
+        double bare;
+        int spacing;
+        double thick = 0.0;
+        switch (size) {
+            case YOUNG -> {
+                h = range(r, 3, 5);
+                r0 = 0;
+                bare = 0.1;
+                spacing = 1;
+            }
+            case SMALL -> {
+                h = range(r, 6, 9);
+                r0 = 0;
+                bare = 0.12;
+                spacing = 2;
+            }
+            case MEDIUM -> {
+                h = range(r, 11, 17);
+                r0 = 0;
+                bare = 0.16;
+                spacing = 2;
+            }
+            case LARGE -> {
+                h = range(r, 18, 27);
+                r0 = 0.7;
+                c = 0.5;
+                bare = 0.2;
+                spacing = 3;
+            }
+            case GIANT -> {
+                h = range(r, 28, 40);
+                r0 = 1.6;
+                bare = 0.26;
+                spacing = 3;
+                thick = 0.62;
+            }
+            default -> {
+                h = range(r, 48, 60);
+                r0 = range(r, 2.3, 2.7);
+                bare = 0.3;
+                spacing = 3;
+                thick = 0.9;
+            }
         }
-        bp.blob(c, h, c, crownR * 0.75, 2.2, crownR * 0.75, 0.9);
-        bp.leaf(0, h + 1, 0);
-        if (size.ordinal() >= TreeSize.LARGE.ordinal()) {
-            bp.surfaceRoots(4, 3, trunkR + 0.5);
+        Trunk t = trunk(r, h - 1, c, r0, r1, range(r, 0.0, 0.03 * h), range(r, 0.0, 0.5), 0.0);
+        t.draw(bp);
+        double maxR = 0.16 * h + 1.2;
+        whorls(bp, t, Math.max(1, (int) (h * bare)), h, maxR, spacing, 0.3, 0.95, 0.94, thick);
+        if (size.atLeast(TreeSize.LARGE)) {
+            roots(bp, c, size, r0, 0.9);
+        } else if (size.atLeast(TreeSize.SMALL)) {
+            roots(bp, c, size.smaller(), r0, 0.9);
         }
     }
 
     private static void fir(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
+        RandomGenerator r = bp.random();
         int h = switch (size) {
             case YOUNG -> range(r, 3, 5);
             case SMALL -> range(r, 6, 9);
             case MEDIUM -> range(r, 10, 15);
-            case LARGE -> range(r, 15, 21);
-            case GIANT, ANCIENT -> range(r, 21, 28);
+            case LARGE -> range(r, 15, 22);
+            default -> range(r, 22, 30);
         };
-        double maxR = 1.2 + size.ordinal() * 0.45;
-        bp.trunk(0, h - 1, 0);
-        int start = Math.max(1, (int) (h * 0.12));
-        for (int y = start; y <= h; y++) {
-            double t = (double) (y - start) / Math.max(1, h - start);
-            double radius = maxR * (1.0 - t * 0.75) + 0.4;
-            bp.disc(0, y, 0, radius, 0.95);
+        double r0 = size.atLeast(TreeSize.GIANT) ? 0.7 : 0.0;
+        double c = r0 > 0 ? 0.5 : 0.0;
+        Trunk t = trunk(r, h - 1, c, r0, 0.0, range(r, 0.0, 0.02 * h), 0.0, 0.0);
+        t.draw(bp);
+        // a narrow, dense spire
+        double maxR = 0.12 * h + 1.3;
+        whorls(bp, t, Math.max(1, (int) (h * 0.08)), h, maxR, size.atLeast(TreeSize.MEDIUM) ? 2 : 1, 0.22, 0.9, 0.97, 0.0);
+        if (size.atLeast(TreeSize.MEDIUM)) {
+            roots(bp, c, size.smaller(), r0, 0.8);
         }
-        bp.leaf(0, h + 1, 0);
-        bp.leaf(0, h + 2, 0);
+    }
+
+    /** Scots-pine-like: a tall, bare, straight trunk under an irregular crown of flat needle tufts. */
+    private static void pine(TreeBlueprint bp, TreeSize size) {
+        RandomGenerator r = bp.random();
+        int h;
+        double r0;
+        double c = 0.0;
+        switch (size) {
+            case YOUNG -> {
+                h = range(r, 4, 6);
+                r0 = 0;
+            }
+            case SMALL -> {
+                h = range(r, 8, 11);
+                r0 = 0;
+            }
+            case MEDIUM -> {
+                h = range(r, 14, 20);
+                r0 = 0;
+            }
+            case LARGE -> {
+                h = range(r, 20, 27);
+                r0 = 0.7;
+                c = 0.5;
+            }
+            case GIANT -> {
+                h = range(r, 27, 36);
+                r0 = 1.5;
+            }
+            default -> {
+                h = range(r, 40, 50);
+                r0 = range(r, 2.0, 2.4);
+            }
+        }
+        if (size == TreeSize.YOUNG) {
+            // young pines are still conical
+            Trunk t = trunk(r, h - 1, 0, 0, 0, 0, 0, 0);
+            t.draw(bp);
+            whorls(bp, t, 1, h, 1.6, 1, 0.1, 0.9, 0.92, 0.0);
+            return;
+        }
+        double r1 = r0 >= 0.95 ? 0.7 : r0;
+        Trunk t = trunk(r, h - 1, c, r0, r1, range(r, 0.0, 0.05 * h), range(r, 0.0, 0.8), 0.05);
+        t.draw(bp);
+        // an irregular, tiered crown of flat needle pads on long, upswept branches
+        double rx = 0.17 * h + 2.0;
+        double ry = 0.14 * h + 1.5;
+        double pr = 2.0 + 0.3 * Math.min(4, size.ordinal());
+        V centre = t.at(h - ry * 0.85);
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, pr, 0.6), pr * 1.35, 0.35, -0.9, 0.0, 0.35, pr + 0.6);
+        Style st = new Style(0.4, 0.12, 0.15, 0.6, 0.5, 1);
+        double radius = size.atLeast(TreeSize.GIANT) ? 0.7 : 0.0;
+        excurrent(bp, t, sites, Math.toRadians(range(r, 18, 32)), h * 0.55, h - 2.5, radius, st, pads(pr, 1.3, 0.95));
+        V top = t.at(h - 1);
+        bp.pad(top.x, h - 1, top.z, pr * 1.05, 1.6, 0.95);
+        roots(bp, c, size, r0, 0.9);
     }
 
     // =========================================================================================
-    // Jungle: tall trunks, buttress roots and broad elevated canopies
+    // Jungle: tall straight trunks on buttress roots under umbrella canopies
     // =========================================================================================
 
     private static void jungle(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
+        RandomGenerator r = bp.random();
+        if (size == TreeSize.YOUNG) {
+            // jungle bush
+            bp.log(0, 0, 0, TreeBlueprint.LOG_Y);
+            double br = range(r, 2.0, 2.6);
+            bp.puff(0, 1.0, 0, br, 0.6, 0.95);
+            return;
+        }
+        int h;
+        double r0;
+        double r1;
+        double c = 0.0;
+        double rx;
+        double rc;
+        int laterals;
         switch (size) {
-            case YOUNG -> {
-                bp.log(0, 0, 0, Direction.Axis.Y);
-                bp.blob(0, 1, 0, range(r, 2.0, 2.6), 1.5, range(r, 2.0, 2.6), 0.95);
-            }
             case SMALL -> {
-                int h = range(r, 5, 8);
-                bp.trunk(0, h - 1, 0);
-                bp.blob(0, h, 0, range(r, 2.5, 3.0), 1.8, range(r, 2.5, 3.0), 0.92);
+                h = range(r, 5, 8);
+                r0 = 0;
+                r1 = 0;
+                rx = range(r, 2.6, 3.2);
+                rc = 2.0;
+                laterals = 0;
             }
             case MEDIUM -> {
-                int h = range(r, 10, 16);
-                bp.trunk(0, h - 1, 0);
-                canopyPads(bp, 0, h, 3, range(r, 2.5, 4.0), range(r, 3.0, 3.8), 1.0);
-                bp.blob(0, h + 1, 0, 3.2, 1.8, 3.2, 0.9);
+                h = range(r, 10, 15);
+                r0 = 0;
+                r1 = 0;
+                rx = range(r, 4.0, 5.0);
+                rc = 2.4;
+                laterals = range(r, 1, 2);
             }
             case LARGE -> {
-                int h = range(r, 18, 26);
-                bp.trunk(0, h - 1, 0.5);
-                buttresses(bp, range(r, 4, 5), 3, 0.5);
-                canopyPads(bp, 0.5, h, range(r, 3, 4), range(r, 4.0, 6.0), range(r, 4.0, 5.0), 1.0);
-                canopyPads(bp, 0.5, (int) (h * 0.6), 1, 3.5, 3.0, 0.9);
-                bp.disc(0.5, h + 1, 0.5, 3.5, 0.9);
+                h = range(r, 18, 25);
+                r0 = 0.7;
+                r1 = 0.7;
+                c = 0.5;
+                rx = range(r, 6.0, 7.5);
+                rc = 2.7;
+                laterals = range(r, 2, 3);
             }
-            case GIANT, ANCIENT -> {
-                int h = range(r, 26, 36);
-                bp.trunk(0, h - 1, 1.2);
-                buttresses(bp, range(r, 5, 6), 4, 1.2);
-                canopyPads(bp, 0, h, range(r, 4, 5), range(r, 6.0, 8.5), range(r, 4.8, 5.8), 1.0);
-                canopyPads(bp, 0, (int) (h * 0.68), range(r, 2, 3), range(r, 4.0, 6.0), range(r, 3.5, 4.2), 0.9);
-                bp.disc(0, h + 1, 0, 4.5, 0.9);
-                bp.disc(0, h + 2, 0, 2.5, 0.85);
+            case GIANT -> {
+                h = range(r, 26, 34);
+                r0 = 1.6;
+                r1 = 1.0;
+                rx = range(r, 9.0, 10.8);
+                rc = 3.0;
+                laterals = range(r, 3, 4);
+            }
+            default -> {
+                h = range(r, 42, 52);
+                r0 = range(r, 2.5, 2.8);
+                r1 = 1.5;
+                rx = range(r, 15.0, 17.5);
+                rc = 3.2;
+                laterals = range(r, 4, 5);
             }
         }
-    }
-
-    /** Branches ending in two-layer leaf pads (jungle and giant canopies). */
-    private static void canopyPads(TreeBlueprint bp, double c, int y0, int count, double length, double padR, double density) {
-        RandomSource r = bp.random();
-        double a0 = r.nextDouble() * Math.PI * 2;
-        for (int i = 0; i < count; i++) {
-            double a = a0 + i * Math.PI * 2 / count + range(r, -0.3, 0.3);
-            double len = length * range(r, 0.8, 1.05);
-            double sy = y0 - range(r, 1.0, 3.0);
-            double ex = c + Math.cos(a) * len;
-            double ez = c + Math.sin(a) * len;
-            double ey = y0 + range(r, 0.0, 1.5);
-            bp.branch(c, sy, c, ex, ey, ez, len > 5 ? 0.6 : 0.0);
-            int py = Mth.floor(ey);
-            bp.disc(ex, py, ez, padR, density);
-            bp.disc(ex, py + 1, ez, padR * 0.65, density * 0.9);
+        int crownBase = (int) (h * (size == TreeSize.SMALL ? 0.7 : 0.8));
+        Trunk t = trunk(r, crownBase, c, r0, r1, range(r, 0.0, 0.04 * h), range(r, 0.0, 0.08 * h), 0.08);
+        t.draw(bp);
+        double ry = Math.max(1.8, rx * 0.4);
+        V top = t.at(crownBase);
+        V centre = new V(top.x, h - ry * 0.3, top.z);
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, rc, 0.85), rc * 1.15, 0.3, -0.5, 0.45, 0.22, rc + 0.6);
+        Style st = new Style(0.6, 0.15, 0.1, 0.5, 0.45, range(r, 3, 5));
+        Leafer puff = puffs(rc, 0.62, 0.93);
+        decurrent(bp, top, UP, sites, r1, 0, st, puff);
+        // lower lateral branches with their own clusters
+        Style lat = new Style(0.3, 0.12, 0.12, 0.6, 0.5, 1);
+        double la = angle(r);
+        for (int i = 0; i < laterals; i++) {
+            double y = Math.rint(range(r, h * 0.55, h * 0.72));
+            V o = t.at(y);
+            la += range(r, 1.7, 2.7);
+            double len = rx * range(r, 0.45, 0.65);
+            V e = o.add(horizontal(la, len)).add(new V(0, len * range(r, 0.35, 0.6), 0));
+            V d = limbTo(bp, o, horizontal(la, 1), e, size.atLeast(TreeSize.GIANT) ? 0.7 : 0.0, 0.0, lat);
+            puffs(rc * 0.9, 0.62, 0.92).grow(bp, e, d);
         }
-    }
-
-    /** Tall, thin buttress roots radiating from a thick trunk, curving away over the ground. */
-    private static void buttresses(TreeBlueprint bp, int count, int length, double trunkR) {
-        bp.rootSystem(count, trunkR, length + 2.0 + trunkR, 2.2 + 1.6 * trunkR, 0.5);
+        if (size.atLeast(TreeSize.LARGE)) {
+            double fin = size == TreeSize.LARGE ? 2.6 : size == TreeSize.GIANT ? 4.0 : range(r, 6.5, 8.0);
+            double len = size == TreeSize.LARGE ? 4.5 : size == TreeSize.GIANT ? 7.0 : range(r, 11.0, 13.0);
+            bp.rootSystem(c, range(r, 5, 7) + (size == TreeSize.ANCIENT ? 1 : 0), r0, len, fin, 0.55);
+        } else {
+            roots(bp, c, size, r0, 1.0);
+        }
     }
 
     // =========================================================================================
-    // Acacia: angled, forking trunks with flat umbrella pads
+    // Acacia: a short trunk forking into sinuous limbs under flat, layered umbrella pads
     // =========================================================================================
 
     private static void acacia(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
-        int straight;
-        int lean;
-        int forks;
-        double padR;
+        RandomGenerator r = bp.random();
+        int fork;
+        double r0;
+        double r1;
+        double c = 0.0;
+        double rx;
+        double pr;
+        int limbs;
         switch (size) {
-            case YOUNG -> { straight = 2; lean = 1; forks = 1; padR = 1.8; }
-            case SMALL -> { straight = range(r, 2, 3); lean = range(r, 1, 2); forks = 1; padR = range(r, 2.5, 3.0); }
-            case MEDIUM -> { straight = range(r, 3, 4); lean = range(r, 2, 3); forks = 2; padR = range(r, 3.0, 3.8); }
-            case LARGE -> { straight = range(r, 4, 5); lean = range(r, 2, 4); forks = 3; padR = range(r, 3.8, 4.6); }
-            default -> { straight = range(r, 5, 6); lean = range(r, 3, 4); forks = 3; padR = range(r, 4.6, 5.4); }
+            case YOUNG -> {
+                fork = range(r, 1, 2);
+                r0 = 0;
+                r1 = 0;
+                rx = 2.0;
+                pr = 1.9;
+                limbs = 1;
+            }
+            case SMALL -> {
+                fork = range(r, 2, 3);
+                r0 = 0;
+                r1 = 0;
+                rx = range(r, 3.4, 4.0);
+                pr = 2.5;
+                limbs = 2;
+            }
+            case MEDIUM -> {
+                fork = range(r, 3, 4);
+                r0 = 0;
+                r1 = 0;
+                rx = range(r, 5.0, 6.0);
+                pr = 3.0;
+                limbs = range(r, 2, 3);
+            }
+            case LARGE -> {
+                fork = range(r, 3, 5);
+                r0 = 0.7;
+                r1 = 0.7;
+                c = 0.5;
+                rx = range(r, 7.0, 8.5);
+                pr = 3.4;
+                limbs = 3;
+            }
+            case GIANT -> {
+                fork = range(r, 4, 5);
+                r0 = 1.4;
+                r1 = 0.9;
+                rx = range(r, 9.5, 11.0);
+                pr = 3.8;
+                limbs = range(r, 3, 4);
+            }
+            default -> {
+                fork = range(r, 5, 6);
+                r0 = range(r, 1.7, 2.0);
+                r1 = 1.3;
+                rx = range(r, 15.5, 17.5);
+                pr = 4.2;
+                limbs = range(r, 4, 5);
+            }
         }
-        if (size == TreeSize.GIANT) {
-            bp.trunk(0, 2, 0.5);
-        }
-        bp.trunk(0, straight - 1, 0);
-        double a = r.nextDouble() * Math.PI * 2;
-        double x = 0;
-        double z = 0;
-        double y = straight - 1;
-        double nx = Math.cos(a) * lean;
-        double nz = Math.sin(a) * lean;
-        bp.branch(x, y, z, nx, y + lean, nz, 0);
-        x = nx;
-        z = nz;
-        y += lean;
-        double forkBase = a + Math.PI * range(r, 0.6, 1.4);
-        for (int i = 0; i < forks; i++) {
-            double fa = forks == 1 ? a + range(r, -0.5, 0.5) : forkBase + i * Math.PI * 2 / forks * range(r, 0.7, 1.0);
-            double len = range(r, 1.5, 2.5) + size.ordinal() * 0.6;
-            double ex = x + Math.cos(fa) * len;
-            double ez = z + Math.sin(fa) * len;
-            double ey = y + range(r, 1.0, 2.5) + (forks > 1 ? i * 0.5 : 0);
-            bp.branch(x, y, z, ex, ey, ez, 0);
-            int py = Mth.floor(ey) + 1;
-            double pr = padR * range(r, 0.85, 1.1);
-            bp.disc(ex, py, ez, pr, 0.95);
-            bp.disc(ex, py + 1, ez, pr * 0.62, 0.9);
-        }
+        Trunk t = trunk(r, fork, c, r0, r1, range(r, 0.4, 0.3 * fork + 0.6), range(r, 0.0, 0.6), 0.15);
+        t.draw(bp);
+        V top = t.at(fork);
+        double lift = rx * range(r, 0.5, 0.65) + 1.0;
+        V centre = new V(top.x + (top.x - c) * 0.6, fork + lift, top.z + (top.z - c) * 0.6);
+        double ry = 0.6 + 0.12 * size.ordinal();
+        // overlapping pads at nearly one height make the flat umbrella
+        int count = Math.max(1, (int) Math.round(1.3 * rx * rx / (pr * pr)));
+        List<V> sites = crownSites(bp, centre, rx, ry, count, pr * 1.2, 0.0, -1.0, 0.0, 0.15, pr + 0.4);
+        Style st = new Style(0.25, 0.12, 0.22, 0.5, 0.45, limbs);
+        decurrent(bp, top, t.topDirection(), sites, r1, 0, st, pads(pr, 1.3, 0.95));
+        // savanna trees spread their roots wide but shallow: a low flare
+        roots(bp, c, size, r0, 0.65);
     }
 
     // =========================================================================================
@@ -609,41 +1177,80 @@ public final class TreeShapes {
     // =========================================================================================
 
     private static void darkOak(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
+        RandomGenerator r = bp.random();
+        int fork;
+        double r0;
+        double r1;
+        double c = 0.0;
+        double rx;
+        double rc;
+        int limbs;
         switch (size) {
             case YOUNG -> {
-                int h = range(r, 3, 4);
-                bp.trunk(0, h - 1, 0);
-                bp.blob(0, h, 0, 2.3, 1.6, 2.3, 0.95);
+                fork = range(r, 1, 2);
+                r0 = 0;
+                r1 = 0;
+                rx = 2.3;
+                rc = 1.9;
+                limbs = 2;
             }
             case SMALL -> {
-                int h = range(r, 4, 6);
-                bp.trunk(0, h - 1, 0.5);
-                bp.blob(0.5, h, 0.5, 3.6, 2.2, 3.6, 0.95);
+                fork = 2;
+                r0 = 0.7;
+                r1 = 0.7;
+                c = 0.5;
+                rx = range(r, 3.4, 4.0);
+                rc = 2.3;
+                limbs = 2;
             }
             case MEDIUM -> {
-                int h = range(r, 6, 9);
-                bp.trunk(0, h - 1, 0.5);
-                crown(bp, 0.5, h, range(r, 3, 5), 0.6, range(r, 2.5, 4.0), 0.5, 1.5, 0.0, range(r, 3.2, 4.0), 0.75);
-                bp.blob(0.5, h + 0.5, 0.5, 4.0, 2.4, 4.0, 0.95);
+                fork = range(r, 2, 3);
+                r0 = 0.7;
+                r1 = 0.7;
+                c = 0.5;
+                rx = range(r, 5.0, 6.0);
+                rc = 2.8;
+                limbs = 3;
             }
             case LARGE -> {
-                int h = range(r, 8, 12);
-                bp.trunk(0, h - 1, 0.5);
-                flare(bp, 0.5, 2);
-                crown(bp, 0.5, h, range(r, 5, 7), 0.5, range(r, 4.0, 6.0), 0.5, 2.0, 0.55, range(r, 3.8, 4.6), 0.72);
-                bp.blob(0.5, h + 1, 0.5, 4.8, 2.6, 4.8, 0.95);
-                bp.surfaceRoots(range(r, 4, 6), 3, 1.0);
+                fork = range(r, 3, 4);
+                r0 = 1.6;
+                r1 = 1.0;
+                rx = range(r, 7.0, 8.5);
+                rc = 3.0;
+                limbs = range(r, 3, 4);
             }
-            case GIANT, ANCIENT -> {
-                int h = range(r, 10, 15);
-                bp.trunk(0, h - 1, 1.3);
-                flare(bp, 2.0, 2);
-                crown(bp, 0, h, range(r, 7, 9), 0.45, range(r, 6.0, 8.5), 0.5, 2.5, 0.85, range(r, 4.2, 5.0), 0.72);
-                bp.blob(0, h + 1.5, 0, 5.4, 3.0, 5.4, 0.95);
-                bp.surfaceRoots(range(r, 6, 8), 4, 1.8);
+            default -> {
+                fork = range(r, 4, 5);
+                r0 = 2.1;
+                r1 = 1.4;
+                rx = range(r, 9.5, 11.0);
+                rc = 3.1;
+                limbs = range(r, 4, 5);
             }
         }
+        heavyDome(bp, fork, c, r0, r1, rx, rc, limbs);
+        roots(bp, c, size, r0, 1.1);
+    }
+
+    private static void heavyDome(TreeBlueprint bp, int fork, double c, double r0, double r1, double rx, double rc, int limbs) {
+        RandomGenerator r = bp.random();
+        double ry = rx * range(r, 0.52, 0.6);
+        Trunk t = trunk(r, fork, c, r0, r1, range(r, 0.0, 0.5), range(r, 0.0, 0.4), 0.1);
+        t.draw(bp);
+        V top = t.at(fork);
+        V centre = new V(top.x, fork + ry * 0.55, top.z);
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, rc, 0.95), rc * 1.1, 0.3, -0.5, 0.25, 0.12, rc + 0.6);
+        Style st = new Style(0.4, 0.06, 0.12, 0.42, 0.4, limbs);
+        decurrent(bp, top, UP, sites, r1, 0, st, puffs(rc, 0.7, 0.96));
+    }
+
+    /** A massive dark oak under a heavy dome over 30 blocks across. */
+    private static void ancientDarkOak(TreeBlueprint bp) {
+        RandomGenerator r = bp.random();
+        double r0 = range(r, 3.0, 3.4);
+        heavyDome(bp, range(r, 5, 7), 0.0, r0, r0 * 0.7, range(r, 16.0, 17.5), 3.3, range(r, 5, 6));
+        roots(bp, 0.0, TreeSize.ANCIENT, r0, 1.1);
     }
 
     // =========================================================================================
@@ -651,111 +1258,179 @@ public final class TreeShapes {
     // =========================================================================================
 
     private static void mangrove(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
+        RandomGenerator r = bp.random();
         int rootHeight;
         int h;
-        int roots;
-        double canopyR;
-        double trunkR = 0;
+        int props;
+        double rx;
+        double r0 = 0.0;
+        double c = 0.0;
         switch (size) {
-            case YOUNG -> { rootHeight = 1; h = range(r, 3, 4); roots = 3; canopyR = 2.0; }
-            case SMALL -> { rootHeight = 2; h = range(r, 5, 7); roots = range(r, 4, 5); canopyR = 2.8; }
-            case MEDIUM -> { rootHeight = range(r, 2, 3); h = range(r, 7, 10); roots = range(r, 5, 7); canopyR = 3.4; }
-            case LARGE -> { rootHeight = range(r, 3, 4); h = range(r, 10, 13); roots = range(r, 7, 9); canopyR = 4.0; }
-            default -> { rootHeight = range(r, 4, 5); h = range(r, 12, 16); roots = range(r, 9, 12); canopyR = 4.6; trunkR = 0.5; }
+            case YOUNG -> {
+                rootHeight = 1;
+                h = range(r, 3, 4);
+                props = 3;
+                rx = 2.2;
+            }
+            case SMALL -> {
+                rootHeight = 2;
+                h = range(r, 5, 7);
+                props = range(r, 4, 5);
+                rx = range(r, 3.0, 3.5);
+            }
+            case MEDIUM -> {
+                rootHeight = range(r, 2, 3);
+                h = range(r, 7, 10);
+                props = range(r, 5, 7);
+                rx = range(r, 4.0, 4.8);
+            }
+            case LARGE -> {
+                rootHeight = range(r, 3, 4);
+                h = range(r, 10, 13);
+                props = range(r, 7, 9);
+                rx = range(r, 5.2, 6.2);
+            }
+            default -> {
+                rootHeight = range(r, 4, 5);
+                h = range(r, 12, 16);
+                props = range(r, 9, 12);
+                rx = range(r, 6.5, 7.5);
+                r0 = 0.7;
+                c = 0.5;
+            }
         }
-        BlockState rootBlock = Blocks.MANGROVE_ROOTS.defaultBlockState();
-        double c = trunkR == 0.5 ? 0.5 : 0.0;
-        // the trunk starts on top of the root cluster
+        // the trunk starts on top of a cluster of roots
         for (int y = 0; y < rootHeight; y++) {
-            bp.root(0, y, 0, rootBlock);
-            if (trunkR == 0.5) {
-                bp.root(1, y, 0, rootBlock);
-                bp.root(0, y, 1, rootBlock);
-                bp.root(1, y, 1, rootBlock);
+            bp.propRoot(0, y, 0);
+            if (r0 > 0) {
+                bp.propRoot(1, y, 0);
+                bp.propRoot(0, y, 1);
+                bp.propRoot(1, y, 1);
             }
         }
-        for (int y = rootHeight; y < h; y++) {
-            bp.trunkLayer(0, y, 0, trunkR);
+        int fork = Math.max(rootHeight + 1, (int) (h * 0.6));
+        Trunk t = trunk(r, fork, c, r0, r0, range(r, 0.0, 0.8), range(r, 0.0, 0.6), 0.2);
+        t.draw(bp, rootHeight);
+        // join the leaning trunk's foot to the top of the root cluster
+        bp.path(c, rootHeight, c, t.cx[rootHeight], rootHeight, t.cz[rootHeight], (byte) 0);
+        // prop roots arch out from the trunk and land in the mud
+        double a0 = angle(r);
+        for (int i = 0; i < props; i++) {
+            double a = a0 + i * Math.PI * 2.0 / props + range(r, -0.3, 0.3);
+            double reach = range(r, 2.0, 2.4 + rootHeight * 0.9 + size.ordinal() * 0.4);
+            double sy = range(r, rootHeight * 0.6, rootHeight + 1.5);
+            V o = t.at(sy);
+            V end = new V(c + Math.cos(a) * reach, -1.0, c + Math.sin(a) * reach);
+            V ctrl = o.add(horizontal(a, reach * 0.55)).add(new V(0, 0.8, 0));
+            propCurve(bp, o, ctrl, end);
         }
-        double a0 = r.nextDouble() * Math.PI * 2;
-        for (int i = 0; i < roots; i++) {
-            double a = a0 + i * Math.PI * 2 / roots + range(r, -0.3, 0.3);
-            double reach = range(r, 2.0, 2.0 + rootHeight * 0.9 + size.ordinal() * 0.4);
-            double startY = range(r, rootHeight * 0.6, rootHeight + 1.5);
-            double ex = c + Math.cos(a) * reach;
-            double ez = c + Math.sin(a) * reach;
-            double mx = c + Math.cos(a) * reach * 0.55;
-            double mz = c + Math.sin(a) * reach * 0.55;
-            int segments = 8;
-            for (int s = 0; s <= segments; s++) {
-                double t = s / (double) segments;
-                double u = 1 - t;
-                double px = u * u * c + 2 * u * t * mx + t * t * ex;
-                double pz = u * u * c + 2 * u * t * mz + t * t * ez;
-                double py = u * u * startY + 2 * u * t * (startY + 0.8) + t * t * -1.0;
-                bp.root(Mth.floor(px + 0.5), Mth.floor(py + 0.5), Mth.floor(pz + 0.5), rootBlock);
+        double ry = rx * 0.55;
+        V top = t.at(fork);
+        V centre = new V(top.x, h - ry * 0.4, top.z);
+        double rc = 2.0 + 0.15 * size.ordinal();
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, rc, 0.85), rc * 1.15, 0.35, -0.6, 0.2, 0.28, rc + 0.6);
+        Style st = new Style(0.4, 0.05, 0.2, 0.45, 0.45, range(r, 2, 4));
+        decurrent(bp, top, UP, sites, 0.0, 0, st, puffs(rc, 0.7, 0.92));
+        // aerial roots dropping from low limbs
+        if (size.atLeast(TreeSize.LARGE)) {
+            int drops = range(r, 2, 4);
+            for (int i = 0; i < drops; i++) {
+                double a = angle(r);
+                V o = t.at(fork - 1.0);
+                V e = o.add(horizontal(a, range(r, 3.0, rx * 0.7))).add(new V(0, range(r, 0.5, 1.5), 0));
+                limbTo(bp, o, horizontal(a, 1), e, 0, 0, st);
+                puffs(rc * 0.85, 0.7, 0.92).grow(bp, e, UP);
+                bp.path(e.x, e.y - 1.0, e.z, e.x + range(r, -0.6, 0.6), -1.0, e.z + range(r, -0.6, 0.6), TreeBlueprint.PROP_ROOT);
             }
         }
-        int limbs = 2 + size.ordinal() / 2;
-        for (int i = 0; i < limbs; i++) {
-            double a = r.nextDouble() * Math.PI * 2;
-            double sy = range(r, h * 0.55, h - 1.0);
-            double len = range(r, 1.5, 2.5 + size.ordinal());
-            double ex = c + Math.cos(a) * len;
-            double ez = c + Math.sin(a) * len;
-            double ey = sy + range(r, 1.0, 2.0);
-            bp.branch(c, sy, c, ex, ey, ez, 0);
-            bp.blob(ex, ey + 0.5, ez, canopyR * 0.8, 1.8, canopyR * 0.8, 0.9);
+    }
+
+    private static void propCurve(TreeBlueprint bp, V s, V ctrl, V e) {
+        int segments = 8;
+        V p = s;
+        for (int i = 1; i <= segments; i++) {
+            double t = i / (double) segments;
+            double u = 1.0 - t;
+            V n = s.mul(u * u).add(ctrl.mul(2 * u * t)).add(e.mul(t * t));
+            bp.path(p.x, p.y, p.z, n.x, n.y, n.z, TreeBlueprint.PROP_ROOT);
+            p = n;
         }
-        bp.blob(c, h, c, canopyR, 2.2, canopyR, 0.92);
     }
 
     // =========================================================================================
-    // Cherry: graceful curving limbs under wide pink clouds
+    // Cherry: a dark gnarled trunk forking into thick limbs under a huge dome of blossom
     // =========================================================================================
 
     private static void cherry(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
-        int h;
+        RandomGenerator r = bp.random();
+        int fork;
+        double r0;
+        double r1;
+        double c = 0.0;
+        double rx;
+        double rc;
         int limbs;
-        double len;
-        double blobR;
         switch (size) {
-            case YOUNG -> { h = range(r, 2, 3); limbs = 1; len = 1.2; blobR = 1.9; }
-            case SMALL -> { h = range(r, 3, 5); limbs = 2; len = range(r, 2.5, 3.5); blobR = range(r, 2.5, 3.0); }
-            case MEDIUM -> { h = range(r, 4, 6); limbs = 3; len = range(r, 4.0, 5.5); blobR = range(r, 3.0, 3.8); }
-            case LARGE -> { h = range(r, 5, 8); limbs = range(r, 3, 4); len = range(r, 5.5, 7.5); blobR = range(r, 3.6, 4.4); }
-            default -> { h = range(r, 7, 9); limbs = range(r, 4, 5); len = range(r, 7.0, 9.0); blobR = range(r, 4.2, 5.0); }
-        }
-        bp.trunk(0, h - 1, 0);
-        double a0 = r.nextDouble() * Math.PI * 2;
-        for (int i = 0; i < limbs; i++) {
-            double a = a0 + i * Math.PI * 2 / limbs + range(r, -0.35, 0.35);
-            double l = len * range(r, 0.8, 1.05);
-            double sy = h - range(r, 0.5, 2.0);
-            double ex = Math.cos(a) * l;
-            double ez = Math.sin(a) * l;
-            double ey = sy + l * range(r, 0.45, 0.7);
-            // limb sweeps out first, then turns upward
-            double cxp = Math.cos(a) * l * 0.65;
-            double czp = Math.sin(a) * l * 0.65;
-            bp.curvedBranch(0, sy, 0, cxp, sy + 0.4, czp, ex, ey, ez, 0);
-            double br = blobR * range(r, 0.85, 1.1);
-            bp.blob(ex, ey + 0.6, ez, br, br * 0.62, br, 0.9);
-            // weeping fringe below the cluster
-            for (int k = 0; k < 5 + size.ordinal() * 2; k++) {
-                double fa = r.nextDouble() * Math.PI * 2;
-                double fr = br * range(r, 0.6, 0.95);
-                int fx = Mth.floor(ex + Math.cos(fa) * fr);
-                int fz = Mth.floor(ez + Math.sin(fa) * fr);
-                int fy = Mth.floor(ey + 0.6 - br * 0.62);
-                for (int d = 0; d < 1 + r.nextInt(2); d++) {
-                    bp.leaf(fx, fy - d, fz);
-                }
+            case YOUNG -> {
+                fork = range(r, 1, 2);
+                r0 = 0;
+                r1 = 0;
+                rx = 2.2;
+                rc = 1.8;
+                limbs = 2;
+            }
+            case SMALL -> {
+                fork = 2;
+                r0 = 0;
+                r1 = 0;
+                rx = range(r, 3.2, 3.8);
+                rc = 2.2;
+                limbs = 2;
+            }
+            case MEDIUM -> {
+                fork = 3;
+                r0 = 0.7;
+                r1 = 0.7;
+                c = 0.5;
+                rx = range(r, 5.2, 6.2);
+                rc = 2.6;
+                limbs = 3;
+            }
+            case LARGE -> {
+                fork = range(r, 4, 5);
+                r0 = 1.4;
+                r1 = 1.0;
+                rx = range(r, 7.5, 8.8);
+                rc = 2.9;
+                limbs = range(r, 3, 4);
+            }
+            case GIANT -> {
+                fork = range(r, 5, 6);
+                r0 = 1.9;
+                r1 = 1.4;
+                rx = range(r, 10.0, 11.0);
+                rc = 3.0;
+                limbs = 4;
+            }
+            default -> {
+                fork = range(r, 6, 8);
+                r0 = range(r, 2.6, 3.0);
+                r1 = 2.1;
+                rx = range(r, 15.5, 17.5);
+                rc = 3.2;
+                limbs = range(r, 4, 5);
             }
         }
-        bp.blob(0, h + 1, 0, blobR * 0.8, blobR * 0.55, blobR * 0.8, 0.85);
+        double ry = rx * range(r, 0.42, 0.5);
+        Trunk t = trunk(r, fork, c, r0, r1, range(r, 0.2, 0.25 * fork + 0.4), range(r, 0.2, 0.6), 0.3);
+        t.draw(bp);
+        V top = t.at(fork);
+        // the dome rides high on the limbs and arches over them; its rim hangs lower, fringed with blossom
+        V centre = new V(top.x + (top.x - c) * 0.5, fork + ry + 1.5, top.z + (top.z - c) * 0.5);
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, rc, 0.9), rc * 1.12, 0.35, -0.3, 0.6, 0.12, rc + 0.6);
+        Style st = new Style(0.3, 0.14, 0.24, 0.5, 0.36, limbs);
+        decurrent(bp, top, t.topDirection(), sites, r1, 0, st, weeping(rc, 0.7, 0.95, size.atLeast(TreeSize.MEDIUM) ? 3 : 1, 2));
+        roots(bp, c, size, r0, 1.0);
     }
 
     // =========================================================================================
@@ -763,33 +1438,26 @@ public final class TreeShapes {
     // =========================================================================================
 
     private static void azalea(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
-        int h = switch (size) {
-            case YOUNG -> 2;
-            case SMALL -> range(r, 3, 4);
-            case MEDIUM -> range(r, 4, 5);
-            case LARGE -> range(r, 5, 6);
-            case GIANT, ANCIENT -> range(r, 6, 7);
+        RandomGenerator r = bp.random();
+        int fork = switch (size) {
+            case YOUNG -> 1;
+            case SMALL -> 2;
+            case MEDIUM -> range(r, 2, 3);
+            default -> range(r, 3, 4);
         };
-        double a = r.nextDouble() * Math.PI * 2;
-        double ox = Math.cos(a) * (h > 3 ? 1 : 0);
-        double oz = Math.sin(a) * (h > 3 ? 1 : 0);
-        bp.branch(0, 0, 0, 0, h * 0.5, 0, 0);
-        bp.branch(0, h * 0.5, 0, ox, h - 1, oz, 0);
-        double cr = 1.8 + size.ordinal() * 0.45;
-        bp.blob(ox, h, oz, cr, cr * 0.7, cr, 0.9);
-        if (size.ordinal() >= TreeSize.MEDIUM.ordinal()) {
-            for (int i = 0; i < 2; i++) {
-                double ba = a + Math.PI * (0.6 + i * 0.8);
-                double ex = Math.cos(ba) * cr * 0.9;
-                double ez = Math.sin(ba) * cr * 0.9;
-                bp.branch(0, h * 0.6, 0, ex, h - 0.5, ez, 0);
-                bp.blob(ex, h, ez, cr * 0.7, cr * 0.55, cr * 0.7, 0.9);
-            }
-        }
+        double rx = 2.0 + 0.5 * Math.min(4, size.ordinal());
+        Trunk t = trunk(r, fork, 0.0, 0.0, 0.0, range(r, 0.3, 1.2), range(r, 0.3, 0.8), 0.35);
+        t.draw(bp);
+        V top = t.at(fork);
+        double ry = rx * 0.62;
+        double rc = 1.8 + 0.12 * size.ordinal();
+        V centre = new V(top.x, fork + ry * 0.75, top.z);
+        List<V> sites = crownSites(bp, centre, rx, ry, clusterCount(rx, ry, rc, 0.8), rc * 1.1, 0.3, -0.5, 0.2, 0.2, rc + 0.6);
+        Style st = new Style(0.35, 0.05, 0.25, 0.5, 0.45, 2);
+        decurrent(bp, top, t.topDirection(), sites, 0.0, 0, st, puffs(rc, 0.72, 0.92));
         bp.sprinkleAltLeaves(0.4);
         for (int y = -1; y >= -3; y--) {
-            bp.root(0, y, 0, Blocks.ROOTED_DIRT.defaultBlockState());
+            bp.rootedDirt(0, y, 0);
         }
     }
 
@@ -797,23 +1465,171 @@ public final class TreeShapes {
     // Dead trees and snags
     // =========================================================================================
 
+    /** A leafless broadleaf: a leaning trunk with a few crooked, partly broken limbs. */
     private static void dead(TreeBlueprint bp, TreeSize size) {
-        RandomSource r = bp.random();
+        RandomGenerator r = bp.random();
         int h = switch (size) {
             case YOUNG -> range(r, 2, 3);
-            case SMALL -> range(r, 3, 5);
-            case MEDIUM -> range(r, 5, 8);
-            case LARGE -> range(r, 8, 12);
-            case GIANT, ANCIENT -> range(r, 12, 16);
+            case SMALL -> range(r, 4, 6);
+            case MEDIUM -> range(r, 6, 9);
+            case LARGE -> range(r, 9, 13);
+            default -> range(r, 13, 17);
         };
-        bp.trunk(0, h - 1, size == TreeSize.GIANT ? 0.5 : 0);
-        boolean conifer = bp.species() == TreeSpecies.DEAD_SPRUCE;
-        int branches = conifer ? h / 2 : range(r, 1, 3 + size.ordinal() / 2);
-        for (int i = 0; i < branches; i++) {
-            double a = r.nextDouble() * Math.PI * 2;
-            double sy = conifer ? range(r, h * 0.25, h - 1.0) : range(r, h * 0.45, h - 1.0);
-            double len = conifer ? range(r, 1.0, 2.0) : range(r, 1.5, 3.5);
-            bp.branch(0, sy, 0, Math.cos(a) * len, sy + (conifer ? -0.3 : range(r, 0.5, 2.0)), Math.sin(a) * len, 0);
+        double r0 = size == TreeSize.LARGE ? 0.7 : size.atLeast(TreeSize.GIANT) ? 1.3 : 0.0;
+        double c = size == TreeSize.LARGE ? 0.5 : 0.0;
+        int fork = Math.max(1, (int) (h * range(r, 0.45, 0.65)));
+        Trunk t = trunk(r, fork, c, r0, r0 >= 0.95 ? 0.7 : r0, range(r, 0.0, 0.15 * h), range(r, 0.0, 0.7), 0.2);
+        t.draw(bp);
+        if (size == TreeSize.YOUNG) {
+            return;
+        }
+        V top = t.at(fork);
+        double rx = h * 0.4;
+        double ry = (h - fork) * 0.6 + 0.5;
+        V centre = new V(top.x, fork + ry * 0.7, top.z);
+        List<V> ends = crownSites(bp, centre, rx, ry, 3 + size.ordinal(), 2.2, 0.6, -0.3, 0.0, 0.3, 1.0);
+        Style st = new Style(0.3, 0.05, 0.3, 0.5, 0.45, range(r, 2, 3));
+        decurrent(bp, top, t.topDirection(), ends, r0 >= 0.95 ? 0.7 : 0.0, 0, st, bareTwigs(1.5 + 0.3 * size.ordinal()));
+        roots(bp, c, size.smaller(), r0, 0.9);
+    }
+
+    /** A dead conifer: short bare whorl stubs, more of them low down, and a broken top. */
+    private static void deadSpruce(TreeBlueprint bp, TreeSize size) {
+        RandomGenerator r = bp.random();
+        int h = switch (size) {
+            case YOUNG -> range(r, 3, 4);
+            case SMALL -> range(r, 5, 8);
+            case MEDIUM -> range(r, 8, 13);
+            case LARGE -> range(r, 13, 19);
+            default -> range(r, 18, 26);
+        };
+        double r0 = size.atLeast(TreeSize.LARGE) ? 0.7 : 0.0;
+        double c = r0 > 0 ? 0.5 : 0.0;
+        Trunk t = trunk(r, h - 1, c, r0, r0, range(r, 0.0, 0.06 * h), range(r, 0.0, 0.5), 0.0);
+        t.draw(bp);
+        // break the top first, so the stubs below never hang on blocks that broke away
+        jaggedTop(bp, h, 2);
+        for (int y = Math.max(1, h / 5); y < h - 2; y += range(r, 2, 3)) {
+            double s = (double) y / h;
+            int spokes = range(r, 1, 3);
+            for (int i = 0; i < spokes; i++) {
+                if (r.nextFloat() < 0.3f + 0.4f * s) {
+                    continue;
+                }
+                double a = angle(r);
+                double len = range(r, 1.0, 1.0 + 2.2 * (1.0 - s)) + (r0 > 0 ? 0.6 : 0.0);
+                V o = t.at(y);
+                V e = o.add(horizontal(a, len + (r0 > 0 ? 0.7 : 0.0))).add(new V(0, -0.3 * len, 0));
+                bp.path(o.x, y, o.z, e.x, e.y, e.z, (byte) 0);
+            }
+        }
+        roots(bp, c, size.smaller(), r0, 0.8);
+    }
+
+    /**
+     * A fire-killed snag: a charred trunk with a broken, jagged top, a few short stubs where limbs
+     * burned off, sometimes one broken limb or a dead second leader, and a fire scar at the foot of
+     * thick trunks. No leaves.
+     */
+    private static void burned(TreeBlueprint bp, TreeSize size) {
+        RandomGenerator r = bp.random();
+        int h;
+        double r0;
+        double c = 0.0;
+        switch (size) {
+            case YOUNG -> {
+                h = range(r, 2, 4);
+                r0 = 0;
+            }
+            case SMALL -> {
+                h = range(r, 4, 7);
+                r0 = 0;
+            }
+            case MEDIUM -> {
+                h = range(r, 7, 11);
+                r0 = r.nextFloat() < 0.4f ? 0.7 : 0.0;
+                c = r0 > 0 ? 0.5 : 0.0;
+            }
+            case LARGE -> {
+                h = range(r, 10, 15);
+                r0 = 0.7;
+                c = 0.5;
+            }
+            default -> {
+                h = range(r, 14, 20);
+                r0 = range(r, 1.3, 1.7);
+            }
+        }
+        Trunk t = trunk(r, h - 1, c, r0, r0 >= 0.95 ? 0.7 : r0, range(r, 0.0, 0.1 * h), range(r, 0.0, 0.6), 0.1);
+        t.draw(bp);
+        jaggedTop(bp, h, r0 > 0 ? 3 : 1);
+        Style st = new Style(0.3, 0.05, 0.2, 0.5, 0.5, 1);
+        int stubs = size == TreeSize.YOUNG ? 0 : range(r, 1, 2 + Math.min(3, size.ordinal()));
+        double sa = angle(r);
+        for (int i = 0; i < stubs; i++) {
+            // short, nearly level stubs spread around and along the stem
+            double y = Math.rint(range(r, h * 0.3, h - 2.5));
+            V o = t.at(y);
+            sa += range(r, 1.6, 2.8);
+            double len = range(r, 0.9, 1.7) + t.radius(y);
+            V e = o.add(horizontal(sa, len)).add(new V(0, len * range(r, -0.25, 0.3), 0));
+            bp.path(o.x, o.y, o.z, e.x, e.y, e.z, (byte) 0);
+        }
+        if (size.atLeast(TreeSize.MEDIUM) && r.nextFloat() < 0.5f) {
+            // one limb that broke off further out, with a short side twig
+            double y = Math.rint(range(r, h * 0.45, h - 3.0));
+            V o = t.at(y);
+            double a = sa + range(r, 1.6, 2.8);
+            double len = range(r, 2.5, 4.0) + t.radius(y);
+            V e = o.add(horizontal(a, len)).add(new V(0, len * range(r, 0.3, 0.6), 0));
+            V d = limbTo(bp, o, horizontal(a, 1).add(UP).norm(), e, 0, 0, st);
+            V twig = e.add(perpendicular(d, r).mul(1.4)).add(new V(0, 0.8, 0));
+            bp.path(e.x, e.y, e.z, twig.x, twig.y, twig.z, (byte) 0);
+        }
+        if (size.atLeast(TreeSize.MEDIUM) && r.nextFloat() < 0.25f) {
+            // a dead second leader from a fork, broken shorter than the main stem
+            double y = Math.rint(h * range(r, 0.5, 0.65));
+            V o = t.at(y);
+            double a = angle(r);
+            V e = o.add(horizontal(a, range(r, 1.5, 2.5))).add(new V(0, (h - y) * range(r, 0.4, 0.7), 0));
+            limbTo(bp, o, UP, e, 0, 0, st);
+        }
+        if (r0 >= 0.7 && r.nextFloat() < 0.6f) {
+            fireScar(bp, t, c, r0);
+        }
+        if (size.atLeast(TreeSize.SMALL)) {
+            bp.rootSystem(c, range(r, 3, 5), r0, 2.0 + size.ordinal() * 0.9, 0.3 + 0.3 * size.ordinal(), 0.5);
+        }
+    }
+
+    /** Breaks the top of a trunk off unevenly: each column of the top {@code depth} layers may end early. */
+    private static void jaggedTop(TreeBlueprint bp, int h, int depth) {
+        RandomGenerator r = bp.random();
+        for (int x = bp.minX(); x <= bp.maxX(); x++) {
+            for (int z = bp.minZ(); z <= bp.maxZ(); z++) {
+                int cut = h - 1 - r.nextInt(depth + 1);
+                if (TreeBlueprint.isWoody(bp.get(x, h - 1, z)) || TreeBlueprint.isWoody(bp.get(x, cut, z))) {
+                    for (int y = cut + 1; y <= h + 1; y++) {
+                        if (bp.get(x, y, z) == TreeBlueprint.LOG_Y) {
+                            bp.clear(x, y, z);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** A fire scar ("cat face"): a hollow notch burned into one side of the trunk's foot. */
+    private static void fireScar(TreeBlueprint bp, Trunk t, double c, double r0) {
+        RandomGenerator r = bp.random();
+        double a = angle(r);
+        int top = range(r, 2, 3);
+        for (int y = 1; y <= top; y++) {
+            V o = t.at(y);
+            double depth = Math.max(0.6, t.radius(y)) * (1.0 - 0.25 * (y - 1));
+            int x = TreeBlueprint.round(o.x + Math.cos(a) * depth);
+            int z = TreeBlueprint.round(o.z + Math.sin(a) * depth);
+            bp.clear(x, y, z);
         }
     }
 }

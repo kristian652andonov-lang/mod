@@ -5,19 +5,19 @@
     "sizes": [
       {
         "data": "medium",
-        "weight": 20
+        "weight": 200
       },
       {
         "data": "large",
-        "weight": 50
+        "weight": 500
       },
       {
         "data": "giant",
-        "weight": 30
+        "weight": 300
       },
       {
         "data": "ancient",
-        "weight": 12
+        "weight": 40
       }
     ]
   }

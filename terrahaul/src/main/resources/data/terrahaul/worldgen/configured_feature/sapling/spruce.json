@@ -5,11 +5,11 @@
     "sizes": [
       {
         "data": "small",
-        "weight": 40
+        "weight": 400
       },
       {
         "data": "medium",
-        "weight": 40
+        "weight": 400
       }
     ]
   }
