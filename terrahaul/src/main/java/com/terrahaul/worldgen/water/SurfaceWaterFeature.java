@@ -123,6 +123,13 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
                     placed = true;
                 }
             }
+            if (lv == WaterSolver.NONE && ws.solidTop[k] == ground && ground < natural && palette.isGrass(top)) {
+                // a bench of the bowl cut into soil grows over again, instead of showing bare dirt
+                BlockState s = level.getBlockState(pos.set(x, ground, z));
+                if (s.is(Blocks.DIRT) && level.getBlockState(pos.set(x, ground + 1, z)).isAir()) {
+                    level.setBlock(pos.set(x, ground, z), Blocks.GRASS_BLOCK.defaultBlockState(), 2);
+                }
+            }
         }
 
         // ---- sills, banks and boulders --------------------------------------------------------

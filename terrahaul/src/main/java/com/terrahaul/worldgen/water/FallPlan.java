@@ -34,7 +34,7 @@ public final class FallPlan implements WaterPlan {
     public static final byte MAT_VOLCANIC = 3;
 
     /** How far beyond the shore the walls of a bowl are cut back. */
-    static final int WALL_REACH = 30;
+    static final int WALL_REACH = 44;
 
     private final TerrainModel model;
     public final int type;
@@ -132,7 +132,7 @@ public final class FallPlan implements WaterPlan {
     public String typeName() {
         return switch (type) {
             case CURTAIN -> "curtain";
-            case GORGE -> "gorge";
+            case GORGE -> halfWidth >= 4 ? "curtain over a gorge" : "gorge";
             case SEA -> "into the water";
             default -> "cascade";
         };
@@ -258,13 +258,17 @@ public final class FallPlan implements WaterPlan {
             return true;
         }
         // walls of the bowl, and of the gorge where the bowl opens into a winding slot
+        // the walls are sheer around the curtain (the amphitheatre the fall has cut back into the
+        // rock) and lean back further out, so the bowl opens into the slope instead of being a
+        // box cut into it; the gorge widens downstream like a ravine
+        double lean = 1.0 - 0.55 * Math.max(TMath.smoothstep(uc, uc + ru + 14.0, u), TMath.smoothstep(1.0, 10.0, av - halfWidth));
         double wall = Double.MAX_VALUE;
         double dist = (rn - shore) * edge;
         if (dist <= WALL_REACH) {
-            wall = pool + 1 + rockWall(wallSlope * dist, x, z, n);
+            wall = pool + 1 + rockWall(wallSlope * lean * dist, x, z, n);
         }
         if (u >= uc && u <= slotEnd) {
-            double sw = slotHalf + 1.2 * n;
+            double sw = slotHalf + 1.8 * n + 0.2 * (u - uc);
             double dv = Math.abs(v - slotOffset(u));
             if (dv <= sw) {
                 if (natural <= pool + 1) {
@@ -274,7 +278,7 @@ public final class FallPlan implements WaterPlan {
                 out.role = WaterSolver.ROLE_SHORE;
                 return true;
             }
-            wall = Math.min(wall, pool + 1 + rockWall(wallSlope * (dv - sw), x, z, n));
+            wall = Math.min(wall, pool + 1 + rockWall(wallSlope * 0.5 * (dv - sw), x, z, n));
         }
         if (wall < natural) {
             out.ground = (int) Math.floor(wall);
@@ -291,7 +295,7 @@ public final class FallPlan implements WaterPlan {
      */
     private double rockWall(double h, int x, int z, double n) {
         double n2 = model.detail3(5, x / 9.0, 21.0, z / 9.0);
-        return Math.max(0.0, TMath.terrace(Math.max(0.0, h) + 2.5 * n2 + 1.5 * n, 7.0, 0.72));
+        return Math.max(0.0, TMath.terrace(Math.max(0.0, h) + 4.0 * n2 + 2.0 * n, 7.0, 0.72));
     }
 
     /** Sideways offset of a gorge's slot from the fall's axis: the slot winds a little. */

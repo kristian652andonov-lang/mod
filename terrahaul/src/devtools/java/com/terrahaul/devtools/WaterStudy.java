@@ -21,13 +21,29 @@ import javax.imageio.ImageIO;
  * Development tool for surface water: runs the game's {@link WaterSolver} on model ground, chunk by
  * chunk exactly as the feature does, and checks what the player would see.
  * <p>
- * Modes:
+ * Modes (run with {@code ./gradlew waterStudy -Pargs="<mode> <seed> ..."}):
  * <ul>
  *   <li>{@code solve <seed> <regionsPerKind> <outDir>}: finds regions of each kind (elevated
- *       river, great river, lake, stream, crater), solves 5x5 chunks around each independently
- *       and checks the invariants on the assembled result (no source block facing air or above
- *       air, neighbouring chunks agreeing on every shared decision), prints statistics and writes
- *       top views.</li>
+ *       river, great river, lake, stream, crater, canyon river, dry river), solves 8x8 chunks
+ *       around each independently and checks the invariants on the assembled result (no source
+ *       block facing air or above air, neighbouring chunks agreeing on every shared decision),
+ *       prints statistics and writes top and first-person views.</li>
+ *   <li>{@code survey <seed> <half> <n>}: the same checks on {@code n} random 3x3-chunk areas
+ *       with surface water, and where the solver had to build banks of four blocks or more.</li>
+ *   <li>{@code falls <seed> <half> <outDir> [renders] [all|curtain|gorge|sea|cascade]}:
+ *       waterfalls and cascades per km2 by climate, their sizes, and every plan built and checked
+ *       (the curtain falls from the lip, the space in front is open); side, first-person,
+ *       overview and top views.</li>
+ *   <li>{@code rivers <seed> <half>}: great-river widths, perched channels, dry beds near
+ *       water.</li>
+ *   <li>{@code walls <seed> <half>}: steep steps the water carving cuts into gentle ground (abrupt
+ *       valley ends and shore walls).</li>
+ *   <li>{@code lakes <seed> <half>}, {@code lakecheck <seed> <half>}: lake sites and their
+ *       rejections; every elevated lake and crater lake solved and checked for enclosure.</li>
+ *   <li>{@code finder <seed> <n>}: {@code /terrahaul find} for the water targets from {@code n}
+ *       origins, each result checked on the solved world around it.</li>
+ *   <li>{@code map}, {@code dump}, {@code corners}, {@code fallinfo}: views and dumps for
+ *       debugging single places.</li>
  * </ul>
  */
 public final class WaterStudy {
@@ -1046,6 +1062,14 @@ public final class WaterStudy {
                 }
             }
             gaps += g;
+            int shown = 0;
+            for (int t = 0; t < area.w * area.h && shown < 3; t++) {
+                int raise = area.solidTop[t] - area.ground[t];
+                if (area.level[t] == WaterSolver.NONE && raise >= 4) {
+                    System.out.printf(Locale.ROOT, "    bank of %d at %d,%d%n", raise, area.ax + t % area.w, area.az + t / area.w);
+                    shown++;
+                }
+            }
             accumulate(total, st);
             if (st.sourceFacingAir > 0 || g > 0 || st.bankHist[3] + st.bankHist[4] + st.bankHist[5] + st.bankHist[6] + st.bankHist[7] > 0) {
                 bad.add(String.format(Locale.ROOT, "%s at %.0f,%.0f level %.0f: source-air %d, dry gaps %d, banks %s", site[4] > 0 ? "crater" : "lake",

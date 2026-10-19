@@ -821,19 +821,6 @@ public final class TerrainModel {
         if (withLakes) {
             sc.lakeCount = collectLakes(x, z, true, sc, collectLakes(x, z, false, sc, 0));
         }
-        double river = 0.0;
-        double riverValley = 0.0;
-        double riverHalfW = 0.0;
-        double riverDist = 1.0E9;
-        double riverLevel = sl;
-        boolean dry = false;
-        double waterLevel = ColumnSample.NO_WATER;
-        int bodyKind = WaterBody.NONE;
-        boolean bodyInside = false;
-        double bodyLevel = ColumnSample.NO_WATER;
-        double bodyCont = ColumnSample.NO_WATER;
-        double riverGreat = 0.0;
-        out.riverAridity = 0.0;
         double landMask = (1.0 - smoothstep(0.0, 0.35, island)) * (1.0 - smoothstep(0.02, 0.25, volcano));
         RiverTrace great = sc.greatTrace;
         RiverTrace normal = sc.normalTrace;
@@ -849,37 +836,18 @@ public final class TerrainModel {
                 h = carveNormal(h, plains, normal);
             }
         }
-        if (normal.hit || great.hit) {
-            // the river whose channel the column is in (or is closest to, relative to its width)
-            // sets the column's river fields
-            double relN = normal.hit ? normal.dist / normal.halfW : Double.MAX_VALUE;
-            double relG = great.hit ? great.dist / great.halfW : Double.MAX_VALUE;
-            RiverTrace dom = relN <= relG ? normal : great;
-            RiverTrace other = dom == normal ? great : normal;
-            riverHalfW = dom.halfW;
-            riverDist = dom.dist;
-            riverLevel = Math.floor(dom.level);
-            riverValley = (1.0 - clamp01((dom.valleyDist - dom.halfW) / dom.valleyW)) * dom.fade;
-            dry = dom.wet <= 0.15 && dom.level > sl + 1.0;
-            riverGreat = dom == great ? great.great : 0.0;
-            out.riverAridity = dom.arid;
-            RiverTrace wetChannel = dom.inside() ? dom : other.hit && other.inside() ? other : null;
-            // (only where the channel is carved down to the river: where a valley fades out, its
-            // shallow bed is no channel)
-            if (dom.halfW > 1.0 && dom.dist < dom.halfW && h < dom.level + 1.0) {
-                river = 1.0 - dom.dist / dom.halfW;
-            }
-            if (wetChannel != null) {
-                bodyKind = WaterBody.RIVER;
-                bodyInside = true;
-                double cont = Math.max(sl, wetChannel.level);
-                bodyCont = cont;
-                bodyLevel = Math.floor(cont);
-                if (bodyLevel > sl) {
-                    waterLevel = bodyLevel;
-                }
-            }
-        }
+        riverFields(h, normal, great, out, sc);
+        double river = sc.fRiver;
+        double riverValley = sc.fValley;
+        double riverHalfW = sc.fHalfW;
+        double riverDist = sc.fDist;
+        double riverLevel = sc.fLevel;
+        boolean dry = sc.fDry;
+        int bodyKind = sc.fBodyInside ? WaterBody.RIVER : WaterBody.NONE;
+        boolean bodyInside = sc.fBodyInside;
+        double bodyLevel = sc.fBodyLevel;
+        double bodyCont = sc.fBodyCont;
+        double waterLevel = bodyInside && bodyLevel > sl ? bodyLevel : ColumnSample.NO_WATER;
         sc.riverWetChannel = bodyInside;
         sc.riverBankGuard = Math.max(bankGuard(normal), bankGuard(great));
 
@@ -931,7 +899,6 @@ public final class TerrainModel {
         out.bodyInside = bodyInside;
         out.bodyLevel = bodyLevel;
         out.bodyLevelCont = bodyCont;
-        out.riverGreat = riverGreat;
         out.nearbyWater = Double.NaN;
 
         // ---- 13. classification and climate ---------------------------------------------------
@@ -1287,6 +1254,51 @@ public final class TerrainModel {
         double mask = smoothstep(-0.55, -0.2, greatPresence.fbm(gfx / (1.4 * gs), gfz / (1.4 * gs))) * smoothstep(1.0, 0.72, cG);
         weight *= smoothstep(0.0, 0.06, mask) * smoothstep(-0.3, -0.17, cG);
         return level - weight * Math.max(0.0, level - (seaLevel + 0.02 * Math.max(0.0, distG - 60.0)));
+    }
+
+    /**
+     * The river fields of a column (into {@code sc.f*}, and the great-river weight and aridity
+     * into {@code out}): the river whose channel the column is in, or is closest to relative to
+     * its width, sets them. A column is in a river's water if it is inside the channel of either
+     * river, wet enough.
+     */
+    private void riverFields(double h, RiverTrace normal, RiverTrace great, ColumnSample out, Scratch sc) {
+        sc.fRiver = 0.0;
+        sc.fValley = 0.0;
+        sc.fHalfW = 0.0;
+        sc.fDist = 1.0E9;
+        sc.fLevel = seaLevel;
+        sc.fDry = false;
+        sc.fBodyInside = false;
+        sc.fBodyLevel = ColumnSample.NO_WATER;
+        sc.fBodyCont = ColumnSample.NO_WATER;
+        out.riverGreat = 0.0;
+        out.riverAridity = 0.0;
+        if (!normal.hit && !great.hit) {
+            return;
+        }
+        double relN = normal.hit ? normal.dist / normal.halfW : Double.MAX_VALUE;
+        double relG = great.hit ? great.dist / great.halfW : Double.MAX_VALUE;
+        RiverTrace dom = relN <= relG ? normal : great;
+        RiverTrace other = dom == normal ? great : normal;
+        sc.fHalfW = dom.halfW;
+        sc.fDist = dom.dist;
+        sc.fLevel = Math.floor(dom.level);
+        sc.fValley = (1.0 - clamp01((dom.valleyDist - dom.halfW) / dom.valleyW)) * dom.fade;
+        sc.fDry = dom.wet <= 0.15 && dom.level > seaLevel + 1.0;
+        out.riverGreat = dom == great ? great.great : 0.0;
+        out.riverAridity = dom.arid;
+        // (only where the channel is carved down to the river: where a valley fades out, its
+        // shallow bed is no channel)
+        if (dom.halfW > 1.0 && dom.dist < dom.halfW && h < dom.level + 1.0) {
+            sc.fRiver = 1.0 - dom.dist / dom.halfW;
+        }
+        RiverTrace wetChannel = dom.inside() ? dom : other.hit && other.inside() ? other : null;
+        if (wetChannel != null) {
+            sc.fBodyInside = true;
+            sc.fBodyCont = Math.max(seaLevel, wetChannel.level);
+            sc.fBodyLevel = Math.floor(sc.fBodyCont);
+        }
     }
 
     /** Water surface of a river whose foot point was evaluated by {@link #riverFoot}. */
@@ -2388,6 +2400,16 @@ public final class TerrainModel {
         final RiverTrace greatTrace = new RiverTrace();
         final RiverTrace normalTrace = new RiverTrace();
         boolean riverWetChannel;
+        // a column's river fields, filled by riverFields
+        double fRiver;
+        double fValley;
+        double fHalfW;
+        double fDist;
+        double fLevel;
+        boolean fDry;
+        boolean fBodyInside;
+        double fBodyLevel;
+        double fBodyCont;
         double riverBankGuard;
         double footC;
         double footBase;

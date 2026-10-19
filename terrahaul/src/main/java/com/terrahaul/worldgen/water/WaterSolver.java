@@ -104,6 +104,8 @@ public final class WaterSolver {
     private final double[] streamBuf = new double[2];
     private final boolean[] feasible = new boolean[N];
     private final boolean[] feasible2 = new boolean[N];
+    private final double[] cornerConts = new double[4];
+    private final double[] cornerLevels = new double[4];
     private int seaLevel;
 
     public static int index(int i, int j) {
@@ -157,7 +159,8 @@ public final class WaterSolver {
         boulder[k] = false;
         planned[k] = false;
         material[k] = 0;
-        for (WaterPlan plan : plans) {
+        for (int p = 0; p < plans.size(); p++) {
+            WaterPlan plan = plans.get(p);
             if (x >= plan.minX() && x <= plan.maxX() && z >= plan.minZ() && z <= plan.maxZ()) {
                 shape.reset(g);
                 if (plan.shape(x, z, g, shape)) {
@@ -222,8 +225,8 @@ public final class WaterSolver {
         int bestKind = WaterBody.NONE;
         boolean anyLava = false;
         boolean anyWater = false;
-        double[] conts = new double[4];
-        double[] levels = new double[4];
+        double[] conts = cornerConts;
+        double[] levels = cornerLevels;
         int n = 0;
         for (int c = 0; c < 4; c++) {
             int ox = c & 1;

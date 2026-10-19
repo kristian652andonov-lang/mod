@@ -39,7 +39,7 @@ public final class FallPlanner {
     public static final int FALL_CELL = 256;
     public static final int CASCADE_CELL = 224;
     /** Furthest any part of a plan reaches from the cell holding its lip or first pool. */
-    private static final int REACH = 96;
+    private static final int REACH = 120;
     private static final FallPlan NONE = new FallPlan(null, -1, 0L, 0, 0);
     private static final Map<TerrainModel, FallPlanner> PLANNERS = Collections.synchronizedMap(new WeakHashMap<>());
 
@@ -403,8 +403,8 @@ public final class FallPlanner {
         }
         p.channel = channel;
         p.headR = channel == link ? 0.0 : clamp(2.5 + 0.35 * hw, 2.5, 6.0);
-        p.ru = clamp(2.5 + 0.10 * drop + 0.2 * hw, 3.0, 13.0);
-        p.rv = clamp(hw + 2.5 + 0.05 * drop, 3.0, 16.0);
+        p.ru = clamp(3.0 + 0.12 * drop + 0.25 * hw, 3.0, 15.0);
+        p.rv = clamp(hw + 3.5 + 0.06 * drop, 3.0, 20.0);
         p.uc = 0.5 + p.ru;
         p.depth = (int) clamp(Math.round(2 + drop / 10.0), 2, 7);
         p.shoreW = 2 + (wet > 0.5 ? 1 : 0);
@@ -472,7 +472,8 @@ public final class FallPlanner {
     private static void bounds(FallPlan p) {
         double shore = 1.0 + p.shoreW / Math.min(p.ru, p.rv);
         int maxU = (int) Math.ceil(Math.max(p.slotEnd + 1, p.uc + p.ru * shore + FallPlan.WALL_REACH));
-        int maxV = (int) Math.ceil(Math.max(p.rv * shore + FallPlan.WALL_REACH, Math.max(p.slotHalf + 6 + FallPlan.WALL_REACH, p.halfWidth + 3)));
+        double slotWidest = p.slotHalf + 2.0 + 0.2 * Math.max(0, p.slotEnd - p.uc) + 3.0;
+        int maxV = (int) Math.ceil(Math.max(p.rv * shore + FallPlan.WALL_REACH, Math.max(slotWidest + FallPlan.WALL_REACH, p.halfWidth + 3)));
         int minU = -p.channel - 2 - (int) Math.ceil(2.0 * p.headR + 2.0);
         int ax = p.lipX + minU * p.dirX;
         int az = p.lipZ + minU * p.dirZ;
@@ -490,6 +491,12 @@ public final class FallPlanner {
      * bank that would have to be built up more than a few blocks.
      */
     private boolean fits(PlanSampler ps, FallPlan p) {
+        int cellX = p.cellX * FALL_CELL;
+        int cellZ = p.cellZ * FALL_CELL;
+        if (p.minX < cellX - REACH || p.minZ < cellZ - REACH || p.maxX > cellX + FALL_CELL + REACH || p.maxZ > cellZ + FALL_CELL + REACH) {
+            // the chunks it would cover could not find it
+            return false;
+        }
         WaterPlan.Shape shape = new WaterPlan.Shape();
         for (int x = p.minX; x <= p.maxX; x += 2) {
             for (int z = p.minZ; z <= p.maxZ; z += 2) {
@@ -693,7 +700,7 @@ public final class FallPlanner {
         double x = sx + 0.5;
         double z = sz + 0.5;
         path.add(new double[]{x, z, ps.height(sx, sz)});
-        for (int step = 0; step < 18; step++) {
+        for (int step = 0; step < 24; step++) {
             double h = ps.height((int) Math.floor(x), (int) Math.floor(z));
             double bestH = Double.MAX_VALUE;
             double bx = 0.0;
@@ -751,7 +758,7 @@ public final class FallPlanner {
             double dxn = (pb[0] - pa[0]) / len;
             double dzn = (pb[1] - pa[1]) / len;
             // round pools rather than long troughs
-            double across = clamp(Math.max(2.0 + 3.0 * SeedMixer.unit(SeedMixer.hash2(seed, tiers.size(), 5)), 0.6 * (len / 2.0 + 1.5)), 2.0, 8.0);
+            double across = clamp(Math.max(3.0 + 4.0 * SeedMixer.unit(SeedMixer.hash2(seed, tiers.size(), 5)), 0.7 * (len / 2.0 + 1.5)), 3.0, 10.0);
             int depth = 1 + (int) Math.round(1.5 * SeedMixer.unit(SeedMixer.hash2(seed, tiers.size(), 9)));
             tiers.add(new double[]{(pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0, dxn, dzn, len / 2.0 + 1.5, across, level, depth});
             lastLevel = level;
@@ -914,6 +921,11 @@ public final class FallPlanner {
     }
 
     private boolean fitsCascade(PlanSampler ps, FallPlan p) {
+        int cellX = p.cellX * CASCADE_CELL;
+        int cellZ = p.cellZ * CASCADE_CELL;
+        if (p.minX < cellX - REACH || p.minZ < cellZ - REACH || p.maxX > cellX + CASCADE_CELL + REACH || p.maxZ > cellZ + CASCADE_CELL + REACH) {
+            return false;
+        }
         WaterPlan.Shape shape = new WaterPlan.Shape();
         for (int x = p.minX; x <= p.maxX; x++) {
             for (int z = p.minZ; z <= p.maxZ; z++) {
