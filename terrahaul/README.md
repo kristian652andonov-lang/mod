@@ -139,7 +139,12 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   snags. Each comes in several sizes (young, small, medium, large, giant, ancient). Crowns are
   grown as real branch systems that reach every leaf cluster, with tapered limbs:
   - oaks, including bonsai-like oaks with cloud pads; weeping swamp oaks on flared bases with
-    vines; birches with short tufted branches; conifers with drooping skirts and Scots-pine pads;
+    vines; birches with short tufted branches;
+  - spruces and firs as dense, layered cones of whorled branches, each with its own drooping
+    spray of needles, hanging curtains on old spruces and dead branches on their bare lower
+    stems; Scots pines with rounded needle cushions on upswept, forking limbs, old ones under a
+    flat-topped umbrella on a tall, bare, slightly crooked stem. Old-growth conifers grow 30 to
+    60 blocks tall, rare ancient ones up to 90;
   - jungle umbrellas on buttress roots, acacia umbrellas, heavy dark oak domes, mangroves on prop
     and aerial roots, and cherries with a blossom dome over thick gnarled limbs;
   - lobed root flares, and trunks anchored down slopes;

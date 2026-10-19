@@ -515,8 +515,8 @@ public final class TreeBlueprint {
 
     /**
      * A cloud pad: a flat-bottomed dome of leaves whose lowest layer is {@code y}, like the foliage
-     * pads of old pines, acacias and bonsai-like oaks. Pads wider than 3 blocks get a few hidden
-     * twigs so every leaf stays within reach of wood.
+     * pads of acacias and bonsai-like oaks. Pads wider than 3 blocks get a few hidden twigs so
+     * every leaf stays within reach of wood.
      */
     public void pad(double cx, int y, double cz, double r, double thick, double density) {
         int ri = ceil(r);
