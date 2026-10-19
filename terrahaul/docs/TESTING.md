@@ -238,6 +238,35 @@ tested on a real GPU.
 - The client then disconnected cleanly. The registry sync of Terrahaul's blocks, items and
   particle types was accepted.
 
+## Water effects: spray, mist, foam and sound (client)
+- **Build and dedicated server:** `compileJava` and `compileDevtoolsJava` pass. A dedicated server
+  (`runServer`, fresh world, seed 12345, `-Pareas="find:waterfall,2;find:cascade,2"`) started,
+  ran `AutoTest` and stopped cleanly. The new particle types register on both sides; everything
+  else is in `com.terrahaul.client` and is only reached from the client entry point, so the
+  server loads none of it. No world generation code changed.
+- **In game** (development client, Mesa llvmpipe, render distance 10, the world above): the
+  effects found the falls near each screenshot and logged them, for example 17 falls of 130
+  columns (tallest 25, widest 94: a step across a river) at the waterfall and 29 falls of 80
+  columns at the cascade. The cascade shot shows a mist puff at the foot of a step and droplets
+  over the pools. The two waterfall shots were taken from viewpoints whose view of the curtain
+  was blocked by the gorge wall (the screenshot harness aims at the finder's point, about 20
+  blocks from the curtain), so they show little of it. Live particle counts matched the
+  expected rates (about 290 at 20 blocks from a 7-wide, 25-high fall, leaves included).
+- **Offline replay:** a small Python script (not kept in the repository) read the saved world's
+  region files around the two finder results and replayed the scanner (columns, landing, open
+  sides) and the foam placement: the waterfall is one curtain of 7 columns, 25 high, landing in its plunge
+  pool and open to the front (two edge columns also to the side); the cascade has 12 columns
+  of 2 and 3 blocks on two steps. Foam positions picked at random around a column land on open
+  water about half the time (the rest on banks or under the curtain), which is why foam now
+  takes the downstream side three times in four and tries a second spot. After this, a dense,
+  short-lived whitewater churn at the foot of every landing was added and splashes on small
+  steps made stronger; that tuning was not seen in game.
+- **Sounds:** the container has no audio device (OpenAL fails to open), so the loops were not
+  heard and the sound controller did not run in game. The four Ogg files decode with
+  stb_vorbis (the decoder Minecraft uses) as mono 44.1 kHz with exact loop lengths (7.0, 5.8,
+  8.0 and 6.6 s); their ends join within the normal sample-to-sample step (no click), and
+  `tools/datagen_water_fx.py` regenerates byte-identical files.
+
 ## Not tested
 - **Real GPUs and drivers:** only Mesa's software renderer was used. Shader behaviour (sway, fog)
   on NVIDIA, AMD, Intel or macOS drivers is untested.
@@ -255,3 +284,5 @@ tested on a real GPU.
   shape on purpose before the `fluid_springs` step would have it removed.
 - **Sign text, chest loot and archaeology in ruins** were not opened in game; the ruins were only
   checked for floating blocks and seen in screenshots.
+- **Water sounds on a real audio device**, and the water effects' cost per tick on a busy client
+  (the scanner's budgets are fixed, but they were not profiled).

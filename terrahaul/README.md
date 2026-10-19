@@ -176,7 +176,8 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   - the water splashes up white where it lands, higher for taller falls;
   - mist rolls off the foot and drifts with the wind; falls 14 blocks and taller raise a large,
     slowly billowing cloud;
-  - foam floats away on the pool and down the stream, and running water carries flecks of foam;
+  - the pool churns white at the foot of every fall and step, foam floats away on the pool and
+    down the stream, and running water carries flecks of foam;
   - tall falls roar and cascades and rapids rush, from where the water is, louder for bigger falls.
 
   Each effect has its own option (`[water]` in the client config); the particle count follows the

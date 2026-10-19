@@ -36,8 +36,9 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
  *       block high it is a small churn of whitewater;</li>
  *   <li>mist rolls off the foot of falls three blocks and taller, and a fall fourteen blocks or
  *       taller also raises a large, slowly billowing cloud whose size grows with the fall;</li>
- *   <li>foam floats away from where the water lands, downstream (the way the water left the lip)
- *       and outwards, and running water carries flecks of foam along its current.</li>
+ *   <li>the pool churns white right at the foot, and foam floats away from there, downstream (the
+ *       way the water left the lip) and outwards; running water carries flecks of foam along its
+ *       current.</li>
  * </ul>
  * Mist and the big clouds are seen from about twice as far as spray and foam. Every effect has
  * an option, and the particle count follows the animation quality, the density option and
@@ -49,7 +50,7 @@ public final class WaterEffects {
     /** Live particle caps per kind for the LOW, MEDIUM and HIGH quality. */
     private static final ParticleGroup[] SPRAY_CAP = {new ParticleGroup(300), new ParticleGroup(600), new ParticleGroup(1000)};
     private static final ParticleGroup[] MIST_CAP = {new ParticleGroup(160), new ParticleGroup(300), new ParticleGroup(480)};
-    private static final ParticleGroup[] FOAM_CAP = {new ParticleGroup(220), new ParticleGroup(420), new ParticleGroup(700)};
+    private static final ParticleGroup[] FOAM_CAP = {new ParticleGroup(300), new ParticleGroup(600), new ParticleGroup(1000)};
     private static final double SPRAY_RANGE = 48.0;
     private static final double FOAM_RANGE = 40.0;
     private static final double MIST_RANGE = 96.0;
@@ -185,6 +186,7 @@ public final class WaterEffects {
                     splash(ctx, c, dc);
                 }
                 if (foam && c.base() == WaterScanner.BASE_POOL) {
+                    churn(ctx, c, dc);
                     poolFoam(ctx, c, dc);
                 }
                 if (mist && c.height() >= 3) {
@@ -231,7 +233,7 @@ public final class WaterEffects {
         }
         int faces = Integer.bitCount(c.open());
         // edge columns have more open sides and shed more spray
-        double rate = 0.05 * Math.pow(Math.min(c.height(), 160), 0.75) * (0.6 + 0.4 * Math.min(faces, 3)) * near(d, ctx.sprayRange)
+        double rate = 0.065 * Math.pow(Math.min(c.height(), 160), 0.75) * (0.6 + 0.4 * Math.min(faces, 3)) * near(d, ctx.sprayRange)
             * ctx.scale;
         for (int n = count(rate); n > 0; n--) {
             int face = pickFace(c.open(), faces);
@@ -292,7 +294,7 @@ public final class WaterEffects {
             return;
         }
         int h = Math.min(c.height(), 100);
-        double rate = (c.height() >= 2 ? 0.2 * (0.4 + 0.5 * Math.sqrt(h)) : 0.08) * near(d, ctx.sprayRange) * ctx.scale;
+        double rate = (c.height() >= 2 ? 0.2 * (0.6 + 0.5 * Math.sqrt(h)) : 0.12) * near(d, ctx.sprayRange) * ctx.scale;
         // taller falls land harder and throw the water higher and further
         double power = c.height() >= 2 ? Math.min(1.7, 0.5 + 0.12 * Math.sqrt(h)) : 0.4;
         for (int n = count(rate); n > 0; n--) {
@@ -315,6 +317,31 @@ public final class WaterEffects {
         }
     }
 
+    /**
+     * Whitewater: where the water plunges into the pool it churns white. Dense patches of foam
+     * that hardly move and last only a second or two, right at the foot of the curtain (mostly in
+     * front of it), so every step of a cascade and the base of every fall shows a band of white.
+     */
+    private static void churn(Ctx ctx, WaterScanner.Column c, double d) {
+        if (d > ctx.foamRange) {
+            return;
+        }
+        int h = Math.min(c.height(), 100);
+        double rate = (c.height() >= 2 ? 0.12 + 0.03 * Math.sqrt(h) : 0.1) * near(d, ctx.foamRange) * ctx.scale;
+        for (int n = count(rate); n > 0; n--) {
+            double[] spot = footSpot(ctx.level, c, 0.45, 0.7 + Math.min(h, 40) * 0.015, 1.2);
+            if (spot == null) {
+                continue;
+            }
+            float size = (c.height() >= 2 ? 0.2F : 0.15F) + RANDOM.nextFloat() * 0.13F;
+            double xd = spot[3] * 0.004 + RANDOM.nextGaussian() * 0.003;
+            double zd = spot[4] * 0.004 + RANDOM.nextGaussian() * 0.003;
+            FoamParticle p = new FoamParticle(ctx.level, spot[0], spot[2] + 0.03, spot[1], xd, zd, size, 22 + RANDOM.nextInt(30), ctx.foamCap);
+            add(ctx, p.withSprite(sprite(ctx.foamSprites, RANDOM.nextInt(4))));
+        }
+    }
+
+    /** Foam carried away from where the water lands, out over the pool and down the stream. */
     private static void poolFoam(Ctx ctx, WaterScanner.Column c, double d) {
         if (d > ctx.foamRange) {
             return;
@@ -322,9 +349,30 @@ public final class WaterEffects {
         int h = Math.min(c.height(), 100);
         double rate = (c.height() >= 2 ? 0.09 * (0.5 + 0.35 * Math.sqrt(h)) : 0.06) * near(d, ctx.foamRange) * ctx.scale;
         for (int n = count(rate); n > 0; n--) {
-            // most of the foam is pushed out in front of the curtain, some to its sides and behind
-            double along = 0.6 + RANDOM.nextDouble() * (1.0 + Math.min(h, 60) * 0.03);
-            double side = (RANDOM.nextDouble() - 0.5) * 1.4;
+            double[] spot = footSpot(ctx.level, c, 0.6, 1.0 + Math.min(h, 60) * 0.03, 1.4);
+            if (spot == null) {
+                continue;
+            }
+            double ox = spot[0] - (c.x() + 0.5);
+            double oz = spot[1] - (c.z() + 0.5);
+            double len = Math.max(0.3, Math.sqrt(ox * ox + oz * oz));
+            double push = (0.015 + RANDOM.nextDouble() * 0.025) * (1.0 + h / 40.0);
+            double xd = ox / len * push + c.dirX() * (0.01 + RANDOM.nextDouble() * 0.02);
+            double zd = oz / len * push + c.dirZ() * (0.01 + RANDOM.nextDouble() * 0.02);
+            float size = c.height() >= 2 ? 0.16F + RANDOM.nextFloat() * 0.2F : 0.1F + RANDOM.nextFloat() * 0.12F;
+            FoamParticle p = new FoamParticle(ctx.level, spot[0], spot[2] + 0.025, spot[1], xd, zd, size, 90 + RANDOM.nextInt(110), ctx.foamCap);
+            add(ctx, p.withSprite(sprite(ctx.foamSprites, RANDOM.nextInt(4))));
+        }
+    }
+
+    /**
+     * A spot on open water near the foot of a column: mostly downstream (in front of the curtain),
+     * one time in four to a side or behind, {@code along} to {@code along + span} blocks out and
+     * up to half of {@code side} across. A spot on the bank or under the curtain is tried once
+     * more. Returns x, z, the water surface there and the direction used, or null.
+     */
+    private static double[] footSpot(ClientLevel level, WaterScanner.Column c, double along, double span, double side) {
+        for (int attempt = 0; attempt < 2; attempt++) {
             double ax = c.dirX();
             double az = c.dirZ();
             if (ax == 0.0F && az == 0.0F || RANDOM.nextInt(4) == 0) {
@@ -332,22 +380,16 @@ public final class WaterEffects {
                 ax = Math.cos(angle);
                 az = Math.sin(angle);
             }
-            double x = c.x() + 0.5 + ax * along - az * side;
-            double z = c.z() + 0.5 + az * along + ax * side;
-            double surface = surfaceAt(ctx.level, x, c.surface(), z);
-            if (Double.isNaN(surface)) {
-                continue;
+            double out = along + RANDOM.nextDouble() * span;
+            double across = (RANDOM.nextDouble() - 0.5) * side;
+            double x = c.x() + 0.5 + ax * out - az * across;
+            double z = c.z() + 0.5 + az * out + ax * across;
+            double surface = surfaceAt(level, x, c.surface(), z);
+            if (!Double.isNaN(surface)) {
+                return new double[]{x, z, surface, ax, az};
             }
-            double ox = x - (c.x() + 0.5);
-            double oz = z - (c.z() + 0.5);
-            double len = Math.max(0.3, Math.sqrt(ox * ox + oz * oz));
-            double push = (0.015 + RANDOM.nextDouble() * 0.025) * (1.0 + h / 40.0);
-            double xd = ox / len * push + c.dirX() * (0.01 + RANDOM.nextDouble() * 0.02);
-            double zd = oz / len * push + c.dirZ() * (0.01 + RANDOM.nextDouble() * 0.02);
-            float size = c.height() >= 2 ? 0.16F + RANDOM.nextFloat() * 0.2F : 0.1F + RANDOM.nextFloat() * 0.12F;
-            FoamParticle p = new FoamParticle(ctx.level, x, surface + 0.025, z, xd, zd, size, 90 + RANDOM.nextInt(110), ctx.foamCap);
-            add(ctx, p.withSprite(sprite(ctx.foamSprites, RANDOM.nextInt(4))));
         }
+        return null;
     }
 
     /**
@@ -423,7 +465,7 @@ public final class WaterEffects {
         }
         long[] cells = patch.cells();
         double near = near(d, ctx.foamRange);
-        int foamCount = foam ? count(cells.length * 0.015 * near * ctx.scale) : 0;
+        int foamCount = foam ? count(cells.length * 0.012 * near * ctx.scale) : 0;
         int sprayCount = spray ? count(cells.length * 0.004 * near * ctx.scale) : 0;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int n = foamCount + sprayCount; n > 0; n--) {
