@@ -4,47 +4,43 @@ import com.mojang.serialization.Codec;
 import com.terrahaul.worldgen.TerrahaulGeneration;
 import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.TerrainModel;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import net.minecraft.world.level.material.Fluids;
 
 /**
- * Places water that the noise fill cannot: elevated rivers and lakes above sea level, crater
- * lakes and lava pools, and small mountain streams and forest creeks carved at block resolution.
+ * Places the surface water the noise fill cannot: elevated rivers and lakes, crater lakes and lava
+ * pools, mountain streams and forest creeks, waterfalls with their plunge pools and forest
+ * cascades, and sea-level pools the water table left dry.
  * <p>
- * Water below sea level comes from the vanilla fluid system. Above sea level the terrain model
- * provides the water surface of each body; this feature fills the air between the bed and that
- * surface. Water surfaces step down along rivers, so before placing anything every column is
- * checked against its neighbours:
+ * What goes where is decided by the {@link WaterSolver} from the terrain model alone, with a
+ * margin around the chunk, so neighbouring chunks make identical decisions along their border:
+ * rivers descend in rapids of rock sills and short chutes across the channel, streams in step
+ * pools, and every source block is held by ground or water on all sides. This feature only turns
+ * the solution into blocks, in its own chunk:
  * <ul>
- *   <li>where water would stand next to lower water, the lower column becomes a small weir of
- *       mossy rock (a rapid);</li>
- *   <li>where a bank is up to two blocks lower than the water, the bank is raised;</li>
- *   <li>only larger drops lower the water.</li>
+ *   <li>shaped columns (dug streams, plunge pools, the bowl and channel of a waterfall) are
+ *       carved down to their ground, natural blocks only, and filled up to it;</li>
+ *   <li>banks and sills are built up, the water is placed, chutes get falling water;</li>
+ *   <li>since real terrain differs from the model (caves, overhangs, 3D detail), every block that
+ *       must hold water but is open, here or below the water, is sealed with rock.</li>
  * </ul>
- * All decisions use the same data on both sides of a chunk border, so neighbouring chunks agree
- * and no water is ever placed unsupported. The placed fluid is static (not ticked) until a
- * player or block update disturbs it, exactly like vanilla lakes.
+ * The placed fluid is static (not ticked) until a player or block update disturbs it, like
+ * vanilla lakes.
  */
 public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration> {
-    /** Extra columns sampled around the chunk on each side. */
-    private static final int MARGIN = 12;
-    private static final int SIZE = 16 + 2 * MARGIN;
-    private static final int NONE = Integer.MIN_VALUE;
-    /** Highest step a rock weir may hold between two water surfaces. */
-    private static final int MAX_WEIR = 4;
-    /** Highest a bank may be raised to contain water. */
-    private static final int MAX_BANK = 2;
-    /** Ground lower than the model surface by more than this is a hole, not a lake bed. */
-    private static final double MAX_DEPTH_ERROR = 6.0;
-    private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    private static final ThreadLocal<WaterSolver> SOLVER = ThreadLocal.withInitial(WaterSolver::new);
+    private static final int M = WaterSolver.MARGIN;
 
     public SurfaceWaterFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -60,155 +56,157 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
         ChunkPos chunk = new ChunkPos(context.origin());
         int x0 = chunk.getMinBlockX();
         int z0 = chunk.getMinBlockZ();
-        boolean any = false;
-        for (int i = -4; i <= 20 && !any; i += 4) {
-            for (int j = -4; j <= 20; j += 4) {
+        List<WaterPlan> plans = new ArrayList<>();
+        FallPlanner.plansNear(model, x0 - M, z0 - M, x0 + 15 + M, z0 + 15 + M, plans);
+        boolean water = !plans.isEmpty();
+        boolean low = false;
+        int sl = model.seaLevel();
+        for (int i = -8; i <= 24 && !water; i += 4) {
+            for (int j = -8; j <= 24; j += 4) {
                 ColumnSample s = model.sample(x0 + i, z0 + j);
-                if (s.waterLevel != ColumnSample.NO_WATER || s.lavaLevel != ColumnSample.NO_WATER || s.stream > 0.0) {
-                    any = true;
+                if (s.bodyInside && (s.bodyLevel > sl || s.lavaLevel != ColumnSample.NO_WATER) || s.stream > 0.0) {
+                    water = true;
                     break;
                 }
+                low |= s.height < sl - 0.5;
             }
         }
-        if (!any) {
-            return false;
-        }
-
-        // raw water surface per column; MARGIN extra columns around the chunk let every chunk make
-        // exactly the same decisions for the columns along its borders as its neighbours do
-        int[][] ground = new int[SIZE][SIZE];
-        int[][] raw = new int[SIZE][SIZE];
-        boolean[][] lava = new boolean[SIZE][SIZE];
-        boolean[][] stream = new boolean[SIZE][SIZE];
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                int x = x0 + i - MARGIN;
-                int z = z0 + j - MARGIN;
-                int g = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
-                ground[i][j] = g;
-                raw[i][j] = NONE;
-                // the nearest model corner decides whether the column belongs to a water body; the
-                // water is only placed where the ground is about as deep as the model expects, so
-                // holes carved by caves, ravines or overhangs never fill with floating water
-                ColumnSample s = model.sample((x + 2) & ~3, (z + 2) & ~3);
-                double water = s.waterLevel;
-                double lavaLevel = s.lavaLevel;
-                double streamFactor = s.stream;
-                double expected = model.interpolatedHeight(x, z);
-                if (g < expected - MAX_DEPTH_ERROR) {
-                    water = ColumnSample.NO_WATER;
-                    lavaLevel = ColumnSample.NO_WATER;
-                }
-                if (lavaLevel != ColumnSample.NO_WATER && g + 1 < lavaLevel) {
-                    raw[i][j] = (int) lavaLevel;
-                    lava[i][j] = true;
-                } else if (water != ColumnSample.NO_WATER && g + 1 < water) {
-                    raw[i][j] = (int) water;
-                } else if (streamFactor > 0.0 && g > model.seaLevel()) {
-                    double halfWidth = 0.8 + 1.6 * streamFactor;
-                    double d = model.streamDistance(x, z);
-                    if (d < halfWidth) {
-                        // the stream replaces the top block: water at the old surface, bed below
-                        stream[i][j] = true;
-                        raw[i][j] = g + 1;
-                        ground[i][j] = g - (d < halfWidth * 0.5 ? 2 : 1);
-                    }
-                }
-            }
-        }
-
-        // stage 2: lower water where a drop is too large to bridge with a weir or a bank
-        int[][] top = new int[SIZE][SIZE];
-        for (int i = 0; i < SIZE; i++) {
-            System.arraycopy(raw[i], 0, top[i], 0, SIZE);
-        }
-        // a change travels one column per pass; with at most MARGIN passes every column of this
-        // chunk depends only on columns inside the sampled area, so neighbouring chunks, which
-        // sample the same columns, reach exactly the same result along their shared border
-        for (int pass = 0; pass < MARGIN; pass++) {
-            boolean changed = false;
-            for (int i = 1; i < SIZE - 1; i++) {
-                for (int j = 1; j < SIZE - 1; j++) {
-                    if (top[i][j] == NONE) {
-                        continue;
-                    }
-                    int limited = top[i][j];
-                    for (int[] d : DIRS) {
-                        int ni = i + d[0];
-                        int nj = j + d[1];
-                        int limit = top[ni][nj] == NONE || top[ni][nj] <= ground[ni][nj] + 1
-                            ? ground[ni][nj] + 1 + MAX_BANK + 1    // dry: a bank can rise MAX_BANK blocks
-                            : top[ni][nj] + MAX_WEIR;               // water: a weir can hold MAX_WEIR blocks
-                        limited = Math.min(limited, limit);
-                    }
-                    if (limited <= ground[i][j] + 1) {
-                        limited = NONE;
-                    }
-                    if (limited != top[i][j]) {
-                        top[i][j] = limited;
-                        changed = true;
-                    }
-                }
-            }
-            if (!changed) {
-                break;
-            }
-        }
-
-        // stage 3: weirs and banks. A water column lower than a neighbour becomes a rock weir up to
-        // the neighbour's surface; a dry column lower than a neighbour's surface becomes a bank.
-        int[][] solidTop = new int[SIZE][SIZE];
-        for (int i = MARGIN - 1; i <= SIZE - MARGIN; i++) {
-            for (int j = MARGIN - 1; j <= SIZE - MARGIN; j++) {
-                solidTop[i][j] = NONE;
-                int need = NONE;
-                for (int[] d : DIRS) {
-                    int t = top[i + d[0]][j + d[1]];
-                    if (t != NONE && t - 1 > need) {
-                        need = t - 1;
-                    }
-                }
-                if (need == NONE) {
-                    continue;
-                }
-                boolean wet = top[i][j] != NONE && top[i][j] > ground[i][j] + 1;
-                if (wet ? need >= top[i][j] : need > ground[i][j]) {
-                    solidTop[i][j] = need;
-                }
-            }
-        }
-
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        BlockState water = Blocks.WATER.defaultBlockState();
-        BlockState lavaState = Blocks.LAVA.defaultBlockState();
+        if (!water) {
+            return low && fillPockets(level, model, pos, x0, z0);
+        }
+        WaterSolver ws = SOLVER.get();
+        ws.solve(model, chunk.x, chunk.z, plans);
         boolean placed = false;
-        for (int i = MARGIN; i < SIZE - MARGIN; i++) {
-            for (int j = MARGIN; j < SIZE - MARGIN; j++) {
-                int x = x0 + i - MARGIN;
-                int z = z0 + j - MARGIN;
-                if (solidTop[i][j] != NONE) {
-                    placed |= raise(level, model, pos, x, z, ground[i][j], solidTop[i][j], top[i][j] != NONE, lava[i][j]);
-                    continue;
+        for (int i = 0; i < 16; i++) {
+            for (int j = 0; j < 16; j++) {
+                placed |= column(level, model, ws, pos, i + M, j + M, x0 + i, z0 + j);
+            }
+        }
+        return placed;
+    }
+
+    private boolean column(WorldGenLevel level, TerrainModel model, WaterSolver ws, BlockPos.MutableBlockPos pos, int i, int j, int x, int z) {
+        int k = WaterSolver.index(i, j);
+        int natural = ws.natural[k];
+        int ground = ws.ground[k];
+        int lv = ws.level[k];
+        byte kind = ws.kind[k];
+        byte step = ws.step[k];
+        boolean lava = kind == WaterSolver.LAVA;
+        int sl = model.seaLevel();
+        boolean placed = false;
+        BlockState top = level.getBlockState(pos.set(x, natural, z));
+        WaterPalette palette = WaterPalette.at(model, x, z, top);
+
+        if (kind == WaterSolver.SEA && step == WaterSolver.FLAT && !ws.shaped[k]) {
+            // the water table's water: only pockets it left dry are filled
+            return fillPocket(level, pos, x, z, ground, sl);
+        }
+
+        // ---- shaped ground: carved down to the plan or channel, filled up to it -------------
+        if (ws.shaped[k]) {
+            int carveTop = ws.kind[k] == WaterSolver.PLAN || ws.kind[k] == WaterSolver.DRY || ws.kind[k] == WaterSolver.SEA
+                ? Math.max(natural, level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z) - 1) : natural;
+            for (int y = carveTop; y > ground; y--) {
+                BlockState s = level.getBlockState(pos.set(x, y, z));
+                if (!s.isAir() && WaterPalette.natural(s)) {
+                    level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+                    placed = true;
                 }
-                int t = top[i][j];
-                if (t == NONE || t <= ground[i][j] + 1) {
-                    continue;
+            }
+            for (int y = Math.min(natural, ground); y <= ground; y++) {
+                BlockState s = level.getBlockState(pos.set(x, y, z));
+                if (!s.blocksMotion() || y == ground && lv != WaterSolver.NONE && WaterPalette.soil(s)) {
+                    BlockState block = palette.shaped(ws.role[k], ws.material[k], ws.planned[k], x, y, z, y == ground, lv != WaterSolver.NONE);
+                    level.setBlock(pos.set(x, y, z), supported(level, pos, block, palette, false), 2);
+                    placed = true;
                 }
-                if (stream[i][j]) {
-                    BlockState bed = model.detail3(0, x / 4.0, 3.0, z / 4.0) > 0.0 ? Blocks.GRAVEL.defaultBlockState() : Blocks.SAND.defaultBlockState();
-                    level.setBlock(pos.set(x, ground[i][j], z), bed, 2);
+            }
+            if (lv == WaterSolver.NONE && ws.solidTop[k] == ground && ground < natural && palette.isGrass(top)) {
+                // a bench of the bowl cut into soil grows over again, instead of showing bare dirt
+                BlockState s = level.getBlockState(pos.set(x, ground, z));
+                if (s.is(Blocks.DIRT) && level.getBlockState(pos.set(x, ground + 1, z)).isAir()) {
+                    level.setBlock(pos.set(x, ground, z), Blocks.GRASS_BLOCK.defaultBlockState(), 2);
                 }
-                BlockState fluid = lava[i][j] ? lavaState : water;
-                for (int y = ground[i][j] + 1; y < t; y++) {
-                    pos.set(x, y, z);
-                    BlockState existing = level.getBlockState(pos);
-                    if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.getFluidState().isSource() || stream[i][j]) {
-                        level.setBlock(pos, fluid, 2);
+            }
+        }
+
+        // ---- sills, banks and boulders --------------------------------------------------------
+        int solidTop = ws.solidTop[k];
+        int from = step == WaterSolver.SILL ? ground + 1 : Math.min(ground, natural) + 1;
+        if (solidTop > ground) {
+            for (int y = from; y <= solidTop; y++) {
+                BlockState s = level.getBlockState(pos.set(x, y, z));
+                if (!s.blocksMotion() || step == WaterSolver.SILL && !s.getFluidState().isEmpty()) {
+                    BlockState block;
+                    if (ws.planned[k] && (step == WaterSolver.SILL || ws.role[k] == WaterSolver.ROLE_DAM)) {
+                        block = palette.planSill(ws.material[k], x, y, z, y == solidTop);
+                    } else if (step == WaterSolver.SILL || lava) {
+                        block = palette.sill(x, y, z, lava);
+                    } else {
+                        block = palette.bank(y == solidTop, false);
+                    }
+                    level.setBlock(pos, block, 2);
+                    placed = true;
+                }
+            }
+            if (step != WaterSolver.SILL && palette.isGrass(top) && natural < solidTop) {
+                level.setBlock(pos.set(x, natural, z), Blocks.DIRT.defaultBlockState(), 2);
+            }
+        }
+        if (ws.boulder[k]) {
+            BlockState s = level.getBlockState(pos.set(x, solidTop + 1, z));
+            if (!s.blocksMotion()) {
+                level.setBlock(pos, palette.boulder(x, z), 2);
+                placed = true;
+            }
+        }
+
+        // ---- water ----------------------------------------------------------------------------
+        if (lv != WaterSolver.NONE && step != WaterSolver.SILL) {
+            BlockState fluid = lava ? Blocks.LAVA.defaultBlockState() : Blocks.WATER.defaultBlockState();
+            BlockState bed = level.getBlockState(pos.set(x, ground, z));
+            if (!bed.blocksMotion()) {
+                BlockState block = lava ? Blocks.MAGMA_BLOCK.defaultBlockState() : palette.bed(x, ground, z);
+                level.setBlock(pos.set(x, ground, z), supported(level, pos, block, palette, lava), 2);
+            } else if (lava) {
+                level.setBlock(pos, Blocks.MAGMA_BLOCK.defaultBlockState(), 2);
+            } else if (palette.isGrass(bed) || bed.is(Blocks.SNOW_BLOCK)) {
+                // grass and snow do not stay under water
+                level.setBlock(pos, Blocks.DIRT.defaultBlockState(), 2);
+            }
+            for (int y = ground + 1; y < lv; y++) {
+                BlockState s = level.getBlockState(pos.set(x, y, z));
+                if (!s.blocksMotion() && !s.getFluidState().isSource() || ws.shaped[k] && WaterPalette.natural(s)) {
+                    level.setBlock(pos, fluid, 2);
+                    placed = true;
+                }
+            }
+            if (step == WaterSolver.CHUTE) {
+                int up = ws.upper[k];
+                for (int y = lv; y < up; y++) {
+                    BlockState s = level.getBlockState(pos.set(x, y, z));
+                    if (!s.blocksMotion() || ws.shaped[k] && WaterPalette.natural(s)) {
+                        level.setBlock(pos, chute(lava, y == up - 1), 2);
                         placed = true;
                     }
                 }
-                if (lava[i][j]) {
-                    level.setBlock(pos.set(x, ground[i][j], z), Blocks.MAGMA_BLOCK.defaultBlockState(), 2);
+            }
+        }
+
+        // ---- seal everything that must hold water but is open --------------------------------
+        // (a cave, a ravine or a hollow of the 3D terrain detail beside or under the water: in a
+        // dry column up to the water's surface, in a water column below its bed)
+        int need = ws.holdLevel(i, j);
+        if (need != WaterSolver.NONE) {
+            boolean wet = lv != WaterSolver.NONE && step != WaterSolver.SILL;
+            int holdTo = wet ? Math.min(need, ground) : need;
+            for (int y = ws.holdFrom(i, j); y <= holdTo; y++) {
+                BlockState s = level.getBlockState(pos.set(x, y, z));
+                if (!s.blocksMotion() && s.getFluidState().isEmpty()) {
+                    level.setBlock(pos, y > solidTop ? palette.bank(y == need, false) : palette.seal(lava), 2);
+                    placed = true;
                 }
             }
         }
@@ -216,37 +214,63 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
     }
 
     /**
-     * Raises a column to {@code solidTop}: a weir of grey, partly mossy rock where water would
-     * otherwise stand next to lower water (a step in a river becomes a small rapid), or the
-     * column's own soil where a bank is lower than the neighbouring water surface.
+     * The block to place at {@code pos}, or rock instead of a loose one (sand, gravel) that has
+     * nothing solid below it, such as a bed over a cave the model does not know about: it would
+     * fall at the first block update and drain the water. Leaves {@code pos} where it was.
      */
-    private static boolean raise(WorldGenLevel level, TerrainModel model, BlockPos.MutableBlockPos pos, int x, int z, int ground, int solidTop,
-                                 boolean weir, boolean lava) {
-        BlockState surface = level.getBlockState(pos.set(x, ground, z));
-        boolean rock = weir || lava || !surface.is(BlockTags.DIRT) && !surface.is(BlockTags.SAND);
-        for (int y = ground + 1; y <= solidTop; y++) {
-            pos.set(x, y, z);
-            BlockState existing = level.getBlockState(pos);
-            if (!existing.isAir() && !existing.is(BlockTags.REPLACEABLE) && existing.getFluidState().isEmpty()) {
-                continue;
-            }
-            BlockState block;
-            if (rock) {
-                double n = model.detail3(1, x / 3.0, y / 3.0, z / 3.0);
-                block = lava ? Blocks.BASALT.defaultBlockState()
-                    : n > 0.25 ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : n > -0.3 ? Blocks.COBBLESTONE.defaultBlockState() : Blocks.STONE.defaultBlockState();
-            } else if (surface.is(BlockTags.SAND)) {
-                block = surface;
-            } else {
-                block = y == solidTop ? (surface.is(Blocks.GRASS_BLOCK) ? surface : Blocks.GRASS_BLOCK.defaultBlockState()) : Blocks.DIRT.defaultBlockState();
-            }
-            level.setBlock(pos, block, 2);
+    private static BlockState supported(WorldGenLevel level, BlockPos.MutableBlockPos pos, BlockState block, WaterPalette palette, boolean lava) {
+        if (!(block.getBlock() instanceof FallingBlock)) {
+            return block;
         }
-        if (!rock && surface.is(Blocks.GRASS_BLOCK)) {
-            // the old grass top is buried under the bank now
-            level.setBlock(pos.set(x, ground, z), Blocks.DIRT.defaultBlockState(), 2);
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+        boolean solidBelow = level.getBlockState(pos.set(x, y - 1, z)).blocksMotion();
+        pos.set(x, y, z);
+        return solidBelow ? block : palette.seal(lava);
+    }
+
+    /** Falling water down a step, with the flowing block that spills over the upper surface on top. */
+    private static BlockState chute(boolean lava, boolean top) {
+        if (lava) {
+            return top ? Fluids.FLOWING_LAVA.getFlowing(7, false).createLegacyBlock() : Fluids.FLOWING_LAVA.getFlowing(8, true).createLegacyBlock();
+        }
+        return top ? Fluids.FLOWING_WATER.getFlowing(7, false).createLegacyBlock() : Fluids.FLOWING_WATER.getFlowing(8, true).createLegacyBlock();
+    }
+
+    /**
+     * Sea-level water the water table left out: shallow pools in wetlands and floodplains whose
+     * ground lies below sea level between model corners. Filled from sea level down through open
+     * air; the block below is sealed if it is open too.
+     */
+    private static boolean fillPocket(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int z, int ground, int sl) {
+        BlockState s = level.getBlockState(pos.set(x, sl - 1, z));
+        if (!s.isAir()) {
+            return false;
+        }
+        int y = sl - 1;
+        while (y > ground && level.getBlockState(pos.set(x, y, z)).isAir()) {
+            level.setBlock(pos, Blocks.WATER.defaultBlockState(), 2);
+            y--;
+        }
+        if (y == ground && !level.getBlockState(pos.set(x, y, z)).blocksMotion()) {
+            level.setBlock(pos, Blocks.MUD.defaultBlockState(), 2);
         }
         return true;
     }
 
+    /** Pocket filling for chunks without elevated water, from the model ground directly. */
+    private static boolean fillPockets(WorldGenLevel level, TerrainModel model, BlockPos.MutableBlockPos pos, int x0, int z0) {
+        int sl = model.seaLevel();
+        boolean placed = false;
+        for (int i = 0; i < 16; i++) {
+            for (int j = 0; j < 16; j++) {
+                int ground = (int) Math.ceil(model.interpolatedHeight(x0 + i, z0 + j)) - 1;
+                if (ground <= sl - 2) {
+                    placed |= fillPocket(level, pos, x0 + i, z0 + j, ground, sl);
+                }
+            }
+        }
+        return placed;
+    }
 }

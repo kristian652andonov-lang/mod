@@ -22,7 +22,8 @@
   "client": [
     "client.FogShapeMixin",
     "client.VertexBufferMixin",
-    "client.RenderSectionMixin"
+    "client.RenderSectionMixin",
+    "client.WaterFluidMistMixin"
   ],
   "injectors": {
     "defaultRequire": 1
