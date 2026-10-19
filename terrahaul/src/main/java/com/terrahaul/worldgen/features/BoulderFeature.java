@@ -40,7 +40,9 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
         BoulderConfiguration config = context.config();
         BlockPos origin = context.origin();
         BlockState ground = level.getBlockState(origin.below());
-        if (ground.isAir() || !ground.getFluidState().isEmpty() || ground.is(BlockTags.LEAVES) || ground.is(BlockTags.LOGS)) {
+        // only on firm ground: not on leaves, logs, bamboo or plants the heightmap counts as the top
+        if (ground.isAir() || !ground.getFluidState().isEmpty() || ground.is(BlockTags.LEAVES) || ground.is(BlockTags.LOGS)
+            || !ground.isFaceSturdy(level, origin.below(), net.minecraft.core.Direction.UP)) {
             return false;
         }
         double radius = Math.min(7.5, config.radius().sample(random));
