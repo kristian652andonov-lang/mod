@@ -65,6 +65,15 @@ neoForge {
             if (project.hasProperty('autotest')) {
                 systemProperty 'terrahaul.autotest', project.property('autotest').toString()
                 systemProperty 'terrahaul.autotest.areas', (project.findProperty('areas') ?: '0,0,6').toString()
+                if (project.hasProperty('probe')) {
+                    systemProperty 'terrahaul.autotest.probe', project.property('probe').toString()
+                }
+                if (project.hasProperty('debugProps')) {
+                    project.property('debugProps').toString().split(',').each { systemProperty it, 'true' }
+                }
+                if (project.hasProperty('noStructures')) {
+                    systemProperty 'terrahaul.autotest.structures', 'false'
+                }
             }
             jvmArguments.addAll('-Xmx6G')
             if (project.hasProperty('jfr')) {

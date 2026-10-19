@@ -68,7 +68,8 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   cliffs, and alcoves are carved into cliff faces. Some cliff tops carry **big curved
   overhangs** (a flat top, a quarter-circle underside and a lip) that run along the cliff.
 - **No floating terrain:** overhangs are part of the columns beneath them and caves keep a guard
-  below the surface, so no islands of rock hang in the air.
+  below the surface. A cleanup pass, run before and again after the features that carve terrain,
+  removes any small piece of rock or soil that still touches nothing but air or water.
 - **Canyons** with walls stepped into world-wide strata (cliff bands over talus benches) and
   buttes; most are dry, some carry a stream.
 - **Rock formations:** natural **arches** with lopsided, sagging, eroded openings; **hoodoo

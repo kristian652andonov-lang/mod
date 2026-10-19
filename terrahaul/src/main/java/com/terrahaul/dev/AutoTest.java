@@ -138,6 +138,15 @@ public final class AutoTest {
             TreeDump.audit(level, cx, cz, radius, report);
             areaIndex++;
         }
+        // -Dterrahaul.autotest.probe=x,y,z;... : print the blocks around each position, layer by layer
+        String probe = System.getProperty("terrahaul.autotest.probe", "");
+        if (!probe.isEmpty()) {
+            for (String p : probe.split(";")) {
+                String[] c = p.split(",");
+                probe(level, Integer.parseInt(c[0].trim()), Integer.parseInt(c[1].trim()), Integer.parseInt(c[2].trim()), report);
+                section(level, Integer.parseInt(c[0].trim()), Integer.parseInt(c[1].trim()), Integer.parseInt(c[2].trim()), report);
+            }
+        }
         if (Boolean.parseBoolean(System.getProperty("terrahaul.autotest.structures", "true"))) {
             checkStructures(level, report);
         }
@@ -203,6 +212,57 @@ public final class AutoTest {
             histogram[0], histogram[1], histogram[2], histogram[3], histogram[4], otherCount));
         report.addAll(natural);
         report.addAll(other);
+    }
+
+    /** Prints a vertical section along x through a position, 24 blocks each way and 12 up and down. */
+    private static void section(ServerLevel level, int px, int py, int pz, List<String> report) {
+        level.getChunk(px >> 4, pz >> 4, ChunkStatus.FULL, true);
+        java.util.Map<String, Character> legend = new java.util.LinkedHashMap<>();
+        legend.put("air", '.');
+        String codes = "#ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        report.add("section along x through " + px + " " + py + " " + pz + " (x from -24 to 24)");
+        for (int dy = 12; dy >= -12; dy--) {
+            StringBuilder sb = new StringBuilder(String.format(Locale.ROOT, "  y=%4d: ", py + dy));
+            for (int dx = -24; dx <= 24; dx++) {
+                BlockState st = level.getBlockState(new BlockPos(px + dx, py + dy, pz));
+                String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getPath();
+                Character ch = legend.get(id);
+                if (ch == null) {
+                    ch = codes.charAt(Math.min(codes.length() - 1, legend.size()));
+                    legend.put(id, ch);
+                }
+                sb.append(ch);
+            }
+            report.add(sb.toString());
+        }
+        report.add("  legend: " + legend);
+    }
+
+    /** Prints the 9x9 blocks around a position on each layer from 4 below to 4 above it, with a legend. */
+    private static void probe(ServerLevel level, int px, int py, int pz, List<String> report) {
+        level.getChunk(px >> 4, pz >> 4, ChunkStatus.FULL, true);
+        java.util.Map<String, Character> legend = new java.util.LinkedHashMap<>();
+        legend.put("air", '.');
+        String codes = "#ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        report.add("probe " + px + " " + py + " " + pz + " (rows: z from -4 to 4, columns: x from -4 to 4)");
+        for (int dy = 4; dy >= -4; dy--) {
+            StringBuilder sb = new StringBuilder("  y=" + (py + dy) + ": ");
+            for (int dz = -4; dz <= 4; dz++) {
+                for (int dx = -4; dx <= 4; dx++) {
+                    BlockState st = level.getBlockState(new BlockPos(px + dx, py + dy, pz + dz));
+                    String id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getPath();
+                    Character ch = legend.get(id);
+                    if (ch == null) {
+                        ch = codes.charAt(Math.min(codes.length() - 1, legend.size()));
+                        legend.put(id, ch);
+                    }
+                    sb.append(ch);
+                }
+                sb.append(' ');
+            }
+            report.add(sb.toString());
+        }
+        report.add("  legend: " + legend);
     }
 
     /** The block types of a floating fragment and what lies around it, found from its seed block. */

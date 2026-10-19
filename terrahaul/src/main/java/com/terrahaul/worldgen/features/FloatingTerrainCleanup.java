@@ -13,10 +13,14 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructureType;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.common.Tags;
 
@@ -37,22 +41,29 @@ import net.neoforged.neoforge.common.Tags;
  * The search starts from every terrain block of the chunk within 64 blocks of the column's top
  * that has air or fluid right below it, and follows the connected solid blocks, lowest first, so
  * that a group standing on the ground reaches the ground after a few steps. A group is floating
- * when it ends before reaching 48 blocks below its start, the side of the 3x3 chunk area or
- * {@value #MAX_BLOCKS} blocks. All its blocks are removed, in this chunk and its neighbours: they
- * become water where water lies beside or above them (a rock adrift in the sea) and air elsewhere.
- * The second pass keeps every group that touches water or lava from above or the side, since the
- * surface water seals rock around the water it places. Does nothing outside Terrahaul worlds.
+ * when it ends before it spans 16 blocks across or 48 blocks from top to bottom, or holds
+ * {@value #MAX_BLOCKS} blocks. These tests depend on the group alone, so every chunk the group
+ * touches reaches the same verdict, and a group narrower than a chunk always lies within the 3x3
+ * chunk area this chunk may read and write. All its blocks are removed, in this chunk and its
+ * neighbours: below sea level they become water where water is beside or above them (a rock
+ * adrift in the sea), elsewhere air (the surface water seals any open hold of its lakes later),
+ * and the worldgen heightmaps follow, so later features do not build on the vanished blocks. The
+ * second pass keeps every group that touches water or lava from above or the side, since the
+ * surface water seals rock around the water it places. Chunks under a shipwreck or an ocean ruin
+ * are left alone: those place every part at a height measured from the heightmaps of the whole
+ * footprint, which must not change between the chunks. Does nothing outside Terrahaul worlds.
  */
 public final class FloatingTerrainCleanup extends Feature<NoneFeatureConfiguration> {
     /** Search window below the top solid block of each column. */
     private static final int WINDOW = 64;
-    /** How far below its start a group must reach to stand on the ground. */
+    /** How far from its top block down a group must reach to stand on the ground. */
     private static final int ANCHOR_DEPTH = 48;
     /** Groups this large are taken to be part of the ground. */
     private static final int MAX_BLOCKS = 4096;
 
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
     private static final BlockState WATER = Blocks.WATER.defaultBlockState();
+    private static final Heightmap.Types[] WORLDGEN_HEIGHTMAPS = {Heightmap.Types.OCEAN_FLOOR_WG, Heightmap.Types.WORLD_SURFACE_WG};
 
     /** Whether this is the second pass, which keeps groups beside fluids. */
     private final boolean late;
@@ -69,17 +80,24 @@ public final class FloatingTerrainCleanup extends Feature<NoneFeatureConfigurati
             return false;
         }
         ChunkPos chunk = new ChunkPos(context.origin());
+        for (Structure structure : level.getChunk(chunk.x, chunk.z).getAllReferences().keySet()) {
+            if (structure.type() == StructureType.SHIPWRECK || structure.type() == StructureType.OCEAN_RUIN) {
+                return false;
+            }
+        }
         int x0 = chunk.getMinBlockX();
         int z0 = chunk.getMinBlockZ();
         int floor = level.getMinBuildHeight();
-        Search search = new Search(level, x0 - 16, z0 - 16, x0 + 31, z0 + 31, floor, late);
+        int seaLevel = context.chunkGenerator().getSeaLevel();
+        Search search = new Search(level, floor, late);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         boolean changed = false;
         for (int dx = 0; dx < 16; dx++) {
             for (int dz = 0; dz < 16; dz++) {
                 int x = x0 + dx;
                 int z = z0 + dz;
-                int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
+                // features keep the final heightmaps up to date, not the worldgen ones
+                int top = Math.max(level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z), level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z)) - 1;
                 int bottom = Math.max(floor + 1, top - WINDOW);
                 boolean solidAbove = false;
                 BlockState above = null;
@@ -92,7 +110,7 @@ public final class FloatingTerrainCleanup extends Feature<NoneFeatureConfigurati
                         long start = BlockPos.asLong(x, y + 1, z);
                         LongArrayList group = search.floating(start);
                         if (group != null) {
-                            remove(level, group, pos);
+                            remove(level, group, pos, seaLevel);
                             changed = true;
                         }
                     }
@@ -105,22 +123,55 @@ public final class FloatingTerrainCleanup extends Feature<NoneFeatureConfigurati
     }
 
     /**
-     * Removes the blocks of a floating group. The group never reaches the outer ring of the 3x3
-     * chunk area (it would count as grounded), so every block lies where this chunk may write.
+     * Removes the blocks of a floating group, all of which lie within the 3x3 chunk area this chunk
+     * may write (see {@link Search#floating}). Every block becomes air first; then, below sea level,
+     * water spreads into the cleared blocks from the water beside and above them, so a rock adrift
+     * in the sea leaves no air pocket however its blocks were ordered.
      */
-    private static void remove(WorldGenLevel level, LongArrayList group, BlockPos.MutableBlockPos pos) {
+    private static void remove(WorldGenLevel level, LongArrayList group, BlockPos.MutableBlockPos pos, int seaLevel) {
         for (int i = 0; i < group.size(); i++) {
             pos.set(group.getLong(i));
-            level.setBlock(pos, besideWater(level, pos) ? WATER : AIR, 2);
+            level.setBlock(pos, AIR, 2);
+            updateWorldgenHeightmaps(level, pos, AIR);
+        }
+        boolean grew = true;
+        while (grew) {
+            grew = false;
+            for (int i = group.size() - 1; i >= 0; i--) {
+                pos.set(group.getLong(i));
+                if (pos.getY() < seaLevel && level.getBlockState(pos).isAir() && besideWater(level, pos)) {
+                    level.setBlock(pos, WATER, 2);
+                    updateWorldgenHeightmaps(level, pos, WATER);
+                    grew = true;
+                }
+            }
         }
     }
 
-    /** Whether water lies beside or above the position, so that it is filled with water. */
+    /**
+     * Keeps the worldgen heightmaps of the block's chunk in step: during decoration a chunk only
+     * updates its final heightmaps, but features (rock formations, fallen logs, ocean vents) place
+     * their blocks on the worldgen ones. A map the chunk does not hold yet (a chunk reloaded from
+     * disk keeps only the final ones) is left to be built from the blocks when first read; creating
+     * it here would make it report the bottom of the world.
+     */
+    private static void updateWorldgenHeightmaps(WorldGenLevel level, BlockPos pos, BlockState state) {
+        ChunkAccess chunk = level.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
+        for (Heightmap.Types type : WORLDGEN_HEIGHTMAPS) {
+            if (chunk.hasPrimedHeightmap(type)) {
+                chunk.getOrCreateHeightmapUnprimed(type).update(pos.getX() & 15, pos.getY(), pos.getZ() & 15, state);
+            }
+        }
+    }
+
+    /** Whether water lies beside or above the position. */
     private static boolean besideWater(WorldGenLevel level, BlockPos pos) {
         for (Direction d : Direction.values()) {
-            if (d != Direction.DOWN && level.getFluidState(pos.relative(d)).is(Fluids.WATER)
-                && level.getFluidState(pos.relative(d)).isSource()) {
-                return true;
+            if (d != Direction.DOWN) {
+                FluidState fluid = level.getFluidState(pos.relative(d));
+                if (fluid.is(Fluids.WATER) && fluid.isSource()) {
+                    return true;
+                }
             }
         }
         return false;
@@ -147,36 +198,37 @@ public final class FloatingTerrainCleanup extends Feature<NoneFeatureConfigurati
 
     /** One chunk's search state: groups already known to stand on the ground. */
     private static final class Search {
+        /** A group this wide or deep stands on the ground, or reaches beyond the readable area. */
+        private static final int SPAN = 16;
+
         private final WorldGenLevel level;
-        private final int minX;
-        private final int minZ;
-        private final int maxX;
-        private final int maxZ;
         private final int floor;
         private final boolean keepWet;
         private final LongOpenHashSet grounded = new LongOpenHashSet();
         private final LongOpenHashSet visited = new LongOpenHashSet();
         private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
-        Search(WorldGenLevel level, int minX, int minZ, int maxX, int maxZ, int floor, boolean keepWet) {
+        Search(WorldGenLevel level, int floor, boolean keepWet) {
             this.level = level;
-            this.minX = minX;
-            this.minZ = minZ;
-            this.maxX = maxX;
-            this.maxZ = maxZ;
             this.floor = floor;
             this.keepWet = keepWet;
         }
 
         /**
          * The blocks of the group holding {@code start} if it floats, or {@code null} if it stands
-         * on the ground or holds anything but terrain.
+         * on the ground or holds anything but terrain. The start lies in the chunk being decorated;
+         * the search stops before the group spans {@value #SPAN} blocks across, so it never reads
+         * beyond the neighbouring chunks.
          */
         LongArrayList floating(long start) {
             if (grounded.contains(start)) {
                 return null;
             }
-            int anchorY = BlockPos.getY(start) - ANCHOR_DEPTH;
+            int minX = BlockPos.getX(start);
+            int maxX = minX;
+            int minZ = BlockPos.getZ(start);
+            int maxZ = minZ;
+            int maxY = BlockPos.getY(start);
             visited.clear();
             LongArrayList group = new LongArrayList();
             // lowest block first: on the ground the search heads straight down
@@ -190,7 +242,12 @@ public final class FloatingTerrainCleanup extends Feature<NoneFeatureConfigurati
                 int x = BlockPos.getX(k);
                 int y = BlockPos.getY(k);
                 int z = BlockPos.getZ(k);
-                if (grounded.contains(k) || y <= anchorY || y <= floor + 1 || x <= minX || x >= maxX || z <= minZ || z >= maxZ
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minZ = Math.min(minZ, z);
+                maxZ = Math.max(maxZ, z);
+                maxY = Math.max(maxY, y);
+                if (grounded.contains(k) || maxY - y >= ANCHOR_DEPTH || y <= floor + 1 || maxX - minX >= SPAN || maxZ - minZ >= SPAN
                     || group.size() > MAX_BLOCKS || !isTerrain(level.getBlockState(pos.set(x, y, z)))) {
                     anchored = true;
                     break;

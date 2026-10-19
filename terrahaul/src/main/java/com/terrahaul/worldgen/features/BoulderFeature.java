@@ -79,7 +79,10 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
         for (int dx = -extent; dx <= extent; dx++) {
             for (int dz = -extent; dz <= extent; dz++) {
                 for (int dy = -extent; dy <= extent; dy++) {
-                    double inside = 0.0;
+                    // how far inside the nearest lobe (negative outside all of them, so that the
+                    // roughness below only dents and bumps the surface instead of scattering bits
+                    // through the whole box)
+                    double inside = Double.NEGATIVE_INFINITY;
                     int owner = 0;
                     for (int i = 0; i < lobes; i++) {
                         double[] l = lobe[i];
@@ -116,7 +119,8 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
             for (int dz = -extent; dz <= extent; dz++) {
                 for (int dy = -extent; dy <= extent; dy++) {
                     int idx = ((dx + extent) * n + (dz + extent)) * n + (dy + extent);
-                    if (shape[idx] <= 0) {
+                    if (shape[idx] >= 0) {
+                        // empty, or not connected to the core
                         continue;
                     }
                     int x = origin.getX() + dx;
@@ -153,7 +157,9 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
                         pos.set(x, origin.getY() + dy, z);
                         BlockState state = level.getBlockState(pos);
                         if (!state.isAir()) {
-                            if (dy >= 0 && state.isSolidRender(level, pos) && level.getFluidState(pos.above()).isEmpty()) {
+                            // only on the boulder itself, never on a branch or block above it
+                            int idx = ((dx + extent) * n + (dz + extent)) * n + (dy + extent);
+                            if (dy >= 0 && shape[idx] < 0 && state.isSolidRender(level, pos) && level.getFluidState(pos.above()).isEmpty()) {
                                 level.setBlock(pos, Blocks.MOSS_BLOCK.defaultBlockState(), 2);
                             }
                             break;

@@ -13,6 +13,7 @@ the limitations that are known today. Statements about testing are kept separate
 | Trees | Biome modifiers remove the vanilla tree features and add `terrahaul:procedural_tree` features; sapling growth event | All Overworld biomes, all worlds (config `replaceVanillaTrees`) |
 | Ground detail | Biome modifiers add features | All Overworld biomes, all worlds (config `groundDetails`) |
 | Water, waterfalls, formations, ocean vents, volcano vegetation, ruins | Features that read the terrain model; they do nothing elsewhere. Volcano vegetation uses the placement filter `terrahaul:volcano_zone` | Terrahaul worlds |
+| Floating terrain cleanup | Features `terrahaul:terrain_cleanup` (the `raw_generation` step) and `terrahaul:terrain_cleanup_late` (`fluid_springs`) in every Overworld biome. They remove small groups of natural rock, soil and sand that touch only air or water, in the chunk and its neighbours, and do nothing outside Terrahaul worlds or in chunks under a shipwreck or ocean ruin | Terrahaul worlds |
 | Sea floor (coral reefs, rocks, kelp, seagrass, grottos) | Biome modifiers remove vanilla's coral, kelp, seagrass, sea pickle and sand/clay/gravel disk features from the ocean biomes, add Terrahaul's sea-floor features, and add each removed vanilla feature back wrapped in `terrahaul:vanilla_fallback`, which places it only outside Terrahaul worlds | Ocean biomes; other worlds keep vanilla oceans |
 | Extra ore layers | Biome modifiers with the `terrahaul:terrahaul_only` placement filter | Terrahaul worlds (config `oreDepthFix`) |
 | Sky effects | Dimension effects `terrahaul:overworld`: vanilla Overworld sky with a configurable cloud height | Terrahaul worlds, client |
@@ -151,6 +152,10 @@ and `CreateWorldScreen.recreated`.
   them.
 - **Volcano biomes:** volcano flanks take the biome that the climate gives them. In cold mountain
   regions that can be a snowy or stony-peaks biome, so the forest zones there are sparse.
+- **Floating terrain cleanup:** only groups made entirely of natural terrain blocks are removed;
+  a group touching wood, leaves, plants, ice or any block placed by a structure or another mod's
+  feature is kept. Rock floating beside water is kept by the second pass, so a rare floating piece
+  can remain at a lake or river shore.
 - **Overhangs** come from the 3D terrain density. They are interpolated on Minecraft's
   4×8×4-block noise cells, so ledges are at least a few blocks thick, not thin slabs.
 - **Spawn:** the world spawn is chosen by vanilla's spawn search over Terrahaul terrain. On rare
