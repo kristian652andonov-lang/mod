@@ -1,0 +1,31 @@
+{
+  "feature": "terrahaul:volcano/scorch",
+  "placement": [
+    {
+      "type": "terrahaul:terrahaul_only"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "any"
+    },
+    {
+      "type": "minecraft:count",
+      "count": 4
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "burn",
+      "threshold": 0.55
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

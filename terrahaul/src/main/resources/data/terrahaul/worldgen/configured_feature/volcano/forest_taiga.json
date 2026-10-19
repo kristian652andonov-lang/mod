@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:random_selector",
+  "config": {
+    "features": [
+      {
+        "chance": 0.3,
+        "feature": {
+          "feature": "terrahaul:tree/fir",
+          "placement": []
+        }
+      },
+      {
+        "chance": 0.15,
+        "feature": {
+          "feature": "terrahaul:tree/pine",
+          "placement": []
+        }
+      }
+    ],
+    "default": {
+      "feature": "terrahaul:tree/spruce",
+      "placement": []
+    }
+  }
+}

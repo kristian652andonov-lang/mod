@@ -1,0 +1,34 @@
+{
+  "feature": "terrahaul:volcano/bomb",
+  "placement": [
+    {
+      "type": "terrahaul:terrahaul_only"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 0.35,
+      "density": "rocks",
+      "scale": 300,
+      "variation": 1.0,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "cone"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

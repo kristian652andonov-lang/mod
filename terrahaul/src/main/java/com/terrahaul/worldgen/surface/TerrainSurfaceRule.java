@@ -8,6 +8,7 @@ import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.Geology;
 import com.terrahaul.worldgen.terrain.LakeType;
 import com.terrahaul.worldgen.terrain.TerrainModel;
+import com.terrahaul.worldgen.terrain.VolcanoZones;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.tags.BiomeTags;
@@ -59,7 +60,8 @@ import net.minecraft.world.level.levelgen.SurfaceRules;
  * <b>Landforms.</b>
  * <ul>
  *   <li>river, lake and canyon beds get gravel, sand, clay or mud depending on climate;</li>
- *   <li>volcanoes are covered with basalt, blackstone and tuff;</li>
+ *   <li>volcanoes have a bare cone of ash and volcanic rock, lava flows and scorched burn scars
+ *       on otherwise forested flanks (see {@link VolcanoZones});</li>
  *   <li>deep-sea trenches are lined with magma, blackstone and basalt, and mid-ocean ridges are
  *       patched with basalt;</li>
  *   <li>forest floors get coarse dirt, podzol, moss and rooted dirt patches, and wetland margins
@@ -320,9 +322,9 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             if (d <= 2 && (col.river > 0.0 || col.lake > 0.0 || planned) && (underFluid || planned || y < seaLevel)) {
                 return bedMaterial(x, y, z, d);
             }
-            // ---- volcanoes ----------------------------------------------------------------------
-            if (col.volcano > 0.3) {
-                BlockState v = volcanic(x, y, z, d, n);
+            // ---- volcanoes: bare cone, lava flows and burn scars (forests keep the normal soil) -----
+            if (col.volcano > 0.0) {
+                BlockState v = volcanic(x, y, z, d, face, underFluid, biome, n);
                 if (v != null) {
                     return v;
                 }
@@ -703,15 +705,56 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             return result;
         }
 
-        private BlockState volcanic(int x, int y, int z, int d, double n) {
-            double p = patch(x, z, 9.0, 2);
-            if (col.crater > 0.0 && d <= 1 && p > 0.5) {
-                return MAGMA;
+        /**
+         * Volcanoes, by the ecological zones of {@link VolcanoZones} (shared with the vegetation
+         * filter, so snags stand on scorched ground and forests on soil):
+         * <ul>
+         *   <li>crater, upper cone and lava flows are bare rock and ash a few blocks deep over
+         *       banded volcanic rock, in single-colour patches and radial streaks; above the snow
+         *       line the cone of a snowy biome keeps its snow cap, in colder air of other biomes
+         *       snowfields lie on its gentle ground;</li>
+         *   <li>burn scars have a scorched top block (charred litter, scorched soil, root mats,
+         *       ash) over the normal soil profile;</li>
+         *   <li>the forested flanks, and any terrain that rises above the cone, return
+         *       {@code null}: grass and soil as everywhere else, so animals spawn there too.</li>
+         * </ul>
+         * Exposed faces also return {@code null} and get the banded rock of the face rule.
+         */
+        private BlockState volcanic(int x, int y, int z, int d, boolean face, boolean underFluid, Holder<Biome> biome, double n) {
+            VolcanoZones.Zone zone = VolcanoZones.at(model, x, z);
+            if (face || zone.presence <= 0.0) {
+                return null;
             }
-            if (d <= 3) {
-                return gradient(VOLCANIC, 0.5 + 0.5 * p, n * 0.6);
+            VolcanoZones.Ground ground = VolcanoZones.ground(model, zone, x, top, z);
+            if (!ground.bare()) {
+                if (ground == VolcanoZones.Ground.SOIL || d > 0 || underFluid || isSnowy(biome) || isSandy(biome)) {
+                    return null;
+                }
+                return switch (ground) {
+                    case CHARRED -> Blocks.PODZOL.defaultBlockState();
+                    case BURNT_ROOTS -> ROOTED_DIRT;
+                    case CINDERS -> supported(x, y, z) ? GRAVEL : COARSE_DIRT;
+                    default -> COARSE_DIRT;
+                };
             }
-            return strata(x, y, z, n);
+            if (isSnowy(biome) && !zone.inFlow()) {
+                // snow-capped cone: snow on gentle ground over volcanic rock (see snowy)
+                return null;
+            }
+            if (d > 3) {
+                return strata(x, y, z, n);
+            }
+            if (d == 0 && !underFluid && col.temperature < -0.3 && smoothSlope < 1.0
+                && 0.5 + 0.5 * patch(x, z, 16.0, 6) < Math.min(0.9, (-0.3 - col.temperature) / 0.17 * 0.8)) {
+                return SNOW_BLOCK;
+            }
+            return switch (ground) {
+                case ASH -> d == 0 && supported(x, y, z) ? GRAVEL : TUFF;
+                case SCORIA -> SMOOTH_BASALT;
+                case LAVA_ROCK -> BLACKSTONE;
+                case MAGMA -> d <= 1 ? MAGMA : BLACKSTONE;
+                default -> TUFF;
+            };
         }
 
         private BlockState canyonFloor(int x, int z, int d) {

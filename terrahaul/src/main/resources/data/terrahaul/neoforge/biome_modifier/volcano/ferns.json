@@ -1,0 +1,37 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "ground_details"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:bamboo_jungle",
+    "minecraft:birch_forest",
+    "minecraft:cherry_grove",
+    "minecraft:dark_forest",
+    "minecraft:flower_forest",
+    "minecraft:forest",
+    "minecraft:grove",
+    "minecraft:jungle",
+    "minecraft:meadow",
+    "minecraft:old_growth_birch_forest",
+    "minecraft:old_growth_pine_taiga",
+    "minecraft:old_growth_spruce_taiga",
+    "minecraft:plains",
+    "minecraft:savanna",
+    "minecraft:savanna_plateau",
+    "minecraft:snowy_plains",
+    "minecraft:snowy_taiga",
+    "minecraft:sparse_jungle",
+    "minecraft:sunflower_plains",
+    "minecraft:taiga",
+    "minecraft:windswept_forest",
+    "minecraft:windswept_gravelly_hills",
+    "minecraft:windswept_hills",
+    "minecraft:windswept_savanna"
+  ],
+  "features": "terrahaul:volcano/ferns",
+  "step": "vegetal_decoration"
+}

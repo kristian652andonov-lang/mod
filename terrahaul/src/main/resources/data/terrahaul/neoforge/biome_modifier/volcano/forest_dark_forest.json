@@ -1,0 +1,14 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:dark_forest"
+  ],
+  "features": "terrahaul:volcano/forest_dark_forest",
+  "step": "vegetal_decoration"
+}

@@ -138,6 +138,15 @@ tasks.register('renderMap', JavaExec) {
     args = (project.findProperty('args') ?: '12345 0 0 16384 16 build/map.png').toString().split(' ').toList()
 }
 
+tasks.register('volcanoStudy', JavaExec) {
+    group = 'terrahaul'
+    description = 'Renders zone maps and views of volcanoes (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.VolcanoStudy'
+    jvmArgs '-Xmx3G', '-Djava.awt.headless=true'
+    args = (project.findProperty('args') ?: '12345 build/volcanoes 4').toString().split(' ').toList()
+}
+
 tasks.register('probe', JavaExec) {
     group = 'terrahaul'
     classpath = sourceSets.devtools.runtimeClasspath
