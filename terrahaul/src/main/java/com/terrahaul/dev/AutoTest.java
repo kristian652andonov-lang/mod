@@ -135,6 +135,7 @@ public final class AutoTest {
             oreHistogram(level, cx, cz, radius, report);
             surfaceCensus(level, cx, cz, radius, report);
             floatingFragments(level, cx, cz, radius, report);
+            TreeDump.audit(level, cx, cz, radius, report);
             areaIndex++;
         }
         if (Boolean.parseBoolean(System.getProperty("terrahaul.autotest.structures", "true"))) {

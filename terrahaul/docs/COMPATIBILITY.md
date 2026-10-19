@@ -12,7 +12,8 @@ the limitations that are known today. Statements about testing are kept separate
 | Terrain | Custom density function types `terrahaul:terrain`, `terrahaul:column_bounded`; surface rule `terrahaul:terrain_surface` (runs before the vanilla rule) | Terrahaul worlds |
 | Trees | Biome modifiers remove the vanilla tree features and add `terrahaul:procedural_tree` features; sapling growth event | All Overworld biomes, all worlds (config `replaceVanillaTrees`) |
 | Ground detail | Biome modifiers add features | All Overworld biomes, all worlds (config `groundDetails`) |
-| Water, waterfalls, formations, ocean vents | Features that read the terrain model; they do nothing elsewhere | Terrahaul worlds |
+| Water, waterfalls, formations, ocean vents, volcano vegetation, ruins | Features that read the terrain model; they do nothing elsewhere. Volcano vegetation uses the placement filter `terrahaul:volcano_zone` | Terrahaul worlds |
+| Sea floor (coral reefs, rocks, kelp, seagrass, grottos) | Biome modifiers remove vanilla's coral, kelp, seagrass, sea pickle and sand/clay/gravel disk features from the ocean biomes, add Terrahaul's sea-floor features, and add each removed vanilla feature back wrapped in `terrahaul:vanilla_fallback`, which places it only outside Terrahaul worlds | Ocean biomes; other worlds keep vanilla oceans |
 | Extra ore layers | Biome modifiers with the `terrahaul:terrahaul_only` placement filter | Terrahaul worlds (config `oreDepthFix`) |
 | Sky effects | Dimension effects `terrahaul:overworld`: vanilla Overworld sky with a configurable cloud height | Terrahaul worlds, client |
 | Vegetation sway | Overrides the core shader `minecraft:shaders/core/rendertype_cutout` and wraps plant block models at model bake | Client |
@@ -35,8 +36,11 @@ otherwise leaves vanilla behaviour untouched.
 | `RandomSpreadStructurePlacementMixin`, `StructurePlacementAccessor` | `getPotentialStructureChunk` | Terrain-aware choice of the structure chunk for vanilla surface structure sets (identified by salt) in Terrahaul worlds |
 | `ChunkGeneratorMixin` | `createState` | Registers a Terrahaul world's terrain for the structure placement above |
 | `OceanMonumentStructureMixin` | `OceanMonumentStructure.generatePieces` | In Terrahaul worlds, lowers monuments (built at a fixed Y 39) onto the much deeper sea floor |
+| `BeardifierMixin` | `Beardifier.compute` | Returns 0 for density samples above or below every structure piece and jigsaw junction in the chunk (where vanilla's sum is 0 anyway), instead of looping over them. Applies in all worlds; results are identical to vanilla |
 | `WorldCarverMixin` | `WorldCarver.carveBlock` | In Terrahaul worlds, cave and ravine carvers do not cut within 14 blocks below the surface of nearby lakes and elevated rivers, so carved notches cannot drain a lake into a wall of water |
 | `client.VertexBufferMixin` (client only) | `VertexBuffer` constructor, `bind`, `upload`, `uploadIndexBuffer`, `close` | Creates a vertex buffer's OpenGL objects on first use instead of in the constructor. Minecraft builds five buffers per render section in range; in a 159-section-tall world that is millions of OpenGL objects for empty air, which exhausted graphics memory. Applies in all worlds (lazy creation does not change behaviour) |
+| `client.RenderSectionMixin` (client only) | `SectionRenderDispatcher.RenderSection` constructor, `releaseBuffers`, `setOrigin` | Gives each render section a map that creates a layer's vertex buffer only when the layer gets geometry (all worlds). In Terrahaul worlds it also frees the buffers of a section moved more than render distance + 2 sections from the camera height, so travelling at different heights does not keep stale meshes in video memory |
+| `client.WaterFluidMistMixin` (client only, optional) | `WaterFluid.animateTick` | Splash droplets and mist at the foot of falling water at least three blocks tall that lands on still water (all worlds, visual only). Declared with `require = 0`, so if another mod replaces the method the mist is simply missing |
 | `client.FogShapeMixin` (client only) | `FogShape.getIndex` | In Terrahaul worlds the terrain fog weighs vertical distance at 15%, so valleys stay visible from high peaks (vanilla's cylinder fog counts vertical distance fully) |
 
 Access transformers (`META-INF/accesstransformer.cfg`) widen `SurfaceRules.Context`, its fields
@@ -71,6 +75,11 @@ and `CreateWorldScreen.recreated`.
   work at any height. Only the vanilla surface structure sets (villages, outposts, mansions,
   desert pyramids, jungle temples, swamp huts, igloos) get terrain-aware placement. A data pack
   that changes their salt turns this off for that set.
+- **Ocean feature mods / data packs:** in ocean biomes Terrahaul removes vanilla's coral, kelp,
+  seagrass, sea pickle and disk features by id and re-adds them for non-Terrahaul worlds. A data
+  pack that edits those vanilla configured features still affects other worlds; in Terrahaul
+  worlds the Terrahaul sea floor is used instead. Ocean features of other mods under other ids
+  generate in both.
 - **Tree mods / data packs:** Terrahaul removes vanilla tree features by their ids
   (`minecraft:trees_*` and friends). Trees added by other mods under other ids still generate
   next to Terrahaul's trees. Set `replaceVanillaTrees=false` to keep vanilla trees.
@@ -135,6 +144,13 @@ and `CreateWorldScreen.recreated`.
 - **Trails** are laid by the surface rule on the top block. They are not connected to villages
   and do not cross rivers (they end at the banks). Trees and plants do not grow on the path
   blocks; a fallen log or boulder can occasionally lie across a trail.
+- **Ruins, signposts and path lights** are features, not structures: `/locate` does not find
+  them (use `/terrahaul find trail_ruin`), and they have no structure bounding box, so mobs and
+  advancements do not treat them as structures. Their chests use vanilla loot tables. They avoid
+  the start chunks of vanilla surface structures, but structures from other mods can overlap
+  them.
+- **Volcano biomes:** volcano flanks take the biome that the climate gives them. In cold mountain
+  regions that can be a snowy or stony-peaks biome, so the forest zones there are sparse.
 - **Overhangs** come from the 3D terrain density. They are interpolated on Minecraft's
   4×8×4-block noise cells, so ledges are at least a few blocks thick, not thin slabs.
 - **Spawn:** the world spawn is chosen by vanilla's spawn search over Terrahaul terrain. On rare
