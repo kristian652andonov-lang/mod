@@ -41,7 +41,6 @@ otherwise leaves vanilla behaviour untouched.
 | `WorldCarverMixin` | `WorldCarver.carveBlock` | In Terrahaul worlds, cave and ravine carvers do not cut within 14 blocks below the surface of nearby lakes and elevated rivers, so carved notches cannot drain a lake into a wall of water |
 | `client.VertexBufferMixin` (client only) | `VertexBuffer` constructor, `bind`, `upload`, `uploadIndexBuffer`, `close` | Creates a vertex buffer's OpenGL objects on first use instead of in the constructor. Minecraft builds five buffers per render section in range; in a 159-section-tall world that is millions of OpenGL objects for empty air, which exhausted graphics memory. Applies in all worlds (lazy creation does not change behaviour) |
 | `client.RenderSectionMixin` (client only) | `SectionRenderDispatcher.RenderSection` constructor, `releaseBuffers`, `setOrigin` | Gives each render section a map that creates a layer's vertex buffer only when the layer gets geometry (all worlds). In Terrahaul worlds it also frees the buffers of a section moved more than render distance + 2 sections from the camera height, so travelling at different heights does not keep stale meshes in video memory |
-| `client.WaterFluidMistMixin` (client only, optional) | `WaterFluid.animateTick` | Splash droplets and mist at the foot of falling water at least three blocks tall that lands on still water (all worlds, visual only). Declared with `require = 0`, so if another mod replaces the method the mist is simply missing |
 | `client.FogShapeMixin` (client only) | `FogShape.getIndex` | In Terrahaul worlds the terrain fog weighs vertical distance at 15%, so valleys stay visible from high peaks (vanilla's cylinder fog counts vertical distance fully) |
 
 Access transformers (`META-INF/accesstransformer.cfg`) widen `SurfaceRules.Context`, its fields
@@ -89,8 +88,13 @@ and `CreateWorldScreen.recreated`.
   block colours.
 - **Sodium / Embeddium / Iris / Oculus:** these replace the chunk renderer and do not use vanilla
   core shaders. Terrahaul detects them and does not enable vegetation sway. Falling leaves,
-  petals, dust, wind and clouds still work because they use the normal particle and sky
-  pipelines. Shader packs replace sky and cloud rendering.
+  petals, dust, the water spray, mist and foam, wind and clouds still work because they use the
+  normal particle, sound and sky pipelines. Shader packs replace sky and cloud rendering.
+- **Water effects** need no mixin: they read the client's own copy of the world, so they also
+  appear on falls built by players, by vanilla or by other mods, and on servers. Water of other
+  mods counts when its fluid is in the `minecraft:water` fluid tag. Mist is drawn in its own
+  particle render type without depth writes; a mod whose custom particle render type does not set
+  the depth mask itself could be drawn after it without depth writes too.
 - **Mods that override `rendertype_cutout`:** whichever resource pack is higher wins; see above.
 - **Packs or mods that override `shaders/include/fog.glsl`:** their version falls back to the
   vanilla cylinder fog for Terrahaul's shape 2. Valleys far below high peaks are then fogged as

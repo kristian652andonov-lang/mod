@@ -171,6 +171,16 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
 
   An optional autumn mode adds heavy, coloured leaf fall.
 - **Dust** blows across deserts, badlands and savannas in strong wind.
+- **Waterfalls, cascades and rapids** (any falling water, vanilla's and player-made too):
+  - fine spray drifts off the curtain's open sides and drops fly from the lip;
+  - the water splashes up white where it lands, higher for taller falls;
+  - mist rolls off the foot and drifts with the wind; falls 14 blocks and taller raise a large,
+    slowly billowing cloud;
+  - foam floats away on the pool and down the stream, and running water carries flecks of foam;
+  - tall falls roar and cascades and rapids rush, from where the water is, louder for bigger falls.
+
+  Each effect has its own option (`[water]` in the client config); the particle count follows the
+  animation quality and Minecraft's Particles setting.
 - **Vegetation sway:** grass, ferns, flowers, saplings, crops and bushes bend with the wind
   through a cutout core-shader override. Plants in caves stay still, and the two halves of tall
   plants bend together.

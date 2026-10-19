@@ -12,7 +12,8 @@ import net.neoforged.neoforge.common.ModConfigSpec;
  * marked "restart" are read while data packs load and need a world reload.
  * <p>
  * <b>Client (visual only)</b> — {@code config/terrahaul-client.toml}. Falling leaves, petals, dust,
- * wind and vegetation sway. They never affect the world, the server or other players.
+ * wind, vegetation sway, and the spray, mist, foam and sound of falling water. They never affect the
+ * world, the server or other players.
  */
 public final class TerrahaulConfig {
     public static final ModConfigSpec COMMON_SPEC;
@@ -44,6 +45,12 @@ public final class TerrahaulConfig {
     public static final ModConfigSpec.BooleanValue AUTUMN_LEAF_FALL;
     public static final ModConfigSpec.BooleanValue VEGETATION_SWAY;
     public static final ModConfigSpec.DoubleValue WIND_STRENGTH;
+    public static final ModConfigSpec.BooleanValue WATERFALL_SPRAY;
+    public static final ModConfigSpec.BooleanValue WATERFALL_MIST;
+    public static final ModConfigSpec.BooleanValue WATER_FOAM;
+    public static final ModConfigSpec.BooleanValue WATER_SOUNDS;
+    public static final ModConfigSpec.DoubleValue WATER_EFFECT_DENSITY;
+    public static final ModConfigSpec.DoubleValue WATER_SOUND_VOLUME;
 
     static {
         ModConfigSpec.Builder c = new ModConfigSpec.Builder();
@@ -100,6 +107,19 @@ public final class TerrahaulConfig {
         VEGETATION_SWAY = b.comment("Grass, flowers, ferns, saplings and bushes sway in the wind (core shader; has no effect while a shader pack",
             "or a renderer replacement such as Sodium/Iris is active).").define("vegetationSway", true);
         WIND_STRENGTH = b.comment("Multiplier for wind strength in all animations.").defineInRange("windStrength", 1.0, 0.0, 3.0);
+        b.pop();
+        b.comment("Effects of falling and running water: waterfalls, cascades and rapids, in every world (vanilla falls too).",
+            "The particles follow the animation quality above and Minecraft's Particles option (none at Minimal).").push("water");
+        WATERFALL_SPRAY = b.comment("Spray drifts off falling water, drops fly from the lip and the water splashes up where it lands.")
+            .define("waterfallSpray", true);
+        WATERFALL_MIST = b.comment("Mist rolls off the foot of falls; tall falls raise a large, slowly billowing cloud.")
+            .define("waterfallMist", true);
+        WATER_FOAM = b.comment("White foam floats on the water below falls and on rapids and drifts downstream.")
+            .define("waterFoam", true);
+        WATER_SOUNDS = b.comment("Tall falls roar, cascades and rapids rush (Ambient/Environment sound category).")
+            .define("waterSounds", true);
+        WATER_EFFECT_DENSITY = b.comment("Multiplier for the number of water particles.").defineInRange("waterEffectDensity", 1.0, 0.0, 3.0);
+        WATER_SOUND_VOLUME = b.comment("Multiplier for the volume of the water sounds.").defineInRange("waterSoundVolume", 1.0, 0.0, 2.0);
         b.pop();
         CLIENT_SPEC = b.build();
     }
@@ -234,6 +254,30 @@ public final class TerrahaulConfig {
 
     public static double windStrength() {
         return number(WIND_STRENGTH);
+    }
+
+    public static boolean waterfallSpray() {
+        return bool(WATERFALL_SPRAY);
+    }
+
+    public static boolean waterfallMist() {
+        return bool(WATERFALL_MIST);
+    }
+
+    public static boolean waterFoam() {
+        return bool(WATER_FOAM);
+    }
+
+    public static boolean waterSounds() {
+        return bool(WATER_SOUNDS);
+    }
+
+    public static double waterEffectDensity() {
+        return number(WATER_EFFECT_DENSITY);
+    }
+
+    public static double waterSoundVolume() {
+        return number(WATER_SOUND_VOLUME);
     }
 
     /** Looks up a boolean option by its key, for the {@code terrahaul:config} data pack condition. */

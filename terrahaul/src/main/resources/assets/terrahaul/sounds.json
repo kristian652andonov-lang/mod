@@ -1,0 +1,24 @@
+{
+  "ambient.waterfall": {
+    "subtitle": "subtitles.terrahaul.ambient.waterfall",
+    "sounds": [
+      {
+        "name": "terrahaul:ambient/waterfall_roar_0"
+      },
+      {
+        "name": "terrahaul:ambient/waterfall_roar_1"
+      }
+    ]
+  },
+  "ambient.rapids": {
+    "subtitle": "subtitles.terrahaul.ambient.rapids",
+    "sounds": [
+      {
+        "name": "terrahaul:ambient/water_rush_0"
+      },
+      {
+        "name": "terrahaul:ambient/water_rush_1"
+      }
+    ]
+  }
+}

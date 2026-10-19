@@ -5,7 +5,8 @@
   default `java` is older.
 - Internet access for the first build: Gradle 8.14.3, ModDevGradle 2.0.148, NeoForge 21.1.262,
   Parchment mappings and the Minecraft 1.21.1 artifacts are downloaded and cached.
-- Optional, only to regenerate data and assets: Python 3.10+ with Pillow (`pip install pillow`).
+- Optional, only to regenerate data and assets: Python 3.10+ with Pillow (`pip install pillow`);
+  the water effect sounds also need numpy and `ffmpeg` with libvorbis.
 
 ## Build the mod JAR
 ```
@@ -83,6 +84,7 @@ normal build does not need Python. Re-run a script only after editing it:
 | `tools/datagen_worldgen.py <vanilla data/minecraft dir>` | Dimension type, noise settings, density functions, noises, world preset and its tag |
 | `tools/datagen_features.py <vanilla data/minecraft dir>` | Configured/placed features, tree configurations, biome modifiers (trees, details, formations, water, resource layers) |
 | `tools/datagen_assets.py` | Block states, block/item models, procedural textures, particle sprites, language entries, loot tables, tags, recipes, data maps |
+| `tools/datagen_water_fx.py` | Spray, mist and foam sprites and particle descriptions; the procedural waterfall and rapids loops (Ogg Vorbis) and `sounds.json`. Needs numpy and `ffmpeg` with libvorbis |
 
 The vanilla `data/minecraft` directory is needed because the worldgen scripts copy a few vanilla
 definitions: the Overworld surface rule, spawn target, cave expressions and the feature lists

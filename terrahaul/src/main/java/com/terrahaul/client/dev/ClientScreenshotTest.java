@@ -146,6 +146,7 @@ public final class ClientScreenshotTest {
                     name, wait, ready, mc.particleEngine.countParticles(), mc.options.getEffectiveRenderDistance(),
                     nearbyChunksLoaded(mc, 8), mc.player.blockPosition().toShortString());
                 logMemory(mc, name);
+                Terrahaul.LOGGER.info("[screenshots] water effects at {}: {}", name, com.terrahaul.client.water.WaterEffects.describe());
                 stage = 2;
                 wait = 0;
             }

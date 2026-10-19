@@ -1,0 +1,248 @@
+package com.terrahaul.client.water;
+
+import com.terrahaul.Terrahaul;
+import com.terrahaul.config.TerrahaulConfig;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.material.FogType;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * The sound of falling and running water: a deep looping roar near tall falls, a lighter rush and
+ * babble near cascades, small steps and rapids.
+ * <p>
+ * Every fall and every patch of running water is a possible source, whose loudness and reach
+ * grow with its size (width times height). Small sources close together, the steps of a cascade or
+ * the cells of one stretch of rapids, are heard as one. Only the few loudest sources at the
+ * listener play, each as a looping sound that sits at the nearest point of its fall, so it moves
+ * with the listener along a tall curtain and comes from the right direction. Distance is handled
+ * here rather than by the sound engine, whose range is fixed when a sound starts: the volume
+ * follows a smooth curve to silence at the source's reach, changes are eased in and out, and a
+ * source that drops out of the chosen few fades away instead of stopping.
+ * <p>
+ * The sounds ({@code terrahaul:ambient.waterfall} and {@code terrahaul:ambient.rapids}) are only
+ * played on this client; they need no registry entry because the sound engine finds them by name
+ * in {@code sounds.json}. They belong to the Ambient/Environment volume slider.
+ */
+final class WaterSounds {
+    static final SoundEvent WATERFALL = SoundEvent.createVariableRangeEvent(Terrahaul.id("ambient.waterfall"));
+    static final SoundEvent RAPIDS = SoundEvent.createVariableRangeEvent(Terrahaul.id("ambient.rapids"));
+
+    private static final int MAX_ROARS = 2;
+    private static final int MAX_RUSHES = 3;
+    /** Small sources closer than this are heard as one. */
+    private static final double MERGE = 10.0;
+
+    /** A place the sound of water comes from. */
+    private static final class Source {
+        final long key;
+        final boolean roar;
+        final double x;
+        final double z;
+        double minY;
+        double maxY;
+        double strength;
+        float level;
+
+        Source(long key, boolean roar, double x, double z, double minY, double maxY, double strength) {
+            this.key = key;
+            this.roar = roar;
+            this.x = x;
+            this.z = z;
+            this.minY = minY;
+            this.maxY = maxY;
+            this.strength = strength;
+        }
+
+        double reach() {
+            return roar ? Mth.clamp(24.0 + 4.0 * Math.sqrt(strength), 28.0, 110.0) : Mth.clamp(10.0 + 2.6 * Math.sqrt(strength), 12.0, 36.0);
+        }
+
+        float peak() {
+            return (float) (roar ? Mth.clamp(0.3 + 0.13 * Math.log1p(strength / 20.0), 0.3, 1.0)
+                : Mth.clamp(0.12 + 0.07 * Math.log1p(strength), 0.12, 0.45));
+        }
+
+        double nearestY(double y) {
+            return Mth.clamp(y, minY, maxY);
+        }
+    }
+
+    private final List<Source> sources = new ArrayList<>();
+    private final Long2ObjectOpenHashMap<Loop> playing = new Long2ObjectOpenHashMap<>();
+    private int sinceStart;
+
+    /** Builds the sources from the current falls and running water (after each rebuild). */
+    void update(List<Fall> falls, List<WaterScanner.RapidPatch> patches) {
+        sources.clear();
+        List<Source> small = new ArrayList<>();
+        for (Fall fall : falls) {
+            double strength = fall.width * (double) fall.height;
+            boolean roar = fall.height >= 8 && strength >= 20.0;
+            Source s = new Source(fall.key, roar, fall.cx, fall.cz, fall.surface, fall.topY + 1.0, roar ? strength : strength * 1.5);
+            (roar ? sources : small).add(s);
+        }
+        for (WaterScanner.RapidPatch p : patches) {
+            if (p.cells().length >= 3) {
+                small.add(new Source(p.key() ^ 0x5DEECE66DL, false, p.x(), p.z(), p.y(), p.y(), p.cells().length * 0.6));
+            }
+        }
+        // the strongest small source takes in the weaker ones around it
+        small.sort(Comparator.comparingDouble((Source s) -> s.strength).reversed());
+        boolean[] taken = new boolean[small.size()];
+        for (int i = 0; i < small.size(); i++) {
+            if (taken[i]) {
+                continue;
+            }
+            Source head = small.get(i);
+            for (int j = i + 1; j < small.size(); j++) {
+                Source other = small.get(j);
+                if (!taken[j] && Math.abs(other.x - head.x) < MERGE && Math.abs(other.z - head.z) < MERGE
+                    && other.minY < head.maxY + MERGE && other.maxY > head.minY - MERGE) {
+                    taken[j] = true;
+                    head.strength += other.strength;
+                    head.minY = Math.min(head.minY, other.minY);
+                    head.maxY = Math.max(head.maxY, other.maxY);
+                }
+            }
+            sources.add(head);
+        }
+    }
+
+    void tick(Minecraft mc, Vec3 listener) {
+        sinceStart++;
+        float master = (float) TerrahaulConfig.waterSoundVolume();
+        if (mc.options.getSoundSourceVolume(SoundSource.AMBIENT) <= 0.0F || mc.options.getSoundSourceVolume(SoundSource.MASTER) <= 0.0F
+            || master <= 0.0F) {
+            stopAll(mc);
+            return;
+        }
+        // muffled under water
+        if (mc.gameRenderer.getMainCamera().getFluidInCamera() == FogType.WATER) {
+            master *= 0.45F;
+        }
+        for (Source s : sources) {
+            double dx = s.x - listener.x;
+            double dy = s.nearestY(listener.y) - listener.y;
+            double dz = s.z - listener.z;
+            double d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            double f = Mth.clamp(1.0 - Math.max(0.0, d - 2.0) / s.reach(), 0.0, 1.0);
+            s.level = (float) (s.peak() * Math.pow(f, 1.7)) * master;
+        }
+        // the loudest few of each kind play; those already playing are favoured, so two sources
+        // of about the same loudness do not take turns
+        List<Source> chosen = new ArrayList<>();
+        choose(chosen, true, MAX_ROARS);
+        choose(chosen, false, MAX_RUSHES);
+
+        for (Loop loop : playing.values()) {
+            loop.target = 0.0F;
+        }
+        for (Source s : chosen) {
+            Loop loop = playing.get(s.key);
+            if (loop == null || loop.isStopped()) {
+                if (sinceStart < 4) {
+                    // start sounds one at a time, a few ticks apart, so they never play in step
+                    continue;
+                }
+                float pitch = s.roar ? (float) Mth.clamp(1.06 - 0.07 * Math.log1p(s.strength / 30.0), 0.8, 1.06)
+                    : 0.92F + (float) Math.floorMod(s.key * 0x9E3779B97F4A7C15L >>> 40, 18) / 100.0F;
+                loop = new Loop(s.roar ? WATERFALL : RAPIDS, pitch);
+                playing.put(s.key, loop);
+                loop.aim(s.x, s.nearestY(listener.y), s.z, s.level);
+                mc.getSoundManager().play(loop);
+                sinceStart = 0;
+            } else {
+                loop.aim(s.x, s.nearestY(listener.y), s.z, s.level);
+            }
+        }
+        var it = playing.long2ObjectEntrySet().fastIterator();
+        while (it.hasNext()) {
+            Loop loop = it.next().getValue();
+            if (loop.isStopped()) {
+                it.remove();
+            } else if (++loop.watched > 5 && !mc.getSoundManager().isActive(loop)) {
+                // the sound engine dropped it (no free channel, or no audio device at all): wait a
+                // few seconds before starting sounds again instead of retrying every tick
+                it.remove();
+                sinceStart = -100;
+            }
+        }
+    }
+
+    private void choose(List<Source> chosen, boolean roar, int count) {
+        List<Source> kind = new ArrayList<>();
+        for (Source s : sources) {
+            if (s.roar == roar && s.level > 0.004F) {
+                kind.add(s);
+            }
+        }
+        kind.sort(Comparator.comparingDouble((Source s) -> playing.containsKey(s.key) ? s.level * 1.3 : s.level).reversed());
+        for (int i = 0; i < Math.min(count, kind.size()); i++) {
+            chosen.add(kind.get(i));
+        }
+    }
+
+    int playing() {
+        return playing.size();
+    }
+
+    void stopAll(Minecraft mc) {
+        for (Loop loop : playing.values()) {
+            mc.getSoundManager().stop(loop);
+        }
+        playing.clear();
+    }
+
+    /** One looping water sound, eased towards the volume and position it is given. */
+    private static final class Loop extends AbstractTickableSoundInstance {
+        float target;
+        int watched;
+        private int sinceAim;
+
+        Loop(SoundEvent event, float pitch) {
+            super(event, SoundSource.AMBIENT, SoundInstance.createUnseededRandom());
+            this.looping = true;
+            this.delay = 0;
+            this.attenuation = SoundInstance.Attenuation.NONE;
+            this.volume = 0.0F;
+            this.pitch = pitch;
+        }
+
+        void aim(double x, double y, double z, float target) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.target = target;
+            this.sinceAim = 0;
+        }
+
+        @Override
+        public void tick() {
+            // a loop nobody looks after any more (the effects were switched off, the world
+            // changed) dies away by itself
+            if (++sinceAim > 20) {
+                target = 0.0F;
+            }
+            // about a second to swell or die away
+            float step = Math.max(0.004F, Math.abs(target - volume) * 0.07F);
+            volume = target > volume ? Math.min(target, volume + step) : Math.max(target, volume - step);
+            if (target <= 0.0F && volume <= 0.002F) {
+                stop();
+            }
+        }
+
+        @Override
+        public boolean canStartSilent() {
+            return true;
+        }
+    }
+}
