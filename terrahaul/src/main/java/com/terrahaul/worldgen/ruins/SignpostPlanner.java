@@ -4,6 +4,8 @@ import com.terrahaul.worldgen.noise.SeedMixer;
 import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.LakeType;
 import com.terrahaul.worldgen.terrain.TerrainModel;
+import com.terrahaul.worldgen.water.FallPlan;
+import com.terrahaul.worldgen.water.FallPlanner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -246,12 +248,13 @@ public final class SignpostPlanner {
         if (v != null) {
             out.add(new Dest("@volcano|Volcano", v.x, v.z, 0.5));
         }
-        int wc = TerrainModel.WATERFALL_CELL;
+        FallPlanner falls = FallPlanner.of(m);
+        int wc = FallPlanner.FALL_CELL;
         for (int cx = Math.floorDiv(x, wc) - 2; cx <= Math.floorDiv(x, wc) + 2; cx++) {
             for (int cz = Math.floorDiv(z, wc) - 2; cz <= Math.floorDiv(z, wc) + 2; cz++) {
-                TerrainModel.WaterfallSite w = m.waterfallSite(cx, cz);
+                FallPlan w = falls.fall(cx, cz);
                 if (w != null) {
-                    out.add(new Dest("@waterfall|Waterfall", w.x, w.z, 0.7));
+                    out.add(new Dest("@waterfall|Waterfall", w.lipX, w.lipZ, 0.7));
                 }
             }
         }

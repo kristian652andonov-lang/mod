@@ -5,6 +5,8 @@ import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.Geology;
 import com.terrahaul.worldgen.terrain.TerrainFinder;
 import com.terrahaul.worldgen.terrain.TerrainModel;
+import com.terrahaul.worldgen.water.FallPlan;
+import com.terrahaul.worldgen.water.FallPlanner;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -447,13 +449,23 @@ public final class RuinSites {
         return false;
     }
 
-    /** Whether a waterfall's lip lies within {@code dist} blocks. */
+    /** Whether the lip of a waterfall or cascade lies within {@code dist} blocks. */
     boolean waterfallNear(int x, int z, int dist) {
-        int cell = TerrainModel.WATERFALL_CELL;
+        FallPlanner planner = FallPlanner.of(model);
+        int cell = FallPlanner.FALL_CELL;
         for (int fx = Math.floorDiv(x - dist, cell); fx <= Math.floorDiv(x + dist, cell); fx++) {
             for (int fz = Math.floorDiv(z - dist, cell); fz <= Math.floorDiv(z + dist, cell); fz++) {
-                TerrainModel.WaterfallSite w = model.waterfallSite(fx, fz);
-                if (w != null && Math.abs(w.x - x) <= dist && Math.abs(w.z - z) <= dist) {
+                FallPlan w = planner.fall(fx, fz);
+                if (w != null && Math.abs(w.lipX - x) <= dist && Math.abs(w.lipZ - z) <= dist) {
+                    return true;
+                }
+            }
+        }
+        cell = FallPlanner.CASCADE_CELL;
+        for (int fx = Math.floorDiv(x - dist, cell); fx <= Math.floorDiv(x + dist, cell); fx++) {
+            for (int fz = Math.floorDiv(z - dist, cell); fz <= Math.floorDiv(z + dist, cell); fz++) {
+                FallPlan w = planner.cascade(fx, fz);
+                if (w != null && Math.abs(w.lipX - x) <= dist && Math.abs(w.lipZ - z) <= dist) {
                     return true;
                 }
             }
