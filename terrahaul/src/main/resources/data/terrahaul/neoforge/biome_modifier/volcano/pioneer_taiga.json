@@ -1,0 +1,19 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:taiga",
+    "minecraft:snowy_taiga",
+    "minecraft:old_growth_spruce_taiga",
+    "minecraft:old_growth_pine_taiga",
+    "minecraft:grove",
+    "minecraft:snowy_plains"
+  ],
+  "features": "terrahaul:volcano/pioneer_taiga",
+  "step": "vegetal_decoration"
+}

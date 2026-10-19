@@ -1,0 +1,26 @@
+{
+  "type": "terrahaul:fallen_log",
+  "config": {
+    "log": {
+      "Name": "minecraft:dark_oak_log",
+      "Properties": {
+        "axis": "x"
+      }
+    },
+    "stripped": {
+      "Name": "minecraft:stripped_dark_oak_log",
+      "Properties": {
+        "axis": "x"
+      }
+    },
+    "length": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 3,
+      "max_inclusive": 8
+    },
+    "rot": 0.3,
+    "moss": 0.0,
+    "mushroom": 0.0,
+    "stump": 0.5
+  }
+}

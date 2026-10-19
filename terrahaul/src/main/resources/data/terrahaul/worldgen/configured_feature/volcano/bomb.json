@@ -1,0 +1,21 @@
+{
+  "type": "terrahaul:boulder",
+  "config": {
+    "radius": {
+      "type": "minecraft:uniform",
+      "min_inclusive": 1.4,
+      "max_exclusive": 3.6
+    },
+    "material": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "minecraft:basalt",
+        "Properties": {
+          "axis": "y"
+        }
+      }
+    },
+    "moss": 0.0,
+    "bury": 0.4
+  }
+}

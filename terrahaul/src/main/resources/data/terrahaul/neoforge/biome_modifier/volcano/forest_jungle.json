@@ -1,0 +1,16 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:jungle",
+    "minecraft:sparse_jungle",
+    "minecraft:bamboo_jungle"
+  ],
+  "features": "terrahaul:volcano/forest_jungle",
+  "step": "vegetal_decoration"
+}

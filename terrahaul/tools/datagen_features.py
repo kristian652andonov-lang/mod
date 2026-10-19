@@ -104,6 +104,8 @@ def tree_placement(count, scale=260, variation=0.7, clearing=-2.0, water_depth=0
         {"type": "minecraft:surface_water_depth_filter", "max_water_depth": water_depth},
         {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"},
         {"type": "terrahaul:tree_line", "max_slope": slope},
+        # living trees keep out of volcano burn scars, lava flows and bare cones (see VolcanoZones)
+        {"type": "terrahaul:volcano_zone", "zone": "living"},
         {"type": "minecraft:biome"},
     ]
 
@@ -539,6 +541,150 @@ def details():
     with_conditions('terrahaul/neoforge/biome_modifier/rock_formations.json', CONFIG_FORMATIONS)
 
 
+def volcano_zone(zone, threshold=0.0):
+    f = {"type": "terrahaul:volcano_zone", "zone": zone}
+    if threshold:
+        f["threshold"] = threshold
+    return f
+
+
+# first modifiers of every volcano feature: Terrahaul worlds only, and one cheap test per chunk
+# that skips all chunks away from volcanoes
+VOLCANO_GATE = [{"type": "terrahaul:terrahaul_only"}, volcano_zone("any")]
+
+
+def volcano_tree_placement(count, zone, slope=7, scale=200, variation=0.5):
+    return VOLCANO_GATE + [
+        {"type": "terrahaul:density_count", "count": count, "density": "forest", "scale": scale,
+         "variation": variation, "clearing": -2.0},
+        {"type": "minecraft:in_square"},
+        {"type": "minecraft:surface_water_depth_filter", "max_water_depth": 0},
+        {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"},
+        volcano_zone(zone),
+        {"type": "terrahaul:tree_line", "max_slope": slope},
+        {"type": "minecraft:biome"},
+    ]
+
+
+def volcano_detail_placement(count, zone, density="vegetation", threshold=0.0, heightmap="MOTION_BLOCKING_NO_LEAVES",
+                             scale=160, variation=0.6):
+    return VOLCANO_GATE + [
+        {"type": "terrahaul:density_count", "count": count, "density": density, "scale": scale,
+         "variation": variation, "clearing": -2.0},
+        {"type": "minecraft:in_square"},
+        {"type": "minecraft:heightmap", "heightmap": heightmap},
+        volcano_zone(zone, threshold),
+        {"type": "minecraft:biome"},
+    ]
+
+
+def volcano_feature(name, biomes, placement, step='vegetal_decoration', conditions=None, feature=None):
+    placed('volcano/' + name, feature or 'terrahaul:volcano/' + name, placement)
+    add_features('volcano/' + name, biomes, 'terrahaul:volcano/' + name, step)
+    with_conditions(f'terrahaul/neoforge/biome_modifier/volcano/{name}.json', conditions or CONFIG_DETAILS)
+
+
+VOLCANO_FORESTS = {
+    # group: (biomes, tree selector entries, default tree, extra trees per chunk,
+    #         young tree selector entries, default young tree)
+    'temperate': (['minecraft:plains', 'minecraft:sunflower_plains', 'minecraft:forest', 'minecraft:flower_forest',
+                   'minecraft:birch_forest', 'minecraft:old_growth_birch_forest', 'minecraft:meadow', 'minecraft:windswept_hills',
+                   'minecraft:windswept_gravelly_hills', 'minecraft:windswept_forest'],
+                  [('birch', 0.25)], 'oak', 4.5, [('birch_young', 0.4)], 'oak_young'),
+    'dark_forest': (['minecraft:dark_forest'], [('oak', 0.3)], 'dark_oak', 3.5, [], 'oak_young'),
+    'taiga': (['minecraft:taiga', 'minecraft:snowy_taiga', 'minecraft:old_growth_spruce_taiga', 'minecraft:old_growth_pine_taiga',
+               'minecraft:grove', 'minecraft:snowy_plains'],
+              [('fir', 0.3), ('pine', 0.15)], 'spruce', 4.5, [], 'spruce_young'),
+    'jungle': (['minecraft:jungle', 'minecraft:sparse_jungle', 'minecraft:bamboo_jungle'],
+               [('jungle_giant', 0.2)], 'jungle_medium', 4.5, [], 'jungle_bush'),
+    'savanna': (['minecraft:savanna', 'minecraft:savanna_plateau', 'minecraft:windswept_savanna'],
+                [('oak_small_dry', 0.15)], 'acacia', 2.5, [], 'acacia_small'),
+    'cherry': (['minecraft:cherry_grove'], [('birch', 0.1)], 'cherry', 3.5, [], 'cherry_young'),
+}
+
+
+def volcano_vegetation():
+    """Ecology of volcanoes (see VolcanoZones): a denser forest on the fertile flanks, young trees
+    and shrubs below the bare cone, burn scars of snags, charred logs and dead bushes, and loose
+    volcanic rock on the cone. Every feature passes terrahaul:volcano_zone, so it only acts in
+    Terrahaul worlds and agrees with the ground the surface rule lays."""
+    T = 'terrahaul:tree/'
+    forest_biomes = sorted({b for g in VOLCANO_FORESTS.values() for b in g[0]})
+
+    # ---- living forest on fertile soil, young trees in the pioneer belt -----------------------
+    for name, (biomes, entries, default, count, young_entries, young_default) in VOLCANO_FORESTS.items():
+        selector(f'volcano/forest_{name}', [(T + t, c) for t, c in entries], T + default)
+        volcano_feature(f'forest_{name}', biomes, volcano_tree_placement(count, "forest"), conditions=CONFIG_TREES)
+        young = T + young_default
+        if young_entries:
+            selector(f'volcano/pioneer_{name}', [(T + t, c) for t, c in young_entries], young)
+            young = f'terrahaul:volcano/pioneer_{name}'
+        volcano_feature(f'pioneer_{name}', biomes, volcano_tree_placement(1.6, "pioneer", slope=9), conditions=CONFIG_TREES,
+                        feature=young)
+
+    # ---- burn scars ---------------------------------------------------------------------------
+    # fire-killed snags (configured features of the tree overhaul)
+    selector('volcano/burned_snags', [(T + 'burned_small', 0.4)], T + 'burned')
+    volcano_feature('burned_snags', forest_biomes, volcano_tree_placement(5.0, "burn", slope=9), conditions=CONFIG_TREES)
+    # charred trunks: dark oak bark, burned through to the bare wood in places, no moss or fungi
+    configured('volcano/charred_log', 'terrahaul:fallen_log', {
+        "log": state("minecraft:dark_oak_log", axis="x"), "stripped": state("minecraft:stripped_dark_oak_log", axis="x"),
+        "length": {"type": "minecraft:uniform", "min_inclusive": 3, "max_inclusive": 8},
+        "rot": 0.3, "moss": 0.0, "mushroom": 0.0, "stump": 0.5})
+    volcano_feature('charred_log', forest_biomes, volcano_detail_placement(1.4, "burn", density="forest", scale=220))
+    patch('volcano/dead_bushes', weighted([(state("minecraft:dead_bush"), 3), (state("terrahaul:dry_shrub"), 2)]), 6, 5,
+          ["#minecraft:dirt", "minecraft:gravel"])
+    volcano_feature('dead_bushes', forest_biomes, volcano_detail_placement(2.5, "burn"))
+    # fireweed-like regrowth: drifts of allium in the scars
+    patch('volcano/fireweed', weighted([(state("minecraft:allium"), 1)]), 12, 4, SOIL)
+    volcano_feature('fireweed', forest_biomes, volcano_detail_placement(0.6, "burn", scale=220, variation=1.0))
+    # the biomes' own grass and flowers grow on scorched soil too: clear most small plants (but
+    # not the fireweed) from the cores of the scars afterwards, leaving a few dead bushes
+    configured('volcano/scorch', 'minecraft:random_patch', {
+        "tries": 48, "xz_spread": 6, "y_spread": 2,
+        "feature": {"feature": {"type": "minecraft:simple_block", "config": {"to_place": weighted(
+            [(state("minecraft:air"), 7), (state("minecraft:dead_bush"), 1)])}},
+            "placement": [{"type": "minecraft:block_predicate_filter", "predicate": {"type": "minecraft:any_of", "predicates": [
+                {"type": "minecraft:matching_blocks", "blocks": ["minecraft:short_grass", "minecraft:fern"]},
+                {"type": "minecraft:all_of", "predicates": [
+                    {"type": "minecraft:matching_block_tag", "tag": "minecraft:small_flowers"},
+                    {"type": "minecraft:not", "predicate": {"type": "minecraft:matching_blocks", "blocks": "minecraft:allium"}}]}]}}]}})
+    volcano_feature('scorch', forest_biomes, VOLCANO_GATE + [
+        {"type": "minecraft:count", "count": 4},
+        {"type": "minecraft:in_square"},
+        {"type": "minecraft:heightmap", "heightmap": "MOTION_BLOCKING_NO_LEAVES"},
+        volcano_zone("burn", 0.55),
+        {"type": "minecraft:biome"},
+    ], step='top_layer_modification')
+
+    # ---- lush flanks --------------------------------------------------------------------------
+    patch('volcano/ferns', weighted([(state("minecraft:fern"), 4), (state("minecraft:large_fern"), 1)]), 20, 4, SOIL)
+    volcano_feature('ferns', forest_biomes, volcano_detail_placement(2.0, "forest", scale=200))
+    patch('volcano/flowers', weighted([(state("minecraft:dandelion"), 2), (state("minecraft:poppy"), 2), (state("minecraft:oxeye_daisy"), 2),
+                                       (state("minecraft:azure_bluet"), 2), (state("minecraft:cornflower"), 1),
+                                       (state("minecraft:lily_of_the_valley"), 1)]), 16, 5, SOIL)
+    volcano_feature('flowers', forest_biomes, volcano_detail_placement(0.8, "forest", scale=240, variation=1.0))
+    patch('volcano/understory', weighted([(state("terrahaul:leafy_bush"), 3), (state("terrahaul:dense_shrub"), 2)]), 6, 5, SOIL)
+    volcano_feature('understory', forest_biomes, volcano_detail_placement(1.5, "forest"))
+    # pioneer belt: hardy shrubs on grass and ash
+    patch('volcano/pioneer_shrubs', weighted([(state("terrahaul:alpine_shrub"), 3), (state("terrahaul:dry_shrub"), 1)]), 8, 5,
+          ["#minecraft:dirt", "minecraft:gravel"])
+    volcano_feature('pioneer_shrubs', forest_biomes, volcano_detail_placement(2.0, "pioneer"))
+
+    # ---- the bare cone: lava bombs, rocks and scoria pebbles (any biome a cone reaches) ----------
+    cone_ground = ["#minecraft:dirt", "minecraft:gravel", "minecraft:tuff", "minecraft:blackstone", "minecraft:basalt",
+                   "minecraft:smooth_basalt"]
+    configured('volcano/bomb', 'terrahaul:boulder', {
+        "radius": {"type": "minecraft:uniform", "min_inclusive": 1.4, "max_exclusive": 3.6},
+        "material": {"type": "minecraft:simple_state_provider", "state": state("minecraft:basalt", axis="y")},
+        "moss": 0.0, "bury": 0.4})
+    volcano_feature('bomb', '#minecraft:is_overworld', volcano_detail_placement(0.35, "cone", density="rocks", scale=300, variation=1.0))
+    patch('volcano/rocks', rock_states([("blackstone", 3), ("tuff", 2)]), 4, 5, cone_ground)
+    volcano_feature('rocks', '#minecraft:is_overworld', volcano_detail_placement(1.0, "cone", density="rocks"))
+    patch('volcano/pebbles', pebble_states([("blackstone", 3), ("tuff", 2), ("deepslate", 1)]), 10, 5, cone_ground)
+    volcano_feature('pebbles', '#minecraft:is_overworld', volcano_detail_placement(1.6, "cone", density="ground_detail"))
+
+
 CONFIG_ORES = [{"type": "terrahaul:config", "key": "ore_depth_fix"}]
 
 
@@ -600,6 +746,7 @@ def main():
     oceans()
     trees()
     details()
+    volcano_vegetation()
     resources()
 
 

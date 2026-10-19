@@ -4,6 +4,7 @@ import com.terrahaul.Terrahaul;
 import com.terrahaul.worldgen.placement.DensityCountPlacement;
 import com.terrahaul.worldgen.placement.TerrahaulOnlyFilter;
 import com.terrahaul.worldgen.placement.TreeLineFilter;
+import com.terrahaul.worldgen.placement.VolcanoZoneFilter;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.placement.PlacementModifierType;
 import net.neoforged.bus.api.IEventBus;
@@ -20,6 +21,8 @@ public final class TerrahaulPlacements {
         TYPES.register("tree_line", () -> () -> TreeLineFilter.CODEC);
     public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<TerrahaulOnlyFilter>> TERRAHAUL_ONLY =
         TYPES.register("terrahaul_only", () -> () -> TerrahaulOnlyFilter.CODEC);
+    public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<VolcanoZoneFilter>> VOLCANO_ZONE =
+        TYPES.register("volcano_zone", () -> () -> VolcanoZoneFilter.CODEC);
 
     private TerrahaulPlacements() {
     }

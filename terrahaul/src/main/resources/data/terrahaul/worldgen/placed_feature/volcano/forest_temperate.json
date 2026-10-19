@@ -1,0 +1,42 @@
+{
+  "feature": "terrahaul:volcano/forest_temperate",
+  "placement": [
+    {
+      "type": "terrahaul:terrahaul_only"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 4.5,
+      "density": "forest",
+      "scale": 200,
+      "variation": 0.5,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "forest"
+    },
+    {
+      "type": "terrahaul:tree_line",
+      "max_slope": 7
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "feature": "terrahaul:volcano/fireweed",
+  "placement": [
+    {
+      "type": "terrahaul:terrahaul_only"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 0.6,
+      "density": "vegetation",
+      "scale": 220,
+      "variation": 1.0,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "burn"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -25,6 +25,10 @@
       "max_slope": 9
     },
     {
+      "type": "terrahaul:volcano_zone",
+      "zone": "living"
+    },
+    {
       "type": "minecraft:biome"
     }
   ]
