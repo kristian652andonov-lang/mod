@@ -3222,6 +3222,10 @@ public final class TerrainModel {
         } else if (s.erosion > -0.2 && s.mountain < 0.1 && pick < 0.12) {
             type = s.humidity < 0.2 ? ARCH : SPIRE;
         }
+        if (type == ARCH && !gentleAround(px, pz, s.height)) {
+            // an arch spans 20-40 blocks: on a steep hillside it lies against the slope
+            return NO_FORMATION;
+        }
         if (type == 0) {
             return NO_FORMATION;
         }
@@ -3264,6 +3268,19 @@ public final class TerrainModel {
         public boolean lava;
         int ridges;
         double phase;
+    }
+
+    /** Whether the ground 18 blocks around a point stays within 14 blocks of its height. */
+    private boolean gentleAround(int x, int z, double height) {
+        ColumnSample n = new ColumnSample();
+        for (int i = 0; i < 8; i++) {
+            double a = i * Math.PI / 4.0;
+            computeColumn(x + (int) Math.round(Math.cos(a) * 18.0), z + (int) Math.round(Math.sin(a) * 18.0), n, true, scratch.get());
+            if (Math.abs(n.height - height) > 14.0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static final class FormationSite {
