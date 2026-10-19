@@ -1,0 +1,14 @@
+{
+  "type": "neoforge:remove_features",
+  "biomes": [
+    "minecraft:deep_frozen_ocean",
+    "minecraft:frozen_ocean"
+  ],
+  "features": [
+    "minecraft:iceberg_packed",
+    "minecraft:iceberg_blue"
+  ],
+  "steps": [
+    "local_modifications"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "type": "terrahaul:vanilla_fallback",
+  "config": {
+    "feature": "minecraft:iceberg_packed",
+    "terrahaul_max_depth": 22
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:frozen_ocean",
+    "minecraft:deep_frozen_ocean"
+  ],
+  "features": "terrahaul:sea/vanilla/iceberg_blue",
+  "step": "local_modifications"
+}

@@ -138,6 +138,37 @@ public final class AutoTest {
             TreeDump.audit(level, cx, cz, radius, report);
             areaIndex++;
         }
+        // -Dterrahaul.autotest.biomeFeatures=<biome id>: the features the biome holds after biome modifiers
+        String biomeFeatures = System.getProperty("terrahaul.autotest.biomeFeatures", "");
+        if (!biomeFeatures.isEmpty()) {
+            var biomes = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.BIOME);
+            var biome = biomes.get(net.minecraft.resources.ResourceLocation.parse(biomeFeatures));
+            if (biome != null) {
+                var steps = biome.getGenerationSettings().features();
+                for (int i = 0; i < steps.size(); i++) {
+                    List<String> names = new ArrayList<>();
+                    for (var f : steps.get(i)) {
+                        names.add(f.unwrapKey().map(k -> k.location().toString()).orElse("?"));
+                    }
+                    report.add("biome " + biomeFeatures + " step " + i + ": " + names);
+                }
+            }
+        }
+        // -Dterrahaul.autotest.heightAt=x,z;... : the generator's height estimate against the generated ground
+        String heightAt = System.getProperty("terrahaul.autotest.heightAt", "");
+        if (!heightAt.isEmpty()) {
+            var generator = level.getChunkSource().getGenerator();
+            var randomState = level.getChunkSource().randomState();
+            for (String p : heightAt.split(";")) {
+                String[] c = p.split(",");
+                int x = Integer.parseInt(c[0].trim());
+                int z = Integer.parseInt(c[1].trim());
+                int estimate = generator.getFirstOccupiedHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, level, randomState);
+                level.getChunk(x >> 4, z >> 4, ChunkStatus.FULL, true);
+                report.add("height at " + x + " " + z + ": estimate " + estimate + ", generated " + level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z)
+                    + ", model " + (model == null ? "-" : String.format(Locale.ROOT, "%.1f", model.sample(x, z).height)));
+            }
+        }
         // -Dterrahaul.autotest.probe=x,y,z;... : print the blocks around each position, layer by layer
         String probe = System.getProperty("terrahaul.autotest.probe", "");
         if (!probe.isEmpty()) {

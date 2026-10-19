@@ -70,7 +70,11 @@ OCEAN_REPLACED = {
     "vegetal_decoration": ["warm_ocean_vegetation", "sea_pickle", "kelp_cold", "kelp_warm", "seagrass_warm", "seagrass_normal",
                            "seagrass_cold", "seagrass_deep", "seagrass_deep_cold", "seagrass_deep_warm"],
     "underground_ores": ["disk_sand", "disk_clay", "disk_gravel"],
+    # icebergs only over shallow seas in Terrahaul worlds (see VanillaFallbackFeature)
+    "local_modifications": ["iceberg_packed", "iceberg_blue"],
 }
+# deepest sea over which a wrapped vanilla feature still forms in Terrahaul worlds
+TERRAHAUL_MAX_DEPTH = {"iceberg_packed": 22, "iceberg_blue": 22}
 STEP_INDEX = {"raw_generation": 0, "lakes": 1, "local_modifications": 2, "underground_structures": 3,
               "surface_structures": 4, "strongholds": 5, "underground_ores": 6, "underground_decoration": 7,
               "fluid_springs": 8, "vegetal_decoration": 9, "top_layer_modification": 10}
@@ -108,7 +112,10 @@ def sea_floor():
         for feature in features:
             with open(os.path.join(VANILLA, 'worldgen', 'placed_feature', feature + '.json')) as f:
                 vanilla = json.load(f)
-            configured(f'sea/vanilla/{feature}', 'terrahaul:vanilla_fallback', {"feature": vanilla["feature"]})
+            config = {"feature": vanilla["feature"]}
+            if feature in TERRAHAUL_MAX_DEPTH:
+                config["terrahaul_max_depth"] = TERRAHAUL_MAX_DEPTH[feature]
+            configured(f'sea/vanilla/{feature}', 'terrahaul:vanilla_fallback', config)
             placed(f'sea/vanilla/{feature}', f'terrahaul:sea/vanilla/{feature}', vanilla["placement"])
             add_features(f'sea/vanilla/{feature}', holders[feature], f'terrahaul:sea/vanilla/{feature}', step)
 
