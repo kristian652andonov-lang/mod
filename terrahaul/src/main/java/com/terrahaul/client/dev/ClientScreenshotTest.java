@@ -311,7 +311,8 @@ public final class ClientScreenshotTest {
         // the finder reports the water surface for underwater targets (a safe /tp height); look at
         // the sea floor instead
         double ty = p[0].equals("trench") || p[0].equals("deep_ocean") ? model.sample(r.x(), r.z()).height + 4.0 : r.y();
-        boolean underwater = ty < r.y() - 8;
+        // reefs, kelp, grottos and sunken ruins are reported on the sea floor
+        boolean underwater = ty < r.y() - 8 || ty < model.seaLevel() - 4;
         return server.submit(() -> underwater ? viewpointUnderwater(level, r.x(), ty, r.z(), distance, height)
             : viewpoint(level, r.x(), ty, r.z(), distance, height, false)).join();
     }
@@ -319,11 +320,35 @@ public final class ClientScreenshotTest {
     /** A camera {@code height} blocks above an underwater target and {@code distance} away, looking at it. */
     private static double[] viewpointUnderwater(ServerLevel level, double tx, double ty, double tz, double distance, double height) {
         level.getChunk((int) Math.floor(tx) >> 4, (int) Math.floor(tz) >> 4);
-        double cx = tx;
-        double cz = tz + distance;
-        double cy = ty + height;
-        double pitch = -Math.toDegrees(Math.atan2(ty - cy, distance));
-        return new double[]{cx, cy, cz, 180.0, pitch};
+        // of eight directions, take the one with the clearest view through water (water does not
+        // block the ray, rock does), keeping the camera below the surface
+        double best = Double.MAX_VALUE;
+        double[] result = null;
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4.0;
+            double cx = tx + Math.sin(angle) * distance;
+            double cz = tz + Math.cos(angle) * distance;
+            level.getChunk((int) Math.floor(cx) >> 4, (int) Math.floor(cz) >> 4);
+            double cy = Math.min(ty + height, level.getSeaLevel() - 2.0);
+            net.minecraft.world.phys.Vec3 from = new net.minecraft.world.phys.Vec3(cx, cy, cz);
+            net.minecraft.world.phys.Vec3 to = new net.minecraft.world.phys.Vec3(tx, ty, tz);
+            var hit = level.clip(new net.minecraft.world.level.ClipContext(from, to, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            double blocked = hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? 0.0 : from.distanceTo(to) - from.distanceTo(hit.getLocation());
+            BlockPos eye = BlockPos.containing(from);
+            if (!level.getBlockState(eye).getCollisionShape(level, eye).isEmpty()) {
+                blocked += 1000.0;
+            }
+            if (blocked < best) {
+                best = blocked;
+                double dx = tx - cx;
+                double dz = tz - cz;
+                double yaw = Math.toDegrees(Math.atan2(-dx, dz));
+                double pitch = -Math.toDegrees(Math.atan2(ty - cy, Math.sqrt(dx * dx + dz * dz)));
+                result = new double[]{cx, cy, cz, yaw, pitch};
+            }
+        }
+        return result;
     }
 
     /**
