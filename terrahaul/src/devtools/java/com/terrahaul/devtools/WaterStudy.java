@@ -106,6 +106,8 @@ public final class WaterStudy {
                 }
             }
             case "dump" -> dump(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]), Integer.parseInt(args[5]));
+            case "walls" -> walls(model, Integer.parseInt(args[2]));
+            case "lakecheck" -> lakeCheck(model, Integer.parseInt(args[2]));
             case "corners" -> {
                 int x0 = Integer.parseInt(args[2]) & ~3;
                 int z0 = Integer.parseInt(args[3]) & ~3;
@@ -821,6 +823,172 @@ public final class WaterStudy {
     }
 
     // =========================================================================================
+    // walls: abrupt steps cut into gentle ground by rivers and lakes
+    // =========================================================================================
+
+    /**
+     * Scans {@code [-half, half]^2} on the 4-block grid for steps the water carving cuts into
+     * ground that was gentle before: neighbouring corners whose heights differ by more than six
+     * blocks (steeper than about 56 degrees) where the uncarved ground differed by less than three,
+     * outside canyons, fjords and coastal cliffs. Such steps are the abrupt valley ends and shore
+     * walls players see as "cut off".
+     */
+    private static void walls(TerrainModel model, int half) {
+        int n = 2 * half / 4 + 1;
+        float[] h = new float[n * n];
+        float[] unc = new float[n * n];
+        float[] valley = new float[n * n];
+        boolean[] exempt = new boolean[n * n];
+        java.util.stream.IntStream.range(0, n).parallel().forEach(j -> {
+            ColumnSample s = new ColumnSample();
+            for (int i = 0; i < n; i++) {
+                model.sampleInto(-half + 4 * i, -half + 4 * j, s);
+                int k = j * n + i;
+                h[k] = (float) s.height;
+                unc[k] = (float) s.uncarvedHeight;
+                valley[k] = (float) s.riverValley;
+                exempt[k] = s.canyon > 0.02 || s.fjord > 0.05 || s.coastCliff > 0.05 || s.crater > 0.0 || s.height < model.seaLevel() - 4;
+            }
+        });
+        String[] names = {"valley edge", "inside valley", "lake/other"};
+        long[] count = new long[3];
+        long[] big = new long[3];
+        java.util.Set<Long> cells = new java.util.HashSet<>();
+        List<List<String>> examples = List.of(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+        ColumnSample a = new ColumnSample();
+        ColumnSample b = new ColumnSample();
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                int k = j * n + i;
+                for (int d = 0; d < 2; d++) {
+                    int ni = i + (d == 0 ? 1 : 0);
+                    int nj = j + (d == 1 ? 1 : 0);
+                    if (ni >= n || nj >= n) {
+                        continue;
+                    }
+                    int m = nj * n + ni;
+                    if (exempt[k] || exempt[m]) {
+                        continue;
+                    }
+                    double dh = Math.abs(h[k] - h[m]);
+                    double du = Math.abs(unc[k] - unc[m]);
+                    if (dh <= 6.0 || du >= 3.0) {
+                        continue;
+                    }
+                    int c = (valley[k] > 0) != (valley[m] > 0) ? 0 : valley[k] > 0 ? 1 : 2;
+                    count[c]++;
+                    if (dh >= 16.0) {
+                        big[c]++;
+                    }
+                    int x = -half + 4 * i;
+                    int z = -half + 4 * j;
+                    long cell = ((long) Math.floorDiv(x, 256) << 32) ^ (Math.floorDiv(z, 256) & 0xFFFFFFFFL);
+                    if (dh >= 16.0 && examples.get(c).size() < 8 && cells.add(cell)) {
+                        model.sampleInto(x, z, a);
+                        model.sampleInto(-half + 4 * ni, -half + 4 * nj, b);
+                        examples.get(c).add(String.format(Locale.ROOT, "step %.1f at %d,%d->%d,%d: h %.1f/%.1f uncarved %.1f/%.1f valley %.2f/%.2f "
+                                + "halfW %.1f/%.1f dist %.2f/%.2f level %.1f/%.1f great %.2f/%.2f lake %.2f/%.2f",
+                            dh, x, z, -half + 4 * ni, -half + 4 * nj, a.height, b.height, a.uncarvedHeight, b.uncarvedHeight, a.riverValley, b.riverValley,
+                            a.riverWidth, b.riverWidth, Math.min(a.riverDistance, 99), Math.min(b.riverDistance, 99), a.riverLevel, b.riverLevel,
+                            a.riverGreat, b.riverGreat, a.lake, b.lake));
+                    }
+                }
+            }
+        }
+        for (int c = 0; c < 3; c++) {
+            System.out.printf(Locale.ROOT, "%-14s %8d steep cut steps (%d of 16+ blocks)%n", names[c], count[c], big[c]);
+            for (String e : examples.get(c)) {
+                System.out.println("    " + e);
+            }
+        }
+    }
+
+    // =========================================================================================
+    // lakecheck: every lake and crater lake solved and checked
+    // =========================================================================================
+
+    /**
+     * Solves every active lake in {@code [-half, half]^2} (and every crater lake) chunk by chunk and
+     * checks that it is enclosed: no source block faces air, no column inside the lake is left dry
+     * below its surface, and how many blocks of bank had to be built where natural ground was
+     * lower than the water.
+     */
+    private static void lakeCheck(TerrainModel model, int half) {
+        int sl = model.seaLevel();
+        Stats total = new Stats();
+        int lakes = 0;
+        long gaps = 0;
+        List<String> bad = new ArrayList<>();
+        List<double[]> sites = new ArrayList<>();
+        for (boolean great : new boolean[]{false, true}) {
+            double cell = great ? 6000.0 : 700.0;
+            int n = (int) Math.ceil(half / cell);
+            for (int cx = -n; cx < n; cx++) {
+                for (int cz = -n; cz < n; cz++) {
+                    TerrainModel.LakeSite lake = model.lakeSiteRaw(cx, cz, great);
+                    if (lake.active && lake.level > sl) {
+                        sites.add(new double[]{lake.x, lake.z, lake.ringRadius, lake.level, 0});
+                    }
+                }
+            }
+        }
+        // crater lakes
+        for (int x = -half; x < half; x += 2000) {
+            for (int z = -half; z < half; z += 2000) {
+                TerrainModel.VolcanoSite v = model.nearestVolcano(x, z, 2000);
+                if (v == null || v.waterLevel == ColumnSample.NO_WATER) {
+                    continue;
+                }
+                boolean dup = false;
+                for (double[] s : sites) {
+                    dup |= s[0] == v.x && s[1] == v.z;
+                }
+                if (!dup) {
+                    sites.add(new double[]{v.x, v.z, v.craterRadius + 12, v.waterLevel, 1});
+                }
+            }
+        }
+        for (double[] site : sites) {
+            int r = (int) Math.ceil(site[2]);
+            int ccx = Math.floorDiv((int) site[0] - r, 16);
+            int ccz = Math.floorDiv((int) site[1] - r, 16);
+            int nx = Math.floorDiv((int) site[0] + r, 16) - ccx + 1;
+            int nz = Math.floorDiv((int) site[1] + r, 16) - ccz + 1;
+            if (nx * nz > 900) {
+                continue;
+            }
+            Stats st = new Stats();
+            Area area = solveArea(model, ccx, ccz, nx, nz, st);
+            lakes++;
+            long g = 0;
+            ColumnSample s = new ColumnSample();
+            for (int z = area.az + 1; z < area.az + area.h - 1; z++) {
+                for (int x = area.ax + 1; x < area.ax + area.w - 1; x++) {
+                    int k = area.at(x, z);
+                    if (area.level[k] != WaterSolver.NONE || area.solidTop[k] >= site[3] - 1) {
+                        continue;
+                    }
+                    model.sampleInto(x & ~3, z & ~3, s);
+                    if (s.bodyInside && s.bodyLevel == site[3]) {
+                        g++;
+                    }
+                }
+            }
+            gaps += g;
+            accumulate(total, st);
+            if (st.sourceFacingAir > 0 || g > 0 || st.bankHist[3] + st.bankHist[4] + st.bankHist[5] + st.bankHist[6] + st.bankHist[7] > 0) {
+                bad.add(String.format(Locale.ROOT, "%s at %.0f,%.0f level %.0f: source-air %d, dry gaps %d, banks %s", site[4] > 0 ? "crater" : "lake",
+                    site[0], site[1], site[3], st.sourceFacingAir, g, hist(st.bankHist)));
+            }
+        }
+        System.out.printf(Locale.ROOT, "%d elevated lakes and crater lakes solved (%d chunks): source-air %d, water-above-air %d, mismatches %d, dry gaps %d, "
+            + "banks %s%n", lakes, total.chunks, total.sourceFacingAir, total.waterAboveAir, total.mismatches, gaps, hist(total.bankHist));
+        for (String b : bad) {
+            System.out.println("  " + b);
+        }
+    }
+
+    // =========================================================================================
     // dump: the solved columns around a point as text
     // =========================================================================================
 
@@ -967,7 +1135,8 @@ public final class WaterStudy {
                                 while (d < 600) {
                                     d += 4;
                                     model.sampleInto((int) Math.round(x + sign * dx * d), (int) Math.round(z + sign * dz * d), o);
-                                    boolean wet = o.bodyInside && o.height < o.bodyLevel - 0.5 || o.height < sl - 0.5;
+                                    // the channel, sand bars included (the sea beyond a mouth does not count)
+                                    boolean wet = o.bodyInside && o.bodyKind == WaterBody.RIVER;
                                     if (!wet) {
                                         break;
                                     }
@@ -981,6 +1150,10 @@ public final class WaterStudy {
                             b++;
                         }
                         acc.incrementAndGet(8 + b);
+                        if (best >= 260 && examples.size() < 6) {
+                            examples.add(String.format(Locale.ROOT, "wide great river at %d,%d: chord %.0f, halfW %.1f, rawC %.3f, height %.1f", x, z, best,
+                                s.riverWidth, s.rawContinentalness, s.height));
+                        }
                     }
                 }
                 // perched rivers: elevated water with ground well below it just beyond the banks

@@ -7,6 +7,7 @@ import static com.terrahaul.worldgen.noise.TMath.lerp;
 import static com.terrahaul.worldgen.noise.TMath.smoothstep;
 
 import com.terrahaul.worldgen.noise.Fractal;
+import com.terrahaul.worldgen.noise.GradientFractal;
 import com.terrahaul.worldgen.noise.SeedMixer;
 import com.terrahaul.worldgen.noise.SimplexNoise;
 import com.terrahaul.worldgen.noise.TMath;
@@ -79,13 +80,13 @@ public final class TerrainModel {
     private final Fractal plainsNoise;
     private final Fractal plainsDetail;
     private final Fractal swampNoise;
-    private final Fractal riverNoise;
-    private final Fractal riverWarpX;
-    private final Fractal riverWarpZ;
+    private final GradientFractal riverNoise;
+    private final GradientFractal riverWarpX;
+    private final GradientFractal riverWarpZ;
     private final Fractal riverPresence;
     private final Fractal greatRiver;
     /** Course of the great-river network (zero lines) and where it is present. */
-    private final Fractal greatCourse;
+    private final GradientFractal greatCourse;
     private final Fractal greatPresence;
     private final Fractal streamPresence;
     private final Fractal canyonNoise;
@@ -154,13 +155,13 @@ public final class TerrainModel {
         this.plainsNoise = new Fractal(SeedMixer.derive(seed, ++salt), 3, 2.0, 0.5);
         this.plainsDetail = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         this.swampNoise = new Fractal(SeedMixer.derive(seed, ++salt), 3, 2.0, 0.5);
-        this.riverNoise = new Fractal(SeedMixer.derive(seed, ++salt), 3, 2.0, 0.42);
-        this.riverWarpX = new Fractal(SeedMixer.derive(seed, ++salt), 3, 2.2, 0.45);
-        this.riverWarpZ = new Fractal(SeedMixer.derive(seed, ++salt), 3, 2.2, 0.45);
+        this.riverNoise = new GradientFractal(SeedMixer.derive(seed, ++salt), 3, 2.0, 0.42);
+        this.riverWarpX = new GradientFractal(SeedMixer.derive(seed, ++salt), 3, 2.2, 0.45);
+        this.riverWarpZ = new GradientFractal(SeedMixer.derive(seed, ++salt), 3, 2.2, 0.45);
         this.riverPresence = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         this.greatRiver = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         // fixed salts outside the running sequence, so adding them changed no other field
-        this.greatCourse = new Fractal(SeedMixer.derive(seed, 7101), 3, 2.0, 0.45);
+        this.greatCourse = new GradientFractal(SeedMixer.derive(seed, 7101), 3, 2.0, 0.45);
         this.greatPresence = new Fractal(SeedMixer.derive(seed, 7102), 2, 2.0, 0.5);
         this.streamPresence = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         this.canyonNoise = new Fractal(SeedMixer.derive(seed, ++salt), 3, 2.0, 0.45);
@@ -832,7 +833,7 @@ public final class TerrainModel {
         double bodyLevel = ColumnSample.NO_WATER;
         double bodyCont = ColumnSample.NO_WATER;
         double riverGreat = 0.0;
-        double landMask = (1.0 - island) * (1.0 - smoothstep(0.02, 0.25, volcano));
+        double landMask = (1.0 - smoothstep(0.0, 0.35, island)) * (1.0 - smoothstep(0.02, 0.25, volcano));
         RiverTrace great = sc.greatTrace;
         RiverTrace normal = sc.normalTrace;
         great.hit = false;
@@ -857,11 +858,11 @@ public final class TerrainModel {
             riverHalfW = dom.halfW;
             riverDist = dom.dist;
             riverLevel = Math.floor(dom.level);
-            riverValley = 1.0 - clamp01((dom.dist - dom.halfW) / dom.valleyW);
+            riverValley = (1.0 - clamp01((dom.valleyDist - dom.halfW) / dom.valleyW)) * dom.fade;
             dry = dom.wet <= 0.15 && dom.level > sl + 1.0;
             riverGreat = dom == great ? great.great : 0.0;
             RiverTrace wetChannel = dom.inside() ? dom : other.hit && other.inside() ? other : null;
-            if (dom.dist < dom.halfW) {
+            if (dom.halfW > 1.0 && dom.dist < dom.halfW && dom.fade >= 0.5) {
                 river = 1.0 - dom.dist / dom.halfW;
             }
             if (wetChannel != null) {
@@ -1051,7 +1052,10 @@ public final class TerrainModel {
         boolean near;
         /** Great network only: width of the flat floodplain beside the channel. */
         double floodW;
+        /** Distance to the centre line, as used for the channel. */
         double dist;
+        /** Smoothed distance used for the valley (never larger than {@link #dist}). */
+        double valleyDist;
         double halfW;
         double valleyW;
         double level;
@@ -1062,19 +1066,31 @@ public final class TerrainModel {
         double great;
         /** Magnitude of the field gradient at the column (great network: grading tributaries). */
         double gradLen;
+        /**
+         * 0..1 strength of the carving: where a river network fades out, its valley becomes
+         * shallower and its channel narrower until both vanish, so a river never ends in a wall.
+         */
+        double fade;
 
+        /** The column is in the river's water channel (not only its valley). */
         boolean inside() {
-            return hit && dist < halfW && wet > 0.2;
+            return hit && halfW > 1.0 && dist < halfW && wet > 0.2;
         }
     }
 
-    /** Field whose zero lines are the centre lines of ordinary rivers. */
-    private double riverField(double x, double z) {
-        double rs = settings.riverScale() * hs;
-        double rwx = x + 280.0 * riverWarpX.fbm(x / (950.0 * hs), z / (950.0 * hs));
-        double rwz = z + 280.0 * riverWarpZ.fbm(x / (950.0 * hs) + 9.1, z / (950.0 * hs) - 4.4);
-        return riverNoise.fbm(rwx / rs, rwz / rs);
-    }
+    /**
+     * Floors of the field gradients used for valley distances: {@code |f| / |grad f|} measures the
+     * distance to a zero line well near it, but between two rivers, where the field levels out,
+     * and where the domain warp folds the field, the gradient changes quickly and the estimate
+     * races ahead of the true distance, squeezing a valley side into a cliff. With the floor the
+     * estimate stays smooth. Channels use a floor a quarter as large, which keeps their widths
+     * true to within a few percent (ordinary rivers' gradients near their centre lines are
+     * mostly 1-4E-3, great rivers' 1.5-10E-4).
+     */
+    private static final double NORMAL_GRAD_FLOOR = 1.0E-3;
+    private static final double GREAT_GRAD_FLOOR = 2.5E-4;
+    /** Farthest a great river's valley reaches from its centre line. */
+    private static final double GREAT_REACH = 900.0;
 
     /** Field whose zero lines are the centre lines of great rivers: broad, slow meanders. */
     private double greatField(double x, double z) {
@@ -1085,13 +1101,88 @@ public final class TerrainModel {
     }
 
     /**
+     * Field whose zero lines are the centre lines of ordinary rivers, with its gradient in world
+     * space ({@code sc.grad}).
+     */
+    private double riverFieldGrad(double x, double z, Scratch sc) {
+        return warpedGrad(riverNoise, settings.riverScale() * hs, 280.0, 950.0 * hs, 0.0, 0.0, 9.1, -4.4, x, z, sc);
+    }
+
+    /** {@link #greatField} with its gradient in world space ({@code sc.grad}). */
+    private double greatFieldGrad(double x, double z, Scratch sc) {
+        return warpedGrad(greatCourse, GREAT_SCALE * settings.riverScale() * hs, 520.0, 2600.0 * hs, 41.7, -19.3, -23.1, 8.9, x, z, sc);
+    }
+
+    /**
+     * A field {@code f(w(p) / scale)} behind the river domain warp
+     * {@code w(p) = p + amp * (warpX(p / ws + ox), warpZ(p / ws + oz))}, and its gradient by the
+     * chain rule: {@code grad f = J^T grad_w f}, with the warp's Jacobian {@code J}.
+     */
+    private double warpedGrad(GradientFractal field, double scale, double amp, double ws, double oxX, double oxZ, double ozX, double ozZ,
+                              double x, double z, Scratch sc) {
+        double[] d = sc.grad;
+        double wxv = riverWarpX.fbmGrad(x / ws + oxX, z / ws + oxZ, d);
+        double jxx = 1.0 + amp * d[0] / ws;
+        double jxz = amp * d[1] / ws;
+        double wzv = riverWarpZ.fbmGrad(x / ws + ozX, z / ws + ozZ, d);
+        double jzx = amp * d[0] / ws;
+        double jzz = 1.0 + amp * d[1] / ws;
+        double f = field.fbmGrad((x + amp * wxv) / scale, (z + amp * wzv) / scale, d);
+        double fx = d[0] / scale;
+        double fz = d[1] / scale;
+        d[0] = fx * jxx + fz * jzx;
+        d[1] = fx * jxz + fz * jzz;
+        return f;
+    }
+
+    /** Spacing of the grid the foot-point fields are interpolated from. */
+    private static final int FOOT_GRID = 32;
+
+    /**
      * Continentalness, base height, aridity and wetland weight at a river's foot point (the
      * nearest point of its centre line). Everything that decides a river's surface is read there
      * rather than at the column itself, so a whole cross-section shares one level.
+     * <p>
+     * These fields vary over hundreds of blocks, and the feet of neighbouring columns lie close
+     * together on the same centre line, so they are interpolated bilinearly from a 32-block grid
+     * whose points each thread keeps in a small cache: a few lookups instead of some forty noise
+     * evaluations per column. {@code full} also fills the wetland weight and aridity (the great
+     * rivers need only the continentalness).
      */
-    private void riverFoot(double fx, double fz, Scratch sc) {
-        int x = (int) Math.floor(fx + 0.5);
-        int z = (int) Math.floor(fz + 0.5);
+    private void riverFoot(double fx, double fz, boolean full, Scratch sc) {
+        double gfx = fx / FOOT_GRID;
+        double gfz = fz / FOOT_GRID;
+        int gx = (int) Math.floor(gfx);
+        int gz = (int) Math.floor(gfz);
+        double tx = gfx - gx;
+        double tz = gfz - gz;
+        double c = 0.0;
+        double swamp = 0.0;
+        double arid = 0.0;
+        for (int i = 0; i < 4; i++) {
+            int ox = i & 1;
+            int oz = i >> 1;
+            double w = (ox == 0 ? 1.0 - tx : tx) * (oz == 0 ? 1.0 - tz : tz);
+            int slot = footGridPoint(gx + ox, gz + oz, full, sc);
+            c += w * sc.footGridC[slot];
+            swamp += w * sc.footGridSwamp[slot];
+            arid += w * sc.footGridArid[slot];
+        }
+        sc.footC = c;
+        sc.footBase = TMath.curve(c, PROFILE_C, PROFILE_H);
+        sc.footSwamp = swamp;
+        sc.footArid = arid;
+    }
+
+    /** Slot of the thread's foot-grid cache holding grid point {@code (gx, gz)}, computed if needed. */
+    private int footGridPoint(int gx, int gz, boolean full, Scratch sc) {
+        int slot = (gx & 15) | ((gz & 15) << 4);
+        long key = ((long) gx << 32) ^ (gz & 0xFFFFFFFFL);
+        if (sc.footGridKey[slot] == key && sc.footGridState[slot] >= (full ? 2 : 1)) {
+            return slot;
+        }
+        int x = gx * FOOT_GRID;
+        int z = gz * FOOT_GRID;
         double wx = x + 320.0 * warpX.fbm(x / (2600.0 * hs), z / (2600.0 * hs))
             + 24.0 * warpX2.fbm(x / (420.0 * hs), z / (420.0 * hs));
         double wz = z + 320.0 * warpZ.fbm(x / (2600.0 * hs) + 31.7, z / (2600.0 * hs) - 12.4)
@@ -1101,18 +1192,23 @@ public final class TerrainModel {
         if (c < -0.45) {
             c -= 0.28 * smoothstep(-0.45, -1.05, c);
         }
-        sc.footC = c;
-        sc.footBase = TMath.curve(c, PROFILE_C, PROFILE_H);
-        double es = settings.erosionScale() * hs;
-        double bs = es * 2.5;
-        double beltLine = 1.0 - Math.abs(beltNoise.fbm(wx / bs, wz / bs)) * 4.5;
-        double belt = smoothstep(0.0, 1.0, beltLine) * smoothstep(-0.25, 0.2, beltSegments.fbm(wx / (bs * 0.8), wz / (bs * 0.8)));
-        double erosion = clamp(erosionNoise.fbm(wx / es, wz / es) * 1.35 - 1.4 * belt, -1.0, 1.0);
-        // wetlands lie at sea level: rivers descend to it before they reach one (a little earlier
-        // than the wetland itself begins) instead of crossing it on a raised bank
-        sc.footSwamp = smoothstep(0.38, 0.58, erosion);
-        sc.footMountain = smoothstep(-0.2, -0.82, erosion);
-        sc.footArid = smoothstep(0.1, 0.6, temperatureBase(x, z)) * smoothstep(0.1, -0.5, humidityBase(x, z));
+        sc.footGridC[slot] = c;
+        sc.footGridSwamp[slot] = 0.0;
+        sc.footGridArid[slot] = 0.0;
+        if (full) {
+            double es = settings.erosionScale() * hs;
+            double bs = es * 2.5;
+            double beltLine = 1.0 - Math.abs(beltNoise.fbm(wx / bs, wz / bs)) * 4.5;
+            double belt = smoothstep(0.0, 1.0, beltLine) * smoothstep(-0.25, 0.2, beltSegments.fbm(wx / (bs * 0.8), wz / (bs * 0.8)));
+            double erosion = clamp(erosionNoise.fbm(wx / es, wz / es) * 1.35 - 1.4 * belt, -1.0, 1.0);
+            // wetlands lie at sea level: rivers descend to it before they reach one (a little
+            // earlier than the wetland itself begins) instead of crossing it on a raised bank
+            sc.footGridSwamp[slot] = smoothstep(0.38, 0.58, erosion);
+            sc.footGridArid[slot] = smoothstep(0.1, 0.6, temperatureBase(x, z)) * smoothstep(0.1, -0.5, humidityBase(x, z));
+        }
+        sc.footGridKey[slot] = key;
+        sc.footGridState[slot] = (byte) (full ? 2 : 1);
+        return slot;
     }
 
     /**
@@ -1121,7 +1217,7 @@ public final class TerrainModel {
      */
     private double bankGuard(RiverTrace t) {
         double top = Math.floor(t.level);
-        if (!t.hit || t.wet <= 0.15 || top <= seaLevel || t.dist >= t.halfW + 0.3 * t.valleyW) {
+        if (!t.hit || t.wet <= 0.15 || top <= seaLevel || t.valleyDist >= t.halfW + 0.3 * t.valleyW) {
             return Double.NEGATIVE_INFINITY;
         }
         return top + 1.0;
@@ -1156,59 +1252,62 @@ public final class TerrainModel {
 
     /**
      * Great rivers: 100-200 blocks wide inland, widening to an estuary of up to about 380 blocks at
-     * the coast, at sea level over most of their course (the water table fills them), in a
-     * floodplain several hundred blocks wide.
+     * the coast, at sea level over their whole course (the water table fills them), in a
+     * floodplain several hundred blocks wide. Where the network fades out (inland, towards
+     * mountains or where it is absent), the channel narrows and the valley grows shallower over a
+     * few hundred blocks; the dry head of the valley rises to the land around it.
      */
     private void traceGreat(int x, int z, double h, double mountain, double landMask, RiverTrace t, Scratch sc) {
         t.near = false;
-        double gv = greatField(x, z);
-        if (Math.abs(gv) >= 0.1) {
+        if (mountain >= 0.75) {
+            // the valley has faded out completely (see below)
             return;
         }
-        double gx = (greatField(x + 4.0, z) - gv) / 4.0;
-        double gz = (greatField(x, z + 4.0) - gv) / 4.0;
-        double g2 = gx * gx + gz * gz;
-        if (g2 < 1.0E-18) {
-            return;
-        }
+        double gv = greatFieldGrad(x, z, sc);
+        double gx = sc.grad[0];
+        double gz = sc.grad[1];
+        double g2 = gx * gx + gz * gz + GREAT_GRAD_FLOOR * GREAT_GRAD_FLOOR;
         double glen = Math.sqrt(g2);
         double dist = Math.abs(gv) / glen;
-        if (dist > 1600.0) {
+        if (dist > GREAT_REACH) {
             return;
         }
+        double channelDist = Math.abs(gv) / Math.sqrt(gx * gx + gz * gz + GREAT_GRAD_FLOOR * GREAT_GRAD_FLOOR / 16.0);
         double fx = x - gv * gx / g2;
         double fz = z - gv * gz / g2;
-        riverFoot(fx, fz, sc);
+        // a great river is always wet and at sea level: of its foot point only the continentalness counts
+        riverFoot(fx, fz, false, sc);
         double cG = sc.footC;
         double gs = GREAT_SCALE * settings.riverScale() * hs;
-        // lowlands only, from far inland down to the coast, where they end in the shallow sea
-        double mask = smoothstep(-0.25, 0.1, greatPresence.fbm(fx / (1.4 * gs), fz / (1.4 * gs))) * smoothstep(0.75, 0.5, cG)
-            * smoothstep(-0.26, -0.18, cG) * (1.0 - smoothstep(0.1, 0.45, sc.footMountain)) * landMask;
-        if (mask <= 0.0) {
+        // lowlands only, from far inland down to the coast, where they end in the shallow sea; the
+        // width follows only these slowly varying fields, so the valley never narrows abruptly
+        double mask = smoothstep(-0.55, -0.2, greatPresence.fbm(fx / (1.4 * gs), fz / (1.4 * gs))) * smoothstep(1.0, 0.72, cG);
+        // towards mountains, islands and volcanoes, and where the course runs out to sea, the
+        // valley grows shallower instead (the fields involved change too quickly to narrow a valley
+        // this wide without cutting a wall into its side)
+        double fade = smoothstep(0.0, 0.15, mask) * smoothstep(-0.3, -0.17, cG) * (1.0 - smoothstep(0.2, 0.75, mountain)) * landMask;
+        if (fade <= 0.0) {
             return;
         }
-        // tapering over a long stretch where the network fades, like a river narrowing upstream
-        double w = smoothstep(0.0, 0.6, mask);
+        double w = smoothstep(0.0, 0.2, mask);
         double rs = settings.riverScale() * hs;
-        double halfW = settings.riverWidth() * (50.0 + 45.0 * smoothstep(0.42, 0.0, cG) + 8.0 * greatRiver.fbm(fx / (0.7 * rs), fz / (0.7 * rs)))
-            * w * (1.0 + 0.9 * smoothstep(-0.03, -0.15, cG));
-        if (halfW < 3.0) {
-            return;
-        }
-        t.near = true;
+        double halfW = settings.riverWidth() * (54.0 + 30.0 * smoothstep(0.45, 0.0, cG) + 8.0 * greatRiver.fbm(fx / (0.7 * rs), fz / (0.7 * rs)))
+            * w * (1.0 + 0.8 * smoothstep(-0.08, -0.16, cG));
+        t.near = halfW >= 3.0;
         t.halfW = halfW;
-        double gradedLevel = gradeToLakes(footLevel(sc, 92.0), fx, fz, sc);
+        t.level = seaLevel;
         double valleyW = (1.5 * halfW + 160.0) * w + 26.0;
         t.floodW = 0.55 * valleyW;
-        t.level = gradedLevel;
-        // the valley walls rise no steeper than about 35 degrees, so a great river reaching higher
+        // the valley walls rise no steeper than about 32 degrees, so a great river reaching higher
         // ground cuts a wide valley into it instead of a gorge with sheer sides
-        t.valleyW = t.floodW + Math.max(0.45 * valleyW, Math.min(1.6 * (h - t.level - 2.0), 320.0));
-        t.wet = footWetness(sc, t.level);
+        t.valleyW = t.floodW + Math.max(0.45 * valleyW, Math.min(1.6 * (h - t.level - 2.0), 400.0));
+        t.wet = 1.0;
         t.depth = Math.min(4.0 + 0.06 * halfW, 14.0);
         t.great = w;
         t.gradLen = glen;
-        t.dist = dist;
+        t.dist = channelDist;
+        t.valleyDist = dist;
+        t.fade = fade;
         t.hit = dist < halfW + t.valleyW;
     }
 
@@ -1221,43 +1320,30 @@ public final class TerrainModel {
     private void traceNormal(int x, int z, double h, double cEff, double mountain, double erosion, double canyon, double canyonFloor, double landMask,
                              RiverTrace great, RiverTrace t, Scratch sc) {
         double rs = settings.riverScale() * hs;
-        double presence = smoothstep(-0.5, -0.18, riverPresence.fbm(x / (rs * 1.9), z / (rs * 1.9)));
+        double pf = riverPresence.fbm(x / (rs * 1.9), z / (rs * 1.9));
+        // the valley fades out more gently than the channel narrows: where a river ends (or rises
+        // into mountains), a dry valley carries on and grows shallower over several hundred blocks
+        double fade = smoothstep(-0.62, -0.2, pf) * (1.0 - smoothstep(0.3, 0.95, mountain)) * landMask;
+        if (fade <= 0.0) {
+            return;
+        }
         // full width up to the shore, so rivers open into the sea instead of pinching out
-        double mask = presence * smoothstep(-0.2, -0.14, cEff) * (1.0 - smoothstep(0.42, 0.8, mountain)) * landMask;
-        if (mask <= 0.0) {
-            return;
-        }
+        double mask = smoothstep(-0.5, -0.18, pf) * smoothstep(-0.2, -0.14, cEff) * (1.0 - smoothstep(0.42, 0.8, mountain)) * landMask;
         double halfW = settings.riverWidth() * mask * (3.0 + 12.0 * smoothstep(0.55, -0.12, cEff)) * (1.0 - 0.55 * mountain);
-        if (halfW <= 1.0) {
-            return;
-        }
         double valleyW0 = halfW * 2.2 + 26.0 + 70.0 * smoothstep(0.1, 0.5, erosion) + 40.0 * mountain;
-        // valley sides no steeper than about 30 degrees where the river cuts into high ground
-        double valleyW = Math.max(valleyW0, Math.min(1.8 * (h - seaLevel - 2.0), 240.0));
-        // a cheap distance estimate in the warped space rejects most columns ...
-        double rwx = x + 280.0 * riverWarpX.fbm(x / (950.0 * hs), z / (950.0 * hs));
-        double rwz = z + 280.0 * riverWarpZ.fbm(x / (950.0 * hs) + 9.1, z / (950.0 * hs) - 4.4);
-        double rv = riverNoise.fbm(rwx / rs, rwz / rs);
-        double rvx = riverNoise.fbm((rwx + 2.0) / rs, rwz / rs);
-        double rvz = riverNoise.fbm(rwx / rs, (rwz + 2.0) / rs);
-        double gradRW = Math.sqrt((rvx - rv) * (rvx - rv) + (rvz - rv) * (rvz - rv)) / 2.0;
-        if (Math.abs(rv) / Math.max(gradRW, 1.0E-9) > 2.5 * (halfW + valleyW) + 40.0) {
-            return;
-        }
-        // ... then the gradient in world space gives the true distance and the foot point
-        double gx = (riverField(x + 2.0, z) - rv) / 2.0;
-        double gz = (riverField(x, z + 2.0) - rv) / 2.0;
-        double g2 = gx * gx + gz * gz;
-        if (g2 < 1.0E-18) {
-            return;
-        }
+        double rv = riverFieldGrad(x, z, sc);
+        double gx = sc.grad[0];
+        double gz = sc.grad[1];
+        double g2 = gx * gx + gz * gz + NORMAL_GRAD_FLOOR * NORMAL_GRAD_FLOOR;
         double dist = Math.abs(rv) / Math.sqrt(g2);
-        if (dist >= halfW + valleyW) {
+        // valley sides no steeper than about 32 degrees where the river cuts into high ground (the
+        // level is at least sea level, so this bound holds before the level is known)
+        if (dist >= halfW + Math.max(valleyW0, Math.min(1.6 * (h - seaLevel - 2.0), 360.0))) {
             return;
         }
         double fx = x - rv * gx / g2;
         double fz = z - rv * gz / g2;
-        riverFoot(fx, fz, sc);
+        riverFoot(fx, fz, true, sc);
         double level = footLevel(sc, 74.5);
         if (great.near) {
             double distG = Math.abs(greatField(fx, fz)) / great.gradLen;
@@ -1268,18 +1354,21 @@ public final class TerrainModel {
         }
         level = gradeToLakes(level, fx, fz, sc);
         level = Math.max(seaLevel, level);
-        valleyW = Math.max(valleyW0, Math.min(1.8 * (h - level - 2.0), 240.0));
+        double valleyW = Math.max(valleyW0, Math.min(1.6 * (h - level - 2.0), 360.0));
         if (dist >= halfW + valleyW) {
             return;
         }
         t.hit = true;
-        t.dist = dist;
+        t.dist = Math.abs(rv) / Math.sqrt(gx * gx + gz * gz + NORMAL_GRAD_FLOOR * NORMAL_GRAD_FLOOR / 16.0);
+        t.valleyDist = dist;
         t.halfW = halfW;
         t.valleyW = valleyW;
         t.level = level;
         t.wet = footWetness(sc, t.level);
-        t.depth = Math.min(2.5 + 0.13 * halfW, 16.0);
+        // the channel shallows to nothing as the river narrows towards its source
+        t.depth = Math.min(2.5 + 0.13 * halfW, 16.0) * smoothstep(1.0, 3.0, halfW);
         t.great = 0.0;
+        t.fade = fade;
     }
 
     /**
@@ -1298,10 +1387,11 @@ public final class TerrainModel {
     }
 
     /** Valley, banks and channel of an ordinary river. */
-    private double carveNormal(double h, double plains, RiverTrace t) {
+    private double carveNormal(double h0, double plains, RiverTrace t) {
+        double h = h0;
         double level = t.level;
         double top = Math.floor(level);
-        double tt = clamp01((t.dist - t.halfW) / t.valleyW);
+        double tt = clamp01((t.valleyDist - t.halfW) / t.valleyW);
         // a short floodplain with a low natural levee along the bank
         double bank = level + 1.0 + 1.6 * (0.5 + 0.5 * plains / 5.0) + 0.8 * bump(tt, 0.0, 0.05, 0.15);
         double profile = bank + (h - bank) * Math.pow(smoothstep(0.08, 1.0, tt), 0.85);
@@ -1312,18 +1402,19 @@ public final class TerrainModel {
             // banks hold water above sea level
             h = Math.max(h, top + 1.0);
         }
-        if (t.dist < t.halfW) {
+        if (t.halfW > 1.0 && t.dist < t.halfW) {
             double u = t.dist / t.halfW;
             h = Math.min(h, level + bedOffset(t.wet, t.depth) * Math.pow(1.0 - u * u, 0.6));
         }
-        return h;
+        return lerp(t.fade, h0, h);
     }
 
     /** Floodplain, levees, oxbow ponds, channel, sand bars and islands of a great river. */
-    private double carveGreat(int x, int z, double h, RiverTrace t) {
+    private double carveGreat(int x, int z, double h0, RiverTrace t) {
+        double h = h0;
         double level = t.level;
         double top = Math.floor(level);
-        double out = t.dist - t.halfW;
+        double out = t.valleyDist - t.halfW;
         double f = out / t.floodW;
         // a wide, nearly flat floodplain with a low natural levee along the bank
         double flood = level + 0.7 + 1.5 * (0.5 + 0.5 * plainsDetail.fbm(x / (90.0 * hs) + 77.0, z / (90.0 * hs) - 31.0))
@@ -1340,7 +1431,7 @@ public final class TerrainModel {
                 h = Math.min(h, lerp(pond, h, seaLevel - 2.2));
             }
         }
-        if (top > seaLevel && t.wet > 0.15 && out >= 0.0 && f < 0.3) {
+        if (top > seaLevel && t.wet > 0.15 && t.dist >= t.halfW && f < 0.3) {
             h = Math.max(h, top + 1.0);
         }
         if (t.dist < t.halfW) {
@@ -1353,7 +1444,7 @@ public final class TerrainModel {
             }
             h = Math.min(h, bed);
         }
-        return h;
+        return lerp(t.fade, h0, h);
     }
 
     // =========================================================================================
@@ -1749,23 +1840,35 @@ public final class TerrainModel {
         long gridSeed = great ? greatLakeSeed : lakeSeed;
         int cx = (int) Math.floor(x / cell);
         int cz = (int) Math.floor(z / cell);
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                LakeSite lake = lakeSite(cx + dx, cz + dz, cell, gridSeed, great);
-                if (lake == null) {
-                    continue;
+        // neighbouring columns almost always share the cell: keep its 3x3 sites at hand instead of
+        // looking them up in the shared map for every column
+        int g = great ? 1 : 0;
+        LakeSite[] near = sc.nearLakes[g];
+        if (!sc.nearLakesValid[g] || sc.nearLakesX[g] != cx || sc.nearLakesZ[g] != cz) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    near[(dx + 1) * 3 + dz + 1] = lakeSite(cx + dx, cz + dz, cell, gridSeed, great);
                 }
-                double ddx = x - lake.x;
-                double ddz = z - lake.z;
-                double r = Math.sqrt(ddx * ddx + ddz * ddz);
-                if (r > lake.ringRadius + LAKE_GRADE_RANGE) {
-                    continue;
-                }
-                sc.lakeBuf[n] = lake;
-                sc.lakeDist[n] = r;
-                sc.lakeEdgeBuf[n] = lakeEdge(lake, x, z);
-                n++;
             }
+            sc.nearLakesX[g] = cx;
+            sc.nearLakesZ[g] = cz;
+            sc.nearLakesValid[g] = true;
+        }
+        for (int i = 0; i < 9; i++) {
+            LakeSite lake = near[i];
+            if (lake == null) {
+                continue;
+            }
+            double ddx = x - lake.x;
+            double ddz = z - lake.z;
+            double r = Math.sqrt(ddx * ddx + ddz * ddz);
+            if (r > lake.ringRadius + LAKE_GRADE_RANGE) {
+                continue;
+            }
+            sc.lakeBuf[n] = lake;
+            sc.lakeDist[n] = r;
+            sc.lakeEdgeBuf[n] = lakeEdge(lake, x, z);
+            n++;
         }
         return n;
     }
@@ -1800,7 +1903,9 @@ public final class TerrainModel {
      * {@link LakeSite#reject} giving the reason). Used by development tools.
      */
     public LakeSite lakeSiteRaw(int cx, int cz, boolean great) {
-        long key = ((long) cx << 32) ^ (cz & 0xFFFFFFFFL) ^ (great ? 0x4000000000000000L : 0L);
+        // packed cell and grid, multiplied by an odd constant (a bijection) so that the map's
+        // 32-bit hashes spread instead of colliding for every cell with the same cx ^ cz
+        long key = (((long) cx << 32) ^ (cz & 0xFFFFFFFFL) ^ (great ? 0x4000000000000000L : 0L)) * 0x9E3779B97F4A7C15L;
         LakeSite cached = lakeSites.get(key);
         if (cached != null) {
             return cached;
@@ -2208,6 +2313,7 @@ public final class TerrainModel {
 
     private static final class Scratch {
         final double[] deriv = new double[2];
+        final double[] grad = new double[2];
         final ColumnSample[] cache = new ColumnSample[CACHE_SIZE];
         final long[] cacheKeys = new long[CACHE_SIZE];
         final boolean[] cacheValid = new boolean[CACHE_SIZE];
@@ -2224,6 +2330,11 @@ public final class TerrainModel {
         int lakeCount;
         final double[] lakeDist = new double[18];
         final double[] lakeEdgeBuf = new double[18];
+        /** The 3x3 lake sites around the last lake cell visited, per grid (small, great). */
+        final LakeSite[][] nearLakes = new LakeSite[2][9];
+        final int[] nearLakesX = new int[2];
+        final int[] nearLakesZ = new int[2];
+        final boolean[] nearLakesValid = new boolean[2];
         final RiverTrace greatTrace = new RiverTrace();
         final RiverTrace normalTrace = new RiverTrace();
         boolean riverWetChannel;
@@ -2232,7 +2343,12 @@ public final class TerrainModel {
         double footBase;
         double footArid;
         double footSwamp;
-        double footMountain;
+        /** Cache of foot-grid points (see riverFoot); state 0 empty, 1 continentalness, 2 all fields. */
+        final long[] footGridKey = new long[256];
+        final byte[] footGridState = new byte[256];
+        final double[] footGridC = new double[256];
+        final double[] footGridSwamp = new double[256];
+        final double[] footGridArid = new double[256];
 
         Scratch() {
             for (int i = 0; i < CACHE_SIZE; i++) {
