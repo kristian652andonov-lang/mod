@@ -5,6 +5,9 @@ import com.terrahaul.worldgen.terrain.TerrainModel;
 import com.terrahaul.worldgen.terrain.TerrainSettings;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.stream.IntStream;
 import javax.imageio.ImageIO;
@@ -12,7 +15,8 @@ import javax.imageio.ImageIO;
 /**
  * Development tool: renders the terrain model to shaded relief maps without starting Minecraft.
  * Usage: {@code MapRenderer <seed> <centerX> <centerZ> <sizeBlocks> <blocksPerPixel> <outFile> [mode]}
- * where mode is {@code relief}, {@code climate}, {@code class} or {@code perspective}.
+ * where mode is {@code relief}, {@code climate}, {@code class}, {@code styles} (mountain styles),
+ * {@code hillshade}, {@code perspective} or {@code section}.
  */
 public final class MapRenderer {
     public static void main(String[] args) throws Exception {
@@ -39,8 +43,10 @@ public final class MapRenderer {
         long t1 = System.nanoTime();
         System.out.printf(Locale.ROOT, "sampled %d columns in %.1f ms (%.2f us/column)%n", px * px, (t1 - t0) / 1e6, (t1 - t0) / 1e3 / (px * px));
         stats(grid, model.seaLevel());
+        mountainStats(model, grid);
         BufferedImage img = switch (mode) {
             case "perspective" -> Perspective.render(grid, bpp, model.seaLevel());
+            case "hillshade" -> hillshade(grid, bpp, model.seaLevel());
             case "section" -> section(grid, bpp, model.seaLevel());
             default -> flat(grid, bpp, model.seaLevel(), mode);
         };
@@ -120,6 +126,104 @@ public final class MapRenderer {
             sb.append(String.format(Locale.ROOT, "p%s=%.2f/%.2f/%.0f ", q, cs[i], es[i], hs[i]));
         }
         System.out.println(sb);
+    }
+
+    /**
+     * Statistics of the mountainous part of the map: height percentiles, the share of steep and
+     * near-vertical ground and of sheer drops (a cut-off wall drops 70+ blocks within 24 blocks),
+     * and the single-threaded cost of a column, overall and in mountains (the parallel timing above
+     * depends on the machine's load).
+     */
+    private static void mountainStats(TerrainModel model, ColumnSample[][] g) {
+        int n = g.length;
+        List<int[]> mountains = new ArrayList<>();
+        List<int[]> all = new ArrayList<>();
+        int stride = Math.max(1, n / 160);
+        for (int j = 0; j < n; j += stride) {
+            for (int i = 0; i < n; i += stride) {
+                ColumnSample s = g[j][i];
+                all.add(new int[]{s.x, s.z});
+                if (s.mountain > 0.3 && s.height > model.seaLevel()) {
+                    mountains.add(new int[]{s.x, s.z});
+                }
+            }
+        }
+        ColumnSample s = new ColumnSample();
+        double[] heights = new double[mountains.size()];
+        int s45 = 0;
+        int s60 = 0;
+        int s70 = 0;
+        int sheer = 0;
+        int above1200 = 0;
+        double maxDrop = 0.0;
+        String maxAt = "-";
+        // the same before rivers, lakes and canyons carve the ground: walls the relief itself makes
+        int sheerUncarved = 0;
+        double maxDropUncarved = 0.0;
+        String maxUncarvedAt = "-";
+        for (int k = 0; k < mountains.size(); k++) {
+            int x = mountains.get(k)[0];
+            int z = mountains.get(k)[1];
+            double h = height(model, s, x, z);
+            heights[k] = h;
+            above1200 += h > 1200 ? 1 : 0;
+            double sl = Math.hypot(height(model, s, x + 4, z) - height(model, s, x - 4, z),
+                height(model, s, x, z + 4) - height(model, s, x, z - 4)) / 8.0;
+            s45 += sl > 1.0 ? 1 : 0;
+            s60 += sl > 1.73 ? 1 : 0;
+            s70 += sl > 2.75 ? 1 : 0;
+            double low = Double.MAX_VALUE;
+            double lowUncarved = Double.MAX_VALUE;
+            for (int[] d : new int[][]{{24, 0}, {-24, 0}, {0, 24}, {0, -24}}) {
+                model.sampleInto(x + d[0], z + d[1], s);
+                low = Math.min(low, s.height);
+                lowUncarved = Math.min(lowUncarved, s.uncarvedHeight);
+            }
+            model.sampleInto(x, z, s);
+            if (h - low > maxDrop) {
+                maxDrop = h - low;
+                maxAt = x + " " + z;
+            }
+            sheer += h - low > 72.0 ? 1 : 0;
+            if (s.uncarvedHeight - lowUncarved > maxDropUncarved) {
+                maxDropUncarved = s.uncarvedHeight - lowUncarved;
+                maxUncarvedAt = x + " " + z;
+            }
+            sheerUncarved += s.uncarvedHeight - lowUncarved > 72.0 ? 1 : 0;
+        }
+        int m = Math.max(1, mountains.size());
+        Arrays.sort(heights);
+        StringBuilder sb = new StringBuilder(String.format(Locale.ROOT, "mountain columns (mountain>0.3): %d; heights", mountains.size()));
+        for (double q : new double[]{0.1, 0.5, 0.9, 0.99, 1.0}) {
+            sb.append(String.format(Locale.ROOT, " p%s=%.0f", q, heights.length == 0 ? 0 : heights[(int) (q * (heights.length - 1))]));
+        }
+        System.out.println(sb.append(String.format(Locale.ROOT, "; above 1200: %d", above1200)));
+        System.out.printf(Locale.ROOT, "mountain slopes (8-block baseline): >45deg %.1f%% >60deg %.1f%% >70deg %.2f%%; drops >72 within 24 blocks %.2f%%, max %.0f at %s%n",
+            100.0 * s45 / m, 100.0 * s60 / m, 100.0 * s70 / m, 100.0 * sheer / m, maxDrop, maxAt);
+        System.out.printf(Locale.ROOT, "uncarved relief (before rivers/lakes/canyons): drops >72 within 24 blocks %.2f%%, max %.0f at %s%n",
+            100.0 * sheerUncarved / m, maxDropUncarved, maxUncarvedAt);
+        // single-threaded cost per column (best of three passes, so JIT warm-up does not count)
+        double overall = Double.MAX_VALUE;
+        double mountain = Double.MAX_VALUE;
+        for (int pass = 0; pass < 3; pass++) {
+            long t0 = System.nanoTime();
+            for (int[] p : all) {
+                model.sampleInto(p[0], p[1], s);
+            }
+            long t1 = System.nanoTime();
+            for (int[] p : mountains) {
+                model.sampleInto(p[0], p[1], s);
+            }
+            long t2 = System.nanoTime();
+            overall = Math.min(overall, (t1 - t0) / 1e3 / Math.max(1, all.size()));
+            mountain = Math.min(mountain, (t2 - t1) / 1e3 / m);
+        }
+        System.out.printf(Locale.ROOT, "single-thread cost: %.2f us/column overall (%d columns), %.2f us/column in mountains%n", overall, all.size(), mountain);
+    }
+
+    private static double height(TerrainModel model, ColumnSample s, int x, int z) {
+        model.sampleInto(x, z, s);
+        return s.height;
     }
 
     static int rgb(double r, double g, double b) {
@@ -206,6 +310,44 @@ public final class MapRenderer {
         return img;
     }
 
+    /**
+     * Hillshade: elevation tint (green lowland through brown to white above Y 900) lit from the
+     * north-west, with no climate colours, so ridges, gullies and cliffs read clearly even under
+     * snow. Water is dark blue; slopes over 60 degrees are tinted red to show cut-off walls.
+     */
+    private static BufferedImage hillshade(ColumnSample[][] g, int bpp, int sl) {
+        int n = g.length;
+        BufferedImage img = new BufferedImage(n, n, BufferedImage.TYPE_INT_RGB);
+        double lx = -0.5;
+        double lz = -0.5;
+        double ly = 0.71;
+        for (int j = 0; j < n; j++) {
+            for (int i = 0; i < n; i++) {
+                ColumnSample s = g[j][i];
+                if (s.height < sl - 0.3 || s.waterLevel > s.height) {
+                    img.setRGB(i, j, rgb(40, 70, 140));
+                    continue;
+                }
+                double hx = (g[j][Math.min(n - 1, i + 1)].height - g[j][Math.max(0, i - 1)].height) / (2.0 * bpp);
+                double hz = (g[Math.min(n - 1, j + 1)][i].height - g[Math.max(0, j - 1)][i].height) / (2.0 * bpp);
+                double len = Math.sqrt(hx * hx + 1.0 + hz * hz);
+                double light = Math.max(0.0, (-hx * lx + ly - hz * lz) / len);
+                double e = Math.max(0.0, Math.min(1.0, (s.height - sl) / 900.0));
+                double r = e < 0.5 ? 110 + 120 * e : 170 + 80 * (e - 0.5) * 2.0;
+                double gg = e < 0.5 ? 150 - 20 * e : 140 + 110 * (e - 0.5) * 2.0;
+                double b = e < 0.5 ? 100 - 20 * e : 90 + 160 * (e - 0.5) * 2.0;
+                if (Math.sqrt(hx * hx + hz * hz) > 1.73) {
+                    r = 230;
+                    gg = 80;
+                    b = 70;
+                }
+                double k = 0.25 + 0.95 * light;
+                img.setRGB(i, j, rgb(r * k, gg * k, b * k));
+            }
+        }
+        return img;
+    }
+
     private static BufferedImage flat(ColumnSample[][] g, int bpp, int sl, String mode) {
         int n = g.length;
         BufferedImage img = new BufferedImage(n, n, BufferedImage.TYPE_INT_RGB);
@@ -221,6 +363,9 @@ public final class MapRenderer {
                 double[] c;
                 switch (mode) {
                     case "climate" -> c = new double[]{128 + 127 * s.temperature, 60, 128 + 127 * s.humidity};
+                    // mountain styles: alpine red, mountain wall green, ancient blue
+                    case "styles" -> c = s.height < sl - 0.3 ? new double[]{20, 40, 120}
+                        : new double[]{90 + 165 * s.alpine, 90 + 165 * s.wall, 90 + 165 * s.ancient};
                     case "class" -> {
                         if (s.height < sl - 0.3) {
                             c = new double[]{20, 40, 120};
