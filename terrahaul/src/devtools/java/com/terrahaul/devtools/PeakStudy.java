@@ -174,8 +174,10 @@ public final class PeakStudy {
         double aFar = bestDirection(fine, coarse, px, pz, summit, base, dFar, aNear);
         BufferedImage far = view(fine, coarse, px + dFar * Math.sin(aFar), pz - dFar * Math.cos(aFar),
             Math.toDegrees(aFar) + 180.0, summit, base, 55.0);
-        BufferedImage ew = profile(fine, px, pz, 1, 0, summit, base);
-        BufferedImage ns = profile(fine, px, pz, 0, 1, summit, base);
+        // profiles down the steepest face and across it (for a wall: across the face and along it)
+        double steep = steepestDirection(fine, px, pz, summit, base);
+        BufferedImage ew = profile(fine, px, pz, Math.sin(steep), -Math.cos(steep), summit, base, "down the steepest face");
+        BufferedImage ns = profile(fine, px, pz, Math.cos(steep), Math.sin(steep), summit, base, "across the steepest face");
         BufferedImage out = new BufferedImage(near.getWidth() + far.getWidth(), near.getHeight() + ew.getHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics2D g = out.createGraphics();
         g.drawImage(near, 0, 0, null);
@@ -183,8 +185,8 @@ public final class PeakStudy {
         g.drawImage(ew, 0, near.getHeight(), null);
         g.drawImage(ns, ew.getWidth(), near.getHeight(), null);
         g.setColor(Color.BLACK);
-        g.drawString(String.format(Locale.ROOT, "%s summit %d %.0f %d, relief %.0f; near view from %.0f deg (%.0f), far view from %.0f deg (%.0f); profiles W-E and N-S 1:1",
-            name, px, summit, pz, relief, Math.toDegrees(aNear), dNear, Math.toDegrees(aFar), dFar), 8, 16);
+        g.drawString(String.format(Locale.ROOT, "%s summit %d %.0f %d, relief %.0f; near view from %.0f deg (%.0f), far view from %.0f deg (%.0f); steepest face towards %.0f deg",
+            name, px, summit, pz, relief, Math.toDegrees(aNear), dNear, Math.toDegrees(aFar), dFar, Math.toDegrees(steep)), 8, 16);
         g.dispose();
         ImageIO.write(out, "png", new File(dir, name + ".png"));
     }
@@ -245,8 +247,28 @@ public final class PeakStudy {
         return Perspective.view(fine, coarse, camX, camZ, camY, yaw, fov, horizon, width, height);
     }
 
+    /**
+     * Direction (radians clockwise from north) in which the ground falls furthest from the summit
+     * within a distance of half the relief (at least 200 blocks): the main face of a peak, or the
+     * face of a mountain wall.
+     */
+    private static double steepestDirection(HeightField f, int px, int pz, double summit, double base) {
+        double dist = Math.max(200.0, 0.5 * (summit - base));
+        double best = 0.0;
+        double bestDrop = -Double.MAX_VALUE;
+        for (int k = 0; k < 72; k++) {
+            double a = k * Math.PI * 2.0 / 72.0;
+            double drop = summit - f.height(px + dist * Math.sin(a), pz - dist * Math.cos(a));
+            if (drop > bestDrop) {
+                bestDrop = drop;
+                best = a;
+            }
+        }
+        return best;
+    }
+
     /** Profile through the summit along (dx, dz), 1:1 at 4 blocks per pixel, coloured snow/rock/soil by slope. */
-    private static BufferedImage profile(HeightField f, int px, int pz, int dx, int dz, double summit, double base) {
+    private static BufferedImage profile(HeightField f, int px, int pz, double dx, double dz, double summit, double base, String label) {
         int w = 1200;
         double bpp = 4.0;
         double bottom = base - 60.0;
@@ -276,7 +298,7 @@ public final class PeakStudy {
             g.drawLine(i, Math.max(0, top) + 3, i, h);
         }
         g.setColor(Color.BLACK);
-        g.drawString((dx != 0 ? "W-E" : "N-S") + String.format(Locale.ROOT, " profile, %.0f blocks wide, 1:1", w * bpp), 8, 16);
+        g.drawString(String.format(Locale.ROOT, "profile %s, %.0f blocks wide, 1:1", label, w * bpp), 8, 16);
         g.dispose();
         return img;
     }
@@ -308,6 +330,8 @@ public final class PeakStudy {
         int s80 = 0;
         int sheer = 0;
         double maxDrop = 0.0;
+        int maxDx = 0;
+        int maxDz = 0;
         for (int dx = -1500; dx <= 1500; dx += 12) {
             for (int dz = -1500; dz <= 1500; dz += 12) {
                 double x = px + dx;
@@ -325,13 +349,17 @@ public final class PeakStudy {
                 s70 += sl > 2.75 ? 1 : 0;
                 s80 += sl > 5.67 ? 1 : 0;
                 double drop = h - Math.min(Math.min(f.height(x + 24, z), f.height(x - 24, z)), Math.min(f.height(x, z + 24), f.height(x, z - 24)));
-                maxDrop = Math.max(maxDrop, drop);
+                if (drop > maxDrop) {
+                    maxDrop = drop;
+                    maxDx = dx;
+                    maxDz = dz;
+                }
                 sheer += drop > 72.0 ? 1 : 0;
             }
         }
-        System.out.printf(Locale.ROOT, "  upper slopes: >45deg %.1f%% >60deg %.1f%% >70deg %.2f%% >80deg %.2f%%; drops >72 over 24 blocks %.2f%%, max drop over 24 blocks %.0f%n",
+        System.out.printf(Locale.ROOT, "  upper slopes: >45deg %.1f%% >60deg %.1f%% >70deg %.2f%% >80deg %.2f%%; drops >72 over 24 blocks %.2f%%, max drop over 24 blocks %.0f at %d %d%n",
             100.0 * s45 / Math.max(1, total), 100.0 * s60 / Math.max(1, total), 100.0 * s70 / Math.max(1, total), 100.0 * s80 / Math.max(1, total),
-            100.0 * sheer / Math.max(1, total), maxDrop);
+            100.0 * sheer / Math.max(1, total), maxDrop, px + maxDx, pz + maxDz);
         // subsidiary peaks: highest point within +-192 blocks and in the upper 60% of the relief
         int peaks = 0;
         StringBuilder ps = new StringBuilder();

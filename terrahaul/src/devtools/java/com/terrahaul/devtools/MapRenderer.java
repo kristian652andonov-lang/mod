@@ -16,7 +16,8 @@ import javax.imageio.ImageIO;
  * Development tool: renders the terrain model to shaded relief maps without starting Minecraft.
  * Usage: {@code MapRenderer <seed> <centerX> <centerZ> <sizeBlocks> <blocksPerPixel> <outFile> [mode]}
  * where mode is {@code relief}, {@code climate}, {@code class}, {@code styles} (mountain styles),
- * {@code hillshade}, {@code perspective} or {@code section}.
+ * {@code hillshade}, {@code uncarved} (hillshade before rivers, lakes and canyons), {@code perspective} or
+ * {@code section}.
  */
 public final class MapRenderer {
     public static void main(String[] args) throws Exception {
@@ -47,6 +48,16 @@ public final class MapRenderer {
         BufferedImage img = switch (mode) {
             case "perspective" -> Perspective.render(grid, bpp, model.seaLevel());
             case "hillshade" -> hillshade(grid, bpp, model.seaLevel());
+            case "uncarved" -> {
+                // the relief itself, before rivers, lakes and canyons cut into it
+                for (ColumnSample[] row : grid) {
+                    for (ColumnSample s : row) {
+                        s.height = s.uncarvedHeight;
+                        s.waterLevel = ColumnSample.NO_WATER;
+                    }
+                }
+                yield hillshade(grid, bpp, model.seaLevel());
+            }
             case "section" -> section(grid, bpp, model.seaLevel());
             default -> flat(grid, bpp, model.seaLevel(), mode);
         };
@@ -311,13 +322,20 @@ public final class MapRenderer {
     }
 
     /**
-     * Hillshade: elevation tint (green lowland through brown to white above Y 900) lit from the
-     * north-west, with no climate colours, so ridges, gullies and cliffs read clearly even under
-     * snow. Water is dark blue; slopes over 60 degrees are tinted red to show cut-off walls.
+     * Hillshade: elevation tint (green lowland through brown to white at the highest point of the
+     * map) lit from the north-west, with no climate colours, so ridges, gullies and cliffs read
+     * clearly even under snow. Water is dark blue; slopes over 60 degrees are tinted red to show
+     * cut-off walls.
      */
     private static BufferedImage hillshade(ColumnSample[][] g, int bpp, int sl) {
         int n = g.length;
         BufferedImage img = new BufferedImage(n, n, BufferedImage.TYPE_INT_RGB);
+        double top = sl + 100.0;
+        for (ColumnSample[] row : g) {
+            for (ColumnSample s : row) {
+                top = Math.max(top, s.height);
+            }
+        }
         double lx = -0.5;
         double lz = -0.5;
         double ly = 0.71;
@@ -332,7 +350,7 @@ public final class MapRenderer {
                 double hz = (g[Math.min(n - 1, j + 1)][i].height - g[Math.max(0, j - 1)][i].height) / (2.0 * bpp);
                 double len = Math.sqrt(hx * hx + 1.0 + hz * hz);
                 double light = Math.max(0.0, (-hx * lx + ly - hz * lz) / len);
-                double e = Math.max(0.0, Math.min(1.0, (s.height - sl) / 900.0));
+                double e = Math.max(0.0, Math.min(1.0, (s.height - sl) / (top - sl)));
                 double r = e < 0.5 ? 110 + 120 * e : 170 + 80 * (e - 0.5) * 2.0;
                 double gg = e < 0.5 ? 150 - 20 * e : 140 + 110 * (e - 0.5) * 2.0;
                 double b = e < 0.5 ? 100 - 20 * e : 90 + 160 * (e - 0.5) * 2.0;
