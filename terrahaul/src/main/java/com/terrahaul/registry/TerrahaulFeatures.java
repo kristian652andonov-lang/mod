@@ -5,6 +5,7 @@ import com.terrahaul.worldgen.features.BoulderConfiguration;
 import com.terrahaul.worldgen.features.BoulderFeature;
 import com.terrahaul.worldgen.features.FallenLogConfiguration;
 import com.terrahaul.worldgen.features.FallenLogFeature;
+import com.terrahaul.worldgen.features.FloatingTerrainCleanup;
 import com.terrahaul.worldgen.features.OceanVentFeature;
 import com.terrahaul.worldgen.features.RockFormationFeature;
 import com.terrahaul.worldgen.features.marine.CoralReefFeature;
@@ -28,6 +29,10 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class TerrahaulFeatures {
     public static final DeferredRegister<Feature<?>> FEATURES = DeferredRegister.create(Registries.FEATURE, Terrahaul.MOD_ID);
 
+    public static final DeferredHolder<Feature<?>, FloatingTerrainCleanup> TERRAIN_CLEANUP =
+        FEATURES.register("terrain_cleanup", () -> new FloatingTerrainCleanup(NoneFeatureConfiguration.CODEC, false));
+    public static final DeferredHolder<Feature<?>, FloatingTerrainCleanup> TERRAIN_CLEANUP_LATE =
+        FEATURES.register("terrain_cleanup_late", () -> new FloatingTerrainCleanup(NoneFeatureConfiguration.CODEC, true));
     public static final DeferredHolder<Feature<?>, SurfaceWaterFeature> SURFACE_WATER =
         FEATURES.register("surface_water", () -> new SurfaceWaterFeature(NoneFeatureConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, OceanVentFeature> OCEAN_VENTS =

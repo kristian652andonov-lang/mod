@@ -25,7 +25,8 @@ import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
  * exposes it (grey on mountains, sandstone in deserts, red sandstone in hot canyon country, basalt
  * near volcanoes), shaded in broad patches of its stops by smooth noise rather than block by block.
  * Elsewhere each lobe takes one material from the configured provider. Humid places grow patches of
- * moss on the upper surfaces, again shaped by smooth noise.
+ * moss on the upper surfaces, again shaped by smooth noise. Only the blocks connected to the core of
+ * the boulder are placed, so the roughness never leaves loose bits or a detached lobe in the air.
  */
 public final class BoulderFeature extends Feature<BoulderConfiguration> {
     public BoulderFeature(Codec<BoulderConfiguration> codec) {
@@ -70,8 +71,11 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
         double off = random.nextDouble() * 256.0;
         double sink = radius * config.bury();
         int extent = Mth.ceil(radius * 1.9);
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        boolean placed = false;
+        int n = 2 * extent + 1;
+        // the shape first: which cells of the box are rock, and the most interior one as the core
+        byte[] shape = new byte[n * n * n];
+        int core = -1;
+        double deepest = 0.0;
         for (int dx = -extent; dx <= extent; dx++) {
             for (int dz = -extent; dz <= extent; dz++) {
                 for (int dy = -extent; dy <= extent; dy++) {
@@ -88,14 +92,36 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
                             owner = i;
                         }
                     }
-                    int x = origin.getX() + dx;
-                    int y = origin.getY() + dy;
-                    int z = origin.getZ() + dz;
                     // coherent dents and bumps instead of randomly missing surface blocks
-                    double rough = FormationShapes.ROUGH.noise3(x * 0.45 + off, y * 0.45, z * 0.45);
+                    double rough = FormationShapes.ROUGH.noise3((origin.getX() + dx) * 0.45 + off, (origin.getY() + dy) * 0.45, (origin.getZ() + dz) * 0.45);
                     if (inside + 0.16 * rough <= 0.0) {
                         continue;
                     }
+                    int idx = ((dx + extent) * n + (dz + extent)) * n + (dy + extent);
+                    shape[idx] = (byte) (owner + 1);
+                    if (inside > deepest) {
+                        deepest = inside;
+                        core = idx;
+                    }
+                }
+            }
+        }
+        if (core < 0) {
+            return false;
+        }
+        keepConnected(shape, n, core);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        boolean placed = false;
+        for (int dx = -extent; dx <= extent; dx++) {
+            for (int dz = -extent; dz <= extent; dz++) {
+                for (int dy = -extent; dy <= extent; dy++) {
+                    int idx = ((dx + extent) * n + (dz + extent)) * n + (dy + extent);
+                    if (shape[idx] <= 0) {
+                        continue;
+                    }
+                    int x = origin.getX() + dx;
+                    int y = origin.getY() + dy;
+                    int z = origin.getZ() + dz;
                     pos.set(x, y, z);
                     BlockState existing = level.getBlockState(pos);
                     if (existing.is(Blocks.BEDROCK) || existing.is(BlockTags.LOGS) || existing.hasBlockEntity()) {
@@ -106,7 +132,7 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
                         double shade = FormationShapes.ROUGH.noise3(x / 4.5 - off, y / 4.5 + 90.0, z / 4.5);
                         rock = family[Fades.stop(family.length, 0.62 + 0.45 * shade, 0.0)];
                     } else {
-                        rock = lobeMaterial[owner];
+                        rock = lobeMaterial[-shape[idx] - 1];
                     }
                     level.setBlock(pos, rock, 2);
                     placed = true;
@@ -137,5 +163,36 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
             }
         }
         return placed;
+    }
+
+    /**
+     * Keeps the cells of the shape that are face-connected to the core: a kept cell holds
+     * {@code -(owner + 1)}, a dropped one stays positive.
+     */
+    private static void keepConnected(byte[] shape, int n, int core) {
+        int[] queue = new int[shape.length];
+        int head = 0;
+        int tail = 0;
+        shape[core] = (byte) -shape[core];
+        queue[tail++] = core;
+        int[] steps = {n * n, -n * n, n, -n, 1, -1};
+        while (head < tail) {
+            int idx = queue[head++];
+            int y = idx % n;
+            int z = (idx / n) % n;
+            int x = idx / (n * n);
+            for (int k = 0; k < 6; k++) {
+                // stay inside the box: no wrapping from one row of the grid to the next
+                if ((k == 0 && x == n - 1) || (k == 1 && x == 0) || (k == 2 && z == n - 1) || (k == 3 && z == 0)
+                    || (k == 4 && y == n - 1) || (k == 5 && y == 0)) {
+                    continue;
+                }
+                int m = idx + steps[k];
+                if (shape[m] > 0) {
+                    shape[m] = (byte) -shape[m];
+                    queue[tail++] = m;
+                }
+            }
+        }
     }
 }

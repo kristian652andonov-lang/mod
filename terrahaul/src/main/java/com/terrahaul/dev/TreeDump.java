@@ -204,8 +204,9 @@ public final class TreeDump {
                         }
                     } else if (!supported && d != Direction.UP) {
                         BlockState st = level.getBlockState(pos.set(x + d.getStepX(), y + d.getStepY(), z + d.getStepZ()));
-                        if (!st.isAir() && !st.is(BlockTags.LEAVES) && st.getFluidState().isEmpty() && !st.is(Blocks.VINE)
-                            && st.isCollisionShapeFullBlock(level, pos)) {
+                        // any solid ground holds a trunk up, mud (14/16 high) included
+                        if (!st.isAir() && !st.is(BlockTags.LEAVES) && !st.is(Blocks.VINE)
+                            && !(st.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock) && st.isSolid()) {
                             supported = true;
                         }
                     }

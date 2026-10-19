@@ -110,8 +110,8 @@ public final class TerrainFinder {
             s -> s.river <= 0 && s.lake <= 0 && s.riverValley < 0.2 && s.swamp < 0.2 && s.windswept < 0.2 && !wet(s), Kind.GRID);
         add("windswept_hills", "windswept uplands", 48, s -> s.windswept > 0.6, s -> s.windswept > 0.8, Kind.GRID);
         // a hummock or mud flat at the edge of the pools of a marsh that is not frozen
-        add("wetland", "a wetland or swamp", 48, s -> s.swamp > 0.6 && s.temperature > -0.4,
-            s -> s.swamp > 0.85 && s.temperature > -0.4 && s.height >= 62.5 && s.height < 65.0, Kind.GRID);
+        add("wetland", "a wetland or swamp", 48, s -> s.swamp > 0.6 && s.temperature > -0.2,
+            s -> s.swamp > 0.85 && s.temperature > -0.2 && s.height >= 62.5 && s.height < 65.0, Kind.GRID);
         add("volcano", "a volcano", 0, null, null, Kind.VOLCANO);
         add("waterfall", "a waterfall", 0, null, null, Kind.WATERFALL);
         add("cascade", "a forest cascade of pools", 1, null, null, Kind.WATERFALL);

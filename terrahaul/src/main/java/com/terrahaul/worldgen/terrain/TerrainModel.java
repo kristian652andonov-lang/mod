@@ -1153,10 +1153,11 @@ public final class TerrainModel {
 
         // ---- 7. wetlands ---------------------------------------------------------------------
         // marshes belong to temperate and warm lowlands: in a frozen climate the biome source gives
-        // snowy plains, so the landform fades out before the climate gets that cold
+        // snowy plains, and below a temperature of -0.3 the surface rule lays snowfields in the
+        // cold forests, so the landform fades out before the climate gets that cold
         double baseTemp = temperatureBase(x, z);
         double swamp = smoothstep(0.55, 0.72, erosion) * smoothstep(-0.11, 0.02, cEff) * (1.0 - mountain) * (1.0 - plateau)
-            * smoothstep(-0.45, -0.32, baseTemp);
+            * smoothstep(-0.27, -0.15, baseTemp);
         // Marshes fill the low ground within about 30 blocks of sea level, where the water table
         // floods their pools: higher plains and hills next to a marsh keep their height (and are
         // no marsh) instead of being pulled down to it in a wall, and the wetland's flag and swamp

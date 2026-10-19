@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#minecraft:is_overworld",
+  "features": "terrahaul:terrain_cleanup_late",
+  "step": "fluid_springs"
+}

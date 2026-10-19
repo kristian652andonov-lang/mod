@@ -41,6 +41,17 @@ def remove_features(name, biomes, features, steps=None):
     write(f'terrahaul/neoforge/biome_modifier/{name}.json', obj)
 
 
+def terrain_cleanup():
+    # floating pieces of terrain are removed first in every chunk (no-op outside Terrahaul worlds)
+    configured('terrain_cleanup', 'terrahaul:terrain_cleanup', {})
+    placed('terrain_cleanup', 'terrahaul:terrain_cleanup', [])
+    add_features('terrain_cleanup', '#minecraft:is_overworld', 'terrahaul:terrain_cleanup', 'raw_generation')
+    # and again after everything that carves or builds terrain, before any plant
+    configured('terrain_cleanup_late', 'terrahaul:terrain_cleanup_late', {})
+    placed('terrain_cleanup_late', 'terrahaul:terrain_cleanup_late', [])
+    add_features('terrain_cleanup_late', '#minecraft:is_overworld', 'terrahaul:terrain_cleanup_late', 'fluid_springs')
+
+
 def oceans():
     # hydrothermal vents on trench floors and ridge crests (no-op outside Terrahaul worlds)
     configured('ocean_vents', 'terrahaul:ocean_vents', {})
@@ -811,6 +822,7 @@ def ruins():
 
 
 def main():
+    terrain_cleanup()
     water()
     oceans()
     trees()

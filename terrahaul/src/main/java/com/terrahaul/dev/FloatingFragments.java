@@ -27,8 +27,8 @@ public final class FloatingFragments {
         boolean test(int x, int y, int z);
     }
 
-    /** One floating group: its block count and bounding box. */
-    public record Fragment(int blocks, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+    /** One floating group: its block count, bounding box and one of its blocks. */
+    public record Fragment(int blocks, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, int seedX, int seedY, int seedZ) {
         @Override
         public String toString() {
             return String.format(Locale.ROOT, "%d blocks at %d %d %d (box %dx%dx%d)", blocks, (minX + maxX) / 2, maxY, (minZ + maxZ) / 2,
@@ -166,7 +166,10 @@ public final class FloatingFragments {
                 count++;
                 blocks += size;
                 histogram[size == 1 ? 0 : size < 10 ? 1 : size < 100 ? 2 : size < 1000 ? 3 : 4]++;
-                found.add(new Fragment(size, x0 + minX, minY, z0 + minZ, x0 + maxX, maxY, z0 + maxZ));
+                int sc = column(offset, start, c);
+                int sdx = sc / sizeZ;
+                found.add(new Fragment(size, x0 + minX, minY, z0 + minZ, x0 + maxX, maxY, z0 + maxZ,
+                    x0 + sdx, bottom[sc] + start - (int) offset[sc], z0 + sc - sdx * sizeZ));
             }
         }
         found.sort(Comparator.comparingInt(Fragment::blocks).reversed());

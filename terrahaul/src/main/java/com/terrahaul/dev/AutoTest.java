@@ -173,12 +173,64 @@ public final class AutoTest {
             }
         }
         long t0 = System.nanoTime();
-        FloatingFragments.Result r = FloatingFragments.scan((x, y, z) -> terrain(level, pos.set(x, y, z)), x0, z0, size, size, top, 60, 10);
-        report.add(String.format(Locale.ROOT, "  floating terrain (surface windows of 60 blocks, %dx%d columns, %.0f ms): %s",
-            size, size, (System.nanoTime() - t0) / 1e6, r.summary()));
+        FloatingFragments.Result r = FloatingFragments.scan((x, y, z) -> terrain(level, pos.set(x, y, z)), x0, z0, size, size, top, 60, 100_000);
+        // fragments made of natural terrain only are generation faults; the others are icebergs,
+        // structure pieces and the like, placed on purpose
+        List<String> natural = new ArrayList<>();
+        List<String> other = new ArrayList<>();
+        int naturalBlocks = 0;
+        int[] histogram = new int[5];
         for (FloatingFragments.Fragment f : r.largest()) {
-            report.add("    fragment: " + f);
+            java.util.Map<String, Integer> blocks = new java.util.TreeMap<>();
+            String detail = fragmentBlocks(level, f, blocks);
+            boolean terrain = blocks.keySet().stream().allMatch(id -> com.terrahaul.worldgen.features.FloatingTerrainCleanup.isTerrain(
+                net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(net.minecraft.resources.ResourceLocation.withDefaultNamespace(id)).defaultBlockState()));
+            if (terrain) {
+                naturalBlocks += f.blocks();
+                histogram[f.blocks() == 1 ? 0 : f.blocks() < 10 ? 1 : f.blocks() < 100 ? 2 : f.blocks() < 1000 ? 3 : 4]++;
+                if (natural.size() < 10) {
+                    natural.add("    fragment: " + f + " " + detail);
+                }
+            } else {
+                if (other.size() < 3) {
+                    other.add("    other: " + f + " " + detail);
+                }
+            }
         }
+        int otherCount = r.fragments() - (histogram[0] + histogram[1] + histogram[2] + histogram[3] + histogram[4]);
+        report.add(String.format(Locale.ROOT, "  floating terrain (surface windows of 60 blocks, %dx%d columns, %.0f ms): %d terrain fragments, %d blocks; sizes 1:%d 2-9:%d 10-99:%d 100-999:%d 1000+:%d; %d other floating groups (icebergs, structures)",
+            size, size, (System.nanoTime() - t0) / 1e6, r.fragments() - otherCount, naturalBlocks,
+            histogram[0], histogram[1], histogram[2], histogram[3], histogram[4], otherCount));
+        report.addAll(natural);
+        report.addAll(other);
+    }
+
+    /** The block types of a floating fragment and what lies around it, found from its seed block. */
+    private static String fragmentBlocks(ServerLevel level, FloatingFragments.Fragment f, java.util.Map<String, Integer> blocks) {
+        java.util.Map<String, Integer> around = new java.util.TreeMap<>();
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet seen = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+        BlockPos seed = new BlockPos(f.seedX(), f.seedY(), f.seedZ());
+        queue.add(seed);
+        seen.add(seed.asLong());
+        while (!queue.isEmpty() && seen.size() < 4000) {
+            BlockPos p = queue.poll();
+            blocks.merge(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(p).getBlock()).getPath(), 1, Integer::sum);
+            for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+                BlockPos n = p.relative(d);
+                if (!seen.add(n.asLong())) {
+                    continue;
+                }
+                if (terrain(level, n)) {
+                    queue.add(n);
+                } else {
+                    BlockState st = level.getBlockState(n);
+                    String key = st.isAir() ? "air" : net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(st.getBlock()).getPath();
+                    around.merge(key, 1, Integer::sum);
+                }
+            }
+        }
+        return "blocks " + blocks + " around " + around;
     }
 
     private static boolean terrain(ServerLevel level, BlockPos pos) {
