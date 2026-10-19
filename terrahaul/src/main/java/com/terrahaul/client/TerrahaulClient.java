@@ -40,6 +40,7 @@ public final class TerrahaulClient {
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> WindSystem.reset());
         NeoForge.EVENT_BUS.addListener(SwayShader::onRenderStage);
         NeoForge.EVENT_BUS.addListener(WorldTypeDefault::onScreenInit);
+        NeoForge.EVENT_BUS.addListener(MemoryHint::onClientTick);
         NeoForge.EVENT_BUS.addListener(ClientScreenshotTest::onClientTick);
     }
 }

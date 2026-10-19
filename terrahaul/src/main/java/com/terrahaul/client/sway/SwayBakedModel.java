@@ -30,6 +30,12 @@ final class SwayBakedModel extends BakedModelWrapper<BakedModel> {
     private static final int STRIDE = 8;
     private static final int POSITION_Y = 1;
     private static final int COLOUR = 3;
+    /**
+     * Marked quads kept per model. Plant models hand out the same few quads on every call; a
+     * wrapped model that builds new quads per call (another mod's dynamic model) would otherwise
+     * grow the cache with every chunk rebuild, so beyond this many its quads are marked uncached.
+     */
+    private static final int MAX_CACHED_QUADS = 256;
 
     private final float base;
     private final float flexibility;
@@ -58,7 +64,15 @@ final class SwayBakedModel extends BakedModelWrapper<BakedModel> {
         List<BakedQuad> out = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
             // BakedQuad uses identity equality, so this caches per quad instance
-            out.add(marked.computeIfAbsent(quad, this::mark));
+            BakedQuad done = marked.get(quad);
+            if (done == null) {
+                done = mark(quad);
+                if (marked.size() < MAX_CACHED_QUADS) {
+                    BakedQuad other = marked.putIfAbsent(quad, done);
+                    done = other != null ? other : done;
+                }
+            }
+            out.add(done);
         }
         return out;
     }
