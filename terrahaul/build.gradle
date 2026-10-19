@@ -153,3 +153,21 @@ tasks.register('peakStudy', JavaExec) {
     jvmArgs '-Xmx4G', '-Djava.awt.headless=true'
     args = (project.findProperty('args') ?: '12345 build/peaks alpine_peaks 4').toString().split(' ').toList()
 }
+
+tasks.register('formationStudy', JavaExec) {
+    group = 'terrahaul'
+    description = 'Renders and checks arches, hoodoos, spires and sea stacks (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.FormationStudy'
+    jvmArgs '-Xmx3G', '-Djava.awt.headless=true'
+    args = (project.findProperty('args') ?: '12345 build/formations arch 6').toString().split(' ').toList()
+}
+
+tasks.register('fadeStudy', JavaExec) {
+    group = 'terrahaul'
+    description = 'Renders and measures the surface material fades (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.FadeStudy'
+    jvmArgs '-Xmx2G', '-Djava.awt.headless=true'
+    args = (project.findProperty('args') ?: '12345 build/fades.png canyon').toString().split(' ').toList()
+}

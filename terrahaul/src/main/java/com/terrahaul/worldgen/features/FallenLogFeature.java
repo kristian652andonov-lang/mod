@@ -14,16 +14,23 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 
 /**
- * A fallen trunk lying on the forest floor. It follows the ground, sinks one block into it where
- * the wood has rotted, stops where the terrain drops away (so it never bridges gaps in mid-air),
- * and may keep a broken stump at its root end, moss on top and mushrooms on the decaying wood.
+ * A fallen trunk lying on the forest floor. It follows the ground, stops where the terrain drops
+ * away (so it never bridges gaps in mid-air), and may keep a broken stump at its root end.
+ * <p>
+ * Decay comes in stretches rather than block by block: one section of the trunk may have lost its
+ * bark and sunk a block into the ground, moss grows over one continuous run of its top, and
+ * mushrooms sprout next to the rotten section. Nothing is placed in or removed from water.
  */
 public final class FallenLogFeature extends Feature<FallenLogConfiguration> {
     public FallenLogFeature(Codec<FallenLogConfiguration> codec) {
         super(codec);
     }
 
+    /** Air or plants a log may replace (not water: a log is not waterloggable). */
     private static boolean free(BlockState state) {
+        if (!state.getFluidState().isEmpty()) {
+            return false;
+        }
         return state.isAir() || state.is(BlockTags.REPLACEABLE) || state.is(BlockTags.REPLACEABLE_BY_TREES) && !state.is(BlockTags.LEAVES);
     }
 
@@ -55,25 +62,33 @@ public final class FallenLogFeature extends Feature<FallenLogConfiguration> {
         if (usable < 3) {
             return false;
         }
+        // one rotten stretch (stripped and sunk), one mossy stretch
+        int rotLength = random.nextFloat() < config.rot() * 2.0f ? 1 + random.nextInt(Math.min(3, usable - 1)) : 0;
+        int rotStart = rotLength > 0 ? 1 + random.nextInt(Math.max(1, usable - rotLength)) : -1;
+        int mossLength = random.nextFloat() < config.moss() * 1.6f ? 2 + random.nextInt(usable - 1) : 0;
+        int mossStart = mossLength > 0 ? random.nextInt(Math.max(1, usable - mossLength + 1)) : -1;
         Direction.Axis axis = dir.getAxis();
         for (int i = 0; i < usable; i++) {
             int x = origin.getX() + dir.getStepX() * i;
             int z = origin.getZ() + dir.getStepZ() * i;
             int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
-            boolean rotten = random.nextFloat() < config.rot();
+            boolean rotten = i >= rotStart && i < rotStart + rotLength;
             int y = rotten ? top - 1 : top;
             BlockState state = (rotten ? config.stripped() : config.log()).trySetValue(RotatedPillarBlock.AXIS, axis);
             level.setBlock(pos.set(x, y, z), state, 2);
             BlockPos above = pos.above();
-            if (free(level.getBlockState(above))) {
-                float roll = random.nextFloat();
-                if (roll < config.moss()) {
-                    level.setBlock(above, Blocks.MOSS_CARPET.defaultBlockState(), 2);
-                } else if (roll < config.moss() + config.mushroom()) {
-                    level.setBlock(above, (random.nextBoolean() ? Blocks.BROWN_MUSHROOM : Blocks.RED_MUSHROOM).defaultBlockState(), 2);
-                } else if (!level.isEmptyBlock(above)) {
-                    level.setBlock(above, Blocks.AIR.defaultBlockState(), 2);
-                }
+            BlockState over = level.getBlockState(above);
+            if (!free(over)) {
+                continue;
+            }
+            boolean nearRot = rotLength > 0 && i >= rotStart - 1 && i <= rotStart + rotLength;
+            if (i >= mossStart && i < mossStart + mossLength) {
+                level.setBlock(above, Blocks.MOSS_CARPET.defaultBlockState(), 2);
+            } else if (nearRot && random.nextFloat() < config.mushroom() * 4.0f) {
+                level.setBlock(above, (random.nextBoolean() ? Blocks.BROWN_MUSHROOM : Blocks.RED_MUSHROOM).defaultBlockState(), 2);
+            } else if (!over.isAir()) {
+                // grass or flowers that the trunk now lies across
+                level.setBlock(above, Blocks.AIR.defaultBlockState(), 2);
             }
         }
         if (random.nextFloat() < config.stump()) {
