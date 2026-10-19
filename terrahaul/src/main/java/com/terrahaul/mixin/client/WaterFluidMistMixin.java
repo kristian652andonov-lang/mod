@@ -16,14 +16,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Spray and mist where a waterfall meets its pool: when the client animates the lowest block of
  * a column of falling water at least three blocks tall standing on still water, it throws up a
- * few splash droplets and now and then a drifting puff of mist. Purely visual and cheap: the
- * client only animates a few hundred random blocks around the player per tick.
+ * few splash droplets and now and then a drifting puff of mist.
+ * <p>
+ * Purely visual and cheap: the client animates only about 1,300 random blocks around the player
+ * per tick, and the checks below read three fluid states. It applies to any tall enough column
+ * of falling water, in every world. The injection is optional ({@code require = 0}): if another
+ * mod replaces the method, the mist is simply missing instead of the game failing to start.
  */
 @Mixin(WaterFluid.class)
 public abstract class WaterFluidMistMixin {
-    @Inject(method = "animateTick", at = @At("TAIL"))
+    @Inject(method = "animateTick", at = @At("TAIL"), require = 0)
     private void terrahaul$waterfallMist(Level level, BlockPos pos, FluidState state, RandomSource random, CallbackInfo ci) {
-        if (state.isSource() || !state.getValue(FlowingFluid.FALLING)) {
+        if (state.isSource() || !state.hasProperty(FlowingFluid.FALLING) || !state.getValue(FlowingFluid.FALLING)) {
             return;
         }
         FluidState below = level.getFluidState(pos.below());
@@ -33,11 +37,11 @@ public abstract class WaterFluidMistMixin {
         double x = pos.getX();
         double y = pos.getY();
         double z = pos.getZ();
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
             level.addParticle(ParticleTypes.SPLASH, x + random.nextDouble(), y + 0.1, z + random.nextDouble(),
                 (random.nextDouble() - 0.5) * 0.4, 0.3, (random.nextDouble() - 0.5) * 0.4);
         }
-        if (random.nextInt(3) == 0) {
+        if (random.nextInt(4) == 0) {
             level.addParticle(ParticleTypes.CLOUD, x - 0.5 + 2.0 * random.nextDouble(), y + 0.4 + random.nextDouble(), z - 0.5 + 2.0 * random.nextDouble(),
                 (random.nextDouble() - 0.5) * 0.02, 0.025, (random.nextDouble() - 0.5) * 0.02);
         }

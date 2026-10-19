@@ -107,6 +107,7 @@ public final class WaterStudy {
             }
             case "dump" -> dump(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]), Integer.parseInt(args[5]));
             case "walls" -> walls(model, Integer.parseInt(args[2]));
+            case "survey" -> survey(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]));
             case "lakecheck" -> lakeCheck(model, Integer.parseInt(args[2]));
             case "corners" -> {
                 int x0 = Integer.parseInt(args[2]) & ~3;
@@ -116,9 +117,9 @@ public final class WaterStudy {
                 for (int j = 0; j < n; j++) {
                     for (int i = 0; i < n; i++) {
                         model.sampleInto(x0 + 4 * i, z0 + 4 * j, s);
-                        System.out.printf(Locale.ROOT, "%d,%d h=%.2f kind=%d in=%s lvl=%.0f cont=%.2f lake=%.2f(%.0f) river=%.2f rlev=%.0f rw=%.1f dry=%s great=%.2f%n",
+                        System.out.printf(Locale.ROOT, "%d,%d h=%.2f kind=%d in=%s lvl=%.0f cont=%.2f lake=%.2f(%.0f) river=%.2f rlev=%.0f rw=%.1f dry=%s great=%.2f canyon=%.2f rdist=%.2f valley=%.2f%n",
                             x0 + 4 * i, z0 + 4 * j, s.height, s.bodyKind, s.bodyInside, s.bodyLevel, s.bodyLevelCont, s.lake, s.lakeLevel, s.river,
-                            s.riverLevel, s.riverWidth, s.dryRiver, s.riverGreat);
+                            s.riverLevel, s.riverWidth, s.dryRiver, s.riverGreat, s.canyon, Math.min(99, s.riverDistance), s.riverValley);
                     }
                 }
             }
@@ -605,11 +606,13 @@ public final class WaterStudy {
                     }
                 }
             }
-            if (rendered < renders && (which.equals("all") || which.equals("cascade") == (p.type == FallPlan.CASCADE))) {
+            if (rendered < renders && (which.equals("all") || which.equals(new String[]{"curtain", "gorge", "sea", "cascade"}[p.type]))) {
                 rendered++;
                 System.out.printf(Locale.ROOT, "  %s at %d,%d (dir %d,%d): drop %d (top %d pool %d), width %d, view %d,%d,%d%n", p.typeName(),
                     p.lipX, p.lipZ, p.dirX, p.dirZ, p.drop(), p.top, p.pool, p.width(), p.viewX, p.viewY, p.viewZ);
-                tiles.add(fallTile(model, area, p, sl));
+                BufferedImage tile = fallTile(model, area, p, sl);
+                tiles.add(tile);
+                ImageIO.write(tile, "png", new File(dir, "fall_" + rendered + ".png"));
             }
         }
         System.out.printf(Locale.ROOT, "built %d plans in %d chunks (%.2f ms/chunk): mismatches %d, source-air %d, water-above-air %d, banks %s, steps %s%n",
@@ -632,13 +635,22 @@ public final class WaterStudy {
         int yMin = p.pool - 12;
         int yMax = p.top + 16;
         BufferedImage view = WaterView.render(model, area, p.viewX + 0.5, p.viewY + 1.62, p.viewZ + 0.5, p.lookX + 0.5, p.lookY + 0.5, p.lookZ + 0.5, 480, 320);
+        // an overview from high up in front and to the side, to judge how the plan sits in the land
+        int[] ax = p.flowAxis();
+        double cx = p.type == FallPlan.CASCADE ? p.lookX : p.lipX + ax[0] * 6;
+        double cz = p.type == FallPlan.CASCADE ? p.lookZ : p.lipZ + ax[1] * 6;
+        double ox0 = cx + ax[0] * 55 - ax[1] * 35;
+        double oz0 = cz + ax[1] * 55 + ax[0] * 35;
+        double oy0 = Math.max(p.top, model.interpolatedHeight((int) ox0, (int) oz0)) + 30;
+        BufferedImage over = WaterView.render(model, area, ox0, oy0, oz0, cx, (p.top + p.pool) / 2.0, cz, 480, 320);
         int sideH = Math.max((yMax - yMin) * sc, view.getHeight());
-        int w = Math.max(top.getWidth(), (uMax - uMin) * sc + view.getWidth());
+        int w = Math.max(top.getWidth(), (uMax - uMin) * sc + view.getWidth() + over.getWidth());
         BufferedImage img = new BufferedImage(w, top.getHeight() + sideH, BufferedImage.TYPE_INT_RGB);
         java.awt.Graphics2D g = img.createGraphics();
         g.setColor(new java.awt.Color(230, 230, 230));
         g.fillRect(0, 0, w, sideH);
         g.drawImage(view, (uMax - uMin) * sc, 0, null);
+        g.drawImage(over, (uMax - uMin) * sc + view.getWidth(), 0, null);
         boolean cascade = p.type == FallPlan.CASCADE;
         int dx = p.flowAxis()[0];
         int dz = p.flowAxis()[1];
@@ -739,6 +751,7 @@ public final class WaterStudy {
         int stream = 0;
         int elevated = 0;
         double nearestWater = Double.MAX_VALUE;
+        int nearestKind = -1;
         for (int z = area.az; z < area.az + area.h; z++) {
             for (int x = area.ax; x < area.ax + area.w; x++) {
                 double d = Math.hypot(x - r.x(), z - r.z());
@@ -750,7 +763,10 @@ public final class WaterStudy {
                     continue;
                 }
                 water++;
-                nearestWater = Math.min(nearestWater, d);
+                if (d < nearestWater) {
+                    nearestWater = d;
+                    nearestKind = area.kind[k];
+                }
                 if (area.step[k] == WaterSolver.CHUTE) {
                     chutes++;
                 }
@@ -766,7 +782,8 @@ public final class WaterStudy {
             case "waterfall", "cascade" -> standingInWater ? "viewpoint in water" : chutes < 1 ? "no falling water near" : null;
             case "lake" -> nearestWater > 24 ? "no water within 24 blocks" : null;
             case "river", "great_river" -> nearestWater > 24 ? "no water within 24 blocks" : null;
-            case "dry_river" -> nearestWater < 16 ? "water " + Math.round(nearestWater) + " blocks away" : null;
+            // the sea beside a dry wash reaching the coast does not count
+            case "dry_river" -> nearestWater < 16 && nearestKind != WaterSolver.SEA ? "water (kind " + nearestKind + ") " + Math.round(nearestWater) + " blocks away" : null;
             case "stream" -> stream < 4 ? "no stream water near (" + stream + " columns)" : null;
             default -> null;
         };
@@ -904,6 +921,57 @@ public final class WaterStudy {
     }
 
     // =========================================================================================
+    // survey: random 3x3 chunk areas anywhere on land
+    // =========================================================================================
+
+    /**
+     * Solves {@code n} random 3x3-chunk areas within {@code half} blocks of the origin that hold
+     * surface water and checks the invariants on their middle chunk: no source block facing air,
+     * no water above air, neighbouring chunks agreeing, and the heights of banks the solver had to
+     * build (tall banks are artificial walls). Prints where the tallest banks are.
+     */
+    private static void survey(TerrainModel model, int half, int n) {
+        Stats total = new Stats();
+        java.util.Random r = new java.util.Random(model.seed());
+        int done = 0;
+        int tries = 0;
+        List<String> tall = new ArrayList<>();
+        while (done < n && tries < n * 40) {
+            tries++;
+            int cx = Math.floorDiv(r.nextInt(2 * half) - half, 16);
+            int cz = Math.floorDiv(r.nextInt(2 * half) - half, 16);
+            WaterSolver ws = solveChunk(model, cx, cz);
+            boolean any = false;
+            for (int k = 0; k < ws.level.length && !any; k++) {
+                any = ws.level[k] != WaterSolver.NONE && ws.kind[k] != WaterSolver.SEA;
+            }
+            if (!any) {
+                continue;
+            }
+            done++;
+            Stats st = new Stats();
+            Area area = solveArea(model, cx - 1, cz - 1, 3, 3, st);
+            accumulate(total, st);
+            for (int z = area.az + 16; z < area.az + 32; z++) {
+                for (int x = area.ax + 16; x < area.ax + 32; x++) {
+                    int k = area.at(x, z);
+                    int raise = area.solidTop[k] - (area.step[k] == WaterSolver.SILL ? area.upper[k] - 1 : area.ground[k]);
+                    if (area.level[k] == WaterSolver.NONE && raise >= 4 && tall.size() < 12) {
+                        tall.add(String.format(Locale.ROOT, "bank of %d at %d,%d", raise, x, z));
+                    }
+                }
+            }
+        }
+        System.out.printf(Locale.ROOT, "%d water areas (%d tried): %d chunks solved, water cols %d, sills %d, chutes %d, banks %s, steps %s, "
+                + "mismatches %d, source-air %d, water-above-air %d, %.2f ms/chunk%n", done, tries, total.chunks, total.waterColumns, total.sills,
+            total.chutes, hist(total.bankHist), hist(total.stepHist), total.mismatches, total.sourceFacingAir, total.waterAboveAir,
+            total.nanos / 1e6 / Math.max(1, total.chunks));
+        for (String t : tall) {
+            System.out.println("  " + t);
+        }
+    }
+
+    // =========================================================================================
     // lakecheck: every lake and crater lake solved and checked
     // =========================================================================================
 
@@ -971,6 +1039,9 @@ public final class WaterStudy {
                     model.sampleInto(x & ~3, z & ~3, s);
                     if (s.bodyInside && s.bodyLevel == site[3]) {
                         g++;
+                        if (g <= 3) {
+                            System.out.printf(Locale.ROOT, "    dry gap at %d,%d: solidTop %d ground %d kind %d step %d%n", x, z, area.solidTop[k], area.ground[k], area.kind[k], area.step[k]);
+                        }
                     }
                 }
             }

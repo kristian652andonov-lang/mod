@@ -43,7 +43,9 @@ public final class TerrainFinder {
     static {
         add("river", "a river", 24, s -> s.riverValley > 0.4 && s.riverWidth >= 2.5, s -> s.river > 0.2 && s.riverWidth >= 2.5, Kind.GRID);
         add("great_river", "a great river (100-200 blocks wide)", 64, s -> s.riverValley > 0.3 && s.riverWidth >= 50, s -> s.river > 0.3 && s.riverWidth >= 50, Kind.GRID);
-        add("dry_river", "a dry riverbed", 24, s -> s.riverValley > 0.4 && s.dryRiver, s -> s.river > 0.2 && s.dryRiver, Kind.GRID);
+        // well into the dry reach (the river's water ends where its aridity reaches about 0.6)
+        add("dry_river", "a dry riverbed", 24, s -> s.riverValley > 0.4 && s.dryRiver,
+            s -> s.river > 0.2 && s.dryRiver && s.riverAridity > 0.68 && s.lake <= 0.0 && s.height > 68.0, Kind.GRID);
         add("stream", "a mountain stream or forest creek", 12, s -> s.stream > 0.3, s -> s.stream > 0.5, Kind.GRID);
         add("lake", "a lake", 0, null, null, Kind.LAKE_SITE);
         for (int type = LakeType.FOREST; type <= LakeType.GLACIAL; type++) {

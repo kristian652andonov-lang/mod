@@ -59,6 +59,8 @@ public final class FallPlan implements WaterPlan {
     /** The curtain spans {@code v} in {@code [-halfWidth, halfWidth]}. */
     public int halfWidth;
     int channel;
+    /** Radius of the spring-fed pool the channel starts from (0: it is fed by a stream). */
+    double headR;
     double ru;
     double rv;
     double uc;
@@ -187,6 +189,23 @@ public final class FallPlan implements WaterPlan {
         if (u <= 0) {
             // the stream channel over the high ground, and banks where the ground beside it or
             // beside the lip is lower than the water
+            if (headR > 0.0 && u <= -channel + 1) {
+                // the small pool the channel runs out of, slightly irregular
+                double hu = (u + channel + headR - 1.0) / headR;
+                double hv = v / (headR * 0.85);
+                double hr = Math.sqrt(hu * hu + hv * hv) + 0.12 * model.detail3(6, x / 4.0, 17.0, z / 4.0);
+                if (hr <= 1.0) {
+                    out.ground = top - 1 - (int) Math.round(1.5 * (1.0 - hr * hr));
+                    out.level = top + 1;
+                    out.role = WaterSolver.ROLE_BED;
+                    return true;
+                }
+                if (hr <= 1.0 + 1.6 / headR && natural < top) {
+                    out.ground = top;
+                    out.role = WaterSolver.ROLE_NATURAL;
+                    return true;
+                }
+            }
             if (u < -channel - 1) {
                 return false;
             }

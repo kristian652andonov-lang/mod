@@ -10,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -117,7 +118,8 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
             for (int y = Math.min(natural, ground); y <= ground; y++) {
                 BlockState s = level.getBlockState(pos.set(x, y, z));
                 if (!s.blocksMotion() || y == ground && lv != WaterSolver.NONE && WaterPalette.soil(s)) {
-                    level.setBlock(pos, palette.shaped(ws.role[k], ws.material[k], ws.planned[k], x, y, z, y == ground, lv != WaterSolver.NONE), 2);
+                    BlockState block = palette.shaped(ws.role[k], ws.material[k], ws.planned[k], x, y, z, y == ground, lv != WaterSolver.NONE);
+                    level.setBlock(pos.set(x, y, z), supported(level, pos, block, palette, false), 2);
                     placed = true;
                 }
             }
@@ -159,7 +161,8 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
             BlockState fluid = lava ? Blocks.LAVA.defaultBlockState() : Blocks.WATER.defaultBlockState();
             BlockState bed = level.getBlockState(pos.set(x, ground, z));
             if (!bed.blocksMotion()) {
-                level.setBlock(pos, lava ? Blocks.MAGMA_BLOCK.defaultBlockState() : palette.bed(x, ground, z), 2);
+                BlockState block = lava ? Blocks.MAGMA_BLOCK.defaultBlockState() : palette.bed(x, ground, z);
+                level.setBlock(pos.set(x, ground, z), supported(level, pos, block, palette, lava), 2);
             } else if (lava) {
                 level.setBlock(pos, Blocks.MAGMA_BLOCK.defaultBlockState(), 2);
             } else if (palette.isGrass(bed) || bed.is(Blocks.SNOW_BLOCK)) {
@@ -201,6 +204,23 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
             }
         }
         return placed;
+    }
+
+    /**
+     * The block to place at {@code pos}, or rock instead of a loose one (sand, gravel) that has
+     * nothing solid below it, such as a bed over a cave the model does not know about: it would
+     * fall at the first block update and drain the water. Leaves {@code pos} where it was.
+     */
+    private static BlockState supported(WorldGenLevel level, BlockPos.MutableBlockPos pos, BlockState block, WaterPalette palette, boolean lava) {
+        if (!(block.getBlock() instanceof FallingBlock)) {
+            return block;
+        }
+        int x = pos.getX();
+        int y = pos.getY();
+        int z = pos.getZ();
+        boolean solidBelow = level.getBlockState(pos.set(x, y - 1, z)).blocksMotion();
+        pos.set(x, y, z);
+        return solidBelow ? block : palette.seal(lava);
     }
 
     /** Falling water down a step, with the flowing block that spills over the upper surface on top. */

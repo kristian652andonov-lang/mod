@@ -35,6 +35,9 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
  *   <li>ferns and moss carpets grow on the shores and on the dams of cascades;</li>
  *   <li>lily pads float on the still lowest pool of a cascade.</li>
  * </ul>
+ * Neighbouring chunks may not have built their part of a plan yet, so nothing here depends on
+ * their blocks: whether rock beyond the chunk's edge is exposed is read from the plan, and
+ * lichen and vines only attach to rock of this chunk.
  */
 public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
     private static final Direction[] SIDES = {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST};
@@ -71,9 +74,12 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
                     if (!p.shape(x, z, natural, shape)) {
                         continue;
                     }
+                    // the live heightmap: the ground as the water features left it (the
+                    // world-generation heightmaps still show the ground before them)
+                    int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
                     placed |= p.type == FallPlan.CASCADE
-                        ? decorateCascade(level, model, p, shape, pos, x, z, humid)
-                        : decorateFall(level, model, p, shape, pos, x, z, humid, cold);
+                        ? decorateCascade(level, p, shape, pos, x, top, z, humid)
+                        : decorateFall(level, model, p, shape, pos, x, top, z, humid, cold);
                 }
             }
         }
@@ -81,18 +87,17 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
     }
 
     private static boolean decorateFall(WorldGenLevel level, TerrainModel model, FallPlan p, WaterPlan.Shape shape, BlockPos.MutableBlockPos pos,
-                                        int x, int z, boolean humid, boolean cold) {
+                                        int x, int top, int z, boolean humid, boolean cold) {
         boolean placed = false;
         int u = p.u(x, z);
         int v = p.v(x, z);
         // how close the column is to the curtain, which keeps nearby rock wet
         double spray = Math.hypot(Math.max(0, u - 1), Math.max(0, Math.abs(v) - p.halfWidth));
-        int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
         if (!cold && spray <= 7.0) {
             // wet rock: every rock block of the column with an open side, from the pool up to the lip
             for (int y = p.pool + 1; y <= Math.min(top, p.top); y++) {
                 BlockState s = level.getBlockState(pos.set(x, y, z));
-                if (!isRock(s) || !openSide(level, pos, x, y, z)) {
+                if (!isRock(s) || !openSide(level, model, p, pos, x, y, z)) {
                     continue;
                 }
                 double n = model.detail3(4, x / 5.0, y / 5.0, z / 5.0) - 0.06 * spray;
@@ -120,12 +125,11 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
         return placed;
     }
 
-    private static boolean decorateCascade(WorldGenLevel level, TerrainModel model, FallPlan p, WaterPlan.Shape shape, BlockPos.MutableBlockPos pos,
-                                           int x, int z, boolean humid) {
-        int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z) - 1;
-        int surface = level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z) - 1;
+    private static boolean decorateCascade(WorldGenLevel level, FallPlan p, WaterPlan.Shape shape, BlockPos.MutableBlockPos pos,
+                                           int x, int top, int z, boolean humid) {
         if (shape.level != WaterSolver.NONE) {
             // lily pads on the lowest, stillest pool
+            int surface = shape.level - 1;
             BlockState water = level.getBlockState(pos.set(x, surface, z));
             if (shape.level == p.pool + 1 && water.is(Blocks.WATER) && water.getFluidState().isSource() && hash(p, x, z) < 0.07
                 && level.getBlockState(pos.set(x, surface + 1, z)).isAir()) {
@@ -166,13 +170,19 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
         return false;
     }
 
-    /** Glow lichen in an open block against a rock face beside it. */
+    /** Glow lichen in an open block against a rock face of this chunk beside it. */
     private static boolean lichen(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z, boolean grow) {
         if (!grow || !level.getBlockState(pos.set(x, y, z)).isAir()) {
             return false;
         }
         for (Direction d : SIDES) {
-            BlockState wall = level.getBlockState(pos.set(x + d.getStepX(), y, z + d.getStepZ()));
+            int wx = x + d.getStepX();
+            int wz = z + d.getStepZ();
+            if (wx >> 4 != x >> 4 || wz >> 4 != z >> 4) {
+                // the neighbouring chunk may still carve that rock away
+                continue;
+            }
+            BlockState wall = level.getBlockState(pos.set(wx, y, wz));
             if (isRock(wall) || wall.is(Blocks.MOSS_BLOCK)) {
                 level.setBlock(pos.set(x, y, z), Blocks.GLOW_LICHEN.defaultBlockState().setValue(MultifaceBlock.getFaceProperty(d), true), 2);
                 return true;
@@ -187,13 +197,13 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
         for (Direction d : SIDES) {
             int ax = x + d.getStepX();
             int az = z + d.getStepZ();
+            if (ax >> 4 != x >> 4 || az >> 4 != z >> 4) {
+                // the strand would hang in the neighbouring chunk, which decorates its own columns
+                continue;
+            }
             // the open air next to this column, below its top
             int yy = y - 1;
             if (!level.getBlockState(pos.set(ax, yy, az)).isAir() || !level.getBlockState(pos.set(x, yy, z)).isSolid()) {
-                continue;
-            }
-            if (ax >> 4 != x >> 4 || az >> 4 != z >> 4) {
-                // the strand would hang in the neighbouring chunk, which decorates its own columns
                 continue;
             }
             Direction toWall = d.getOpposite();
@@ -210,10 +220,29 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
         return placed;
     }
 
-    private static boolean openSide(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z) {
+    /**
+     * Whether a block has air or water beside it. Beyond the chunk's edge the plan's shaped ground
+     * stands in for the blocks, which that chunk may not have carved yet.
+     */
+    private static boolean openSide(WorldGenLevel level, TerrainModel model, FallPlan p, BlockPos.MutableBlockPos pos, int x, int y, int z) {
+        WaterPlan.Shape shape = null;
         for (Direction d : SIDES) {
-            BlockState s = level.getBlockState(pos.set(x + d.getStepX(), y, z + d.getStepZ()));
-            if (s.isAir() || !s.getFluidState().isEmpty()) {
+            int nx = x + d.getStepX();
+            int nz = z + d.getStepZ();
+            if (nx >> 4 == x >> 4 && nz >> 4 == z >> 4) {
+                BlockState s = level.getBlockState(pos.set(nx, y, nz));
+                if (s.isAir() || !s.getFluidState().isEmpty()) {
+                    return true;
+                }
+                continue;
+            }
+            if (shape == null) {
+                shape = new WaterPlan.Shape();
+            }
+            int natural = (int) Math.ceil(model.interpolatedHeight(nx, nz)) - 1;
+            shape.reset(natural);
+            int ground = p.shape(nx, nz, natural, shape) ? shape.ground : natural;
+            if (y > ground) {
                 return true;
             }
         }

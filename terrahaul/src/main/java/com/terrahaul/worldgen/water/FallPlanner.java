@@ -3,6 +3,7 @@ package com.terrahaul.worldgen.water;
 import static com.terrahaul.worldgen.noise.TMath.clamp;
 import static com.terrahaul.worldgen.noise.TMath.smoothstep;
 
+import com.terrahaul.worldgen.density.TerrainDetail;
 import com.terrahaul.worldgen.noise.SeedMixer;
 import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.Geology;
@@ -222,11 +223,12 @@ public final class FallPlanner {
                 int pz = z0 + 8 + 16 * j;
                 ColumnSample s = ps.corner(px, pz);
                 if (s.height < sl + 6 || s.bodyInside || s.swamp > 0.5 || s.volcano > 0.3 || s.humidity < -0.3
-                    || s.trailDistance < 8.0 || s.stream > 0.3) {
+                    || s.trailDistance < 8.0) {
                     continue;
                 }
                 double h0 = s.height;
-                double wet = smoothstep(-0.2, 0.7, s.humidity);
+                // a stream running over the edge makes the most natural fall
+                double wet = smoothstep(-0.2, 0.7, s.humidity) * (s.stream > 0.3 ? 1.6 : 1.0);
                 for (int d = 0; d < 4; d++) {
                     int dx = AXES[d][0];
                     int dz = AXES[d][1];
@@ -354,10 +356,11 @@ public final class FallPlanner {
         p.dirZ = dz;
         p.top = top;
         p.pool = pool;
-        // wet climates feed wide curtains (up to 25 blocks); in dry ones falls are thin threads
-        int hw = (int) Math.min(12, Math.round(wet * (1.0 + 7.0 * unit) + Math.min(3.0, drop / 20.0) + (type == FallPlan.CURTAIN ? 1.5 : 0.0)));
+        // wet climates feed wide curtains (up to 29 blocks); in dry ones falls are thin threads
+        int hw = (int) Math.min(14, Math.round(wet * (2.0 + 8.0 * unit) + Math.min(4.0, drop / 12.0) + (type == FallPlan.CURTAIN ? 2.0 : 0.0)));
         // the edge must carry the whole curtain: the lip's ground within reach of the water's
-        // level and the slope falling away in front of it, all the way across
+        // level (up to two blocks below it the plan builds the lip up) and the slope falling away
+        // in front of it, all the way across
         int px2 = -dz;
         int pz2 = dx;
         while (hw > 0) {
@@ -365,7 +368,7 @@ public final class FallPlanner {
             for (int v = -hw; v <= hw && ok; v++) {
                 double lipH = ps.height(lipX + v * px2, lipZ + v * pz2);
                 double front = ps.height(lipX + v * px2 + 4 * dx, lipZ + v * pz2 + 4 * dz);
-                ok = lipH >= top + 0.5 && lipH <= top + 10 && front <= top - 1;
+                ok = lipH >= top - 1.5 && lipH <= top + 10 && front <= top - 1;
             }
             if (ok) {
                 break;
@@ -383,8 +386,11 @@ public final class FallPlanner {
             p.pool = pool;
         }
         p.halfWidth = hw;
-        // the feeding stream: up to 16 blocks over level or gently rising ground
-        int channel = 8 + (int) Math.round(8 * SeedMixer.cellUnit(fallSeed, cx, cz, 22));
+        // the feeding stream: joined to a stream of the land's network if one passes close behind
+        // the lip at about its level, otherwise 8-16 blocks over level or gently rising ground
+        // from a small spring-fed pool
+        int link = streamLink(ps, lipX, lipZ, dx, dz, top);
+        int channel = link > 0 ? link : 8 + (int) Math.round(8 * SeedMixer.cellUnit(fallSeed, cx, cz, 22));
         for (int u = 1; u <= channel; u++) {
             double h = ps.height(lipX - u * dx, lipZ - u * dz);
             if (h > top + 9 || h < top - 0.5) {
@@ -396,6 +402,7 @@ public final class FallPlanner {
             return null;
         }
         p.channel = channel;
+        p.headR = channel == link ? 0.0 : clamp(2.5 + 0.35 * hw, 2.5, 6.0);
         p.ru = clamp(2.5 + 0.10 * drop + 0.2 * hw, 3.0, 13.0);
         p.rv = clamp(hw + 2.5 + 0.05 * drop, 3.0, 16.0);
         p.uc = 0.5 + p.ru;
@@ -441,12 +448,32 @@ public final class FallPlanner {
         return p;
     }
 
+    /**
+     * Distance behind the lip (3-28 blocks) at which the centre line of a stream crosses the
+     * fall's axis with its water at or above the channel's, or -1.
+     */
+    private int streamLink(PlanSampler ps, int lipX, int lipZ, int dx, int dz, int top) {
+        double[] info = new double[2];
+        for (int u = 3; u <= 28; u++) {
+            int x = lipX - u * dx;
+            int z = lipZ - u * dz;
+            if (ps.nearest(x, z).stream <= 0.05) {
+                continue;
+            }
+            model.streamInfo(x, z, info);
+            if (info[0] < 1.5) {
+                return info[1] >= top ? u : -1;
+            }
+        }
+        return -1;
+    }
+
     /** World-space bounds of a waterfall's footprint. */
     private static void bounds(FallPlan p) {
         double shore = 1.0 + p.shoreW / Math.min(p.ru, p.rv);
         int maxU = (int) Math.ceil(Math.max(p.slotEnd + 1, p.uc + p.ru * shore + FallPlan.WALL_REACH));
         int maxV = (int) Math.ceil(Math.max(p.rv * shore + FallPlan.WALL_REACH, Math.max(p.slotHalf + 6 + FallPlan.WALL_REACH, p.halfWidth + 3)));
-        int minU = -p.channel - 2;
+        int minU = -p.channel - 2 - (int) Math.ceil(2.0 * p.headR + 2.0);
         int ax = p.lipX + minU * p.dirX;
         int az = p.lipZ + minU * p.dirZ;
         int bx = p.lipX + maxU * p.dirX;
@@ -496,6 +523,14 @@ public final class FallPlanner {
             for (int u = front; u <= p.slotEnd; u++) {
                 int off = (int) Math.round(p.slotOffset(u));
                 if (ps.height(p.lipX + u * p.dirX - off * p.dirZ, p.lipZ + u * p.dirZ + off * p.dirX) > start + 2.0) {
+                    return false;
+                }
+            }
+        }
+        // big curved overhangs of the 3D terrain would be cut off at the edge of the bowl
+        for (int x = p.minX & ~3; x <= p.maxX; x += 8) {
+            for (int z = p.minZ & ~3; z <= p.maxZ; z += 8) {
+                if (TerrainDetail.curvedOverhang(model, x, z) != null) {
                     return false;
                 }
             }

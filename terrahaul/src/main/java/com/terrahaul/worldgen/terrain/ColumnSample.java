@@ -78,6 +78,8 @@ public final class ColumnSample {
     public double bodyLevelCont;
     /** 0..1: how much the river here belongs to the great-river network. */
     public double riverGreat;
+    /** Aridity (0..1) where that river's surface is decided; dry riverbeds lie where it exceeds about 0.6. */
+    public double riverAridity;
     /** Memo of {@code TerrainModel.nearbyWaterLevel} for this corner ({@code NaN}: not computed). */
     public double nearbyWater;
     public double lake;
@@ -161,6 +163,7 @@ public final class ColumnSample {
         bodyLevel = o.bodyLevel;
         bodyLevelCont = o.bodyLevelCont;
         riverGreat = o.riverGreat;
+        riverAridity = o.riverAridity;
         nearbyWater = Double.NaN;
         lake = o.lake;
         lakeType = o.lakeType;
