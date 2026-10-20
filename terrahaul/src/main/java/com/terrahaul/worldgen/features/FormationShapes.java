@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.SplittableRandom;
 import java.util.function.IntBinaryOperator;
+import java.util.function.IntToDoubleFunction;
 
 /**
  * Shapes of the rock formations built by {@link RockFormationFeature}: arches, hoodoo fields,
@@ -36,12 +37,10 @@ import java.util.function.IntBinaryOperator;
 public final class FormationShapes {
     /** No block. */
     public static final int AIR = -1;
-    /** The pale, harder cap rock of a hoodoo. */
-    public static final int CAP = 3;
     /** Grass on top of a sea stack. */
-    public static final int GRASS = 4;
+    public static final int GRASS = 3;
     /** Soil below the grass of a sea stack. */
-    public static final int DIRT = 5;
+    public static final int DIRT = 4;
 
     /** Coherent roughness shared by all formations; offsets per site keep them different. */
     static final SimplexNoise ROUGH = new SimplexNoise(0x7E77A0C4L);
@@ -513,10 +512,11 @@ public final class FormationShapes {
      * A field of hoodoos as in Bryce Canyon: 14 to 45 pillars, up to about 45 blocks tall, standing
      * in two to five slightly curved rows, some joined at the base by eroded fins. The field shares
      * one sequence of beds: harder, paler beds bulge and softer ones are pinched in, at the same
-     * heights on every pillar, which gives the beaded profiles their order. Most pillars carry a cap
-     * of pale, harder rock on a narrow neck; the others are worn to rounded stumps. Pillars are
-     * shorter towards the edge of the field, flare into a talus skirt at the foot and are skipped on
-     * steep or wet ground, except the pillar at the site itself, so every hoodoo site holds hoodoos.
+     * heights on every pillar, which gives the beaded profiles their order. Every pillar is worn to
+     * a point (see {@link Hoodoo}); there is no cap rock, since a pale slab on a narrow neck made the
+     * pillars look like mushrooms or lamp posts. Pillars are shorter towards the edge of the field,
+     * flare into a talus skirt at the foot and are skipped on steep or wet ground, except the pillar
+     * at the site itself, so every hoodoo site holds hoodoos.
      */
     public static final class HoodooField {
         public final List<Hoodoo> pillars;
@@ -567,23 +567,27 @@ public final class FormationShapes {
                 double height = (14.0 + r.nextDouble() * 18.0 + site.size * 16.0) * edge;
                 boolean stump = r.nextDouble() < 0.2;
                 double r0 = 1.9 + r.nextDouble() * 1.3 + height * 0.04;
-                boolean capped = r.nextDouble() < 0.72;
+                double shoulderRoll = r.nextDouble();
                 double beadAmp = 0.14 + r.nextDouble() * 0.16;
-                double capH = 2.2 + r.nextDouble() * 1.8;
-                double capExtra = 0.6 + r.nextDouble() * 1.2;
-                double neck = 1.25 + r.nextDouble() * 0.7;
-                double leanX = (r.nextDouble() - 0.5) * 0.1;
-                double leanZ = (r.nextDouble() - 0.5) * 0.1;
+                double shoulderRound = 1.3 + r.nextDouble() * 0.9;
+                double pointRoll = r.nextDouble();
+                double flute = 0.12 + r.nextDouble() * 0.18;
+                double leanX = (r.nextDouble() - 0.5) * 0.14;
+                double leanZ = (r.nextDouble() - 0.5) * 0.14;
                 double aspect = 0.72 + 0.28 * r.nextDouble();
                 double rot = r.nextDouble() * Math.PI;
-                double tiltX = (r.nextDouble() - 0.5) * 0.35;
-                double tiltZ = (r.nextDouble() - 0.5) * 0.35;
+                double tipX = (r.nextDouble() - 0.5) * 2.0;
+                double tipZ = (r.nextDouble() - 0.5) * 2.0;
                 double flare = 1.0 + r.nextDouble() * 1.4;
                 double finRoll = r.nextDouble();
                 double finHeight = 0.3 + r.nextDouble() * 0.25;
+                // the taper begins on a shoulder a third to two thirds of the way up and runs to a
+                // slender needle or a blunter point; stumps taper almost from the foot to a short,
+                // blunt point
+                double shoulder = stump ? 0.1 + 0.2 * shoulderRoll : 0.32 + 0.33 * shoulderRoll;
+                double point = stump ? 0.55 + 0.25 * pointRoll : 0.65 + 0.45 * pointRoll;
                 if (stump) {
                     height *= 0.45;
-                    capped = false;
                 }
                 int hx = site.x + (int) Math.round(along * cos - across * sin);
                 int hz = site.z + (int) Math.round(along * sin + across * cos);
@@ -593,8 +597,8 @@ public final class FormationShapes {
                 if (i > 0 && (wet || height < 5.0 || steep(model, s, hx, hz, (int) Math.ceil(r0 + 2.0), base))) {
                     continue;
                 }
-                Hoodoo p = new Hoodoo(hx, hz, (int) Math.floor(base), height, r0, capped, beadAmp, capH,
-                    Math.max(neck + 1.5, r0 * 0.6 + capExtra), neck, leanX * height, leanZ * height, aspect, rot, tiltX, tiltZ, flare);
+                Hoodoo p = new Hoodoo(hx, hz, (int) Math.floor(base), height, r0, beadAmp, shoulder, shoulderRound, point, flute,
+                    tipX, tipZ, leanX * height, leanZ * height, aspect, rot, flare, this::bead);
                 p.along = along;
                 p.finRoll = finRoll;
                 p.finHeight = finHeight;
@@ -658,12 +662,6 @@ public final class FormationShapes {
             return Math.cos(phase * Math.PI * 2.0);
         }
 
-        /**
-         * Material at a block: {@link #AIR}, a stop of the rock family (0 for the pale hard beds,
-         * 2 for the soft dark ones) or {@link #CAP}.
-         *
-         * @param ground Y of the top solid block of the column before the field was built
-         */
         /** The pillars and fins whose bounds cover a column; evaluate a column with one of these. */
         public Column column(int bx, int bz) {
             List<Hoodoo> ps = new ArrayList<>();
@@ -687,8 +685,8 @@ public final class FormationShapes {
         }
 
         /**
-         * Material at a block: {@link #AIR}, a stop of the rock family (0 for the pale hard beds,
-         * 2 for the soft dark ones) or {@link #CAP}.
+         * Material at a block: {@link #AIR} or a stop of the rock family (0 for the pale hard
+         * beds, 2 for the soft dark ones).
          *
          * @param ground Y of the top solid block of the column before the field was built
          * @param column {@link #column} of this block's column
@@ -721,15 +719,9 @@ public final class FormationShapes {
             double n = 0.55 * ROUGH.noise3(bx * 0.3 + off, y * 0.25, bz * 0.3) + 0.25 * ROUGH.noise3(bx * 0.7 - off, y * 0.7, bz * 0.7);
             int result = AIR;
             for (Hoodoo p : column.pillars) {
-                if (!p.near(bx, y, bz)) {
-                    continue;
-                }
-                int m = p.material(bx, y, bz, ground, bead, n);
-                if (m == CAP) {
-                    return floating.contains(pack(bx, y, bz)) ? AIR : CAP;
-                }
-                if (m != AIR) {
-                    result = m;
+                if (p.near(bx, y, bz) && p.solid(bx, y, bz, n)) {
+                    result = 1;
+                    break;
                 }
             }
             if (result == AIR) {
@@ -751,123 +743,225 @@ public final class FormationShapes {
     public record Column(Hoodoo[] pillars, Fin[] fins) {
     }
 
-    /** One hoodoo of a field. */
+    /**
+     * One hoodoo of a field: a beaded pillar worn to a point.
+     * <p>
+     * Up to its shoulder the pillar is a column that narrows a little with height; through the
+     * taper above it the radius falls to nothing at the tip as {@code (1 - s^round)^point}, where
+     * {@code s} runs from 0 at the shoulder to 1 at the tip. A higher {@code round} keeps the
+     * shoulder full for longer; a {@code point} above 1 draws the tip out into a needle, one below
+     * 1 leaves it blunt. The whole pillar leans a little and the taper bends further, towards an
+     * offset tip, so one face of the point is steeper than the other. Around the axis the radius
+     * swells into vertical ribs and flutes, with broad bulges and hollows on top, so no pillar is a
+     * turned cone and the point comes out jagged. The beds' beads fade out through the taper, and
+     * from a little below the shoulder up the radius never grows again, so there the beds wear
+     * into steps: a hard bed bulging over a soft one under the point would read as a small cap
+     * on a neck.
+     * <p>
+     * The spine, one block per layer from the foot to the tip, joined face to face, is always
+     * rock, so the noise can fray the point but never cut it off.
+     */
     public static final class Hoodoo {
+        /** Largest relative swelling of the broad bulges. */
+        private static final double BULGE = 0.16;
+        /** Least widening of the point per layer below the tip, in blocks of radius... */
+        private static final double TIP_SLOPE = 0.4;
+        /** ...up to this radius, where a layer holds a block and its neighbours. */
+        private static final double TIP_FLOOR = 1.3;
         public final int x;
         public final int z;
         public final int base;
         public final double height;
-        public final boolean capped;
+        /** Layer of the tip block, counted from {@link #base}. */
+        public final int apex;
         public final int top;
         final double r0;
         final double beadAmp;
-        final double capH;
-        final double capR;
-        final double neck;
+        /** Fraction of the height where the taper to the point begins. */
+        final double shoulder;
+        /** Exponents of the taper (see the class comment). */
+        final double round;
+        final double point;
+        /** Relative depth of the ribs and flutes around the axis. */
+        final double flute;
+        /** Offset of the tip from the leaning axis, reached through the taper. */
+        final double tipX;
+        final double tipZ;
         final double leanX;
         final double leanZ;
         final double aspect;
         final double rc;
         final double rs;
-        final double tiltX;
-        final double tiltZ;
         final double flare;
+        /** Noise offset of this pillar's ribs and bulges, so neighbours differ. */
+        final double off;
+        /** Furthest a block above the foot can lie from the axis, the noise included. */
+        final double reach;
         final int ext;
+        /** Radius of every layer from the base to the tip, before the ribs, bulges and roughness. */
+        private final double[] profile;
         double along;
         double finRoll;
         double finHeight;
 
-        Hoodoo(int x, int z, int base, double height, double r0, boolean capped, double beadAmp, double capH, double capR,
-               double neck, double leanX, double leanZ, double aspect, double rot, double tiltX, double tiltZ, double flare) {
+        /**
+         * @param tipU direction and size of the tip offset along x, -1..1 of the largest offset
+         * @param tipV the same along z
+         * @param bead the field's bed hardness by height (see {@link HoodooField#bead})
+         */
+        Hoodoo(int x, int z, int base, double height, double r0, double beadAmp, double shoulder, double round, double point,
+               double flute, double tipU, double tipV, double leanX, double leanZ, double aspect, double rot, double flare,
+               IntToDoubleFunction bead) {
             this.x = x;
             this.z = z;
             this.base = base;
             this.height = height;
             this.r0 = r0;
-            this.capped = capped;
             this.beadAmp = beadAmp;
-            this.capH = capH;
-            this.capR = capR;
-            this.neck = Math.min(neck, r0 * 0.6);
+            this.shoulder = shoulder;
+            this.round = round;
+            this.point = point;
+            this.flute = flute;
             this.leanX = leanX;
             this.leanZ = leanZ;
             this.aspect = aspect;
             this.rc = Math.cos(rot);
             this.rs = Math.sin(rot);
-            this.tiltX = tiltX;
-            this.tiltZ = tiltZ;
             this.flare = flare;
-            this.top = base + (int) Math.ceil(height + (capped ? capH + 1.0 : 0.0)) + 1;
-            this.ext = (int) Math.ceil(Math.max(r0 + flare + 4.5, capR + 2.0) + Math.max(Math.abs(leanX), Math.abs(leanZ)) + 1.0);
+            this.apex = Math.max(1, (int) Math.floor(height));
+            this.top = base + apex + 1;
+            // the tip leans off the axis by up to about half the shoulder's radius, but never so
+            // steeply over the taper that the spine would have to step more than a block a layer
+            double offMax = Math.min(0.55 * r0 * (1.0 - 0.3 * shoulder), 0.3 * (1.0 - shoulder) * apex);
+            this.tipX = tipU * offMax;
+            this.tipZ = tipV * offMax;
+            this.off = x * 0.173 + z * 0.311;
+            this.reach = r0 * (1.0 + beadAmp) * (1.0 + flute) * (1.0 + BULGE) + flare + 1.0;
+            double drift = Math.max(Math.abs(leanX), Math.abs(leanZ)) + Math.max(Math.abs(tipX), Math.abs(tipZ));
+            this.ext = (int) Math.ceil(Math.max(r0 + flare + 5.0, reach) + drift + 1.0);
+            this.profile = new double[apex + 1];
+            int calm = (int) Math.floor((shoulder - 0.12) * apex);
+            for (int yy = 0; yy <= apex; yy++) {
+                double t = rel(yy);
+                double s = taperAt(t);
+                double r = r0 * (1.0 - 0.3 * t) * (1.0 + beadAmp * bead.applyAsDouble(base + yy) * (1.0 - s));
+                if (s > 0.0) {
+                    r *= Math.pow(1.0 - Math.pow(s, round), point);
+                }
+                profile[yy] = yy > 0 && yy > calm ? Math.min(r, profile[yy - 1]) : r;
+            }
+            // a slender taper would end in a rod of single blocks several layers long: under the
+            // tip the radius widens by at least TIP_SLOPE a layer up to TIP_FLOOR (this floor
+            // never grows upwards either, so the profile stays free of waists)
+            for (int yy = 0; yy <= apex; yy++) {
+                profile[yy] = Math.max(profile[yy], Math.min(TIP_SLOPE * (apex - yy), TIP_FLOOR));
+            }
+        }
+
+        /**
+         * Relative height of the layer {@code yy} blocks above the base, 1 at the tip block. The
+         * taper is measured to the tip block itself, not to the fractional height, so even a
+         * short stump ends in one block rather than in the flat cut of its top layer.
+         */
+        private double rel(double yy) {
+            return clamp(yy / apex, 0.0, 1.0);
+        }
+
+        /** Position through the taper at relative height {@code t}: 0 up to the shoulder, 1 at the tip. */
+        private double taperAt(double t) {
+            return t > shoulder ? (t - shoulder) / (1.0 - shoulder) : 0.0;
+        }
+
+        /** X of the axis {@code yy} blocks above the base. */
+        private double axisX(double yy) {
+            double t = rel(yy);
+            double s = taperAt(t);
+            return x + leanX * t * t + tipX * s * s;
+        }
+
+        /** Z of the axis {@code yy} blocks above the base. */
+        private double axisZ(double yy) {
+            double t = rel(yy);
+            double s = taperAt(t);
+            return z + leanZ * t * t + tipZ * s * s;
         }
 
         /** Whether the pillar can have a block at {@code (bx, y, bz)}: a bound that ignores the noise. */
         boolean near(int bx, int y, int bz) {
-            if (Math.abs(bx - x) > ext || Math.abs(bz - z) > ext || y > top) {
+            int yy = y - base;
+            if (Math.abs(bx - x) > ext || Math.abs(bz - z) > ext || yy > apex) {
                 return false;
             }
-            double yy = y - base;
-            double t = clamp(yy / height, 0.0, 1.0);
-            double ex = bx - (x + leanX * t * t);
-            double ez = bz - (z + leanZ * t * t);
+            double ex = bx - axisX(yy);
+            double ez = bz - axisZ(yy);
             // the elliptical distance is never below the plain one (aspect <= 1)
-            double bound = yy < 0.0 ? r0 + flare + 5.0 : Math.max(r0 * (1.0 + beadAmp) + flare, capped ? capR : 0.0) + 1.0;
+            double bound = yy < 0 ? r0 + flare + 5.0 : reach;
             return ex * ex + ez * ez <= bound * bound;
         }
 
         /**
-         * Material of this pillar at a block: {@link #AIR}, {@code 1} for body rock or {@link #CAP}.
-         * The axis (radius 1) is solid from the ground to the cap, so the noise never separates the
-         * cap or a bead from the ground.
+         * Whether a block is on the spine: in every layer from the base to the tip, the block
+         * nearest the axis and the step towards the next layer's, so the spine is one chain of
+         * face-joined blocks however the axis leans (it moves less than a block per layer).
          */
-        int material(int bx, int y, int bz, int ground, double bead, double n) {
-            double yy = y - base;
-            double t = clamp(yy / height, 0.0, 1.0);
-            double cx = x + leanX * t * t;
-            double cz = z + leanZ * t * t;
-            double ex = bx - cx;
-            double ez = bz - cz;
+        private boolean spine(int bx, int yy, int bz) {
+            if (yy < 0 || yy > apex) {
+                return false;
+            }
+            int ax = (int) Math.round(axisX(yy));
+            int az = (int) Math.round(axisZ(yy));
+            if (bx == ax && bz == az) {
+                return true;
+            }
+            if (yy == apex) {
+                return false;
+            }
+            int nx = (int) Math.round(axisX(yy + 1));
+            int nz = (int) Math.round(axisZ(yy + 1));
+            return bx == nx && (bz == az || bz == nz);
+        }
+
+        /**
+         * Whether this pillar has rock at a block.
+         *
+         * @param n the field's fine roughness at this block
+         */
+        boolean solid(int bx, int y, int bz, double n) {
+            int yy = y - base;
+            if (yy > apex) {
+                return false;
+            }
+            if (spine(bx, yy, bz)) {
+                return true;
+            }
+            double ex = bx - axisX(yy);
+            double ez = bz - axisZ(yy);
             double pu = ex * rc + ez * rs;
             double pv = (-ex * rs + ez * rc) / aspect;
             double d = Math.sqrt(pu * pu + pv * pv);
-            if (capped) {
-                // the cap: a flat-bottomed, rounded slab of harder rock, slightly tilted
-                double cy = yy - (height - 0.5) + tiltX * ex + tiltZ * ez;
-                if (cy >= 0.0 && yy >= height - 1.5) {
-                    double c = cy / capH;
-                    if (c <= 1.0) {
-                        double r = capR * Math.sqrt(Math.max(0.0, 1.0 - c * c * c));
-                        if (d <= r + 0.6 * n || d <= 1.0) {
-                            return CAP;
-                        }
-                    }
-                    if (yy > height - 0.5) {
-                        return AIR;
-                    }
-                }
-            } else if (yy > height + 0.5) {
-                return AIR;
-            }
-            double r;
-            if (yy < 0.0) {
+            if (yy < 0) {
                 // below the base the foot spreads into a talus cone down to the ground
-                r = r0 + flare + Math.min(4.0, -yy * 0.6);
-            } else {
-                r = r0 * (1.0 - 0.38 * t) * (1.0 + beadAmp * bead);
-                if (capped) {
-                    // pinched neck under the cap
-                    double pinch = Fades.smoothstep(0.72, 0.97, t);
-                    r = r * (1.0 - pinch) + neck * pinch;
-                } else if (t > 0.8) {
-                    r *= Math.sqrt(Math.max(0.0, 1.0 - sq((t - 0.8) / 0.2)));
-                }
-                double f = Math.max(0.0, 1.0 - t / 0.18);
-                r += flare * f * f;
+                return d <= r0 + flare + Math.min(4.0, -yy * 0.6) + n;
             }
-            if (d <= r + n || d <= 1.0 && yy <= height) {
-                return 1;
+            double r = profile[yy];
+            if (d <= 1.0 && r >= 1.6) {
+                // a sturdy core wherever the pillar is broad, so the noise never leaves a thin stalk
+                return true;
             }
-            return AIR;
+            if (d > 1.0E-6) {
+                // ribs and flutes: the radius changes with the direction from the axis, slowly
+                // with height, so they run up the pillar and break the point into jags. Where
+                // the pillar is thin they are weaker, or they would pinch it into a stalk under
+                // a lump
+                double rib = ROUGH.noise3(pu / d * 0.8 + off, yy * 0.1, pv / d * 0.8 - off);
+                double bulge = ROUGH.noise3(bx * 0.09 - off, y * 0.07, bz * 0.09 + off);
+                double k = Math.min(1.0, r * 0.5);
+                r *= (1.0 + k * flute * rib) * (1.0 + k * BULGE * bulge);
+            }
+            double f = Math.max(0.0, 1.0 - rel(yy) / 0.18);
+            r += flare * f * f;
+            // near the tip the fine roughness frays the point rather than burying it in lumps
+            return d <= r + n * Math.min(1.0, 0.4 + 0.3 * r);
         }
     }
 
@@ -960,6 +1054,10 @@ public final class FormationShapes {
      * or a sea stack (a broad pillar with steep sides rising from shallow water, a notch cut by the
      * waves at sea level and a flat, grassy top). Both stay within 15 blocks of the site so the
      * chunk holding the site can build them alone.
+     * <p>
+     * Neither may end in a cap: a sea stack's notch is cut only as deep as the stack is tall above
+     * it (under a short head it would leave a cap on a neck), and above the notch the stack's
+     * radius never grows again, so no bed and no grassy top juts out over a narrower layer.
      */
     public static final class Spire {
         public static final int MAX_RADIUS = 15;
@@ -978,6 +1076,12 @@ public final class FormationShapes {
         final double rs;
         final double off;
         final double period;
+        /** Depth of a sea stack's wave notch. */
+        final double notch;
+        /** First layer of {@link #upper}. */
+        private final int upperFrom;
+        /** Radius of every layer of a sea stack from above the notch to the top (see {@link #stackRadius}). */
+        private final double[] upper;
         /** Blocks that would hang in the air (see {@link #settle}); never built. */
         private Set<Long> floating = Set.of();
 
@@ -1000,6 +1104,32 @@ public final class FormationShapes {
             this.rs = Math.sin(rot);
             this.off = (site.seed & 0xFFFF) * 0.613;
             this.period = period(site.geology);
+            // the full notch under at least 20 blocks of stack, none under 10 or fewer
+            this.notch = 1.2 * clamp((topY - seaLevel - 10) / 10.0, 0.0, 1.0);
+            this.upperFrom = Math.max(baseY, seaLevel + 3);
+            this.upper = new double[seaStack ? Math.max(0, topY - upperFrom + 1) : 0];
+            for (int i = 0; i < upper.length; i++) {
+                double radius = stackRadius(upperFrom + i);
+                upper[i] = i > 0 ? Math.min(radius, upper[i - 1]) : radius;
+            }
+        }
+
+        /**
+         * Radius of a sea stack at a height before the roughness: tapering from the foot, with
+         * jutting and undercut beds, the wave notch and a slightly narrower grassy top.
+         */
+        private double stackRadius(int y) {
+            double t = clamp((double) (y - baseY) / Math.max(1, topY - baseY), 0.0, 1.0);
+            // irregular ledges: some beds jut out, others are undercut
+            double radius = r0 + (r1 - r0) * t + 0.7 * ROUGH.noise3(off, y * 0.32, 77.0);
+            if (y >= seaLevel - 1 && y <= seaLevel + 2) {
+                // the notch cut by the waves
+                radius -= notch;
+            }
+            if (y > topY - 2) {
+                radius -= 0.8;
+            }
+            return radius;
         }
 
         public static Spire plan(TerrainModel.FormationSite site, int groundY, int seaLevel, boolean seaStack) {
@@ -1062,19 +1192,12 @@ public final class FormationShapes {
                 return false;
             }
             double n = 0.6 * ROUGH.noise3(bx * 0.27 + off, y * 0.3, bz * 0.27);
-            // irregular ledges: some beds jut out, others are undercut
-            double ledge = ROUGH.noise3(off, y * 0.32, 77.0);
             double radius;
             if (seaStack) {
-                radius = r0 + (r1 - r0) * t + 0.7 * ledge;
-                if (y >= seaLevel - 1 && y <= seaLevel + 2) {
-                    // the notch cut by the waves
-                    radius -= 1.2;
-                }
-                if (y > topY - 2) {
-                    radius -= 0.8;
-                }
+                radius = y >= upperFrom ? upper[y - upperFrom] : stackRadius(y);
             } else {
+                // irregular ledges: some beds jut out
+                double ledge = ROUGH.noise3(off, y * 0.32, 77.0);
                 radius = r0 + (r1 - r0) * Math.pow(t, 0.8) + 0.45 * Math.max(0.0, ledge) * (1.0 - t);
                 if (t > 0.85) {
                     // a pointed top

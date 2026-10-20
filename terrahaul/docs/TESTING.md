@@ -101,6 +101,11 @@ Each part of this round was also checked with the pure-Java devtools on the terr
 - `treeStudy`: every species and size, no wood left unattached before pruning.
 - `ruinStudy`: about 1 ruin per km of trail, 0 floating cells in all plans; deterministic across
   threads and generation order.
+- `formationStudy check` (60 sites of each type on seeds 12345, 42, 1 and -7777): 0 floating
+  blocks; about 91% of hoodoo tops are points (top layer 1-2 blocks, the next at most 6, the rest
+  are nubs on fin crests and ledges), and none of the old capped profile (a wide layer over a
+  narrow neck) is left: 4-5 flags per seed, all where two neighbouring tips touch or the ribs
+  narrow a slender pillar well below its point; no sea stack head sits over its wave notch.
 - `formationStudy`, `fadeStudy`, `seaFloorStudy`, `waterStudy`, `volcanoStudy`, `peakStudy`:
   renders and statistics reviewed by eye.
 - `SeedMixer.hash2`: no collisions among 361 201 cells (mirrored cells collided before, which made

@@ -24,7 +24,7 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
  *   <li>arches: rough, lopsided spans of uneven thickness or windows through fins, standing on
  *       legs that reach down to the ground, with rubble around their feet;</li>
  *   <li>spires: tall, slightly leaning, tapering pillars with irregular ledges;</li>
- *   <li>hoodoos: fields of beaded pillars in rows, most under a pale cap, some joined by fins;</li>
+ *   <li>hoodoos: fields of beaded pillars in rows, each worn to a jagged point, some joined by fins;</li>
  *   <li>sea stacks: steep pillars with a wave-cut notch and a grassy top, off rocky coasts.</li>
  * </ul>
  * The shapes are defined in {@link FormationShapes} and are built from vanilla blocks of the local
@@ -150,10 +150,9 @@ public final class RockFormationFeature extends Feature<NoneFeatureConfiguration
         if (x0 > x1 || z0 > z1) {
             return false;
         }
-        // hoodoos only stand in dry country: sandstone or red rock, under a pale cap
+        // hoodoos only stand in dry country: sandstone or red rock, banded to the tip
         int climate = Math.max(1, site.climate);
         BlockState[] family = GeologyPalette.family(site.geology, climate);
-        BlockState cap = GeologyPalette.cap(climate);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         boolean placed = false;
         for (int x = x0; x <= x1; x++) {
@@ -177,7 +176,7 @@ public final class RockFormationFeature extends Feature<NoneFeatureConfiguration
                     }
                     pos.set(x, y, z);
                     if (replaceable(level.getBlockState(pos))) {
-                        level.setBlock(pos, m == FormationShapes.CAP ? cap : family[m], 2);
+                        level.setBlock(pos, family[m], 2);
                         placed = true;
                     }
                 }

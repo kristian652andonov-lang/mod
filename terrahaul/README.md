@@ -73,7 +73,7 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
 - **Canyons** with walls stepped into world-wide strata (cliff bands over talus benches) and
   buttes; most are dry, some carry a stream.
 - **Rock formations:** natural **arches** with lopsided, sagging, eroded openings; **hoodoo
-  fields** of 14–45 beaded pillars with caps; **rock spires** and **sea stacks**.
+  fields** of 14–45 beaded pillars, each worn to a jagged point; **rock spires** and **sea stacks**.
 - **Material fades:** surface materials change in coherent single-colour patches and bands
   instead of speckle:
   - soil, then weathered rock, then one continuous strata field of level beds, so cliff and
