@@ -35,3 +35,11 @@ type = "required"
 versionRange = "[${geckolib_version},)"
 ordering = "AFTER"
 side = "BOTH"
+
+# optional: with Better Combat installed the melee weapons use its combat (weapon_attributes data, compat/bettercombat)
+[[dependencies.${mod_id}]]
+modId = "bettercombat"
+type = "optional"
+versionRange = "[2.4,)"
+ordering = "AFTER"
+side = "BOTH"

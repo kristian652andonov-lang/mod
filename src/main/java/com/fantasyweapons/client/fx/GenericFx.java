@@ -78,6 +78,17 @@ public final class GenericFx {
         if (near) ImpactFrames.play(ultimate, 0.9f, p.pos());
     }
 
+    /**
+     * A swing played by Better Combat: its animation and its trail (in the weapon's colours) take the place of the
+     * weapon's own swing and slash arc. Only what they cannot show is added: the chainblade's fire along the chain, and,
+     * when Better Combat leaves the first-person view still, the weapon's own first-person attack.
+     */
+    public static void onBetterCombatSwing(LivingEntity entity, ItemStack stack, boolean firstPersonSwing) {
+        if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
+        if (firstPersonSwing) AnimTracker.onSwing(entity, item.definition(), stack, entity.isCrouching());
+        if (InfernochainFx.isInfernochain(stack) && InfernochainFx.chainForm(stack)) InfernochainFx.onSwing(entity);
+    }
+
     public static void onSwing(LivingEntity entity, ItemStack stack) {
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
         Minecraft mc = Minecraft.getInstance();

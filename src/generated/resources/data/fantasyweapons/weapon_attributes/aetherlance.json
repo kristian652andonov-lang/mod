@@ -1,0 +1,52 @@
+{
+  "attributes": {
+    "attacks": [
+      {
+        "angle": 0.0,
+        "animation": "bettercombat:two_handed_stab_right",
+        "damage_multiplier": 1.0,
+        "hitbox": "FORWARD_BOX",
+        "swing_sound": {
+          "id": "bettercombat:spear_stab"
+        },
+        "upswing": 0.5
+      },
+      {
+        "angle": 0.0,
+        "animation": "bettercombat:two_handed_stab_left",
+        "damage_multiplier": 1.0,
+        "hitbox": "FORWARD_BOX",
+        "swing_sound": {
+          "id": "bettercombat:spear_stab",
+          "pitch": 1.1
+        },
+        "upswing": 0.5
+      },
+      {
+        "angle": 120.0,
+        "animation": "bettercombat:two_handed_slash_vertical_right",
+        "damage_multiplier": 1.2,
+        "hitbox": "VERTICAL_PLANE",
+        "swing_sound": {
+          "id": "bettercombat:glaive_slash_quick"
+        },
+        "upswing": 0.5
+      }
+    ],
+    "category": "spear",
+    "trail_appearance": {
+      "conditional": {},
+      "default_appearance": {
+        "primary": {
+          "color_rgba": 4076863487,
+          "glows": true
+        },
+        "secondary": {
+          "color_rgba": 1609826224,
+          "glows": true
+        }
+      }
+    },
+    "two_handed": true
+  }
+}

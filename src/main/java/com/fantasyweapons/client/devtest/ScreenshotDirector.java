@@ -170,6 +170,11 @@ public final class ScreenshotDirector {
             });
         }
 
+        /** A real press of the attack key, through the game's own attack handling (and any mod hooked into it). */
+        public Builder click() {
+            return run(mc -> net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey()));
+        }
+
         public Builder menu(String selectedNode) {
             return run(mc -> {
                 ProgressionScreen screen = new ProgressionScreen(mc.player.getInventory().selected);

@@ -22,6 +22,28 @@ repositories {
             includeGroup 'software.bernie.geckolib'
         }
     }
+    // Better Combat (optional compatibility) and the libraries it needs in a dev client
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+    maven {
+        name = 'KosmX'
+        url = 'https://maven.kosmx.dev/'
+        content {
+            includeGroup 'dev.kosmx.player-anim'
+        }
+    }
+    maven {
+        name = 'Shedaniel'
+        url = 'https://maven.shedaniel.me/'
+        content {
+            includeGroup 'me.shedaniel.cloth'
+        }
+    }
 }
 
 neoForge {
@@ -78,6 +100,16 @@ neoForge {
 
 dependencies {
     implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
+
+    // Better Combat is optional: compiled against, never bundled or required (see compat/bettercombat)
+    compileOnly("maven.modrinth:better-combat:${bettercombat_version}") { transitive = false }
+    compileOnly("dev.kosmx.player-anim:player-animation-lib-forge:${playeranimator_version}") { transitive = false }
+    // Dev only: ./gradlew runClient -PwithBetterCombat runs the game with Better Combat and its libraries installed
+    if (project.hasProperty('withBetterCombat')) {
+        runtimeOnly("maven.modrinth:better-combat:${bettercombat_version}") { transitive = false }
+        runtimeOnly("dev.kosmx.player-anim:player-animation-lib-forge:${playeranimator_version}") { transitive = false }
+        runtimeOnly("me.shedaniel.cloth:cloth-config-neoforge:${cloth_config_version}") { transitive = false }
+    }
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

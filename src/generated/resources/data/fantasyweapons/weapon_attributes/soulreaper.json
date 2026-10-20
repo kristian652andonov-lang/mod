@@ -1,0 +1,53 @@
+{
+  "attributes": {
+    "attacks": [
+      {
+        "angle": 160.0,
+        "animation": "bettercombat:two_handed_slash_horizontal_right",
+        "damage_multiplier": 1.0,
+        "hitbox": "HORIZONTAL_PLANE",
+        "swing_sound": {
+          "id": "bettercombat:scythe_slash"
+        },
+        "upswing": 0.5
+      },
+      {
+        "angle": 160.0,
+        "animation": "bettercombat:two_handed_slash_horizontal_left",
+        "damage_multiplier": 1.0,
+        "hitbox": "HORIZONTAL_PLANE",
+        "swing_sound": {
+          "id": "bettercombat:scythe_slash",
+          "pitch": 1.05
+        },
+        "upswing": 0.5
+      },
+      {
+        "angle": 360.0,
+        "animation": "bettercombat:two_handed_spin",
+        "damage_multiplier": 1.2,
+        "hitbox": "HORIZONTAL_PLANE",
+        "swing_sound": {
+          "id": "bettercombat:scythe_slash",
+          "pitch": 0.9
+        },
+        "upswing": 0.5
+      }
+    ],
+    "category": "scythe",
+    "trail_appearance": {
+      "conditional": {},
+      "default_appearance": {
+        "primary": {
+          "color_rgba": 3487629311,
+          "glows": true
+        },
+        "secondary": {
+          "color_rgba": 1519189936,
+          "glows": true
+        }
+      }
+    },
+    "two_handed": true
+  }
+}

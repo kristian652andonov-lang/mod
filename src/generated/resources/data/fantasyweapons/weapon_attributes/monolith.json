@@ -1,0 +1,43 @@
+{
+  "attributes": {
+    "attacks": [
+      {
+        "angle": 160.0,
+        "animation": "bettercombat:two_handed_slash_horizontal_right",
+        "damage_multiplier": 1.0,
+        "hitbox": "HORIZONTAL_PLANE",
+        "swing_sound": {
+          "id": "bettercombat:claymore_swing",
+          "pitch": 0.8
+        },
+        "upswing": 0.5
+      },
+      {
+        "angle": 150.0,
+        "animation": "bettercombat:two_handed_slam",
+        "damage_multiplier": 1.4,
+        "hitbox": "VERTICAL_PLANE",
+        "swing_sound": {
+          "id": "bettercombat:claymore_slam",
+          "pitch": 0.8
+        },
+        "upswing": 0.5
+      }
+    ],
+    "category": "claymore",
+    "trail_appearance": {
+      "conditional": {},
+      "default_appearance": {
+        "primary": {
+          "color_rgba": 3906584831,
+          "glows": true
+        },
+        "secondary": {
+          "color_rgba": 2961857200,
+          "glows": true
+        }
+      }
+    },
+    "two_handed": true
+  }
+}

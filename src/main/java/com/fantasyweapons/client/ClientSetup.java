@@ -91,6 +91,7 @@ public final class ClientSetup {
         });
 
         NeoForge.EVENT_BUS.addListener(com.fantasyweapons.client.input.InputHandler::onInteractionKey);
+        if (com.fantasyweapons.compat.bettercombat.BetterCombatCompat.loaded()) com.fantasyweapons.compat.bettercombat.BetterCombatClient.init();
         // nothing of the HUD over the Codex while it is read
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiEvent.Pre e) -> {
             if (com.fantasyweapons.client.guide.Codex.reading()) e.setCanceled(true);

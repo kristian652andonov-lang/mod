@@ -34,5 +34,6 @@ public final class FWDataGen {
         gen.addProvider(event.includeServer(), new net.neoforged.neoforge.common.data.AdvancementProvider(out, lookup, files, List.of(new FWAdvancements())));
         FWTags.Blocks blockTags = gen.addProvider(event.includeServer(), new FWTags.Blocks(out, lookup, files));
         gen.addProvider(event.includeServer(), new FWTags.Items(out, lookup, blockTags.contentsGetter(), files));
+        gen.addProvider(event.includeServer(), new FWBetterCombat(out));
     }
 }

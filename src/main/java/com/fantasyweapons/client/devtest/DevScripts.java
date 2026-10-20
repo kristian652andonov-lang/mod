@@ -120,6 +120,8 @@ final class DevScripts {
                 else if (name.startsWith("after:")) after(b, name.substring(6));
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
+                else if (name.equals("bettercombat")) betterCombat(b, null);
+                else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
                 else if (name.equals("magehud")) mageHud(b);
                 else if (name.startsWith("empower:")) empower(b, name.substring(8));
                 else if (name.equals("impacthit")) impactHit(b);
@@ -2769,6 +2771,85 @@ final class DevScripts {
             b.run(mc -> com.fantasyweapons.client.anim.AnimTracker.debugVariant(mc.player, -1));
         }
         b.playerView();
+    }
+
+    /**
+     * Better Combat (run with {@code -PwithBetterCombat}): each kind of weapon swings its combo at three dummies through
+     * the real attack key, filmed from behind and in first person; every swing's damage on each dummy is logged
+     * ({@code [bctest]}), with the tooltip check and the thrown-weapon switch.
+     */
+    private static void betterCombat(ScreenshotDirector.Builder b, java.util.List<String> only) {
+        b.cmd("/gamemode creative").hud(false);
+        String[] weapons = {"voidfang", "solaris", "doomcleaver", "soulreaper", "starforge", "aetherlance", "monolith", "infernochain",
+                "void_crystal_axe", "rimeheart", "codex_of_tides"};
+        for (String w : weapons) {
+            if (only != null && !only.contains(w)) continue;
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            float speed = def != null ? def.weaponClass().attackSpeed() : 1.0f;
+            int cooldown = Math.round(20f / speed);
+            // on cleared ground away from the spawn, where earlier films left machines standing
+            b.cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]").cmd("/clear @s")
+                    .cmd(def != null ? "/fw give " + w + " 1" : "/give @s fantasyweapons:" + w).wait(12).slot(0);
+            for (int i = 0; i < 3; i++) {
+                b.cmd("/summon minecraft:husk " + (200.5 + (i - 1) * 1.4) + " -60 " + (i == 1 ? 203.5 : 203.1)
+                        + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+            }
+            b.playerView().camera(CameraType.THIRD_PERSON_BACK).look(0, 8).wait(cooldown + 20);
+            b.run(mc -> {
+                var held = mc.player.getMainHandItem();
+                var lines = net.minecraft.client.gui.screens.Screen.getTooltipFromItem(mc, held);
+                boolean range = lines.stream().anyMatch(l -> l.getString().contains("Attack Range"));
+                com.fantasyweapons.FantasyWeapons.LOGGER.info("[bctest] {} drivenByBetterCombat={} tooltipLines={} attackRangeLine={}", w,
+                        com.fantasyweapons.compat.bettercombat.BetterCombatCompat.drivesSwing(mc.player, held), lines.size(), range);
+            });
+            logDummies(b, w, "start");
+            for (int k = 0; k < 3; k++) {
+                b.click().wait(Math.max(1, cooldown / 4)).screenshot("bc_" + w + "_" + k + "_wind").wait(Math.max(1, cooldown / 4) + 2)
+                        .screenshot("bc_" + w + "_" + k + "_hit").wait(cooldown / 2 + 4);
+                logDummies(b, w, "swing" + k);
+            }
+            b.camera(CameraType.FIRST_PERSON).hud(true).wait(cooldown).click().wait(Math.max(1, cooldown / 4)).screenshot("bc_" + w + "_fp_wind")
+                    .wait(Math.max(1, cooldown / 4) + 2).screenshot("bc_" + w + "_fp_hit").wait(cooldown).hud(false);
+            logDummies(b, w, "fp");
+            if (def != null && def.hasForms()) {
+                // the other form swings the same combo (Infernochain's chainblade lashes its burning chain)
+                String other = def.forms().get(def.forms().size() - 1).id();
+                b.camera(CameraType.THIRD_PERSON_BACK).form(other).wait(40).click().wait(Math.max(1, cooldown / 2) + 2)
+                        .screenshot("bc_" + w + "_" + other + "_hit").wait(3).screenshot("bc_" + w + "_" + other + "_after").wait(cooldown);
+                logDummies(b, w, other);
+            }
+        }
+        if (only != null) return;
+        // a thrown weapon: Better Combat's swings are off while it flies, and on again once it is back in the hand
+        b.cmd("/tp @s 200.5 -60 200.5 0 0").cmd("/kill @e[type=!player]").cmd("/clear @s").cmd("/fw give soulreaper 100").wait(20).slot(0).cmd("/fw points 200").cmd("/fw cooldowns")
+                .camera(CameraType.THIRD_PERSON_BACK).look(0, 0).select(com.fantasyweapons.weapons.soulreaper.Soulreaper.REAPERS_THROW).wait(10);
+        logCombatFlags(b, "before throw");
+        b.abilityDown().wait(4).abilityUp().wait(8);
+        logCombatFlags(b, "in flight");
+        b.screenshot("bc_thrown").wait(100);
+        logCombatFlags(b, "back in hand");
+        b.camera(CameraType.FIRST_PERSON).playerView();
+    }
+
+    private static void logDummies(ScreenshotDirector.Builder b, String weapon, String tag) {
+        b.run(mc -> {
+            var server = mc.getSingleplayerServer();
+            var uuid = mc.player.getUUID();
+            server.execute(() -> {
+                var sp = server.getPlayerList().getPlayer(uuid);
+                if (sp == null) return;
+                StringBuilder s = new StringBuilder();
+                for (var h : sp.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.monster.Husk.class, sp.getBoundingBox().inflate(8))) {
+                    s.append(String.format("x=%.1f taken=%.1f  ", h.getX(), h.getMaxHealth() - h.getHealth()));
+                }
+                com.fantasyweapons.FantasyWeapons.LOGGER.info("[bctest] {} {}: {}", weapon, tag, s);
+            });
+        });
+    }
+
+    private static void logCombatFlags(ScreenshotDirector.Builder b, String tag) {
+        b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info("[bctest] soulreaper {}: drivenByBetterCombat={}", tag,
+                com.fantasyweapons.compat.bettercombat.BetterCombatCompat.drivesSwing(mc.player, mc.player.getMainHandItem())));
     }
 
     /** Gravebite's ghosts close up: the Legion host circling, and a Soul Volley, from the side. */

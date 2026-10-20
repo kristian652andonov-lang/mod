@@ -81,6 +81,7 @@ public final class ModEvents {
     private static void onPlayerTick(PlayerTickEvent.Post event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             AbilityService.tick(player);
+            com.fantasyweapons.compat.bettercombat.BetterCombatCompat.tick(player);
             com.fantasyweapons.armor.ArmorEffects.tick(player);
             if (player.tickCount % 20 == 0) {
                 com.fantasyweapons.armor.ArmorSet set = com.fantasyweapons.armor.FantasyArmorItem.fullSet(player);

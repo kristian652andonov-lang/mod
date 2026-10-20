@@ -1,0 +1,18 @@
+{
+  "parent": "bettercombat:axe",
+  "attributes": {
+    "trail_appearance": {
+      "conditional": {},
+      "default_appearance": {
+        "primary": {
+          "color_rgba": 4294230783,
+          "glows": true
+        },
+        "secondary": {
+          "color_rgba": 4290127792,
+          "glows": true
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 package com.fantasyweapons.combat;
 
 import com.fantasyweapons.ability.AbilityRuntime;
+import com.fantasyweapons.compat.bettercombat.BetterCombatCompat;
 import com.fantasyweapons.config.ServerConfig;
 import com.fantasyweapons.network.Fx;
 import com.fantasyweapons.network.FxIds;
@@ -27,6 +28,8 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Custom melee pipeline used instead of {@code Player.attack} for fantasy weapons.
@@ -41,6 +44,9 @@ public final class MeleeHandler {
     public static boolean suppressRandomCrits;
 
     public static final float MIN_STRENGTH = 0.85f;
+    /** With Better Combat: its swings land after their wind-up, near full strength; this only stops click spam. */
+    public static final float BETTER_COMBAT_MIN_STRENGTH = 0.5f;
+    private static final Map<ServerPlayer, Swing> SWINGS = new WeakHashMap<>();
 
     private MeleeHandler() {
     }
@@ -63,26 +69,43 @@ public final class MeleeHandler {
         AbilityRuntime rt = player.getData(ModAttachments.ABILITY_RUNTIME);
         if (rt.isThrown(data.idOrNil())) return;
 
-        float strength = player.getAttackStrengthScale(0.5f);
-        // heavy weapons have a real recovery: a swing before the weapon has recovered does nothing at all
-        if (strength < MIN_STRENGTH) return;
-        player.resetAttackStrengthTicker();
         ServerLevel level = player.serverLevel();
-
         WeaponForm form = def.form(data);
         WeaponClass cls = def.weaponClass();
-        boolean heavy = player.isShiftKeyDown() && strength >= ServerConfig.HEAVY_ATTACK_MIN_STRENGTH.getOrDefault();
-        boolean falling = player.fallDistance > 0 && !player.onGround() && !player.onClimbable() && !player.isInWater();
-        boolean crit = strength > 0.9f && (falling || !suppressRandomCrits && player.getRandom().nextFloat() < def.critChance());
+        // with Better Combat installed it picks the targets in the swing's hitbox and strikes them one by one, all in the
+        // same tick: the first one is the swing (recovery, damage, crit, sound), the rest are struck by the same blow
+        boolean betterCombat = BetterCombatCompat.drivesSwing(player, stack);
+        Swing swing = betterCombat ? SWINGS.get(player) : null;
+        if (swing == null || swing.tick != level.getGameTime()) {
+            float strength = player.getAttackStrengthScale(0.5f);
+            // heavy weapons have a real recovery: a swing before the weapon has recovered does nothing at all (Better
+            // Combat paces its swings itself, and lands each one after the wind-up, so it only needs a loose check)
+            if (strength < (betterCombat ? BETTER_COMBAT_MIN_STRENGTH : MIN_STRENGTH)) return;
+            player.resetAttackStrengthTicker();
 
-        float base = ProgressionMath.weaponDamage(def, data) * com.fantasyweapons.armor.SetAbilities.formDamageFactor(player, def, form);
-        float damage = base * (0.2f + strength * strength * 0.8f);
-        if (heavy) damage *= def.heavyMultiplier();
-        if (crit) damage *= def.critMultiplier();
-        damage *= com.fantasyweapons.armor.ArmorEffects.meleeMultiplier(player, crit, heavy);
-        damage *= StatusService.outgoingMultiplier(player);
+            boolean heavy = player.isShiftKeyDown() && strength >= ServerConfig.HEAVY_ATTACK_MIN_STRENGTH.getOrDefault();
+            boolean falling = player.fallDistance > 0 && !player.onGround() && !player.onClimbable() && !player.isInWater();
+            boolean crit = strength > 0.9f && (falling || !suppressRandomCrits && player.getRandom().nextFloat() < def.critChance());
 
-        int flags = (crit ? FWDamage.FLAG_CRIT : 0) | (heavy ? FWDamage.FLAG_HEAVY : 0);
+            float base = ProgressionMath.weaponDamage(def, data) * com.fantasyweapons.armor.SetAbilities.formDamageFactor(player, def, form);
+            float damage = base * (0.2f + strength * strength * 0.8f);
+            if (heavy) damage *= def.heavyMultiplier();
+            if (crit) damage *= def.critMultiplier();
+            damage *= com.fantasyweapons.armor.ArmorEffects.meleeMultiplier(player, crit, heavy);
+            damage *= StatusService.outgoingMultiplier(player);
+            // the combo step's multiplier (a finisher hits harder) and Better Combat's sweep penalty for crowds
+            if (betterCombat) damage *= BetterCombatCompat.swingDamageFactor(player);
+            swing = new Swing(level.getGameTime(), strength, heavy, crit, damage);
+            if (betterCombat) SWINGS.put(player, swing);
+        } else {
+            betterCombatFollowUp(player, stack, def, data, cls, swing, rawTarget);
+            return;
+        }
+        float strength = swing.strength;
+        boolean heavy = swing.heavy, crit = swing.crit;
+        float damage = swing.damage;
+
+        int flags = swing.flags();
         List<Integer> hitIds = new ArrayList<>();
         float totalDealt = 0;
 
@@ -92,6 +115,7 @@ public final class MeleeHandler {
             rawTarget.hurt(FWDamage.source(level, FWDamage.Kind.MELEE, player), damage);
             return;
         }
+        swing.struck = true;
         float dealt = FWDamage.deal(player, stack, rawTarget, damage, FWDamage.Kind.MELEE, def.element(), flags);
         if (dealt > 0 || primary.isAlive()) {
             totalDealt += dealt;
@@ -101,8 +125,8 @@ public final class MeleeHandler {
             com.fantasyweapons.armor.SetAbilities.onMelee(player, stack, def, primary, damage, strength, crit, heavy);
         }
 
-        // Cleave: full-strength swings also hit enemies inside the weapon's arc.
-        if (strength > 0.9f && cls.cleaveAngle() > 0) {
+        // Cleave: full-strength swings also hit enemies inside the weapon's arc (Better Combat's hitbox does this itself)
+        if (!betterCombat && strength > 0.9f && cls.cleaveAngle() > 0) {
             float reach = cls.cleaveRange() + com.fantasyweapons.armor.SetAbilities.formReach(player, def, form);
             float cleaveFactor = heavy ? 0.85f : 0.6f;
             Vec3 origin = player.position().add(0, player.getBbHeight() * 0.5, 0);
@@ -118,8 +142,7 @@ public final class MeleeHandler {
             }
         }
 
-        if (def.lifesteal() > 0) FWDamage.lifesteal(player, totalDealt, def.lifesteal() * StatusService.lifestealMultiplier(player));
-        FWDamage.lifesteal(player, totalDealt, com.fantasyweapons.armor.ArmorEffects.lifeSteal(player));
+        lifesteal(player, def, totalDealt);
 
         player.setLastHurtMob(primary);
         player.causeFoodExhaustion(0.1f);
@@ -132,6 +155,65 @@ public final class MeleeHandler {
                 heavy ? ModSounds.HEAVY_IMPACT.get() : ModSounds.WEAPON_HIT.get(), SoundSource.PLAYERS, heavy ? 1.2f : 0.9f,
                 0.9f + player.getRandom().nextFloat() * 0.2f);
         if (heavy) WeaponAnimations.trigger(player, stack, "heavy_attack");
+    }
+
+    /**
+     * A further target in the hitbox of the Better Combat swing already dealt this tick: it takes the same blow (and
+     * the weapon's on-hit effects, as a cleave target would), without a second recovery, sound or crit burst.
+     */
+    private static void betterCombatFollowUp(ServerPlayer player, ItemStack stack, WeaponDefinition def, WeaponData data, WeaponClass cls,
+                                             Swing swing, Entity rawTarget) {
+        // Better Combat winds the recovery back before each target; the swing's last strike starts it again
+        player.resetAttackStrengthTicker();
+        LivingEntity target = FWDamage.resolve(rawTarget);
+        if (target == null) {
+            rawTarget.hurt(FWDamage.source(player.serverLevel(), FWDamage.Kind.MELEE, player), swing.damage);
+            return;
+        }
+        // the first living target is the swing's main one, even when Better Combat listed something else before it
+        boolean main = !swing.struck;
+        swing.struck = true;
+        float dealt = FWDamage.deal(player, stack, rawTarget, swing.damage, FWDamage.Kind.MELEE, def.element(), swing.flags());
+        if (dealt <= 0 && !target.isAlive()) return;
+        applyKnockback(player, target, cls.knockback() * (main ? (swing.heavy ? 1.6f : 1f) : 0.6f) * swing.strength);
+        runHook(def, new MeleeContext(player, stack, def, data, target, dealt, swing.heavy, swing.crit, main));
+        if (main) {
+            com.fantasyweapons.armor.SetAbilities.onMelee(player, stack, def, target, swing.damage, swing.strength, swing.crit, swing.heavy);
+            player.setLastHurtMob(target);
+        }
+        lifesteal(player, def, dealt);
+        player.awardStat(Stats.DAMAGE_DEALT, Math.round(dealt * 10f));
+        // only the sparks on this target: the crit star and heavy shockwave came with the swing's first hit
+        Fx.tracking(player, FxPayload.of(FxIds.MELEE_HIT).caster(player.getId())
+                .pos(target.getBoundingBox().getCenter()).dir(player.getLookAngle())
+                .power(swing.strength).level(main ? swing.flags() : 0).entities(List.of(target.getId())).seed(player.getRandom().nextLong()).build());
+    }
+
+    private static void lifesteal(ServerPlayer player, WeaponDefinition def, float dealt) {
+        if (def.lifesteal() > 0) FWDamage.lifesteal(player, dealt, def.lifesteal() * StatusService.lifestealMultiplier(player));
+        FWDamage.lifesteal(player, dealt, com.fantasyweapons.armor.ArmorEffects.lifeSteal(player));
+    }
+
+    /** One swing's blow, kept for the tick while Better Combat strikes the rest of its targets. */
+    private static final class Swing {
+        final long tick;
+        final float strength;
+        final boolean heavy, crit;
+        final float damage;
+        /** A living target has taken the main hit. */
+        boolean struck;
+
+        Swing(long tick, float strength, boolean heavy, boolean crit, float damage) {
+            this.tick = tick;
+            this.strength = strength;
+            this.heavy = heavy;
+            this.crit = crit;
+            this.damage = damage;
+        }
+
+        int flags() {
+            return (crit ? FWDamage.FLAG_CRIT : 0) | (heavy ? FWDamage.FLAG_HEAVY : 0);
+        }
     }
 
     private static void runHook(WeaponDefinition def, MeleeContext ctx) {
