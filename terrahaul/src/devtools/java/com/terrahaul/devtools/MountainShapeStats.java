@@ -26,7 +26,10 @@ import java.util.stream.IntStream;
  *       arête, a pointed summit) the ground falls linearly and the ratio is about 1; on a dome it
  *       falls quadratically and the ratio is about 0.25. Crests under 0.45 count as rounded, over
  *       0.7 as cusped. The mean {@code D4 / 4} (blocks per block) is the sharpness at the smallest
- *       scale the game resolves.</li>
+ *       scale the game resolves;</li>
+ *   <li><b>level tops</b>: the share of upper ground (above 60% of a local relief of at least 250
+ *       blocks) that is level for 32 blocks all round, as on a table mountain or a plateau rather
+ *       than a summit, an arête or a slope.</li>
  * </ul>
  * The local relief of a column is measured against the lowest and highest points within 320 blocks.
  * Usage: {@code MountainShapeStats <seed> <centerX> <centerZ> <sizeBlocks> [stride=64]}.
@@ -63,7 +66,8 @@ public final class MountainShapeStats {
         // 8 steep context, 9 bench, 10 continuous bench, 11 crest, 12 rounded, 13 cusped,
         // 14 sum D4/4 (x1000), 15 sum |laplacian4| (x1000), 16 sum ratio (x1000), 17 flank sum slope deg (x1000)
         // 18.. flanks by local relief (under 250, 250-600, over 600 blocks): count, >45, >60, sum deg (x1000)
-        AtomicLongArray c = new AtomicLongArray(30);
+        // 30 upper ground, 31 level upper ground
+        AtomicLongArray c = new AtomicLongArray(32);
         int sl = model.seaLevel();
         IntStream.range(WINDOW, n - WINDOW).filter(j -> (j - WINDOW) % step == 0).parallel().forEach(j -> {
             ColumnSample s = new ColumnSample();
@@ -140,6 +144,17 @@ public final class MountainShapeStats {
                         }
                     }
                 }
+                if (t > 0.6 && hi - lo >= 250.0) {
+                    c.incrementAndGet(30);
+                    if (level(model, s, x, z, h)) {
+                        c.incrementAndGet(31);
+                        if (Boolean.getBoolean("dump") && c.get(31) % 10 == 0) {
+                            model.sampleInto(x, z, s);
+                            System.out.printf(Locale.ROOT, "level top %d %d h=%.0f t=%.2f relief=%.0f alpine=%.2f ancient=%.2f wall=%.2f meadow=%.2f peak=%.2f%n",
+                                x, z, h, t, hi - lo, s.alpine, s.ancient, s.wall, s.meadow, s.peakness);
+                        }
+                    }
+                }
                 if (t > 0.7) {
                     crest(model, s, x, z, c);
                 }
@@ -167,6 +182,26 @@ public final class MountainShapeStats {
         System.out.printf(Locale.ROOT, "crests %d: rounded %.1f%% cusped %.1f%% mean ratio %.2f, mean slope beside the crest line %.1fdeg, mean |lap4| %.3f%n",
             c.get(11), 100.0 * c.get(12) / crest, 100.0 * c.get(13) / crest, c.get(16) / 1000.0 / crest,
             c.get(14) / 1000.0 / crest, c.get(15) / 1000.0 / crest);
+        System.out.printf(Locale.ROOT, "upper ground (above 60%% of a local relief of 250 blocks or more) %d: level tops %.2f%%%n",
+            c.get(30), 100.0 * c.get(31) / Math.max(1, c.get(30)));
+    }
+
+    /**
+     * Whether the ground around an upper column is a level top (a table or plateau rather than a
+     * summit, crest or slope): within 16 blocks it stays within 8 blocks of the column's height,
+     * and within 32 blocks within 16, all round.
+     */
+    private static boolean level(TerrainModel model, ColumnSample s, int x, int z, double h) {
+        for (int k = 0; k < 8; k++) {
+            double ang = k * Math.PI / 4.0;
+            double ca = Math.cos(ang);
+            double sa = Math.sin(ang);
+            if (Math.abs(height(model, s, x + (int) Math.round(16.0 * ca), z + (int) Math.round(16.0 * sa)) - h) > 8.0
+                || Math.abs(height(model, s, x + (int) Math.round(32.0 * ca), z + (int) Math.round(32.0 * sa)) - h) > 16.0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

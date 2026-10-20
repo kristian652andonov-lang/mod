@@ -3,6 +3,7 @@ package com.terrahaul.worldgen.terrain;
 import static com.terrahaul.worldgen.noise.TMath.smoothstep;
 
 import com.terrahaul.worldgen.noise.SeedMixer;
+import com.terrahaul.worldgen.noise.SimplexNoise;
 
 /**
  * Building blocks of mountain relief for {@link TerrainModel}: pyramidal peaks with arêtes and an
@@ -27,11 +28,37 @@ final class MountainRelief {
     private static final double FEEDBACK = 0.4;
     /** Spread of the turn of an arête's bearing as it runs down from the summit (radians; half of it either way). */
     private static final double MEANDER = 0.32;
+    /** Spread of the slant of the gullies off the fall line (about 25 degrees either way). */
+    private static final double SLANT = 0.9;
+    /** Each finer scale of gullies is this many times closer together than the one before. */
+    private static final double OCTAVE_SCALE = 2.3;
+    /**
+     * Greatest cross slope of the gullies of one scale (spur crest to gully floor over half their
+     * spacing, in blocks per block) on a slope of 45 degrees, less on gentler ground: steep enough
+     * that spurs are knife edges between V-shaped gullies rather than ripples on a smooth face.
+     */
+    private static final double INCISION = 0.8;
+    /**
+     * Steepest slope (blocks per block) the ground is meant to reach across the gullies of all
+     * scales on a face, about 70 degrees, and the least cross slope they keep even on the
+     * steepest faces: those are cut by couloirs too (left smooth, they hung down the mountain like
+     * curtains). Gullies cut without this budget left gully sides of over 76 degrees, and slots,
+     * wherever the scales lined up on steep ground.
+     */
+    private static final double MAX_SLOPE = 2.8;
+    private static final double MIN_CROSS = 0.5;
+    /** Size of the patches of ledgy rock (noise scale, blocks): ledges some 20-80 blocks long. */
+    private static final double LEDGE_PATCH = 85.0;
+    /** Height between the ledges of a patch (blocks), varied by 30% either way. */
+    private static final double LEDGE_STEP = 30.0;
 
     private final long gullySeed;
+    /** Patches of ledgy rock and the levels of their ledges (see {@link #ledges}). */
+    private final SimplexNoise ledgeNoise;
 
     MountainRelief(long seed) {
         this.gullySeed = SeedMixer.derive(seed, 1);
+        this.ledgeNoise = new SimplexNoise(SeedMixer.derive(seed, 2));
     }
 
     /** The longest arête relative to the reach of a peak: nothing lies beyond this radius. */
@@ -147,7 +174,8 @@ final class MountainRelief {
      * between them, so contour lines have sharp corners on the ridges and curve inwards between
      * them like cirque headwalls; the arêtes wander from side to side as they run down from the
      * summit (a straight ridge several kilometres long looks drawn with a ruler). The profile
-     * {@code (1-u)^power} is concave: steepest at the summit, easing out towards the foot. The
+     * {@code (1-u)^power} (see {@link #profile}) is concave: steepest at the summit, easing out
+     * towards the foot. The
      * nearest peaks come first, and the arêtes of the others are only worked out where they could
      * beat them (at the end of an arête of the greatest length).
      *
@@ -190,9 +218,14 @@ final class MountainRelief {
         return best;
     }
 
-    /** {@code t^power}, without {@code Math.pow} for the common power 2. */
+    /**
+     * {@code t^power} for powers near 2, without {@code Math.pow} (it is worked out several times
+     * for every peak near every column): {@code t^2} scaled by a linear factor that gives it the
+     * slope of {@code t^power} at the summit ({@code t = 1}). Exact for 2, and within 0.01 of the
+     * power for 2.3.
+     */
     private static double profile(double t, double power) {
-        return power == 2.0 ? t * t : Math.pow(t, power);
+        return t * t * (1.0 + (power - 2.0) * (t - 1.0));
     }
 
     /** Position of the peak with hash {@code h} in grid cell {@code cx}: 0.2-0.8 cells into it. */
@@ -239,9 +272,12 @@ final class MountainRelief {
      * coarser spurs and the pattern branches like a drainage network (an approach popularised by
      * Clay John's "eroded terrain" shader). The stripes are triangle waves of their blended phase,
      * so spurs are knife edges and gullies V-shaped notches, as on real alpine faces, not the
-     * rounded ribs a sine wave gives. Gentle ground gets no gullies: the depth fades in with
-     * the slope. Summits are kept pointed by the caller, which fades the depth out where no fall
-     * line prevails.
+     * rounded ribs a sine wave gives. Every kernel has its own spacing and slants a little off the
+     * fall line, so the gullies neither repeat evenly nor run exactly parallel. Gentle ground gets
+     * no gullies: the depth fades in with the slope. The sides of each scale's gullies are kept
+     * within a slope budget that shrinks on steep faces, so the scales together stay below about
+     * 70 degrees even where they line up (deeper, they cut slots and sheer gully walls). Summits
+     * are kept pointed by the caller, which fades the depth out where no fall line prevails.
      * <p>
      * Low mountains have short flanks, across which the coarsest gullies would make a gentle
      * swell rather than a furrow: there ({@code fine} towards 1) the coarsest octave gives way to
@@ -276,12 +312,22 @@ final class MountainRelief {
         if (strength <= 0.0) {
             return 0.0;
         }
+        // how steeply the sides of one scale's gullies may fall across them (spur crest to gully
+        // floor over half their spacing): the steeper the slope, the more, but on a steep face
+        // the gullies of all scales together must not add up to sheer walls, so there the budget
+        // for their sides shrinks until the ground stays below about MAX_SLOPE even where the
+        // scales line up. A depth beyond that cut slots with sides of over 76 degrees.
+        double cross = Math.sqrt(Math.max(MIN_CROSS * MIN_CROSS, MAX_SLOPE * MAX_SLOPE - baseSlope * baseSlope));
+        double incision = Math.min(INCISION * Math.min(baseSlope, 1.5), cross / (1.3 * octaves));
         for (int o = 0; o < octaves; o++) {
             // depth of this octave: each finer octave 2.5 times shallower, the coarsest one
-            // handing its depth on to the others where `fine` says so
-            double amp = depth * share * (o == 0 ? 1.0 - fine : 1.0 + 1.5 * fine);
+            // handing its depth on to the others where `fine` says so, and no deeper than the
+            // budget above allows for its spacing (the triangle falls 1 + rise amplitudes over
+            // half the spacing)
+            double amp = Math.min(depth * share * (o == 0 ? 1.0 - fine : 1.0 + 1.5 * fine), 0.5 * incision * size / (1.0 + rise));
             double slope = Math.sqrt(gx * gx + gz * gz);
-            if (slope > 1.0E-4 && amp > 0.01) {
+            // (an octave shallower than a quarter of a block changes no block)
+            if (slope > 1.0E-4 && amp * strength > 0.25) {
                 // unit vector along the contour: the stripes vary across the slope, not down it
                 double tx = -gz / slope;
                 double tz = gx / slope;
@@ -296,18 +342,41 @@ final class MountainRelief {
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
                         long h = SeedMixer.hash2(seed, ix + dx, iz + dz);
-                        double qx = px - (ix + dx + 0.25 + 0.5 * SeedMixer.unit(h));
-                        double qz = pz - (iz + dz + 0.25 + 0.5 * SeedMixer.unit(SeedMixer.mix(h)));
+                        long h2 = SeedMixer.mix(h);
+                        double qx = px - (ix + dx + 0.15 + 0.7 * SeedMixer.unit(h));
+                        double qz = pz - (iz + dz + 0.15 + 0.7 * SeedMixer.unit(h2));
                         double d2 = qx * qx + qz * qz;
                         if (d2 >= r2) {
                             continue;
                         }
                         double w = 1.0 - d2 / r2;
                         w *= w;
-                        double phase = (qx * tx + qz * tz) * TAU;
+                        // every kernel's stripes have their own spacing and slant a little off the
+                        // fall line, so gullies neither repeat like corrugated sheet nor all run
+                        // exactly parallel down a face
+                        // (from the low bits of the two hashes, which the position leaves unused)
+                        double slant = SLANT * ((h & 0x7FF) * (1.0 / 2048.0) - 0.5);
+                        double freq = 0.75 + 0.55 * (h2 & 0x7FF) * (1.0 / 2048.0);
+                        // the phase in turns, folded into a quarter turn either side of 0 or of
+                        // 1/2, where short polynomials give its sine and cosine (Math.sin and
+                        // Math.cos took a quarter of the filter's time)
+                        double turns = (qx * (tx + slant * tz) + qz * (tz - slant * tx)) * freq;
+                        turns -= Math.floor(turns + 0.5);
+                        double flip = 1.0;
+                        if (turns > 0.25) {
+                            turns = 0.5 - turns;
+                            flip = -1.0;
+                        } else if (turns < -0.25) {
+                            turns = -0.5 - turns;
+                            flip = -1.0;
+                        }
+                        double p = turns * TAU;
+                        double p2 = p * p;
+                        double sin = p * (1.0 + p2 * (-1.0 / 6.0 + p2 * (1.0 / 120.0 + p2 * (-1.0 / 5040.0 + p2 * (1.0 / 362880.0)))));
+                        double cos = 1.0 + p2 * (-0.5 + p2 * (1.0 / 24.0 + p2 * (-1.0 / 720.0 + p2 * (1.0 / 40320.0 + p2 * (-1.0 / 3628800.0)))));
                         sumW += w;
-                        sumC += w * Math.cos(phase);
-                        sumS += w * Math.sin(phase);
+                        sumC += w * cos * flip;
+                        sumS += w * sin;
                     }
                 }
                 if (sumW > 1.0E-6) {
@@ -316,8 +385,13 @@ final class MountainRelief {
                     // triangle wave of the phase instead, with a knife edge on each spur (phase 0)
                     // and a V-shaped notch in each gully (phase +-pi). Where the stripes of the
                     // kernels cancel the amplitude, and with it the pattern, fades to nothing.
+                    // Where the kernels agree fairly well, the amplitude is raised towards full
+                    // depth; where they nearly cancel (a gully forks there, and the phase turns
+                    // right round within a few blocks) it is left as it is, which bounds the
+                    // slope of the pattern. (Raised there as well, it stood needles and slots at
+                    // every fork.)
                     double mag = Math.sqrt(sumC * sumC + sumS * sumS) / sumW;
-                    mag *= 2.0 - mag;
+                    mag *= 1.0 + (1.0 - mag) * smoothstep(0.25, 0.6, mag);
                     double v = mag * (1.0 - Math.abs(atan2(sumS, sumC)) * (2.0 / Math.PI));
                     double a = amp * strength;
                     // the gullies are cut into the uneroded surface and the spurs between them
@@ -336,11 +410,58 @@ final class MountainRelief {
                     gz += dv * tz;
                 }
             }
-            size /= 2.3;
+            size /= OCTAVE_SCALE;
             share /= 2.5;
         }
         g[0] = gx;
         g[1] = gz;
         return total;
+    }
+
+    /**
+     * Small ledges and shoulders on steep mountain ground: the slope climbs, levels out for a few
+     * blocks (up to about 15) and climbs again. Each ledge is a bench cut into the slope: within
+     * a step of height the lowest part is flattened and the rest steepened, so ground is only ever
+     * lowered, by at most two fifths of a step, and never stands out of the slope as a wall.
+     * <p>
+     * Ledges are patchy: they form only in scattered patches of rock (about a fifth of the steep
+     * ground) and fade out along the slope at the patch edges, so no ledge runs around a mountain
+     * as a contour ring. Each patch has its own step and its own levels, and they tilt a little
+     * across the slope, so the ledges of neighbouring patches never line up into terraces. A patch
+     * holds one to three ledges, not a staircase; the steepest faces get none (their ledges would
+     * crowd together and their risers would be sheer walls). The caller cuts them into the slope
+     * before its gullies, which then break them up: a ledge shows as a shoulder on a spur and as
+     * a step in the floor of a gully.
+     *
+     * @param h      height of the ground being shaped, in blocks
+     * @param slope  its gradient, smoothed over a few dozen blocks, in blocks per block
+     * @param weight 0..1 where ledges may form at all
+     * @return the change of height in blocks (zero or negative)
+     */
+    double ledges(double x, double z, double h, double slope, double weight) {
+        // gentle ground needs no ledges (they would be broad terraces there)
+        double w = weight * smoothstep(0.45, 0.85, slope) * (1.0 - smoothstep(1.8, 2.6, slope));
+        if (w <= 0.0) {
+            return 0.0;
+        }
+        double patch = smoothstep(0.22, 0.45, ledgeNoise.noise2(x / LEDGE_PATCH, z / LEDGE_PATCH));
+        w *= patch;
+        if (w <= 0.0) {
+            return 0.0;
+        }
+        double vary = ledgeNoise.noise2(x / 610.0 + 37.1, z / 610.0 - 11.3);
+        // (the step must not follow anything that changes quickly: the levels are the height
+        // divided by it, and a step changing by a few blocks over a few blocks would sweep the
+        // levels of a high mountain through many ledges, as a zebra of stripes)
+        double step = LEDGE_STEP * (1.0 + 0.3 * vary);
+        // a shift of the levels by up to a step that changes slowly across the mountain, plus a
+        // gentle tilt along the patch, so no two patches share their levels
+        double shift = 40.0 * vary + 9.0 * ledgeNoise.noise2(x / 190.0 - 23.7, z / 190.0 + 51.9);
+        double t = (h + shift) / step;
+        double f = t - Math.floor(t);
+        // flat share of a step: narrow ledges at the patch edges, wider inside
+        double k = 0.1 + 0.28 * patch;
+        double g = f < k ? 0.0 : (f - k) / (1.0 - k);
+        return w * step * (g - f);
     }
 }

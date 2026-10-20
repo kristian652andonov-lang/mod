@@ -96,7 +96,7 @@ public final class TerrainFinder {
         add("fjord", "a fjord", 48, s -> s.fjord > 0.4, s -> s.fjord > 0.6 && s.height < 57.0, Kind.GRID);
         add("mountain", "a mountain range", 64, s -> s.mountain > 0.6 && s.height > 250, s -> s.mountain > 0.6 && s.peakness > 0.6, Kind.GRID);
         add("alpine_peaks", "jagged alpine peaks", 64, s -> s.alpine > 0.5 && s.height > 350, s -> s.alpine > 0.5 && s.peakness > 0.7, Kind.GRID);
-        add("ancient_mountains", "rounded ancient mountains", 64, s -> s.ancient > 0.5 && s.height > 200, s -> s.ancient > 0.5 && s.peakness > 0.6, Kind.GRID);
+        add("ancient_mountains", "worn ancient mountains", 64, s -> s.ancient > 0.5 && s.height > 200, s -> s.ancient > 0.5 && s.peakness > 0.6, Kind.GRID);
         add("mountain_wall", "a massive mountain wall", 64, s -> s.wall > 0.4 && s.height > 300, s -> s.wall > 0.5 && s.peakness > 0.6, Kind.GRID);
         add("colossal_peak", "a colossal peak (over 1200 blocks high)", 96, s -> s.height > 1000, s -> s.height > 1200, Kind.GRID);
         add("highest_peak", "the highest point in range", 48, s -> s.height > 150, s -> true, Kind.HIGHEST);
@@ -314,8 +314,12 @@ public final class TerrainFinder {
         return null;
     }
 
-    /** Radius of the neighbourhood searched for a higher top after each ascent, in blocks. */
-    private static final int SUMMIT_REACH = 48;
+    /**
+     * Radius of the neighbourhood searched for a higher top after each ascent, in blocks: wider
+     * than the notches between the teeth of a sawtooth crest, on which an ascent stops some
+     * 50-60 blocks from a higher top.
+     */
+    private static final int SUMMIT_REACH = 64;
 
     /**
      * Climbs from (x, z) to the summit on the 4-block grid the generated terrain is interpolated
