@@ -7,6 +7,8 @@
   "commands.terrahaul.find.biome_not_found": "Could not find a biome of type \"%s\" within reasonable distance",
   "commands.terrahaul.find.success": "The nearest %s is at %s (%s blocks away, found in %s ms)",
   "commands.terrahaul.info": "Terrain height %s, water surface %s | %s | geology: %s | %s",
+  "subtitles.terrahaul.ambient.waterfall": "Waterfall roars",
+  "subtitles.terrahaul.ambient.rapids": "Water rushes",
   "block.terrahaul.stone_pebbles": "Stone Pebbles",
   "block.terrahaul.stone_rock": "Stone Rock",
   "block.terrahaul.mossy_pebbles": "Mossy Stone Pebbles",
