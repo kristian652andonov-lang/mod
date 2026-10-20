@@ -20,7 +20,7 @@ import com.terrahaul.worldgen.noise.SimplexNoise;
  *       read on circles around the centre and stretched along the radius, so they run roughly
  *       downhill, wander, join and split, with sharp ridges between neighbours; finer rills
  *       groove the upper flanks between them. Their depth grows down the flank as far as their
- *       sides stay gentler than about 45 degrees;</li>
+ *       sides stay gentler than about 40 degrees;</li>
  *   <li><b>lava flows</b> leave the crater at a notch of its rim, the lowest point of the crest
  *       first, and run down the flank as tongues of rock a few blocks thick, draped over the
  *       ground they cross, meandering, widening downhill and ending in a lobed front, with margins
@@ -102,8 +102,8 @@ final class ConeShape {
         // long along the radius, so they run downhill; shorter for the rills, which wander more
         k.gullyLength = 0.32 * radius;
         k.rillLength = 0.14 * radius;
-        k.rough = 2.2 + 0.006 * v.height;
-        k.hummock = clamp(0.03 * v.height, 4.0, 18.0);
+        k.rough = Math.min(6.0, 3.0 + 0.006 * v.height);
+        k.hummock = clamp(0.03 * v.height, 6.0, 18.0);
         k.hummockScale = clamp(0.12 * radius, 70.0, 220.0);
 
         // ---- lava flows: tongues of rock from notches of the rim ------------------------------------
