@@ -44,6 +44,11 @@ import javax.imageio.ImageIO;
  * {@code half} blocks of the origin on the crater's own surface: the steepest step between
  * neighbouring blocks, and for lakes and lava pools their depth, freeboard, pools, islands and
  * shore irregularity, with a summary per seed (see {@code CraterStudy#survey}).
+ * <p>
+ * {@code VolcanoStudy views <seed> <outDir> [count=3] [minHeight=0] [any|lava|lake|dry]} renders
+ * each volcano (of the kind given, by what its crater holds) in whole blocks, as a
+ * player sees it: from the crater's rim looking in, from the outer flank looking up, and from
+ * above (see {@link VolcanoView}).
  */
 public final class VolcanoStudy {
     /**
@@ -68,14 +73,17 @@ public final class VolcanoStudy {
             return;
         }
         boolean craters = args[0].equals("craters");
-        if (craters) {
+        boolean views = args[0].equals("views");
+        if (craters || views) {
             args = Arrays.copyOfRange(args, 1, args.length);
         }
         long seed = Long.parseLong(args[0]);
         File dir = new File(args[1]);
         dir.mkdirs();
-        int count = args.length > 2 ? Integer.parseInt(args[2]) : craters ? 6 : 4;
+        int count = args.length > 2 ? Integer.parseInt(args[2]) : craters ? 6 : views ? 3 : 4;
         double minHeight = args.length > 3 ? Double.parseDouble(args[3]) : 0.0;
+        // only volcanoes with lava, a lake or a dry crater (for views)
+        String kind = args.length > 4 ? args[4] : "any";
         TerrainModel model = new TerrainModel(seed, TerrainSettings.DEFAULT);
         TerrainFinder.Target target = TerrainFinder.targets().get("volcano");
         List<TerrainModel.VolcanoSite> found = new ArrayList<>();
@@ -92,11 +100,19 @@ public final class VolcanoStudy {
                     continue;
                 }
                 TerrainModel.VolcanoSite v = model.nearestVolcano(r.x(), r.z(), 50.0);
-                if (v != null && v.height >= minHeight && found.stream().noneMatch(f -> f.x == v.x && f.z == v.z)) {
+                String has = v == null ? "" : v.lavaLevel != ColumnSample.NO_WATER ? "lava" : v.waterLevel != ColumnSample.NO_WATER ? "lake" : "dry";
+                if (v != null && v.height >= minHeight && (kind.equals("any") || kind.equals(has))
+                    && found.stream().noneMatch(f -> f.x == v.x && f.z == v.z)) {
                     found.add(v);
                 }
             }
             ring++;
+        }
+        if (views) {
+            for (int i = 0; i < found.size(); i++) {
+                VolcanoView.render(model, found.get(i), dir, "view_" + seed + "_" + i);
+            }
+            return;
         }
         if (craters) {
             for (int i = 0; i < found.size(); i++) {
@@ -439,7 +455,11 @@ public final class VolcanoStudy {
             case ASH, CINDERS -> rgb(150, 146, 140);
             case TUFF -> rgb(112, 114, 104);
             case SCORIA -> rgb(72, 72, 76);
+            case BASALT -> rgb(86, 86, 92);
             case LAVA_ROCK -> rgb(32, 30, 34);
+            case RED_SCORIA -> rgb(143, 61, 46);
+            case BROWN_SCORIA -> rgb(90, 60, 40);
+            case ALTERED -> rgb(149, 103, 85);
             case MAGMA -> rgb(190, 80, 25);
             case CHARRED -> rgb(92, 62, 34);
             case SCORCHED -> rgb(122, 92, 62);

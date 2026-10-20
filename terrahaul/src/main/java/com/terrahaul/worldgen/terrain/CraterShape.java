@@ -1,6 +1,7 @@
 package com.terrahaul.worldgen.terrain;
 
 import static com.terrahaul.worldgen.noise.TMath.clamp;
+import static com.terrahaul.worldgen.noise.TMath.clamp01;
 import static com.terrahaul.worldgen.noise.TMath.smoothstep;
 
 import com.terrahaul.worldgen.noise.SeedMixer;
@@ -26,7 +27,11 @@ import java.util.Locale;
  *       height wanders: notches and breaches cut it down, broad shoulders stand higher. Bays lie
  *       further down the cone, so their rims are lower, as collapse scars are;</li>
  *   <li>the <b>inner wall</b> falls from the crest to its foot, steepest under the crest and
- *       flattening into scree, ribbed by gullies on its upper part. Its foot follows the outline
+ *       flattening into scree, ribbed by gullies on its upper part. The power of its profile
+ *       changes around the crater (concave scree slopes in places, straighter walls in others),
+ *       and two or three ledges break it, flatter benches with steeper steps between them, at
+ *       heights that wander up and down around the crater and fade out where it is an even slope.
+ *       Its foot follows the outline
  *       smoothed over some twenty degrees either way, at a share of the radius that wanders with
  *       the bearing on noise of its own, so the rim's scallops and roughness are dents in the top
  *       of the wall rather than creases running to the floor, and the foot has bays and
@@ -42,9 +47,10 @@ import java.util.Locale;
  *       it, apart from the rim. Some craters hold a younger cone standing as an island, a pit
  *       crater whose rim is a ridge curving across the floor around the pit, cutting a second,
  *       smaller basin off the main one, and mounds of slumped rock that stand as islets, or as
- *       headlands joined to the wall where the liquid is too deep for them;</li>
+ *       headlands joined to the wall where the liquid is too deep for them. A lava lake carries
+ *       plates of cooled crust flush with its surface, their sides sloping away under the lava;</li>
  *   <li>outside the outline the lip falls back to the cone over a band a fifth of the crater's
- *       radius wide.</li>
+ *       radius wide, and the cone's relief ({@link ConeShape}) fades in across it.</li>
  * </ul>
  * Whatever the floor does, the surface along the outline is the crest at that bearing, and every
  * path out of the crater crosses the outline, so the crater holds anything below its lowest
@@ -139,14 +145,22 @@ final class CraterShape {
     private static final double RIDGE_INNER = 1.0;
     /** Islands, mounds and ridges stay at least this far below the lowest crest. */
     private static final double FEATURE_MARGIN = 2.0;
+    /**
+     * How steeply the sides of crust plates on a lava lake fall away under the lava, in blocks per
+     * unit of their noise: about a block per block.
+     */
+    private static final double CRUST_SIDE = 7.0;
     /** Length of the array {@link #surface} writes its results to. */
     static final int OUT = 3;
     private static final long SALT = 0xC4A7_E5B1_0B5EL;
 
     private final SimplexNoise noise;
+    /** The outer cone around the crater: its lean, barrancos, lava flows and side cones. */
+    final ConeShape cone;
 
     CraterShape(long volcanoSeed) {
         this.noise = new SimplexNoise(SeedMixer.derive(volcanoSeed, SALT));
+        this.cone = new ConeShape(volcanoSeed);
     }
 
     /**
@@ -239,6 +253,12 @@ final class CraterShape {
         for (int i = 0; i < mound.length; i++) {
             mound[i] = u.next();
         }
+        // walls of varying steepness, with ledges at heights that wander around the crater, and
+        // crust on a lava lake (rolled last, so the rolls above stay as they were)
+        double ledgeAmp = 0.35 + 0.35 * u.next();
+        k.ledges = u.next() < 0.45 ? 2 : 3;
+        double ledgePhase = TAU * u.next();
+        k.crustCut = 0.42 + 0.25 * u.next();
 
         // ---- the outline ------------------------------------------------------------------------
         int n = RIM_SAMPLES;
@@ -291,6 +311,9 @@ final class CraterShape {
         k.lipTable = new float[n];
         k.crest = new float[n];
         k.share = new float[n];
+        k.exp = new float[n];
+        k.ledge = new float[n];
+        k.ledgePhase = new float[n];
         double[] crest = new double[n];
         for (int i = 0; i < n; i++) {
             double a = i * TAU / n;
@@ -304,6 +327,10 @@ final class CraterShape {
             k.edge[i] = (float) edge;
             crest[i] = cone(v, edge) + lip;
             k.share[i] = (float) (share0 * (1.0 + FOOT_VARIATION * noise.noise2(c * FOOT_RING + k.noiseX + 333.0, s * FOOT_RING + k.noiseZ - 444.0)));
+            // concave scree slopes in places, straighter and steeper walls in others
+            k.exp[i] = (float) clamp(k.wallExp + 0.4 * noise.noise2(c * 1.4 + k.noiseX + 520.0, s * 1.4 + k.noiseZ - 610.0), 1.15, 2.3);
+            k.ledge[i] = (float) (ledgeAmp * clamp01(0.45 + 0.8 * noise.noise2(c * 2.2 + k.noiseZ + 700.0, s * 2.2 - k.noiseX)));
+            k.ledgePhase[i] = (float) (ledgePhase + 2.4 * noise.noise2(c * 1.6 - k.noiseX + 830.0, s * 1.6 + k.noiseZ));
         }
         // the crest's slope along the rim stays within CREST_SLOPE: the lowest crest that is at
         // least as high as the rolled one everywhere, found by passing around the rim both ways
@@ -422,6 +449,7 @@ final class CraterShape {
         boolean liquid = !Double.isNaN(liquidRel);
         k.dried = lake && !liquid;
         k.liquid = liquidRel;
+        k.crust = liquid && v.lavaLevel != ColumnSample.NO_WATER;
         // islands, mounds and ridges stand below the lowest crest, where the crest never cuts them
         double cap = low - FEATURE_MARGIN;
         double bowl = low - floor;
@@ -526,7 +554,7 @@ final class CraterShape {
         double r = Math.sqrt(dx * dx + dz * dz);
         if (r >= v.craterReach) {
             out[0] = -1.0;
-            return cone(v, r) * gullies(v, dx, dz, r);
+            return cone.flank(v, dx, dz, r);
         }
         Crater k = v.crater;
         // gentle domain warp, fading out before the edge of the crater's reach
@@ -550,16 +578,21 @@ final class CraterShape {
         out[1] = rw;
         out[2] = edge;
         if (rw >= edge) {
-            // the lip falls back to the cone, flat at the crest so the rim reads as a rounded ridge
+            // the lip falls back to the cone, flat at the crest so the rim reads as a rounded ridge;
+            // the cone's relief fades in across it, so the crest itself stays as the tables hold it
             out[0] = -1.0;
             double lip = k.lipTable[i] + (k.lipTable[j] - k.lipTable[i]) * f;
             double t = (rw - edge) / k.lipWidth;
             double fall = t >= 1.0 ? 0.0 : 1.0 - t * t * (3.0 - 2.0 * t);
-            return cone(v, rw) + lip * fall;
+            double relief = smoothstep(0.3, 1.0, t);
+            return cone(v, rw) + lip * fall + (relief > 0.0 ? relief * cone.relief(v, dx, dz, r, Math.atan2(dz, dx)) : 0.0);
         }
         double crest = k.crest[i] + (k.crest[j] - k.crest[i]) * f;
         double share = k.share[i] + (k.share[j] - k.share[i]) * f;
         double smooth = k.smooth[i] + (k.smooth[j] - k.smooth[i]) * f;
+        double e = k.exp[i] + (k.exp[j] - k.exp[i]) * f;
+        double ledge = k.ledge[i] + (k.ledge[j] - k.ledge[i]) * f;
+        double phase = k.ledgePhase[i] + (k.ledgePhase[j] - k.ledgePhase[i]) * f;
         double floor = k.floorRel + k.floorAmp * (0.8 * noise.noise2(wx / k.floorScale + k.noiseX - 77.0, wz / k.floorScale + k.noiseZ + 51.0)
             + 0.2 * noise.noise2(wx / (0.5 * k.floorScale) + k.noiseZ, wz / (0.5 * k.floorScale) - k.noiseX));
         double px = wx - k.pitX;
@@ -571,16 +604,24 @@ final class CraterShape {
             floor -= k.pitDeep * q * q;
         }
         // the inner wall over the outer share of the radius: steepest under the crest, its foot
-        // flattening into the floor, and the crest's highs and lows fading on the way down
+        // flattening into the floor, with ledges and steeper steps between them, and the crest's
+        // highs and lows fading on the way down
         double u = rw / edge;
         double w = Math.min(1.0, (edge - rw) / run(edge, smooth, share));
         double foot = 1.0 - w;
         double top = k.mean + (crest - k.mean) * foot * Math.sqrt(foot);
-        double h = floor + (top - floor) * Math.pow(foot, k.wallExp);
+        double h = floor + (top - floor) * ledged(Math.pow(foot, e), ledge, phase, k.ledges);
         // gullies and spurs down the steep upper wall, bending as they run down; none at the crest,
         // and they fade out over the scree at the foot rather than converge on the centre
         h += k.ribs * 9.48 * w * foot * foot * foot
             * noise.noise2(c * k.ribRing + k.noiseX + 150.0 + 0.9 * w, s * k.ribRing + k.noiseZ - 150.0 - 0.6 * w);
+        if (k.crust && h < k.liquid + 0.5) {
+            // plates of cooled crust on a lava lake, flush with its surface, their sides sloping
+            // away under the lava
+            double plate = 0.8 * noise.noise2(wx / 22.0 + k.noiseX + 900.0, wz / 22.0 + k.noiseZ)
+                + 0.2 * noise.noise2(wx / 8.0 - k.noiseZ, wz / 8.0 + k.noiseX + 900.0);
+            h = Math.max(h, Math.min(k.liquid + 0.5, k.liquid + 0.5 - CRUST_SIDE * (k.crustCut - plate)));
+        }
         // what stands on the floor never rises above the crest, so the rim stays continuous
         if (k.pit && Math.abs(pd - k.pitRadius) < k.ridgeReach && pd > 1.0E-9) {
             h = ridge(k, px / pd, pz / pd, pd, h, crest);
@@ -730,7 +771,7 @@ final class CraterShape {
         int a = i == 0 ? n - 1 : i - 1;
         int b = i == n - 1 ? 0 : i + 1;
         double dTheta = TAU / n;
-        double e = k.wallExp;
+        double e = k.exp[i];
         double crest = k.crest[i];
         double edge = k.edge[i];
         double run = run(edge, k.smooth[i], k.share[i]);
@@ -744,14 +785,17 @@ final class CraterShape {
             double sq = Math.sqrt(foot);
             double top = k.mean + (crest - k.mean) * foot * sq;
             double pe = Math.pow(foot, e);
-            // along the bearing, outward: the profile rises toward the crest as the foot term grows
-            double radial = ((top - floor) * e * (foot > 0.0 ? pe / foot : 0.0) + (crest - k.mean) * 1.5 * sq * pe) / run;
+            double sv = ledged(pe, k.ledge[i], k.ledgePhase[i], k.ledges);
+            // along the bearing, outward: the profile rises toward the crest as the foot term grows,
+            // steeper between the ledges
+            double radial = ((top - floor) * e * (foot > 0.0 ? pe / foot : 0.0) * ledgedSlope(pe, k.ledge[i], k.ledgePhase[i], k.ledges)
+                + (crest - k.mean) * 1.5 * sq * sv) / run;
             double across = (profileAt(k, b, rho, floor) - profileAt(k, a, rho, floor)) / (2.0 * rho * dTheta);
             int at = 3 * (i * (WALL_LEVELS + 1) + l);
             double f3 = foot * foot * foot;
             radial -= rib * ((f3 - 3.0 * w * foot * foot) * gully[at] + w * f3 * gully[at + 2]) / run;
             across += rib * w * f3 * gully[at + 1] / rho;
-            double g = Math.hypot(radial, across) * k.squeeze + floorSlope * (1.0 - pe);
+            double g = Math.hypot(radial, across) * k.squeeze + floorSlope * (1.0 - sv);
             worst = Math.max(worst, g / budget);
         }
         return worst;
@@ -768,7 +812,7 @@ final class CraterShape {
         }
         double foot = 1.0 - w;
         double top = k.mean + (k.crest[j] - k.mean) * foot * Math.sqrt(foot);
-        return floor + (top - floor) * Math.pow(foot, k.wallExp);
+        return floor + (top - floor) * ledged(Math.pow(foot, k.exp[j]), k.ledge[j], k.ledgePhase[j], k.ledges);
     }
 
     /** The wall's profile over the plain floor at distance {@code rho} along a bearing. */
@@ -783,7 +827,23 @@ final class CraterShape {
         }
         double foot = 1.0 - w;
         double top = k.mean + (lookup(k.crest, theta) - k.mean) * foot * Math.sqrt(foot);
-        return k.floorRel + (top - k.floorRel) * Math.pow(foot, k.wallExp);
+        return k.floorRel + (top - k.floorRel) * ledged(Math.pow(foot, lookup(k.exp, theta)), lookup(k.ledge, theta), lookup(k.ledgePhase, theta), k.ledges);
+    }
+
+    /**
+     * The wall's profile from its foot (0) to its crest (1) at {@code q}, the power of the distance
+     * from the foot: it rises evenly on the whole, but flattens into {@code ledges} ledges with
+     * steeper steps between them, by {@code ledge} (below 1) of its slope either way; {@code phase}
+     * moves the ledges up and down the wall.
+     */
+    private static double ledged(double q, double ledge, double phase, int ledges) {
+        double a = TAU * ledges;
+        return q + ledge * (Math.sin(a * q + phase) - Math.sin(phase)) / a;
+    }
+
+    /** Slope of {@link #ledged} over its argument. */
+    private static double ledgedSlope(double q, double ledge, double phase, int ledges) {
+        return 1.0 + ledge * Math.cos(TAU * ledges * q + phase);
     }
 
     /** Distance from the centre at which the wall meets the floor along a bearing. */
@@ -887,7 +947,7 @@ final class CraterShape {
     }
 
     /** A table entry at a bearing, read between its two neighbouring entries. */
-    private static double lookup(float[] table, double theta) {
+    static double lookup(float[] table, double theta) {
         double p = (theta / TAU - Math.floor(theta / TAU)) * RIM_SAMPLES;
         int i = Math.min((int) p, RIM_SAMPLES - 1);
         double f = p - i;
@@ -895,14 +955,12 @@ final class CraterShape {
         return table[i] + (table[j] - table[i]) * f;
     }
 
-    /** The cone's height at a distance from the centre, without its gullies. */
-    static double cone(TerrainModel.VolcanoSite v, double r) {
-        return r >= v.radius ? 0.0 : v.height * Math.pow(1.0 - r / v.radius, 1.65);
-    }
+    /** Power of the cone's profile around the crater (see {@link ConeShape} for the flanks). */
+    static final double CONE_POWER = 1.65;
 
-    /** The radial gullies of the flanks, which start beyond the crater's reach. */
-    private static double gullies(TerrainModel.VolcanoSite v, double dx, double dz, double r) {
-        return 1.0 + 0.07 * Math.sin(Math.atan2(dz, dx) * v.ridges + v.phase) * smoothstep(v.craterReach, v.radius * 0.6, r);
+    /** The cone's height at a distance from the centre around the crater, without its relief. */
+    static double cone(TerrainModel.VolcanoSite v, double r) {
+        return r >= v.radius ? 0.0 : v.height * Math.pow(1.0 - r / v.radius, CONE_POWER);
     }
 
     /** A rounded bump over an angular window: 1 at its centre, 0 from {@code width} away on. */
@@ -960,8 +1018,19 @@ final class CraterShape {
         boolean dried;
         /** Height of the top block of the lake or lava, or NaN. */
         double liquid;
-        /** Power of the wall's profile. */
+        /** Power of the wall's profile: its mean, and at each bearing of the tables. */
         double wallExp;
+        float[] exp;
+        /**
+         * The ledges of the wall: how many, how much they vary its slope at each bearing (0 is an
+         * even slope), and where up the wall they lie at each bearing.
+         */
+        int ledges;
+        float[] ledge;
+        float[] ledgePhase;
+        /** Whether the liquid is lava with plates of crust, and the share of the lake they leave free (their noise threshold). */
+        boolean crust;
+        double crustCut;
         /** Depth of the gullies on the inner wall, and the radius of the circle their noise is read on. */
         double ribs;
         double ribRing;

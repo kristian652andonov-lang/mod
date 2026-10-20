@@ -84,13 +84,18 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   At the surface, grass gives way to rock as slopes steepen, snow patches thicken towards the
   snow line, and sand creeps inland behind beaches. Fades reach at most 15 blocks below the
   nearest exposed surface, measured sideways too, so cliff and mountain faces get them as well.
-- **Volcanoes** have ecological zones: a bare cone of ash, tuff and scoria in radial streaks;
-  blackstone lava flows that end in lobes in the forest; a pioneer belt of grass, shrubs and
-  young trees; forested flanks where animals spawn; and **burn scars** of scorched soil and ash
-  with burned snags, charred logs and regrowth. Their **craters** are irregular: lobed and
-  scalloped rims with notches, breaches and higher shoulders, bays where the wall slumped, uneven
-  floors with island cones and sometimes a ridge cutting off a second pool. Crater lakes and lava
-  pools always lie below the lowest point of the rim.
+- **Volcanoes** are rough, lopsided cones: one flank concave and long, the other full, cut by
+  V-shaped barrancos with sharp ridges between them, with tongues of blocky lava rock running
+  down from notches of the rim and one or two small cinder cones of red and brown scoria on the
+  flanks. They have ecological zones: a bare cone of ash, tuff and scoria in radial streaks;
+  lava flows that end in lobes in the forest; a pioneer belt of grass, shrubs and young trees;
+  forested flanks where animals spawn; and **burn scars** of scorched soil and ash with burned
+  snags, charred logs and regrowth. Their **craters** are irregular: lobed and scalloped rims
+  with notches, breaches and higher shoulders, bays where the wall slumped, walls of changing
+  steepness with ledges, uneven floors with island cones and sometimes a ridge cutting off a
+  second pool, all in dark volcanic rock with oxidised patches. Lava lakes carry plates of
+  crust and a shore of magma. Crater lakes and lava pools always lie below the lowest point of
+  the rim. Snow lies on the cones in patches broken up by ash and scoria, never in a hot crater.
 - **Wetlands** only in temperate and warm climates, with shallow pools between hummocks and mud
   flats.
 - **Trails:** winding dirt paths with frayed coarse-dirt and gravel edges cross plains, forests
