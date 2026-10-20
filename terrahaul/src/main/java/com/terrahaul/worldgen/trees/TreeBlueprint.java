@@ -24,6 +24,12 @@ import java.util.random.RandomGenerator;
  */
 public final class TreeBlueprint {
     public static final int MAX_REACH = 15;
+    /**
+     * Reach of giant pines, whose wide umbrella needs more room than 15 blocks: the feature keeps
+     * their trunk at chunk-local 3..12 (3 - 18 = -15 and 12 + 18 = 30, plus one for vines: within the
+     * writable -16..31).
+     */
+    public static final int WIDE_REACH = 18;
     public static final int ANCIENT_REACH = 22;
     /** Lowest stored layer, for prop roots and rooted dirt below the trunk base. */
     public static final int MIN_Y = -12;

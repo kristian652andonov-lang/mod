@@ -69,10 +69,17 @@ final class TreeMaterials {
 
     /** The bark-on-all-sides blocks of every species. */
     private static final Set<Block> WOOD_BLOCKS = Stream.of(TreeSpecies.values()).map(TreeMaterials::woodBlock).collect(Collectors.toSet());
+    /** The log blocks of every species: never stripped ones, which only fallen logs and ruins carry. */
+    private static final Set<Block> LOG_BLOCKS = Stream.of(TreeSpecies.values()).map(TreeMaterials::logBlock).collect(Collectors.toSet());
 
     /** Whether the block is one of the trees' bark-on-all-sides wood blocks (bends, junctions and limb ends). */
     static boolean isWoodBlock(BlockState state) {
         return WOOD_BLOCKS.contains(state.getBlock());
+    }
+
+    /** Whether the block is the log of one of the trees (in any direction, never a stripped log). */
+    static boolean isTreeLog(BlockState state) {
+        return LOG_BLOCKS.contains(state.getBlock());
     }
 
     static BlockState leaves(TreeSpecies s) {

@@ -9,6 +9,7 @@
       }
     ],
     "vines": 0.2,
-    "cocoa": 0.05
+    "cocoa": 0.05,
+    "sapling": true
   }
 }

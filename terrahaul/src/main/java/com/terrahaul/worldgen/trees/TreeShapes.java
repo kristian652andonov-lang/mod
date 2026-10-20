@@ -20,8 +20,9 @@ import java.util.random.RandomGenerator;
  * a flat-topped umbrella high on a long, bare stem.
  * <p>
  * Trunks taper, lean, bow and twist a little, and stand on a ground-following root flare. Sizes are
- * chosen so that every tree stays within {@link TreeBlueprint#MAX_REACH} of its trunk, and ancient
- * trees within {@link TreeBlueprint#ANCIENT_REACH}; the development tool reports any clipping.
+ * chosen so that every tree stays within {@link TreeBlueprint#MAX_REACH} of its trunk, giant pines
+ * within {@link TreeBlueprint#WIDE_REACH} and ancient trees within {@link TreeBlueprint#ANCIENT_REACH}
+ * (see {@link #reach}); the development tool reports any clipping.
  */
 public final class TreeShapes {
     private static final V UP = new V(0, 1, 0);
@@ -31,9 +32,21 @@ public final class TreeShapes {
 
     /** Builds a tree of the given species and size into a new blueprint. */
     public static TreeBlueprint create(TreeSpecies species, TreeSize size, RandomGenerator random) {
-        TreeBlueprint bp = new TreeBlueprint(species, random, size == TreeSize.ANCIENT ? TreeBlueprint.ANCIENT_REACH : TreeBlueprint.MAX_REACH);
+        TreeBlueprint bp = new TreeBlueprint(species, random, reach(species, size));
         build(bp, size);
         return bp;
+    }
+
+    /**
+     * How far from its trunk a tree of this species and size may reach: {@link TreeBlueprint#MAX_REACH}
+     * for most, more for ancient trees and giant pines, whose trunks the feature moves further into
+     * their chunk to make room.
+     */
+    public static int reach(TreeSpecies species, TreeSize size) {
+        if (size == TreeSize.ANCIENT) {
+            return TreeBlueprint.ANCIENT_REACH;
+        }
+        return species == TreeSpecies.PINE && size == TreeSize.GIANT ? TreeBlueprint.WIDE_REACH : TreeBlueprint.MAX_REACH;
     }
 
     public static void build(TreeBlueprint bp, TreeSize size) {
@@ -1073,12 +1086,13 @@ public final class TreeShapes {
      * Spruce: a dense, layered cone of drooping branches on a straight stem. Old trees grow very
      * tall on a thick, flared foot; in a closed stand their lower stem is bare but for dead
      * branches, so trunks show and light reaches the forest floor. Medium spruces keep the single
-     * stem of the sapling they grow from; large ones the 2x2 stem of a sapling group.
+     * stem of the sapling they grow from; large ones the 2x2 stem of a sapling group, on a root flare.
      */
     private static void spruce(TreeBlueprint bp, TreeSize size) {
         RandomGenerator r = bp.random();
         int h;
         double r0;
+        double r1 = 0.0;
         double c = 0.0;
         double bare;
         int spacing;
@@ -1107,9 +1121,11 @@ public final class TreeShapes {
                 spokes = 5;
             }
             case LARGE -> {
-                // a 2x2 stem on a foot four blocks wide, centred like the 2x2 sapling group it may grow from
+                // a 2x2 stem up to about three quarters of the height, standing on exactly the 2x2
+                // sapling group it may grow from; its root flare gives it a broad foot
                 h = range(r, 27, 40);
-                r0 = 2.0;
+                r0 = 0.94;
+                r1 = 0.3;
                 c = 0.5;
                 bare = 0.32;
                 spacing = 4;
@@ -1133,7 +1149,7 @@ public final class TreeShapes {
                 spokes = 8;
             }
         }
-        Trunk t = coniferTrunk(r, h - 1, c, r0, 0.0, range(r, 0.0, 0.03 * h), range(r, 0.0, 0.5), 0.0, 0.5);
+        Trunk t = coniferTrunk(r, h - 1, c, r0, r1, range(r, 0.0, 0.03 * h), range(r, 0.0, 0.5), 0.0, 0.5);
         t.draw(bp);
         int base = Math.max(1, (int) (h * bare));
         // young spruces sweep their branches up; they sag more, and hang more needles, with age
@@ -1148,7 +1164,7 @@ public final class TreeShapes {
         double crownR = switch (size) {
             case YOUNG -> 0.12 * h;
             case SMALL -> 0.13 * h + 0.2;
-            default -> 0.17 * h + 0.6;
+            default -> 0.15 * h + 0.6;
         };
         double maxWidth = Math.min(2.6, 0.2 + 0.075 * h);
         Conifer cf = new Conifer(1.0 + 0.15 * age, 0.3 - 0.42 * age, 0.45, 0.38 * age, 0.5, 0.3, maxWidth, 0.12 * age, 0.92, spokes, spokes + 2, 0.1);
@@ -1336,7 +1352,7 @@ public final class TreeShapes {
         Trunk t = coniferTrunk(r, stemTop, 0.0, 0.0, 0.0, range(r, 0.0, 0.04 * h), range(r, 0.0, 0.4), h * range(r, 0.01, 0.03), 0.4);
         t.draw(bp);
         double yb = h * range(r, 0.28, 0.36);
-        double rx = h * 0.3 + 0.6;
+        double rx = h * 0.36 + 0.9;
         Style st = new Style(0.45, 0.08, 0.14, 0.55, 0.5, 1);
         Leafer cushion = cushions(rc, 0.75, 0.95);
         double a = angle(r);
@@ -1361,7 +1377,7 @@ public final class TreeShapes {
 
     /**
      * A grown pine: the stem rises bare and slightly crooked to {@code 0.6..0.68} of the height
-     * ({@code 0.5..0.6} on medium pines, whose crown is deeper and narrower), carries a few long
+     * ({@code 0.5..0.6} on medium pines, whose crown is deeper), carries a few long
      * limbs that sweep up and fan out into tiers of cushions, longest low down so the crown is broad
      * and flat-topped, and divides at its top into upswept leaders under the crown's highest
      * cushions. The crown may lean to one side, as in a wind-shaped tree. The widest crowns are kept
@@ -1375,17 +1391,20 @@ public final class TreeShapes {
         boolean medium = size == TreeSize.MEDIUM;
         double yb = h * (medium ? range(r, 0.5, 0.6) : range(r, 0.6, 0.68));
         double spread = switch (size) {
-            case MEDIUM -> range(r, 0.24, 0.28);
+            case MEDIUM -> range(r, 0.3, 0.34);
             case LARGE -> range(r, 0.26, 0.3);
             default -> range(r, 0.3, 0.34);
         };
         double rx = Math.min(h * spread, (bp.reach() - rc - 1.0) / 1.05);
         int limbs = switch (size) {
-            case MEDIUM -> range(r, 5, 6);
+            case MEDIUM -> range(r, 6, 7);
             case LARGE -> range(r, 6, 8);
             case GIANT -> range(r, 8, 10);
             default -> range(r, 11, 14);
         };
+        // the upper limbs of a medium pine stay nearly as long as the lower ones and its leaders
+        // spread wider, so its deeper crown still ends in a broad, flat top rather than a dome
+        double taper = medium ? 0.3 : 0.5;
         Style st = new Style(0.5, 0.05, 0.16, 0.55, 0.5, 1);
         Leafer cushion = cushions(rc, 0.72, 0.95);
         double a = angle(r);
@@ -1396,7 +1415,7 @@ public final class TreeShapes {
             double y = Math.rint(yb + (stem - 1.5 - yb) * s);
             a += 2.4 + range(r, -0.35, 0.35);
             V o = t.at(y);
-            double len = rx * (1.0 - 0.5 * Math.pow(s, 1.3)) * range(r, 0.78, 1.08) * (1.0 + asym * Math.cos(a - wind));
+            double len = rx * (1.0 - taper * Math.pow(s, 1.3)) * range(r, 0.78, 1.08) * (1.0 + asym * Math.cos(a - wind));
             len = maxRun(bp, o, a, len, rc + 1.0);
             double rise = len * (0.3 + 0.35 * s) + range(r, -0.5, 1.0);
             V end = o.add(horizontal(a, len)).add(new V(0, rise, 0));
@@ -1411,7 +1430,7 @@ public final class TreeShapes {
         double la = angle(r);
         for (int j = 0; j < leaders; j++) {
             la += Math.PI * 2.0 / leaders + range(r, -0.4, 0.4);
-            double out = range(r, 1.0, 1.5) + rx * range(r, 0.12, 0.25);
+            double out = range(r, 1.0, 1.5) + rx * (medium ? range(r, 0.2, 0.3) : range(r, 0.12, 0.25));
             V e = top.add(horizontal(la, out)).add(new V(0, h - 1.5 - stem + range(r, -0.6, 0.4), 0));
             cushion.grow(bp, e, limbTo(bp, top, t.topDirection(), e, r1 * 0.75, 0.0, st));
         }

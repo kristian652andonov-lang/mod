@@ -15,9 +15,13 @@ import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfigur
  * @param cocoa     chance per suitable trunk block to carry a cocoa pod
  * @param beehive   chance for the tree to carry a bee nest with bees (vanilla gameplay)
  * @param dryLeaves fraction of leaves removed, for sparse, sun-scorched crowns
+ * @param sapling   whether the tree grows from a player's sapling: like a vanilla tree it then
+ *                  replaces only air, leaves, water and plants (no stem through other trees' limbs, no
+ *                  foot sunk into a slope, no root laid into the ground), so the blocks around a
+ *                  sapling are never destroyed; false for world generation (see {@code ProceduralTreeFeature})
  */
 public record ProceduralTreeConfiguration(TreeSpecies species, SimpleWeightedRandomList<TreeSize> sizes, float vines, float cocoa,
-                                          float beehive, float dryLeaves) implements FeatureConfiguration {
+                                          float beehive, float dryLeaves, boolean sapling) implements FeatureConfiguration {
     /** Species by serialized name ({@link TreeSpecies} is plain Java and carries no codec itself). */
     public static final Codec<TreeSpecies> SPECIES_CODEC = Codec.STRING.comapFlatMap(name -> {
         TreeSpecies s = TreeSpecies.byName(name);
@@ -35,6 +39,7 @@ public record ProceduralTreeConfiguration(TreeSpecies species, SimpleWeightedRan
         Codec.floatRange(0, 1).optionalFieldOf("vines", 0.0f).forGetter(ProceduralTreeConfiguration::vines),
         Codec.floatRange(0, 1).optionalFieldOf("cocoa", 0.0f).forGetter(ProceduralTreeConfiguration::cocoa),
         Codec.floatRange(0, 1).optionalFieldOf("beehive", 0.0f).forGetter(ProceduralTreeConfiguration::beehive),
-        Codec.floatRange(0, 0.9f).optionalFieldOf("dry_leaves", 0.0f).forGetter(ProceduralTreeConfiguration::dryLeaves)
+        Codec.floatRange(0, 0.9f).optionalFieldOf("dry_leaves", 0.0f).forGetter(ProceduralTreeConfiguration::dryLeaves),
+        Codec.BOOL.optionalFieldOf("sapling", false).forGetter(ProceduralTreeConfiguration::sapling)
     ).apply(i, ProceduralTreeConfiguration::new));
 }
