@@ -130,6 +130,26 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
                     level.setBlock(pos.set(x, ground, z), Blocks.GRASS_BLOCK.defaultBlockState(), 2);
                 }
             }
+            byte role = ws.role[k];
+            if (ws.planned[k] && ws.style[k] == WaterSolver.STYLE_CASCADE && lv == WaterSolver.NONE
+                && (role == WaterSolver.ROLE_ROCK || role == WaterSolver.ROLE_BOULDER)) {
+                // rock showing in a cascade's hollow, its ledges, rocks and boulders: whatever the
+                // cut left on top (soil, mostly) turns to rock, down the face the lowest neighbour
+                // exposes, so the rock reads as rock from the side
+                boolean boulder = role == WaterSolver.ROLE_BOULDER;
+                int face = ground - 1;
+                for (int d = 0; d < 4; d++) {
+                    int n = WaterSolver.index(i + (d == 0 ? 1 : d == 1 ? -1 : 0), j + (d == 2 ? 1 : d == 3 ? -1 : 0));
+                    face = Math.min(face, (ws.water(n) && ws.step[n] != WaterSolver.SILL ? ws.ground[n] : ws.solidTop[n]) + 1);
+                }
+                for (int y = Math.max(face, ground - 6); y <= ground; y++) {
+                    BlockState s = level.getBlockState(pos.set(x, y, z));
+                    if (s.blocksMotion() && WaterPalette.natural(s)) {
+                        level.setBlock(pos, palette.cascadeRock(ws.material[k], boulder, x, y, z, y == ground), 2);
+                        placed = true;
+                    }
+                }
+            }
         }
 
         // ---- sills, banks and boulders --------------------------------------------------------

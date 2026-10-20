@@ -42,6 +42,9 @@ import javax.imageio.ImageIO;
  *       rejections; every elevated lake and crater lake solved and checked for enclosure.</li>
  *   <li>{@code finder <seed> <n>}: {@code /terrahaul find} for the water targets from {@code n}
  *       origins, each result checked on the solved world around it.</li>
+ *   <li>{@code cascadeviews <seed> <x> <z> <outDir>}: the cascade nearest to a point, built and
+ *       checked, in large first-person views: from its foot looking up the chain, from the side,
+ *       from its viewpoint and from above.</li>
  *   <li>{@code map}, {@code dump}, {@code corners}, {@code fallinfo}: views and dumps for
  *       debugging single places.</li>
  * </ul>
@@ -66,6 +69,7 @@ public final class WaterStudy {
             case "finder" -> finder(model, Integer.parseInt(args[2]));
             case "falls" -> falls(model, Integer.parseInt(args[2]), new File(args[3]), args.length > 4 ? Integer.parseInt(args[4]) : 8,
                 args.length > 5 ? args[5] : "all");
+            case "cascadeviews" -> cascadeViews(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), new File(args[4]));
             case "fallinfo" -> {
                 int x = Integer.parseInt(args[2]);
                 int z = Integer.parseInt(args[3]);
@@ -236,6 +240,10 @@ public final class WaterStudy {
         final byte[] step;
         final byte[] kind;
         final boolean[] boulder;
+        /** Material role, style and plan membership of the shaped ground, for the views. */
+        final byte[] role;
+        final byte[] style;
+        final boolean[] planned;
 
         Area(int ax, int az, int w, int h) {
             this.ax = ax;
@@ -251,6 +259,9 @@ public final class WaterStudy {
             step = new byte[n];
             kind = new byte[n];
             boulder = new boolean[n];
+            role = new byte[n];
+            style = new byte[n];
+            planned = new boolean[n];
         }
 
         boolean contains(int x, int z) {
@@ -332,6 +343,9 @@ public final class WaterStudy {
                         area.step[t] = ws.step[k];
                         area.kind[t] = ws.kind[k];
                         area.boulder[t] = ws.boulder[k];
+                        area.role[t] = ws.role[k];
+                        area.style[t] = ws.style[k];
+                        area.planned[t] = ws.planned[k];
                     }
                 }
             }
@@ -530,7 +544,9 @@ public final class WaterStudy {
         long[] widthHist = new long[5];
         long[] types = new long[4];
         long planNanos = 0;
+        long cascadeNanos = 0;
         int cells = 0;
+        int cascadeCells = 0;
         List<FallPlan> plans = new ArrayList<>();
         ColumnSample s = new ColumnSample();
         for (boolean cascade : new boolean[]{false, true}) {
@@ -548,6 +564,10 @@ public final class WaterStudy {
                     FallPlan p = cascade ? planner.cascade(cx, cz) : planner.fall(cx, cz);
                     planNanos += System.nanoTime() - t0;
                     cells++;
+                    if (cascade) {
+                        cascadeNanos += System.nanoTime() - t0;
+                        cascadeCells++;
+                    }
                     if (p == null) {
                         continue;
                     }
@@ -571,9 +591,10 @@ public final class WaterStudy {
                 fallCount[c], fallCount[c] / Math.max(1e-9, landCells[c] * cellKm2), cascadeCount[c], cascadeCount[c] / Math.max(1e-9, landCells[c] * cellKm2));
         }
         System.out.printf(Locale.ROOT, "types: curtain %d, gorge %d, into water %d, cascade %d; drops 8-15:%d 16-30:%d 31-50:%d 51-90:%d 91+:%d; "
-                + "widths 1:%d 3-5:%d 7-11:%d 13-17:%d 19+:%d; planning %.1f ms per cell%n",
+                + "widths 1:%d 3-5:%d 7-11:%d 13-17:%d 19+:%d; planning %.1f ms per cell (waterfall cells %.1f, cascade cells %.1f)%n",
             types[0], types[1], types[2], types[3], dropHist[0], dropHist[1], dropHist[2], dropHist[3], dropHist[4],
-            widthHist[0], widthHist[1], widthHist[2], widthHist[3], widthHist[4], planNanos / 1e6 / cells);
+            widthHist[0], widthHist[1], widthHist[2], widthHist[3], widthHist[4], planNanos / 1e6 / cells,
+            (planNanos - cascadeNanos) / 1e6 / Math.max(1, cells - cascadeCells), cascadeNanos / 1e6 / Math.max(1, cascadeCells));
         // build every plan on the solved world and check it
         Stats total = new Stats();
         long curtainOk = 0;
@@ -584,6 +605,10 @@ public final class WaterStudy {
         long cascadeSteps = 0;
         List<BufferedImage> tiles = new ArrayList<>();
         int rendered = 0;
+        // the same checks per kind of plan, and the shapes of the cascades
+        Stats fallTotal = new Stats();
+        Stats cascadeTotal = new Stats();
+        CascadeStats cs = new CascadeStats();
         for (FallPlan p : plans) {
             Stats st = new Stats();
             int ccx = Math.floorDiv(p.minX(), 16) - 1;
@@ -592,12 +617,14 @@ public final class WaterStudy {
             int nz = Math.floorDiv(p.maxZ(), 16) + 2 - ccz;
             Area area = solveArea(model, ccx, ccz, nx, nz, st);
             accumulate(total, st);
+            accumulate(p.type == FallPlan.CASCADE ? cascadeTotal : fallTotal, st);
             if (p.type == FallPlan.CASCADE) {
                 for (int t = 0; t < area.w * area.h; t++) {
                     if (area.step[t] != WaterSolver.FLAT && area.kind[t] == WaterSolver.PLAN) {
                         cascadeSteps++;
                     }
                 }
+                cascadeMetrics(area, p, cs);
             } else {
                 for (int v = -p.halfWidth; v <= p.halfWidth; v++) {
                     int x1 = p.lipX + p.dirX - v * p.dirZ;
@@ -633,9 +660,15 @@ public final class WaterStudy {
             }
             if (rendered < renders && (which.equals("all") || which.equals(new String[]{"curtain", "gorge", "sea", "cascade"}[p.type]))) {
                 rendered++;
-                System.out.printf(Locale.ROOT, "  %s at %d,%d (dir %d,%d): drop %d (top %d pool %d), width %d, view %d,%d,%d%n", p.typeName(),
-                    p.lipX, p.lipZ, p.dirX, p.dirZ, p.drop(), p.top, p.pool, p.width(), p.viewX, p.viewY, p.viewZ);
-                BufferedImage tile = fallTile(model, area, p, sl);
+                if (p.type == FallPlan.CASCADE) {
+                    double[] head = p.course()[0];
+                    System.out.printf(Locale.ROOT, "  cascade %d at %.0f,%.0f: %d pools, drop %d (top %d pool %d), view %d,%d,%d%n", rendered, head[0], head[1],
+                        p.width(), p.drop(), p.top, p.pool, p.viewX, p.viewY, p.viewZ);
+                } else {
+                    System.out.printf(Locale.ROOT, "  %s at %d,%d (dir %d,%d): drop %d (top %d pool %d), width %d, view %d,%d,%d%n", p.typeName(),
+                        p.lipX, p.lipZ, p.dirX, p.dirZ, p.drop(), p.top, p.pool, p.width(), p.viewX, p.viewY, p.viewZ);
+                }
+                BufferedImage tile = p.type == FallPlan.CASCADE ? cascadeTile(model, area, p, sl) : fallTile(model, area, p, sl);
                 tiles.add(tile);
                 ImageIO.write(tile, "png", new File(dir, "fall_" + rendered + ".png"));
             }
@@ -648,6 +681,13 @@ public final class WaterStudy {
         for (String e : total.examples) {
             System.out.println("    " + e);
         }
+        for (int c = 0; c < 2; c++) {
+            Stats t = c == 0 ? fallTotal : cascadeTotal;
+            System.out.printf(Locale.ROOT, "  %-10s %5d chunks (%.2f ms/chunk): mismatches %d, source-air %d, water-above-air %d, banks %s, steps %s%n",
+                c == 0 ? "waterfalls" : "cascades", t.chunks, t.nanos / 1e6 / Math.max(1, t.chunks), t.mismatches, t.sourceFacingAir, t.waterAboveAir,
+                hist(t.bankHist), hist(t.stepHist));
+        }
+        cs.print();
         sheet(tiles, new File(dir, "falls_" + model.seed() + ".png"));
     }
 
@@ -710,6 +750,439 @@ public final class WaterStudy {
         g.drawImage(top, 0, sideH, null);
         g.dispose();
         return img;
+    }
+
+    /**
+     * The cascade nearest to {@code (x, z)}, built on the solved world, checked, and rendered large:
+     * from its foot looking up the chain, from either side of its middle, from its viewpoint and
+     * from high above its head.
+     */
+    private static void cascadeViews(TerrainModel model, int x, int z, File dir) throws Exception {
+        dir.mkdirs();
+        FallPlanner planner = FallPlanner.of(model);
+        int cell = FallPlanner.CASCADE_CELL;
+        FallPlan p = null;
+        double best = Double.MAX_VALUE;
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                FallPlan q = planner.cascade(Math.floorDiv(x, cell) + dx, Math.floorDiv(z, cell) + dz);
+                if (q != null) {
+                    double d = Math.hypot(q.lookX - x, q.lookZ - z);
+                    if (d < best) {
+                        best = d;
+                        p = q;
+                    }
+                }
+            }
+        }
+        if (p == null) {
+            System.out.println("no cascade near " + x + "," + z);
+            return;
+        }
+        Stats st = new Stats();
+        int ccx = Math.floorDiv(p.minX(), 16) - 2;
+        int ccz = Math.floorDiv(p.minZ(), 16) - 2;
+        Area area = solveArea(model, ccx, ccz, Math.floorDiv(p.maxX(), 16) + 3 - ccx, Math.floorDiv(p.maxZ(), 16) + 3 - ccz, st);
+        CascadeStats cs = new CascadeStats();
+        cascadeMetrics(area, p, cs);
+        double[][] c = p.course();
+        int n = c.length;
+        System.out.printf(Locale.ROOT, "cascade at %.0f,%.0f to %.0f,%.0f: %d pools, drop %d, view %d,%d,%d; mismatches %d, source-air %d, water-above-air %d, banks %s%n",
+            c[0][0], c[0][1], c[n - 1][0], c[n - 1][1], p.width(), p.drop(), p.viewX, p.viewY, p.viewZ, st.mismatches, st.sourceFacingAir,
+            st.waterAboveAir, hist(st.bankHist));
+        cs.print();
+        double tx = p.lookX + 0.5;
+        double ty = p.lookY + 0.5;
+        double tz = p.lookZ + 0.5;
+        // from the foot
+        double fx = c[n - 1][0] - c[n - 2][0];
+        double fz = c[n - 1][1] - c[n - 2][1];
+        double fl = Math.max(1.0E-9, Math.hypot(fx, fz));
+        String[] names = {"foot", "left", "right", "viewpoint", "above"};
+        for (int v = 0; v < names.length; v++) {
+            double ex;
+            double ez;
+            double ey;
+            switch (v) {
+                case 0 -> {
+                    ex = c[n - 1][0] + fx / fl * 12.0;
+                    ez = c[n - 1][1] + fz / fl * 12.0;
+                    ey = Math.max(surface(model, area, ex, ez) + 1.62, p.pool + 3.0);
+                }
+                case 1, 2 -> {
+                    double ax = c[n - 1][0] - c[0][0];
+                    double az = c[n - 1][1] - c[0][1];
+                    double al = Math.max(1.0, Math.hypot(ax, az));
+                    double side = v == 1 ? 1.0 : -1.0;
+                    ex = tx - az / al * 22.0 * side + ax / al * 8.0;
+                    ez = tz + ax / al * 22.0 * side + az / al * 8.0;
+                    ey = Math.max(surface(model, area, ex, ez) + 1.62, ty + 6.0);
+                }
+                case 3 -> {
+                    ex = p.viewX + 0.5;
+                    ez = p.viewZ + 0.5;
+                    ey = p.viewY + 1.62;
+                }
+                default -> {
+                    ex = c[0][0] - fx / fl * 6.0;
+                    ez = c[0][1] - fz / fl * 6.0;
+                    ey = p.top + 22.0;
+                }
+            }
+            BufferedImage img = WaterView.render(model, area, ex, ey, ez, tx, ty, tz, 960, 600);
+            ImageIO.write(img, "png", new File(dir, "cascade_" + Math.round(c[0][0]) + "_" + Math.round(c[0][1]) + "_" + names[v] + ".png"));
+        }
+        ImageIO.write(render(area, model.seaLevel(), "cascade"), "png", new File(dir, "cascade_" + Math.round(c[0][0]) + "_" + Math.round(c[0][1]) + "_top.png"));
+    }
+
+    /** Top of the solid ground or water at a point, solved where the area covers it. */
+    private static double surface(TerrainModel model, Area area, double x, double z) {
+        int ix = (int) Math.floor(x);
+        int iz = (int) Math.floor(z);
+        if (!area.contains(ix, iz)) {
+            return Math.ceil(model.interpolatedHeight(ix, iz));
+        }
+        int k = area.at(ix, iz);
+        return Math.max(area.solidTop[k], area.level[k] == WaterSolver.NONE ? Integer.MIN_VALUE : area.level[k] - 1) + 1.0;
+    }
+
+    /** Shape statistics of built cascades (see {@link #cascadeMetrics}). */
+    static final class CascadeStats {
+        long plans;
+        final long[] poolHist = new long[10];
+        final long[] dropHist = new long[6];
+        final long[] lipHist = new long[8];
+        long lips;
+        long splitLips;
+        long winding;
+        double sinuosity;
+        double offset;
+        double turn;
+        double sizeRatio;
+        long walls;
+
+        void print() {
+            if (plans == 0) {
+                return;
+            }
+            System.out.printf(Locale.ROOT, "cascades %d: pools per cascade %s; drop per lip %s; lip width in chute columns %s; lips split in two or more %d of %d%n",
+                plans, hist(poolHist), hist(dropHist), hist(lipHist), splitLips, lips);
+            System.out.printf(Locale.ROOT, "  winding (cascades with 3+ pools): sinuosity %.2f, sideways offset %.1f blocks, turn between pools %.0f deg; "
+                + "largest/smallest pool %.1f; walls of 5+ blocks the plan made %d (%.2f per cascade)%n", sinuosity / Math.max(1, winding),
+                offset / Math.max(1, winding), turn / Math.max(1, winding), sizeRatio / plans, walls, walls / (double) plans);
+        }
+    }
+
+    /**
+     * Shape of a built cascade, measured on the solved columns alone so plans of any version
+     * compare: its pools (one per water level), the drop and width of each lip and whether rock
+     * splits the falling water in two or more, how much the chain winds (the length of the line
+     * through the pools' middles against the distance from the first to the last, the furthest
+     * middle off that line, the mean turn between pools), how much the pools differ in size, and
+     * the walls of five blocks or more the plan left where the natural ground had no such step.
+     */
+    static void cascadeMetrics(Area area, FallPlan p, CascadeStats cs) {
+        java.util.TreeMap<Integer, double[]> pools = new java.util.TreeMap<>(java.util.Comparator.reverseOrder());
+        int x0 = Math.max(area.ax, p.minX());
+        int x1 = Math.min(area.ax + area.w - 1, p.maxX());
+        int z0 = Math.max(area.az, p.minZ());
+        int z1 = Math.min(area.az + area.h - 1, p.maxZ());
+        for (int z = z0; z <= z1; z++) {
+            for (int x = x0; x <= x1; x++) {
+                int k = area.at(x, z);
+                if (!area.planned[k] || area.kind[k] != WaterSolver.PLAN || area.level[k] == WaterSolver.NONE) {
+                    continue;
+                }
+                double[] acc = pools.computeIfAbsent(area.level[k], l -> new double[3]);
+                acc[0] += x + 0.5;
+                acc[1] += z + 0.5;
+                acc[2]++;
+            }
+        }
+        cs.plans++;
+        int n = pools.size();
+        cs.poolHist[Math.min(9, n)]++;
+        List<Integer> levels = new ArrayList<>(pools.keySet());
+        double minSize = Double.MAX_VALUE;
+        double maxSize = 0.0;
+        for (double[] acc : pools.values()) {
+            minSize = Math.min(minSize, acc[2]);
+            maxSize = Math.max(maxSize, acc[2]);
+        }
+        cs.sizeRatio += n == 0 ? 1.0 : maxSize / minSize;
+        int[] dx = {1, -1, 0, 0};
+        int[] dz = {0, 0, 1, -1};
+        for (int i = 0; i + 1 < n; i++) {
+            int up = levels.get(i);
+            int lo = levels.get(i + 1);
+            cs.dropHist[Math.min(5, up - lo)]++;
+            // the lip: chute columns of the lower pool under the upper one, and their separate runs
+            java.util.Set<Integer> lip = new java.util.HashSet<>();
+            for (int z = z0; z <= z1; z++) {
+                for (int x = x0; x <= x1; x++) {
+                    int k = area.at(x, z);
+                    if (area.step[k] == WaterSolver.CHUTE && area.level[k] == lo && area.upper[k] == up) {
+                        lip.add(k);
+                    }
+                }
+            }
+            cs.lips++;
+            cs.lipHist[Math.min(7, lip.size())]++;
+            int runs = 0;
+            java.util.Set<Integer> seen = new java.util.HashSet<>();
+            for (int k : lip) {
+                if (!seen.add(k)) {
+                    continue;
+                }
+                runs++;
+                java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>(List.of(k));
+                while (!queue.isEmpty()) {
+                    int c = queue.poll();
+                    int cx = c % area.w;
+                    int cz = c / area.w;
+                    // runs touching at a corner are one run: a lip along a diagonal edge
+                    for (int nx = cx - 1; nx <= cx + 1; nx++) {
+                        for (int nz = cz - 1; nz <= cz + 1; nz++) {
+                            int m = nz * area.w + nx;
+                            if (nx >= 0 && nz >= 0 && nx < area.w && nz < area.h && lip.contains(m) && seen.add(m)) {
+                                queue.add(m);
+                            }
+                        }
+                    }
+                }
+            }
+            if (runs >= 2) {
+                cs.splitLips++;
+            }
+        }
+        if (n >= 3) {
+            double[][] mids = new double[n][];
+            int i = 0;
+            for (double[] acc : pools.values()) {
+                mids[i++] = new double[]{acc[0] / acc[2], acc[1] / acc[2]};
+            }
+            double length = 0.0;
+            double turns = 0.0;
+            for (int j = 0; j + 1 < n; j++) {
+                length += Math.hypot(mids[j + 1][0] - mids[j][0], mids[j + 1][1] - mids[j][1]);
+                if (j + 2 < n) {
+                    double a1 = Math.atan2(mids[j + 1][1] - mids[j][1], mids[j + 1][0] - mids[j][0]);
+                    double a2 = Math.atan2(mids[j + 2][1] - mids[j + 1][1], mids[j + 2][0] - mids[j + 1][0]);
+                    double t = Math.abs(a2 - a1);
+                    turns += Math.toDegrees(Math.min(t, 2.0 * Math.PI - t));
+                }
+            }
+            double ex = mids[n - 1][0] - mids[0][0];
+            double ez = mids[n - 1][1] - mids[0][1];
+            double straight = Math.max(1.0, Math.hypot(ex, ez));
+            double off = 0.0;
+            for (double[] m : mids) {
+                off = Math.max(off, Math.abs((m[0] - mids[0][0]) * ez - (m[1] - mids[0][1]) * ex) / straight);
+            }
+            cs.winding++;
+            cs.sinuosity += length / straight;
+            cs.offset += off;
+            cs.turn += turns / (n - 2);
+        }
+        // walls the plan made: neighbouring columns whose surfaces (water or ground) differ by five
+        // blocks or more, where the natural ground differed by less, water against water aside
+        for (int z = z0; z <= z1; z++) {
+            for (int x = x0; x <= x1; x++) {
+                int k = area.at(x, z);
+                for (int d = 0; d < 2; d++) {
+                    int nx = d == 0 ? x + 1 : x;
+                    int nz = d == 0 ? z : z + 1;
+                    if (nx > x1 || nz > z1) {
+                        continue;
+                    }
+                    int m = area.at(nx, nz);
+                    boolean wk = area.level[k] != WaterSolver.NONE;
+                    boolean wm = area.level[m] != WaterSolver.NONE;
+                    if (wk && wm || !area.planned[k] && !area.planned[m]) {
+                        continue;
+                    }
+                    int sk = wk ? area.level[k] - 1 : area.solidTop[k];
+                    int sm = wm ? area.level[m] - 1 : area.solidTop[m];
+                    int rise = Math.abs(sk - sm);
+                    if (rise >= 5 && rise > Math.abs(area.natural[k] - area.natural[m]) + 1) {
+                        cs.walls++;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Views of a built cascade: a profile along its course (top left), the first-person view from
+     * its viewpoint and an overview from high above its head; below them the top view and the view
+     * from below the lowest pool looking up the chain, as a player arriving at its foot sees it.
+     */
+    private static BufferedImage cascadeTile(TerrainModel model, Area area, FallPlan p, int sl) {
+        double[][] c = p.course();
+        int n = c.length;
+        double[] arc = new double[n];
+        for (int k = 1; k < n; k++) {
+            arc[k] = arc[k - 1] + Math.hypot(c[k][0] - c[k - 1][0], c[k][1] - c[k - 1][1]);
+        }
+        double len = arc[n - 1];
+        // the course every block, from ten blocks above its head to sixteen beyond its end
+        List<int[]> cols = new ArrayList<>();
+        for (double s = -10.0; s <= len + 16.0; s += 1.0) {
+            int k = 0;
+            while (k < n - 2 && arc[k + 1] < s) {
+                k++;
+            }
+            double seg = Math.max(1.0E-9, arc[k + 1] - arc[k]);
+            double t = (s - arc[k]) / seg;
+            cols.add(new int[]{(int) Math.floor(c[k][0] + t * (c[k + 1][0] - c[k][0])), (int) Math.floor(c[k][1] + t * (c[k + 1][1] - c[k][1]))});
+        }
+        int yMin = p.pool - 10;
+        int yMax = p.top + 12;
+        int sc = Math.max(2, Math.min(4, 352 / cols.size()));
+        int profW = Math.max(352, cols.size() * sc);
+        int profH = (yMax - yMin) * sc;
+        BufferedImage view = WaterView.render(model, area, p.viewX + 0.5, p.viewY + 1.62, p.viewZ + 0.5, p.lookX + 0.5, p.lookY + 0.5, p.lookZ + 0.5, 480, 320);
+        // overview: high above the head of the chain, looking down along it
+        double fx = c[n - 1][0] - c[n - 2][0];
+        double fz = c[n - 1][1] - c[n - 2][1];
+        double fl = Math.max(1.0E-9, Math.hypot(fx, fz));
+        double hx = c[1][0] - c[0][0];
+        double hz = c[1][1] - c[0][1];
+        double hl = Math.max(1.0E-9, Math.hypot(hx, hz));
+        BufferedImage over = WaterView.render(model, area, c[0][0] - hx / hl * 6.0, p.top + 22.0, c[0][1] - hz / hl * 6.0, p.lookX + 0.5,
+            p.lookY + 0.5, p.lookZ + 0.5, 480, 320);
+        // from the foot: beyond the lowest pool's lip, a little above eye height (as if standing on
+        // a rock) and at least above the lowest pool, so a terrace of the slope below it does not
+        // fill the view, looking up the chain at the course a third of the way down
+        double ex = c[n - 1][0] + fx / fl * 9.0;
+        double ez = c[n - 1][1] + fz / fl * 9.0;
+        double[] up = c[Math.max(0, n / 3)];
+        double ey = Math.max(surface(model, area, ex, ez) + 2.6, p.pool + 4.0);
+        BufferedImage foot = WaterView.render(model, area, ex, ey, ez, up[0], p.lookY + 0.5, up[1], 480, 320);
+        BufferedImage top = cascadeTop(area, p, 480, 320 + Math.max(0, profH - 320));
+        int rowH = Math.max(profH, 320);
+        int w = Math.max(profW + 960, top.getWidth() + 480);
+        BufferedImage img = new BufferedImage(w, rowH + Math.max(top.getHeight(), 320), BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        g.setColor(new java.awt.Color(230, 230, 230));
+        g.fillRect(0, 0, profW, rowH);
+        for (int u = 0; u < cols.size(); u++) {
+            int x = cols.get(u)[0];
+            int z = cols.get(u)[1];
+            if (!area.contains(x, z)) {
+                continue;
+            }
+            int k = area.at(x, z);
+            for (int y = yMin; y < yMax; y++) {
+                int rgb;
+                if (area.solid(k, y)) {
+                    rgb = y > area.ground[k] ? 0x8C8C8C : y > area.natural[k] ? 0xA0522D : 0x6B5A3A;
+                } else if (area.source(k, y)) {
+                    rgb = 0x2050D0;
+                } else if (area.chute(k, y)) {
+                    rgb = 0x00E5FF;
+                } else if (y <= area.natural[k]) {
+                    rgb = 0xFFD890;
+                } else {
+                    continue;
+                }
+                g.setColor(new java.awt.Color(rgb));
+                g.fillRect(u * sc, (yMax - 1 - y) * sc, sc, sc);
+            }
+        }
+        g.setColor(java.awt.Color.BLACK);
+        g.drawString("cascade, " + p.width() + " pools, drop " + p.drop() + " (profile along the course)", 4, 12);
+        g.drawImage(view, profW, 0, null);
+        g.drawImage(over, profW + 480, 0, null);
+        g.drawImage(top, 0, rowH, null);
+        g.drawImage(foot, top.getWidth(), rowH, null);
+        g.setColor(java.awt.Color.WHITE);
+        g.drawString("viewpoint", profW + 4, 12);
+        g.drawString("overview", profW + 484, 12);
+        g.drawString("from the foot", top.getWidth() + 4, rowH + 12);
+        g.dispose();
+        return img;
+    }
+
+    /**
+     * A close top view of a built cascade, shaded so every step of the ground shows: water darker
+     * the lower its pool, falling water white, rock grey-green, built-up ground tan, cut ground
+     * brown, natural ground green; the course drawn in red, its head marked.
+     */
+    static BufferedImage cascadeTop(Area area, FallPlan p, int maxW, int maxH) {
+        int x0 = Math.max(area.ax, p.minX() - 2);
+        int z0 = Math.max(area.az, p.minZ() - 2);
+        int x1 = Math.min(area.ax + area.w - 1, p.maxX() + 2);
+        int z1 = Math.min(area.az + area.h - 1, p.maxZ() + 2);
+        int w = x1 - x0 + 1;
+        int h = z1 - z0 + 1;
+        int sc = Math.max(2, Math.min(8, Math.min(maxW / w, maxH / h)));
+        BufferedImage img = new BufferedImage(Math.max(maxW, w * sc), Math.max(maxH, h * sc), BufferedImage.TYPE_INT_RGB);
+        int top = p.top + 1;
+        int bottom = p.pool;
+        for (int z = z0; z <= z1; z++) {
+            for (int x = x0; x <= x1; x++) {
+                int k = area.at(x, z);
+                int lv = area.level[k];
+                int surf = lv != WaterSolver.NONE && area.step[k] != WaterSolver.SILL ? lv - 1 : area.solidTop[k];
+                // light from the north-west: brighter where the ground rises towards it
+                int west = x > x0 ? surfaceTop(area, area.at(x - 1, z)) : surf;
+                int north = z > z0 ? surfaceTop(area, area.at(x, z - 1)) : surf;
+                double light = lightClamp(0.8 + 0.12 * ((west - surf) + (north - surf)) * -1.0);
+                double t = lightClamp((surf - bottom) / (double) Math.max(1, top - bottom));
+                int rgb;
+                if (area.step[k] == WaterSolver.CHUTE) {
+                    rgb = 0xF0F8FF;
+                } else if (lv != WaterSolver.NONE && area.step[k] != WaterSolver.SILL) {
+                    // neighbouring pools in alternate tints, higher pools lighter
+                    int tint = (lv & 1) == 0 ? 0 : 45;
+                    rgb = rgb((int) (20 + 60 * t), (int) (70 + 70 * t) + tint, (int) (170 + 70 * t) - tint / 2);
+                } else {
+                    int base;
+                    if (!area.planned[k] || area.role[k] == WaterSolver.ROLE_NATURAL && area.ground[k] == area.natural[k]) {
+                        base = area.solidTop[k] > area.ground[k] ? 0xC8A060 : 0x5E9E3E;
+                    } else if (area.role[k] == WaterSolver.ROLE_ROCK || area.role[k] == WaterSolver.ROLE_BOULDER) {
+                        base = 0x8A9478;
+                    } else if (area.solidTop[k] > area.natural[k]) {
+                        base = 0xC8A060;
+                    } else if (area.solidTop[k] < area.natural[k]) {
+                        base = 0x9A7A50;
+                    } else {
+                        base = 0x6FA84A;
+                    }
+                    rgb = base;
+                }
+                int r = (int) (((rgb >> 16) & 255) * light);
+                int g = (int) (((rgb >> 8) & 255) * light);
+                int b = (int) ((rgb & 255) * light);
+                int c = rgb(r, g, b);
+                for (int i = 0; i < sc; i++) {
+                    for (int j = 0; j < sc; j++) {
+                        img.setRGB((x - x0) * sc + i, (z - z0) * sc + j, c);
+                    }
+                }
+            }
+        }
+        java.awt.Graphics2D g = img.createGraphics();
+        g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(new java.awt.Color(220, 40, 40));
+        double[][] c = p.course();
+        for (int k = 0; k + 1 < c.length; k++) {
+            g.drawLine((int) ((c[k][0] - x0) * sc), (int) ((c[k][1] - z0) * sc), (int) ((c[k + 1][0] - x0) * sc), (int) ((c[k + 1][1] - z0) * sc));
+        }
+        g.fillOval((int) ((c[0][0] - x0) * sc) - 3, (int) ((c[0][1] - z0) * sc) - 3, 7, 7);
+        g.setColor(java.awt.Color.WHITE);
+        g.drawString("top, " + sc + " px per block, head at " + Math.round(c[0][0]) + "," + Math.round(c[0][1]), 4, 12);
+        g.dispose();
+        return img;
+    }
+
+    private static int surfaceTop(Area area, int k) {
+        return area.level[k] != WaterSolver.NONE && area.step[k] != WaterSolver.SILL ? area.level[k] - 1 : area.solidTop[k];
+    }
+
+    private static double lightClamp(double v) {
+        return Math.max(0.35, Math.min(1.25, v));
     }
 
     // =========================================================================================
@@ -1097,9 +1570,10 @@ public final class WaterStudy {
     // =========================================================================================
 
     /**
-     * Prints the solved columns of a {@code w x h} window centred on {@code (x, z)}: one cell per
-     * column, a kind letter (S sea, R river, L lake, C crater, V lava, s stream, P plan, . dry,
-     * # sill, ^ chute, b bank) and the water level (or ground) relative to sea level.
+     * Prints the solved columns of a {@code w x h} window centred on {@code (x, z)}, plans
+     * included: one cell per column, a kind letter (S sea, R river, L lake, C crater, V lava,
+     * s stream, P plan, . dry, # sill, ^ chute, b bank, c ground a plan cut down, f ground a plan
+     * built up) and the water level (or ground) relative to sea level.
      */
     private static void dump(TerrainModel model, int x, int z, int w, int h) {
         int sl = model.seaLevel();
@@ -1116,11 +1590,7 @@ public final class WaterStudy {
                 int xx = x - w / 2 + i;
                 int cx = Math.floorDiv(xx, 16);
                 int cz = Math.floorDiv(zz, 16);
-                WaterSolver ws = solves.computeIfAbsent(((long) cx << 32) ^ (cz & 0xFFFFFFFFL), key -> {
-                    WaterSolver s = new WaterSolver();
-                    s.solve(model, cx, cz, List.<WaterPlan>of());
-                    return s;
-                });
+                WaterSolver ws = solves.computeIfAbsent(((long) cx << 32) ^ (cz & 0xFFFFFFFFL), key -> solveChunk(model, cx, cz));
                 int k = ws.indexOf(xx, zz);
                 char c;
                 int v;
@@ -1133,6 +1603,9 @@ public final class WaterStudy {
                 } else if (ws.solidTop[k] > ws.ground[k]) {
                     c = 'b';
                     v = ws.solidTop[k] - sl;
+                } else if (ws.ground[k] != ws.natural[k]) {
+                    c = ws.ground[k] < ws.natural[k] ? 'c' : 'f';
+                    v = ws.ground[k] - sl;
                 } else {
                     c = '.';
                     v = ws.ground[k] - sl;
@@ -1381,8 +1854,9 @@ public final class WaterStudy {
         }
         int cols = Math.min(4, tiles.size());
         int rows = (tiles.size() + cols - 1) / cols;
-        int w = tiles.get(0).getWidth();
-        int h = tiles.get(0).getHeight();
+        // tiles differ in size (a cascade's depends on its length): each gets the largest cell
+        int w = tiles.stream().mapToInt(BufferedImage::getWidth).max().orElse(1);
+        int h = tiles.stream().mapToInt(BufferedImage::getHeight).max().orElse(1);
         BufferedImage img = new BufferedImage(cols * w, rows * h, BufferedImage.TYPE_INT_RGB);
         java.awt.Graphics2D g = img.createGraphics();
         for (int i = 0; i < tiles.size(); i++) {

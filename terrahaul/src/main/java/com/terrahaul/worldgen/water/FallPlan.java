@@ -18,8 +18,10 @@ import com.terrahaul.worldgen.terrain.TerrainModel;
  * included, follows from the levels: the {@link WaterSolver} turns every pool column next to the
  * channel into falling water.
  * <p>
- * Cascades are chains of two to six pools stepping down a slope, each held by low dams; where a
- * pool meets the next one down the solver builds the travertine-like steps the water spills over.
+ * Cascades are chains of two to eight pools of different sizes and outlines stepping down a slope
+ * along a winding course, each spilling one to four blocks into the next over its lip, sometimes
+ * split in two by a rock; around them the slope is cut back into uneven, partly rocky banks or
+ * built up into a sloping rim (see {@link CascadeLayout}).
  */
 public final class FallPlan implements WaterPlan {
     public static final int CURTAIN = 0;
@@ -73,14 +75,8 @@ public final class FallPlan implements WaterPlan {
 
     // ---- cascades -----------------------------------------------------------------------------
     int tiers;
-    double[] tierX;
-    double[] tierZ;
-    double[] tierDx;
-    double[] tierDz;
-    double[] tierA;
-    double[] tierB;
-    int[] tierLevel;
-    int[] tierDepth;
+    /** The course, pools and rocks of a cascade and the ground they shape ({@code null} for waterfalls). */
+    CascadeLayout layout;
 
     // ---- what the finder reports ----------------------------------------------------------------
     public int viewX;
@@ -143,9 +139,18 @@ public final class FallPlan implements WaterPlan {
         if (type != CASCADE) {
             return new int[]{dirX, dirZ};
         }
-        double dx = tierX[tiers - 1] - tierX[0];
-        double dz = tierZ[tiers - 1] - tierZ[0];
+        double[][] c = layout.course();
+        double dx = c[c.length - 1][0] - c[0][0];
+        double dz = c[c.length - 1][1] - c[0][1];
         return Math.abs(dx) >= Math.abs(dz) ? new int[]{dx >= 0 ? 1 : -1, 0} : new int[]{0, dz >= 0 ? 1 : -1};
+    }
+
+    /**
+     * The course of a cascade from its head to the lip of its lowest pool, as {@code {x, z}}
+     * points, or an empty array for a waterfall.
+     */
+    public double[][] course() {
+        return type == CASCADE ? layout.course() : new double[0][];
     }
 
     boolean overlaps(FallPlan o, int margin) {
@@ -330,40 +335,6 @@ public final class FallPlan implements WaterPlan {
     }
 
     private boolean shapeCascade(int x, int z, int natural, Shape out) {
-        double n = model.detail3(6, x / 5.0, 31.0, z / 5.0);
-        // pools first (an upper pool owns the columns it shares with the next), then their rims
-        for (int i = 0; i < tiers; i++) {
-            double r = tierRadius(i, x, z, n);
-            if (r <= 1.0) {
-                int g = tierLevel[i] - 2 - (int) Math.round(tierDepth[i] * Math.sqrt(Math.max(0.0, 1.0 - r * r)));
-                out.ground = g;
-                out.level = tierLevel[i];
-                out.role = WaterSolver.ROLE_BED;
-                return true;
-            }
-        }
-        for (int i = 0; i < tiers; i++) {
-            double r = tierRadius(i, x, z, n);
-            double rim = 1.0 + 1.6 / Math.min(tierA[i], tierB[i]);
-            if (r <= rim) {
-                int hold = tierLevel[i] - 1;
-                if (natural >= hold + 2) {
-                    return false;
-                }
-                out.ground = Math.max(natural, hold);
-                out.role = WaterSolver.ROLE_DAM;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Normalised elliptical radius of a column in cascade pool {@code i}. */
-    double tierRadius(int i, int x, int z, double n) {
-        double dx = x + 0.5 - tierX[i];
-        double dz = z + 0.5 - tierZ[i];
-        double a = (dx * tierDx[i] + dz * tierDz[i]) / tierA[i];
-        double b = (dz * tierDx[i] - dx * tierDz[i]) / tierB[i];
-        return Math.sqrt(a * a + b * b) + 0.1 * n;
+        return layout.shape(x, z, natural, out);
     }
 }

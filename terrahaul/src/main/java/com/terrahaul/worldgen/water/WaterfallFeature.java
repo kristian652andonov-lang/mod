@@ -34,6 +34,8 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
  *   <li>vines hang down the walls of the bowl where it is humid;</li>
  *   <li>ferns and moss carpets grow on the shores and on the dams of cascades;</li>
  *   <li>lily pads float on the still lowest pool of a cascade.</li>
+ *   <li>ferns and moss carpets also grow on the banks, rocks and boulders around a cascade's
+ *       pools.</li>
  * </ul>
  * Neighbouring chunks may not have built their part of a plan yet, so nothing here depends on
  * their blocks: whether rock beyond the chunk's edge is exposed is read from the plan, and
@@ -138,7 +140,8 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
             }
             return false;
         }
-        if (humid && (shape.role == WaterSolver.ROLE_DAM || shape.role == WaterSolver.ROLE_NATURAL)) {
+        if (humid && (shape.role == WaterSolver.ROLE_DAM || shape.role == WaterSolver.ROLE_NATURAL || shape.role == WaterSolver.ROLE_ROCK
+            || shape.role == WaterSolver.ROLE_BOULDER)) {
             return plants(level, pos, p, x, top, z);
         }
         return false;
