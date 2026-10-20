@@ -76,7 +76,7 @@ public final class MeleeHandler {
         // same tick: the first one is the swing (recovery, damage, crit, sound), the rest are struck by the same blow
         boolean betterCombat = BetterCombatCompat.drivesSwing(player, stack);
         Swing swing = betterCombat ? SWINGS.get(player) : null;
-        if (swing == null || swing.tick != level.getGameTime()) {
+        if (swing == null || !swing.continuedBy(player, level.getGameTime(), data, form, rawTarget)) {
             float strength = player.getAttackStrengthScale(0.5f);
             // heavy weapons have a real recovery: a swing before the weapon has recovered does nothing at all (Better
             // Combat paces its swings itself, and lands each one after the wind-up, so it only needs a loose check)
@@ -95,7 +95,7 @@ public final class MeleeHandler {
             damage *= StatusService.outgoingMultiplier(player);
             // the combo step's multiplier (a finisher hits harder) and Better Combat's sweep penalty for crowds
             if (betterCombat) damage *= BetterCombatCompat.swingDamageFactor(player);
-            swing = new Swing(level.getGameTime(), strength, heavy, crit, damage);
+            swing = new Swing(level.getGameTime(), player.position(), data.idOrNil(), form, strength, heavy, crit, damage);
             if (betterCombat) SWINGS.put(player, swing);
         } else {
             betterCombatFollowUp(player, stack, def, data, cls, swing, rawTarget);
@@ -116,6 +116,7 @@ public final class MeleeHandler {
             return;
         }
         swing.struck = true;
+        swing.targets.add(rawTarget.getId());
         float dealt = FWDamage.deal(player, stack, rawTarget, damage, FWDamage.Kind.MELEE, def.element(), flags);
         if (dealt > 0 || primary.isAlive()) {
             totalDealt += dealt;
@@ -165,6 +166,7 @@ public final class MeleeHandler {
                                              Swing swing, Entity rawTarget) {
         // Better Combat winds the recovery back before each target; the swing's last strike starts it again
         player.resetAttackStrengthTicker();
+        swing.targets.add(rawTarget.getId());
         LivingEntity target = FWDamage.resolve(rawTarget);
         if (target == null) {
             rawTarget.hurt(FWDamage.source(player.serverLevel(), FWDamage.Kind.MELEE, player), swing.damage);
@@ -197,18 +199,35 @@ public final class MeleeHandler {
     /** One swing's blow, kept for the tick while Better Combat strikes the rest of its targets. */
     private static final class Swing {
         final long tick;
+        final Vec3 from;
+        final java.util.UUID weapon;
+        final WeaponForm form;
         final float strength;
         final boolean heavy, crit;
         final float damage;
+        /** Entity ids struck so far. */
+        final java.util.Set<Integer> targets = new java.util.HashSet<>();
         /** A living target has taken the main hit. */
         boolean struck;
 
-        Swing(long tick, float strength, boolean heavy, boolean crit, float damage) {
+        Swing(long tick, Vec3 from, java.util.UUID weapon, WeaponForm form, float strength, boolean heavy, boolean crit, float damage) {
             this.tick = tick;
+            this.from = from;
+            this.weapon = weapon;
+            this.form = form;
             this.strength = strength;
             this.heavy = heavy;
             this.crit = crit;
             this.damage = damage;
+        }
+
+        /**
+         * Whether a strike belongs to this swing: within one Better Combat swing every target is struck once, in the
+         * same tick, by the same weapon in the same form, from the same spot. Anything else is a swing of its own.
+         */
+        boolean continuedBy(ServerPlayer player, long now, WeaponData data, WeaponForm form, Entity target) {
+            return now == tick && data.idOrNil().equals(weapon) && form == this.form && !targets.contains(target.getId())
+                    && player.position().distanceToSqr(from) < 1e-4;
         }
 
         int flags() {
