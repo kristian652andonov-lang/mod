@@ -87,7 +87,10 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
 - **Volcanoes** have ecological zones: a bare cone of ash, tuff and scoria in radial streaks;
   blackstone lava flows that end in lobes in the forest; a pioneer belt of grass, shrubs and
   young trees; forested flanks where animals spawn; and **burn scars** of scorched soil and ash
-  with burned snags, charred logs and regrowth.
+  with burned snags, charred logs and regrowth. Their **craters** are irregular: lobed and
+  scalloped rims with notches, breaches and higher shoulders, bays where the wall slumped, uneven
+  floors with island cones and sometimes a ridge cutting off a second pool. Crater lakes and lava
+  pools always lie below the lowest point of the rim.
 - **Wetlands** only in temperate and warm climates, with shallow pools between hummocks and mud
   flats.
 - **Trails:** winding dirt paths with frayed coarse-dirt and gravel edges cross plains, forests

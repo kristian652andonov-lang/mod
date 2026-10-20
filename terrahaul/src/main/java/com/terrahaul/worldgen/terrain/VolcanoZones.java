@@ -325,19 +325,13 @@ public final class VolcanoZones {
         double theta = Math.atan2(dz, dx);
         double gully = Math.sin(theta * v.ridges + v.phase) * smoothstep(v.craterRadius, v.radius * 0.6, r);
 
-        // the cone surface exactly as TerrainModel shapes it; where the generated ground lies far
-        // above it, other terrain (a mountain the volcano leans against) owns the column
-        double cone;
-        if (r < v.craterRadius) {
-            double u = r / v.craterRadius;
-            cone = s.rimHeight - v.craterDepth * (1.0 - u * u);
+        // the cone surface exactly as TerrainModel shapes it, crater included; where the generated
+        // ground lies far above it, other terrain (a mountain the volcano leans against) owns the column
+        double[] crater = sc.crater;
+        double cone = model.volcanoSurface(v, x, z, crater) - v.baseHeight;
+        if (crater[0] >= 0.0) {
             o.crater = true;
-            if (v.lava && v.waterLevel == ColumnSample.NO_WATER) {
-                // as TerrainModel fills it
-                o.lavaLevel = Math.floor(v.baseHeight + s.rimHeight - v.craterDepth * 0.82);
-            }
-        } else {
-            cone = v.height * Math.pow(1.0 - t, 1.65) * (1.0 + 0.07 * gully);
+            o.lavaLevel = v.lavaLevel;
         }
         double surface = model.interpolatedHeight(x, z);
         double above = surface - (v.baseHeight + cone);
@@ -352,7 +346,15 @@ public final class VolcanoZones {
         o.streak = Math.sin(theta * s.streaks + s.streakPhase + 1.8 * noise.noise2(x / 60.0 - 300.0, z / 60.0 + 120.0))
             * smoothstep(v.craterRadius, v.craterRadius * 1.5, r);
         o.activity = s.activity;
-        o.rim = o.crater ? 1.0 : smoothstep(s.craterT + 0.1, s.craterT, t);
+        // measured from the rim's own crest, which wanders in and out around the crater
+        if (o.crater) {
+            o.rim = 1.0;
+        } else if (r < v.craterReach) {
+            o.rim = smoothstep(crater[2] + 0.1 * v.radius, crater[2], crater[1]);
+        } else if (r < v.craterReach + 0.1 * v.radius) {
+            double rim = model.craterRimRadius(v, x, z);
+            o.rim = smoothstep(rim + 0.1 * v.radius, rim, r);
+        }
 
         // ---- bare cone: lobed edge, lower in the gullies, frayed into ash and grass patches ----
         double lobe = noise.noise2(Math.cos(theta) * 1.7 + s.lobeX, Math.sin(theta) * 1.7 + s.lobeZ);
@@ -418,7 +420,6 @@ public final class VolcanoZones {
         TerrainModel.VolcanoSite volcano;
         double activity;
         double craterT;
-        double rimHeight;
         /** Mean distance (over the radius) of the lower edge of the bare cone. */
         double edge;
         /** Width of the frayed edge of the bare cone, over the radius. */
@@ -455,7 +456,6 @@ public final class VolcanoZones {
                 activity = 0.35 + 0.4 * u0;
             }
             craterT = v.craterRadius / v.radius;
-            rimHeight = v.height * Math.pow(1.0 - craterT, 1.65);
             edge = craterT + 0.07 + 0.22 * activity;
             band = (40.0 + 0.03 * v.radius) / v.radius;
             lobeX = 400.0 * unit(h, 1);
@@ -493,6 +493,8 @@ public final class VolcanoZones {
     /** Per-thread state: the last column's zones, the last volcano's parameters and the noise. */
     private static final class Scratch {
         final Zone zone = new Zone();
+        /** Crater influence, distance and rim radius from {@link TerrainModel#volcanoSurface}. */
+        final double[] crater = new double[CraterShape.OUT];
         boolean valid;
         int x;
         int z;
