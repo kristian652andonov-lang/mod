@@ -3,7 +3,7 @@
   "placement": [
     {
       "type": "terrahaul:density_count",
-      "count": 6.5,
+      "count": 4.0,
       "density": "forest",
       "scale": 240,
       "variation": 0.6,

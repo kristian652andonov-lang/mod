@@ -29,10 +29,14 @@ import net.minecraft.world.level.material.Fluids;
  * Feature {@code terrahaul:procedural_tree}: builds a tree with {@link TreeShapes} and places it.
  * <p>
  * Placement is conservative: the tree is skipped (or retried one size smaller) when the trunk is
- * obstructed or too much of the crown would cut into terrain. On slopes the trunk's foot may sink
- * into the uphill soil and is extended down to solid ground on the downhill side, and roots are
- * laid relative to the ground of each column, so nothing floats. Every leaf gets the exact vanilla
- * {@code distance} value and leaves out of reach of wood are dropped, so canopies do not decay.
+ * obstructed or too much of the crown would cut into terrain. Another tree's trunk obstructs it; the
+ * branch wood of a neighbour obstructs only broadleaf trees: in a closed stand the straight stem of
+ * a conifer grows up through the limbs of the trees around it, which stay attached because the
+ * stem is wood too. On slopes the trunk's foot may sink into the uphill soil (the outer part of a
+ * thick foot deeper, like a root flare) and is extended down to solid ground on the downhill side,
+ * and roots are laid relative to the ground of each column, so nothing floats. Every leaf gets the
+ * exact vanilla {@code distance} value and leaves out of reach of wood are dropped, so canopies do
+ * not decay.
  * <p>
  * Writes stay within the blueprint's reach (15 blocks, or 22 for ancient trees whose trunk is
  * moved to the middle of its chunk), plus one block for vines hanging beside the outermost leaves:
@@ -122,15 +126,67 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
             || state.is(Blocks.WATER) || state.is(BlockTags.SAPLINGS) || state.is(BlockTags.REPLACEABLE);
     }
 
+    /**
+     * Wood of another tree that a trunk may grow through: a log lying on its side or a block with
+     * bark on all sides, which is what limbs, bends and limb ends are built from. Upright logs may be
+     * another trunk and are never displaced.
+     */
+    private static boolean isBranchWood(BlockState state) {
+        if (!state.is(BlockTags.LOGS)) {
+            return false;
+        }
+        if (state.hasProperty(BlockStateProperties.AXIS) && state.getValue(BlockStateProperties.AXIS) != Direction.Axis.Y) {
+            return true;
+        }
+        return TreeMaterials.isWoodBlock(state);
+    }
+
+    /** The centre of the trunk footprint, in blueprint coordinates. */
+    private static double[] footCentre(TreeBlueprint bp) {
+        double[] sum = new double[3];
+        bp.forEachTrunkBase((x, z, unused) -> {
+            sum[0] += x;
+            sum[1] += z;
+            sum[2]++;
+        });
+        return sum[2] == 0 ? new double[]{0.0, 0.0} : new double[]{sum[0] / sum[2], sum[1] / sum[2]};
+    }
+
+    /**
+     * Whether a block of the tree at layer {@code y} of column {@code (x, z)} may sink into the
+     * existing ground block {@code state} on a slope. Any block up to {@link #BURIED_BASE} above the
+     * trunk base may sink into soil. The outer part of a foot wider than a 2x2 trunk sinks further,
+     * 2.5 blocks more per block beyond one from the centre of the foot (a little steeper than the
+     * steepest slope trees grow on), and into rock as well as soil: like a root flare it disappears
+     * into the uphill side, so thick old trees still fit on slopes. A cliff still stops the trunk.
+     */
+    private static boolean sinks(TreeBlueprint bp, double[] centre, int x, int y, int z, BlockState state) {
+        if (y <= BURIED_BASE && isSoil(state)) {
+            return true;
+        }
+        double d = Math.hypot(x - centre[0], z - centre[1]);
+        if (!bp.isTrunkBase(x, z) || d <= 1.0) {
+            return false;
+        }
+        return y <= BURIED_BASE + Math.ceil(2.5 * (d - 1.0)) && (isSoil(state) || state.is(BlockTags.BASE_STONE_OVERWORLD));
+    }
+
     /** Loose ground that a trunk foot or a root may displace. */
     private static boolean isSoil(BlockState state) {
         return state.is(BlockTags.DIRT) || state.is(BlockTags.SAND) || state.is(Blocks.GRAVEL) || state.is(Blocks.CLAY)
             || state.is(Blocks.SNOW_BLOCK) || state.is(Blocks.POWDER_SNOW);
     }
 
+    /** The lower trunk: footprint columns below this layer may not run into another tree's trunk. */
+    private static int trunkLimit(TreeBlueprint bp) {
+        return Math.max(2, (int) (bp.height() * 0.6));
+    }
+
     private static boolean fits(WorldGenLevel level, BlockPos origin, TreeBlueprint bp) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        int trunkLimit = Math.max(2, (int) (bp.height() * 0.6));
+        int trunkLimit = trunkLimit(bp);
+        double[] centre = footCentre(bp);
+        boolean throughBranches = bp.species().isConifer();
         int maxBuild = level.getMaxBuildHeight();
         int[] counts = new int[3]; // checked, blocked, sampled leaves
         boolean[] ok = {true};
@@ -155,10 +211,11 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
             }
             BlockState state = level.getBlockState(pos);
             boolean trunk = bp.isTrunkBase(x, z) && y < trunkLimit;
-            if (y <= BURIED_BASE && isSoil(state)) {
+            if (sinks(bp, centre, x, y, z, state)) {
                 return; // the foot of the trunk sinks into a slope
             }
-            boolean free = isFree(state) || !trunk && state.is(BlockTags.LOGS);
+            // branches may meet other trees' wood; the trunk only their branch wood
+            boolean free = isFree(state) || (trunk ? throughBranches && isBranchWood(state) : state.is(BlockTags.LOGS));
             if (!free && trunk) {
                 ok[0] = false;
                 return;
@@ -176,6 +233,8 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
         bp.thinLeaves(config.dryLeaves());
         bp.finish();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int trunkLimit = trunkLimit(bp);
+        double[] centre = footCentre(bp);
 
         // read the ground under the roots before anything is written
         LongArrayList rootColumns = new LongArrayList();
@@ -220,9 +279,11 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
                 placePropRoot(level, pos, existing, y);
                 return;
             }
-            if (isFree(existing) || y <= BURIED_BASE && isSoil(existing)) {
+            boolean sunk = isSoil(existing) && sinks(bp, centre, x, y, z, existing);
+            boolean through = species.isConifer() && bp.isTrunkBase(x, z) && y < trunkLimit && isBranchWood(existing);
+            if (isFree(existing) || sunk || through) {
                 level.setBlock(pos, TreeMaterials.woody(species, code), SET_FLAGS);
-                if (y <= BURIED_BASE) {
+                if (y <= BURIED_BASE || sunk) {
                     // soil under a buried foot is no longer lit
                     BlockPos below = pos.below();
                     if (level.getBlockState(below).is(Blocks.GRASS_BLOCK)) {

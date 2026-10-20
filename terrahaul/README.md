@@ -142,9 +142,11 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
     vines; birches with short tufted branches;
   - spruces and firs as dense, layered cones of whorled branches, each with its own drooping
     spray of needles, hanging curtains on old spruces and dead branches on their bare lower
-    stems; Scots pines with rounded needle cushions on upswept, forking limbs, old ones under a
-    flat-topped umbrella on a tall, bare, slightly crooked stem. Old-growth conifers grow 30 to
-    60 blocks tall, rare ancient ones up to 90;
+    stems; Scots pines with rounded needle cushions on upswept, forking limbs, from medium size
+    on under a flat-topped crown (an umbrella on old trees) on a tall, bare, slightly crooked
+    stem. Old-growth conifers grow 30 to 60 blocks tall, rare ancient ones up to 90; their
+    stands hold fewer, bigger trees, so the forest floor stays light, and a conifer's stem may
+    grow up through the branches of its neighbours;
   - jungle umbrellas on buttress roots, acacia umbrellas, heavy dark oak domes, mangroves on prop
     and aerial roots, and cherries with a blossom dome over thick gnarled limbs;
   - lobed root flares, and trunks anchored down slopes;
