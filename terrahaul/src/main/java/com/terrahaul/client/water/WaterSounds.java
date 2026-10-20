@@ -2,6 +2,7 @@ package com.terrahaul.client.water;
 
 import com.terrahaul.Terrahaul;
 import com.terrahaul.config.TerrahaulConfig;
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -9,6 +10,7 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -19,14 +21,19 @@ import net.minecraft.world.phys.Vec3;
  * The sound of falling and running water: a deep looping roar near tall falls, a lighter rush and
  * babble near cascades, small steps and rapids.
  * <p>
- * Every fall and every patch of running water is a possible source, whose loudness and reach
- * grow with its size (width times height). Small sources close together, the steps of a cascade or
- * the cells of one stretch of rapids, are heard as one. Only the few loudest sources at the
- * listener play, each as a looping sound that sits at the nearest point of its fall, so it moves
- * with the listener along a tall curtain and comes from the right direction. Distance is handled
- * here rather than by the sound engine, whose range is fixed when a sound starts: the volume
- * follows a smooth curve to silence at the source's reach, changes are eased in and out, and a
- * source that drops out of the chosen few fades away instead of stopping.
+ * Every fall and every patch of running water near a drop is a possible source, whose loudness
+ * and reach grow with its size (width times height). Small sources close together, the steps of a
+ * cascade or the cells of one stretch of rapids, are heard as one. Only the few loudest sources at
+ * the listener play, each as a looping sound that sits at the point of its water nearest to the
+ * listener: the nearest column of a fall (up or down a tall curtain, along a step across a wide
+ * river) or the nearest cell of running water. So it is heard from the bank at either end of a
+ * long step, moves with the listener and comes from the right direction. Distance is handled here
+ * rather than by the sound engine, whose range is fixed when a sound starts: the volume follows a
+ * smooth curve to silence at the source's reach, measured from that nearest point, changes are
+ * eased in and out, and a source that drops out of the chosen few fades away instead of stopping.
+ * <p>
+ * The loops are mastered quietly (about -30 dBFS), in line with Minecraft's ambient loops, so even
+ * a large fall sits under the game's other sounds unless the listener stands at its foot.
  * <p>
  * The sounds ({@code terrahaul:ambient.waterfall} and {@code terrahaul:ambient.rapids}) are only
  * played on this client; they need no registry entry because the sound engine finds them by name
@@ -45,14 +52,20 @@ final class WaterSounds {
     private static final class Source {
         final long key;
         final boolean roar;
+        /** Centre, for joining small sources. */
         final double x;
         final double z;
+        /** Where the water is: the middle of each column or cell, as x, z pairs. */
+        final DoubleArrayList points;
         double minY;
         double maxY;
         double strength;
         float level;
+        /** The point nearest to the listener, this tick. */
+        double nearX;
+        double nearZ;
 
-        Source(long key, boolean roar, double x, double z, double minY, double maxY, double strength) {
+        Source(long key, boolean roar, double x, double z, double minY, double maxY, double strength, DoubleArrayList points) {
             this.key = key;
             this.roar = roar;
             this.x = x;
@@ -60,6 +73,7 @@ final class WaterSounds {
             this.minY = minY;
             this.maxY = maxY;
             this.strength = strength;
+            this.points = points;
         }
 
         double reach() {
@@ -74,6 +88,23 @@ final class WaterSounds {
         double nearestY(double y) {
             return Mth.clamp(y, minY, maxY);
         }
+
+        /** Finds the point nearest to the listener and returns its distance. */
+        double distance(Vec3 listener) {
+            double best = Double.MAX_VALUE;
+            for (int i = 0; i < points.size(); i += 2) {
+                double dx = points.getDouble(i) - listener.x;
+                double dz = points.getDouble(i + 1) - listener.z;
+                double d = dx * dx + dz * dz;
+                if (d < best) {
+                    best = d;
+                    nearX = points.getDouble(i);
+                    nearZ = points.getDouble(i + 1);
+                }
+            }
+            double dy = nearestY(listener.y) - listener.y;
+            return Math.sqrt(best + dy * dy);
+        }
     }
 
     private final List<Source> sources = new ArrayList<>();
@@ -87,12 +118,22 @@ final class WaterSounds {
         for (Fall fall : falls) {
             double strength = fall.width * (double) fall.height;
             boolean roar = fall.height >= 8 && strength >= 20.0;
-            Source s = new Source(fall.key, roar, fall.cx, fall.cz, fall.surface, fall.topY + 1.0, roar ? strength : strength * 1.5);
+            DoubleArrayList points = new DoubleArrayList(fall.columns.length * 2);
+            for (WaterScanner.Column c : fall.columns) {
+                points.add(c.x() + 0.5);
+                points.add(c.z() + 0.5);
+            }
+            Source s = new Source(fall.key, roar, fall.cx, fall.cz, fall.surface, fall.topY + 1.0, roar ? strength : strength * 1.5, points);
             (roar ? sources : small).add(s);
         }
         for (WaterScanner.RapidPatch p : patches) {
             if (p.cells().length >= 3) {
-                small.add(new Source(p.key() ^ 0x5DEECE66DL, false, p.x(), p.z(), p.y(), p.y(), p.cells().length * 0.6));
+                DoubleArrayList points = new DoubleArrayList(p.cells().length * 2);
+                for (long cell : p.cells()) {
+                    points.add(BlockPos.getX(cell) + 0.5);
+                    points.add(BlockPos.getZ(cell) + 0.5);
+                }
+                small.add(new Source(p.key() ^ 0x5DEECE66DL, false, p.x(), p.z(), p.y(), p.y(), p.cells().length * 0.6, points));
             }
         }
         // the strongest small source takes in the weaker ones around it
@@ -109,6 +150,7 @@ final class WaterSounds {
                     && other.minY < head.maxY + MERGE && other.maxY > head.minY - MERGE) {
                     taken[j] = true;
                     head.strength += other.strength;
+                    head.points.addAll(other.points);
                     head.minY = Math.min(head.minY, other.minY);
                     head.maxY = Math.max(head.maxY, other.maxY);
                 }
@@ -130,10 +172,7 @@ final class WaterSounds {
             master *= 0.45F;
         }
         for (Source s : sources) {
-            double dx = s.x - listener.x;
-            double dy = s.nearestY(listener.y) - listener.y;
-            double dz = s.z - listener.z;
-            double d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            double d = s.distance(listener);
             double f = Mth.clamp(1.0 - Math.max(0.0, d - 2.0) / s.reach(), 0.0, 1.0);
             s.level = (float) (s.peak() * Math.pow(f, 1.7)) * master;
         }
@@ -157,11 +196,12 @@ final class WaterSounds {
                     : 0.92F + (float) Math.floorMod(s.key * 0x9E3779B97F4A7C15L >>> 40, 18) / 100.0F;
                 loop = new Loop(s.roar ? WATERFALL : RAPIDS, pitch);
                 playing.put(s.key, loop);
-                loop.aim(s.x, s.nearestY(listener.y), s.z, s.level);
+                loop.aim(s.nearX, s.nearestY(listener.y), s.nearZ, s.level);
+                loop.jump();
                 mc.getSoundManager().play(loop);
                 sinceStart = 0;
             } else {
-                loop.aim(s.x, s.nearestY(listener.y), s.z, s.level);
+                loop.aim(s.nearX, s.nearestY(listener.y), s.nearZ, s.level);
             }
         }
         var it = playing.long2ObjectEntrySet().fastIterator();
@@ -202,11 +242,20 @@ final class WaterSounds {
         playing.clear();
     }
 
+    /** Stops everything and forgets the sources, when the world changes. */
+    void clear(Minecraft mc) {
+        stopAll(mc);
+        sources.clear();
+    }
+
     /** One looping water sound, eased towards the volume and position it is given. */
     private static final class Loop extends AbstractTickableSoundInstance {
         float target;
         int watched;
         private int sinceAim;
+        private double targetX;
+        private double targetY;
+        private double targetZ;
 
         Loop(SoundEvent event, float pitch) {
             super(event, SoundSource.AMBIENT, SoundInstance.createUnseededRandom());
@@ -218,11 +267,18 @@ final class WaterSounds {
         }
 
         void aim(double x, double y, double z, float target) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
+            this.targetX = x;
+            this.targetY = y;
+            this.targetZ = z;
             this.target = target;
             this.sinceAim = 0;
+        }
+
+        /** Puts the sound where it is aimed at once (when it starts). */
+        void jump() {
+            this.x = targetX;
+            this.y = targetY;
+            this.z = targetZ;
         }
 
         @Override
@@ -232,6 +288,10 @@ final class WaterSounds {
             if (++sinceAim > 20) {
                 target = 0.0F;
             }
+            // glides to a new nearest point (from one step of a cascade to the next) instead of jumping
+            x += (targetX - x) * 0.2;
+            y += (targetY - y) * 0.2;
+            z += (targetZ - z) * 0.2;
             // about a second to swell or die away
             float step = Math.max(0.004F, Math.abs(target - volume) * 0.07F);
             volume = target > volume ? Math.min(target, volume + step) : Math.max(target, volume - step);

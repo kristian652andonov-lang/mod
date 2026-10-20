@@ -173,12 +173,14 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
 - **Dust** blows across deserts, badlands and savannas in strong wind.
 - **Waterfalls, cascades and rapids** (any falling water, vanilla's and player-made too):
   - fine spray drifts off the curtain's open sides and drops fly from the lip;
-  - the water splashes up white where it lands, higher for taller falls;
-  - mist rolls off the foot and drifts with the wind; falls 14 blocks and taller raise a large,
-    slowly billowing cloud;
+  - the water splashes up white where it lands, on every step of a cascade and higher for taller
+    falls;
+  - soft mist rolls off the foot and drifts with the wind; falls 14 blocks and taller raise a
+    large, slowly billowing cloud that is still seen from across a valley;
   - the pool churns white at the foot of every fall and step, foam floats away on the pool and
-    down the stream, and running water carries flecks of foam;
-  - tall falls roar and cascades and rapids rush, from where the water is, louder for bigger falls.
+    down the stream, and the water running into and out of a drop carries flecks of foam;
+  - tall falls roar and cascades and rapids rush, from the nearest part of the water, louder for
+    bigger falls and about as loud as Minecraft's own ambient sounds.
 
   Each effect has its own option (`[water]` in the client config); the particle count follows the
   animation quality and Minecraft's Particles setting.

@@ -9,7 +9,7 @@ to src/main/resources/assets/terrahaul and committed.
 Everything here is original and procedural, drawn and synthesised from fixed random seeds, so
 re-running the script without changes produces identical files:
 - sprites are small white pixel-art shapes (the particles tint them): droplets, soft mist puffs
-  with stepped alpha, and lacy foam patches;
+  with a smooth alpha falloff, and lacy foam patches;
 - the sounds are built from noise and bubble models, not recordings. Each loop is periodic by
   construction (its noise is synthesised over exactly one loop length in the frequency domain and
   every modulation completes whole cycles), so it repeats without a seam or a click.
@@ -101,69 +101,68 @@ def blob_radius(angle, harmonics):
 
 
 def mist_sprites():
-    """Soft puffs of mist and spray cloud. 16x16 with alpha in a few pixel-art steps, densest in a
-    lumpy core; the rim fades through dithered steps, so a fading particle (vertex alpha times
-    sprite alpha falls under the shader's cut-off from the outside in) dissolves from its edges."""
+    """Soft puffs of mist and spray cloud. 32x32 (a puff is drawn up to fourteen blocks wide, so
+    its pixels must stay small), white, with alpha falling smoothly from a lumpy, dense core to
+    nothing well inside the square, so the edge of the quad never shows. The mist has its own
+    shader, which keeps even the faintest rim (Minecraft's particle shader drops everything under
+    an opacity of 0.1), so overlapping puffs blend into one soft cloud and fade out smoothly."""
     rnd = random.Random(47)
-    levels = [0, 64, 112, 160, 205, 240]
-    bayer = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
+    size = 32
+    centre = (size - 1) / 2.0
     for i in range(4):
-        img = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+        img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
         harmonics = [(k, rnd.uniform(0.05, 0.16) / (1 + 0.3 * k), rnd.uniform(0, 2 * math.pi)) for k in (2, 3, 5)]
         # two or three lobes make the puff look like a cauliflower of smaller puffs
-        lobes = [(rnd.uniform(-2.2, 2.2), rnd.uniform(-2.2, 2.2), rnd.uniform(3.0, 4.2)) for _ in range(2 + i % 2)]
-        cx, cy = 7.5, 7.5
-        for y in range(16):
-            for x in range(16):
-                dx, dy = x - cx, y - cy
-                r = math.hypot(dx, dy) / (7.2 * blob_radius(math.atan2(dy, dx), harmonics))
+        lobes = [(rnd.uniform(-4.2, 4.2), rnd.uniform(-4.2, 4.2), rnd.uniform(6.0, 8.0)) for _ in range(2 + i % 2)]
+        for y in range(size):
+            for x in range(size):
+                dx, dy = x - centre, y - centre
+                r = math.hypot(dx, dy) / (12.8 * blob_radius(math.atan2(dy, dx), harmonics))
                 density = max(0.0, 1.0 - r * r)
                 for lx, ly, lr in lobes:
-                    d = math.hypot(x - cx - lx, y - cy - ly) / lr
+                    d = math.hypot(dx - lx, dy - ly) / lr
                     density = max(density, 0.85 * max(0.0, 1.0 - d * d))
-                density = min(1.0, density * 1.25)
-                # stepped alpha with ordered dithering between the steps
-                v = density * (len(levels) - 1) + (bayer[y % 4][x % 4] / 16.0 - 0.5) * 0.9
-                step = int(round(min(max(v, 0.0), len(levels) - 1)))
-                a = levels[step]
+                density = min(1.0, density * 1.15)
+                # a soft shoulder: thin at the rim, dense in the core
+                a = int(round(240 * density ** 1.4 / 4.0)) * 4
                 if a:
                     # a slightly darker underside gives the puff some volume
-                    shade = 255 - int(max(0.0, dy) * 2.2)
-                    img.putpixel((x, y), (shade, shade, 255 - int(max(0.0, dy) * 1.2), a))
+                    shade = 255 - int(max(0.0, dy) * 1.1)
+                    img.putpixel((x, y), (shade, shade, 255 - int(max(0.0, dy) * 0.6), a))
         save_texture(img, f'mist_{i}')
 
 
 def foam_sprites():
-    """Patches of foam floating on water: a clump of froth made of overlapping round clusters,
-    densest in the middle, with a few open bubbles inside it and loose bubbles around its edge.
-    16x16."""
+    """Patches of foam floating on water: a clump of froth made of overlapping round clusters that
+    fills most of the square, densest in the middle, with a few open bubbles inside it and loose
+    bubbles around its edge. 16x16."""
     rnd = random.Random(59)
     for i in range(4):
         img = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
         # the clusters wander from the middle, so each patch has its own lumpy outline
         clusters = []
-        x, y = 7.5, 7.5
-        for _ in range(5 + i):
-            clusters.append((x, y, rnd.uniform(1.8, 3.4)))
-            x = min(11.0, max(4.5, x + rnd.uniform(-2.4, 2.4)))
-            y = min(11.0, max(4.5, y + rnd.uniform(-2.4, 2.4)))
-        holes = [(rnd.uniform(4, 12), rnd.uniform(4, 12), rnd.uniform(0.6, 1.2)) for _ in range(3)]
+        x, y = 8.0, 8.0
+        for _ in range(6 + i):
+            clusters.append((x, y, rnd.uniform(4.0, 5.6)))
+            x = min(10.8, max(5.2, x + rnd.uniform(-2.8, 2.8)))
+            y = min(10.8, max(5.2, y + rnd.uniform(-2.8, 2.8)))
+        holes = [(rnd.uniform(4, 12), rnd.uniform(4, 12), rnd.uniform(0.6, 1.1)) for _ in range(4)]
         for py in range(16):
             for px in range(16):
                 cx, cy = px + 0.5, py + 0.5
                 cover = max(1.0 - math.hypot(cx - qx, cy - qy) / qr for qx, qy, qr in clusters)
                 if cover <= 0.0:
                     continue
-                a = 245 if cover > 0.45 else 205 if cover > 0.2 else 150
+                a = 245 if cover > 0.45 else 210 if cover > 0.2 else 150
                 if any(math.hypot(cx - hx, cy - hy) < hr for hx, hy, hr in holes) and cover > 0.2:
-                    a = 90
+                    a = 110
                 b = 255 - rnd.randint(0, 12)
                 img.putpixel((px, py), (b, b, 255, a))
-        for _ in range(4):
+        for _ in range(6):
             qx, qy, qr = clusters[rnd.randrange(len(clusters))]
             angle = rnd.uniform(0, 2 * math.pi)
-            bx = int(qx + math.cos(angle) * (qr + 1.5))
-            by = int(qy + math.sin(angle) * (qr + 1.5))
+            bx = int(qx + math.cos(angle) * (qr + 1.2))
+            by = int(qy + math.sin(angle) * (qr + 1.2))
             if 0 <= bx < 16 and 0 <= by < 16 and img.getpixel((bx, by))[3] == 0:
                 img.putpixel((bx, by), (250, 250, 255, 200))
         save_texture(img, f'foam_{i}')
@@ -266,7 +265,9 @@ def water_rush(seconds, seed):
 
 
 def encode(signal, name, rms_db):
-    """Normalises to the given RMS level, softly limits peaks and writes a mono Ogg Vorbis file."""
+    """Normalises to the given RMS level, softly limits peaks and writes a mono Ogg Vorbis file.
+    The levels are set like Minecraft's own ambient loops (about -30 to -45 dBFS RMS), so a fall at
+    full volume sits with the game's sounds instead of over them."""
     signal = signal / np.sqrt(np.mean(signal ** 2)) * 10 ** (rms_db / 20.0)
     signal = np.tanh(signal / 0.9) * 0.9
     full = os.path.join(ASSETS, 'sounds', 'ambient', name + '.ogg')
@@ -279,10 +280,10 @@ def encode(signal, name, rms_db):
 
 def sounds():
     # two loops of different lengths per sound, so nearby falls never play in step
-    encode(waterfall_roar(8.0, 101), 'waterfall_roar_0', -16.0)
-    encode(waterfall_roar(6.6, 102), 'waterfall_roar_1', -16.0)
-    encode(water_rush(7.0, 201), 'water_rush_0', -18.0)
-    encode(water_rush(5.8, 202), 'water_rush_1', -18.0)
+    encode(waterfall_roar(8.0, 101), 'waterfall_roar_0', -30.0)
+    encode(waterfall_roar(6.6, 102), 'waterfall_roar_1', -30.0)
+    encode(water_rush(7.0, 201), 'water_rush_0', -31.0)
+    encode(water_rush(5.8, 202), 'water_rush_1', -31.0)
     write_json('sounds.json', {
         "ambient.waterfall": {
             "subtitle": "subtitles.terrahaul.ambient.waterfall",

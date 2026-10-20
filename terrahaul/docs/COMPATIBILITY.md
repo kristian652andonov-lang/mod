@@ -94,7 +94,19 @@ and `CreateWorldScreen.recreated`.
   appear on falls built by players, by vanilla or by other mods, and on servers. Water of other
   mods counts when its fluid is in the `minecraft:water` fluid tag. Mist is drawn in its own
   particle render type without depth writes; a mod whose custom particle render type does not set
-  the depth mask itself could be drawn after it without depth writes too.
+  the depth mask itself could be drawn after it without depth writes too. That render type uses
+  Terrahaul's own core shader (`terrahaul:mist`, Minecraft's particle shader without its 0.1
+  opacity cut-off); a resource pack that breaks it makes the mist fall back to the vanilla shader
+  with harder edges. With Fabulous graphics a second pass (`terrahaul:mist_depth`) writes the
+  depth of the mist in front of the water into the particle layer, so the mist is not laid
+  behind the pool and the curtain; where the mist itself is behind water, the water is laid over
+  it. Shader packs (Iris, Oculus) draw particles their own way: mist then uses the pack's particle
+  shader and the Fabulous pass does not run.
+- **Foam and the water surface:** foam floats on the water surface as vanilla's liquid renderer
+  draws it (corner heights raised to the full block next to falling water, the top face split
+  into two triangles along the north-west to south-east diagonal). A renderer that draws water
+  another way (Sodium, Embeddium) was not tested; foam is lifted 0.02 blocks over the highest
+  point of the surface under it, which covers small differences in how the face is split.
 - **Mods that override `rendertype_cutout`:** whichever resource pack is higher wins; see above.
 - **Packs or mods that override `shaders/include/fog.glsl`:** their version falls back to the
   vanilla cylinder fog for Terrahaul's shape 2. Valleys far below high peaks are then fogged as

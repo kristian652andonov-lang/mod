@@ -25,7 +25,8 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * {@code name@x,y,z,yaw,pitch}, {@code name@find:<landform>[,distance,height]} or
  * {@code name@biome:<biome id>[,distance,height]} (the camera is placed {@code distance} blocks from
  * the found place, {@code height} blocks above it, on the side with the clearest view, looking at
- * it). Afterwards the client shuts down. Without the property this class does nothing.
+ * it). An entry {@code graphics=fast|fancy|fabulous} switches the graphics mode for the shots
+ * after it. Afterwards the client shuts down. Without the property this class does nothing.
  */
 public final class ClientScreenshotTest {
     private static final String SPEC = System.getProperty("terrahaul.screenshots");
@@ -108,6 +109,15 @@ public final class ClientScreenshotTest {
                 return;
             }
             String shot = shots.get(index);
+            if (shot.startsWith("graphics=")) {
+                // setting the option alone does not set up the Fabulous render targets (the options
+                // screen also rebuilds the renderer); the next shot waits for the rebuild as usual
+                mc.options.graphicsMode().set(net.minecraft.client.GraphicsStatus.valueOf(shot.substring(9).toUpperCase(Locale.ROOT)));
+                mc.levelRenderer.allChanged();
+                Terrahaul.LOGGER.info("[screenshots] graphics {}, shader transparency {}", mc.options.graphicsMode().get(),
+                    Minecraft.useShaderTransparency());
+                return;
+            }
             String where = shot.substring(shot.indexOf('@') + 1);
             // "same" repeats the previous camera, for comparing animation frames
             double[] cam = where.equals("same") ? lastCamera : resolve(mc, where);

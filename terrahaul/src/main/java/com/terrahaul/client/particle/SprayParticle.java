@@ -25,12 +25,15 @@ import net.minecraft.world.level.material.FluidState;
  */
 public class SprayParticle extends TextureSheetParticle {
     public enum Kind {
-        /** Fine spray off a curtain: tiny, nearly weightless, slowed by the air and carried by the wind. */
-        SPRAY(0.035F, 0.075F, 14, 18, 0.05F, 0.92F, 1.0F),
+        // sizes are half widths: about vanilla's splash for spray and drops, so they still show as
+        // white water, not single pixels, from twenty blocks away
+
+        /** Fine spray off a curtain: nearly weightless, slowed by the air and carried by the wind. */
+        SPRAY(0.07F, 0.14F, 14, 18, 0.05F, 0.92F, 1.0F),
         /** Drops flung from the lip or thrown up by the landing water: fall back in an arc. */
-        DROPLET(0.04F, 0.08F, 22, 20, 0.8F, 0.98F, 0.15F),
+        DROPLET(0.06F, 0.12F, 22, 20, 0.8F, 0.98F, 0.15F),
         /** The burst of white water where a fall lands: big, fast and short-lived. */
-        SPLASH(0.09F, 0.2F, 8, 12, 0.6F, 0.95F, 0.25F);
+        SPLASH(0.12F, 0.26F, 8, 12, 0.6F, 0.95F, 0.25F);
 
         final float minSize;
         final float maxSize;

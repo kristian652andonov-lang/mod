@@ -1,11 +1,13 @@
 package com.terrahaul.client.water;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
 import java.util.SplittableRandom;
@@ -34,9 +36,11 @@ import net.minecraft.world.phys.Vec3;
  *   <li>every column of falling water, at its foot: how tall it is, whether it lands in water or
  *       on the ground, which of its sides are open to the air and which way the water leaves the
  *       lip above it;</li>
- *   <li>running (flowing, not falling) water open to the sky, a sample of up to
- *       {@value #MAX_RAPIDS} cells per section: rapids, the spill over each step, streams down a
- *       slope.</li>
+ *   <li>running (flowing, not falling) water open to the sky within {@value #RAPID_REACH} blocks
+ *       of falling water, a sample of up to {@value #MAX_RAPIDS} cells per section: the run-up to
+ *       the lip of a drop, the spill over each step of a cascade or a stream down a slope, and the
+ *       water running away from a fall's foot. Running water far from any drop (a spill on level
+ *       ground, a farm's channels, the spreading edge of a spring) does not count.</li>
  * </ul>
  * {@link #rebuild} joins neighbouring columns into {@link Fall}s and the running water of each
  * section into a {@link RapidPatch}, for the particles and sounds to use.
@@ -48,9 +52,12 @@ final class WaterScanner {
     static final int[] DZ = {-1, 0, 1, 0};
 
     private static final int MAX_RAPIDS = 48;
+    /** Running water counts as rapids this many blocks (across) from falling water at its level or one below. */
+    private static final int RAPID_REACH = 2;
     private static final int MAX_RUN = 512;
-    private static final int MAX_RADIUS = 5;
-    private static final int MAX_VERTICAL = 6;
+    /** Furthest reach in chunks horizontally and in sections vertically. */
+    static final int MAX_RADIUS = 7;
+    static final int MAX_VERTICAL = 6;
     private static final int CHECKS_PER_TICK = 240;
     private static final int SCANS_PER_TICK = 4;
     private static final Column[] NO_COLUMNS = new Column[0];
@@ -211,10 +218,9 @@ final class WaterScanner {
         int by = sy << 4;
         int bz = sz << 4;
         List<Column> columns = new ArrayList<>();
-        LongArrayList rapids = new LongArrayList();
-        int running = 0;
-        // seeded by the section, so unchanged water gives the same sample when it is scanned again
-        SplittableRandom random = new SplittableRandom(SectionPos.asLong(sx, sy, sz) * 0x9E3779B97F4A7C15L);
+        // falling water of the section, and its running water open to the sky (local indices)
+        BitSet fallingCells = new BitSet(4096);
+        IntArrayList open = new IntArrayList();
         for (int ly = 0; ly < 16; ly++) {
             for (int lz = 0; lz < 16; lz++) {
                 for (int lx = 0; lx < 16; lx++) {
@@ -226,6 +232,7 @@ final class WaterScanner {
                     int y = by + ly;
                     int z = bz + lz;
                     if (falling(fluid)) {
+                        fallingCells.set(index(lx, ly, lz));
                         FluidState below = ly > 0 ? section.getFluidState(lx, ly - 1, lz) : level.getFluidState(pos.set(x, y - 1, z));
                         if (!falling(below)) {
                             Column c = measure(level, x, y, z, below);
@@ -236,25 +243,66 @@ final class WaterScanner {
                         continue;
                     }
                     BlockState above = ly < 15 ? section.getBlockState(lx, ly + 1, lz) : level.getBlockState(pos.set(x, y + 1, z));
-                    if (!above.isAir()) {
-                        continue;
+                    if (above.isAir()) {
+                        open.add(index(lx, ly, lz));
                     }
-                    // running water open to the sky: keep an even random sample
-                    running++;
-                    if (rapids.size() < MAX_RAPIDS) {
-                        rapids.add(BlockPos.asLong(x, y, z));
-                    } else {
-                        int j = random.nextInt(running);
-                        if (j < MAX_RAPIDS) {
-                            rapids.set(j, BlockPos.asLong(x, y, z));
-                        }
-                    }
+                }
+            }
+        }
+        // the running water near a drop: keep an even random sample, seeded by the section, so
+        // unchanged water gives the same sample when it is scanned again
+        LongArrayList rapids = new LongArrayList();
+        SplittableRandom random = new SplittableRandom(SectionPos.asLong(sx, sy, sz) * 0x9E3779B97F4A7C15L);
+        int running = 0;
+        for (int k = 0; k < open.size(); k++) {
+            int i = open.getInt(k);
+            int lx = i & 15;
+            int lz = i >> 4 & 15;
+            int ly = i >> 8;
+            if (!nearFalling(level, fallingCells, bx, by, bz, lx, ly, lz)) {
+                continue;
+            }
+            long cell = BlockPos.asLong(bx + lx, by + ly, bz + lz);
+            running++;
+            if (rapids.size() < MAX_RAPIDS) {
+                rapids.add(cell);
+            } else {
+                int j = random.nextInt(running);
+                if (j < MAX_RAPIDS) {
+                    rapids.set(j, cell);
                 }
             }
         }
         long[] cells = rapids.toLongArray();
         Arrays.sort(cells);
         return new Section(now, columns.isEmpty() ? NO_COLUMNS : columns.toArray(NO_COLUMNS), cells.length == 0 ? NO_CELLS : cells);
+    }
+
+    private static int index(int lx, int ly, int lz) {
+        return ly << 8 | lz << 4 | lx;
+    }
+
+    /**
+     * Whether falling water lies within {@value #RAPID_REACH} blocks across of a cell, at its level
+     * (beside a fall's foot) or one below (the top of the fall it runs into). Inside the section
+     * from the scan, outside it from the level.
+     */
+    private boolean nearFalling(ClientLevel level, BitSet fallingCells, int bx, int by, int bz, int lx, int ly, int lz) {
+        for (int y = ly; y >= ly - 1; y--) {
+            for (int dz = -RAPID_REACH; dz <= RAPID_REACH; dz++) {
+                for (int dx = -RAPID_REACH; dx <= RAPID_REACH; dx++) {
+                    int x = lx + dx;
+                    int z = lz + dz;
+                    boolean found = x >= 0 && x < 16 && z >= 0 && z < 16 && y >= 0
+                        ? fallingCells.get(index(x, y, z))
+                        : falling(level.getFluidState(pos.set(bx + x, by + y, bz + z)));
+                    if (found) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /** Describes the column of falling water whose foot is at {@code x, y, z}; null while it is still settling. */

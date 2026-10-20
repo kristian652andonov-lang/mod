@@ -7,6 +7,7 @@ import com.terrahaul.client.particle.TerrahaulParticleProviders;
 import com.terrahaul.config.TerrahaulConfig;
 import com.terrahaul.config.TerrahaulConfig.AnimationQuality;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.ParticleStatus;
@@ -31,29 +32,34 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
  * Per column of falling water, scaled by its height and by how far it is from the camera:
  * <ul>
  *   <li>fine spray leaves the curtain on every side open to the air, most of it low down, where
- *       the water breaks up; drops arc off the lip above;</li>
- *   <li>the landing water bursts up in white splashes, higher for taller falls; on a step one
- *       block high it is a small churn of whitewater;</li>
+ *       the water breaks up; drops arc off the lip above, even on a step one block high;</li>
+ *   <li>the landing water bursts up in white splashes, higher for taller falls and several at a
+ *       time at the foot of every step of a cascade;</li>
  *   <li>mist rolls off the foot of falls three blocks and taller, and a fall fourteen blocks or
  *       taller also raises a large, slowly billowing cloud whose size grows with the fall;</li>
  *   <li>the pool churns white right at the foot, and foam floats away from there, downstream (the
- *       way the water left the lip) and outwards; running water carries flecks of foam along its
- *       current.</li>
+ *       way the water left the lip) and outwards; the water running towards and away from a drop
+ *       carries flecks of foam along its current.</li>
  * </ul>
- * Mist and the big clouds are seen from about twice as far as spray and foam. Every effect has
- * an option, and the particle count follows the animation quality, the density option and
- * Minecraft's Particles setting (half at Decreased, none at Minimal); each kind of particle has a
- * cap on how many can live at once. Nothing here runs on a server.
+ * Foam floats on the water surface as Minecraft draws it ({@link WaterSurface}), which rises to
+ * the full block around the foot of a fall, so the water does not hide it. Mist and the big
+ * clouds are seen from about twice as far as spray and foam: the clouds at full strength to about
+ * four fifths of their range, so a tall fall still stands in its cloud seen from across a valley.
+ * Every effect has an option, and the particle count follows the animation quality, the density
+ * option and Minecraft's Particles setting (half at Decreased, none at Minimal); each kind of
+ * particle has a cap on how many can live at once. Nothing here runs on a server.
  */
 public final class WaterEffects {
     private static final RandomSource RANDOM = RandomSource.create();
     /** Live particle caps per kind for the LOW, MEDIUM and HIGH quality. */
     private static final ParticleGroup[] SPRAY_CAP = {new ParticleGroup(300), new ParticleGroup(600), new ParticleGroup(1000)};
     private static final ParticleGroup[] MIST_CAP = {new ParticleGroup(160), new ParticleGroup(300), new ParticleGroup(480)};
-    private static final ParticleGroup[] FOAM_CAP = {new ParticleGroup(300), new ParticleGroup(600), new ParticleGroup(1000)};
+    private static final ParticleGroup[] FOAM_CAP = {new ParticleGroup(400), new ParticleGroup(800), new ParticleGroup(1400)};
     private static final double SPRAY_RANGE = 48.0;
     private static final double FOAM_RANGE = 40.0;
-    private static final double MIST_RANGE = 96.0;
+    private static final double MIST_RANGE = 104.0;
+    /** Share of each range spawned at for the LOW, MEDIUM and HIGH quality. */
+    private static final double[] REACH = {0.6, 0.75, 1.0};
     /** Falls this tall raise the big billowing cloud. */
     private static final int BILLOW_HEIGHT = 14;
     private static final int REBUILD_TICKS = 10;
@@ -90,12 +96,9 @@ public final class WaterEffects {
         }
         ticks++;
         Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
-        int radius = switch (quality) {
-            case OFF, LOW -> 3;
-            case MEDIUM -> 4;
-            case HIGH -> 5;
-        };
-        SCANNER.tick(level, cam, radius, radius + 1, ticks);
+        // the scan reaches as far as the mist is seen (four chunks at LOW, five at MEDIUM, seven at HIGH)
+        int radius = Math.min(WaterScanner.MAX_RADIUS, Mth.ceil(MIST_RANGE * REACH[qualityIndex(quality)] / 16.0));
+        SCANNER.tick(level, cam, radius, Math.min(radius + 1, WaterScanner.MAX_VERTICAL), ticks);
         if (SCANNER.version() != builtVersion && ticks - lastRebuild >= REBUILD_TICKS) {
             builtVersion = SCANNER.version();
             lastRebuild = ticks;
@@ -133,10 +136,13 @@ public final class WaterEffects {
     /** Forgets everything, when the player leaves a world or changes dimension. */
     public static void reset() {
         SCANNER.clear();
-        SOUNDS.stopAll(Minecraft.getInstance());
+        WaterSurface.clear();
+        SOUNDS.clear(Minecraft.getInstance());
         FALLS.clear();
         PATCHES.clear();
         builtVersion = -1;
+        // the falls of the new world are gathered on its first tick
+        lastRebuild = ticks - REBUILD_TICKS;
     }
 
     /** A chunk arrived from the server or was dropped on this client: its sections are read again. */
@@ -151,18 +157,22 @@ public final class WaterEffects {
 
     // ---- particles ----------------------------------------------------------------------------
 
-    private static void spawn(Minecraft mc, ClientLevel level, Vec3 cam, AnimationQuality quality) {
-        int q = switch (quality) {
+    private static int qualityIndex(AnimationQuality quality) {
+        return switch (quality) {
             case OFF, LOW -> 0;
             case MEDIUM -> 1;
             case HIGH -> 2;
         };
+    }
+
+    private static void spawn(Minecraft mc, ClientLevel level, Vec3 cam, AnimationQuality quality) {
+        int q = qualityIndex(quality);
         double scale = TerrahaulConfig.waterEffectDensity() * (q == 0 ? 0.45 : q == 1 ? 0.7 : 1.0)
             * (mc.options.particles().get() == ParticleStatus.DECREASED ? 0.5 : 1.0);
         if (scale <= 0.0) {
             return;
         }
-        double reach = q == 0 ? 0.6 : q == 1 ? 0.8 : 1.0;
+        double reach = REACH[q];
         boolean spray = TerrahaulConfig.waterfallSpray();
         boolean mist = TerrahaulConfig.waterfallMist();
         boolean foam = TerrahaulConfig.waterFoam();
@@ -170,11 +180,17 @@ public final class WaterEffects {
             MIST_RANGE * reach, TerrahaulParticleProviders.spraySprites(), TerrahaulParticleProviders.mistSprites(),
             TerrahaulParticleProviders.foamSprites());
         double range = mist ? ctx.mistRange : Math.max(ctx.sprayRange, ctx.foamRange);
+        // nearest falls first: when a kind of particle reaches its cap, the falls far away go without
+        List<Fall> inRange = new ArrayList<>();
         for (Fall fall : FALLS) {
-            double d = fall.distance(cam.x, cam.y, cam.z);
-            if (d > range) {
-                continue;
+            fall.cameraDistance = fall.distance(cam.x, cam.y, cam.z);
+            if (fall.cameraDistance <= range) {
+                inRange.add(fall);
             }
+        }
+        inRange.sort(Comparator.comparingDouble(f -> f.cameraDistance));
+        for (Fall fall : inRange) {
+            double d = fall.cameraDistance;
             if (mist && fall.height >= BILLOW_HEIGHT) {
                 billow(ctx, fall, d);
             }
@@ -221,6 +237,11 @@ public final class WaterEffects {
         return Mth.clamp(1.15 - d / range, 0.0, 1.0);
     }
 
+    /** Full rate to four fifths of the range, then fading out: for the clouds, which are seen from afar. */
+    private static double far(double d, double range) {
+        return Mth.clamp((range - d) / (0.2 * range), 0.0, 1.0);
+    }
+
     /** A whole number of events for a fractional expected count. */
     private static int count(double expected) {
         int n = (int) expected;
@@ -228,7 +249,7 @@ public final class WaterEffects {
     }
 
     private static void curtainSpray(Ctx ctx, WaterScanner.Column c, double d) {
-        if (c.height() < 2 || c.open() == 0 || d > ctx.sprayRange) {
+        if (c.open() == 0 || d > ctx.sprayRange) {
             return;
         }
         int faces = Integer.bitCount(c.open());
@@ -254,7 +275,8 @@ public final class WaterEffects {
             double fallen = Math.min(1.0, c.height() * (1.0 - u) / 20.0);
             double down = 0.06 + RANDOM.nextDouble() * 0.12 + 0.15 * fallen;
             SprayParticle p = new SprayParticle(ctx.level, x, y, z, nx * speed, -down, nz * speed, SprayParticle.Kind.SPRAY, ctx.sprayCap);
-            add(ctx, p.withSprite(sprite(ctx.spraySprites, RANDOM.nextBoolean() ? 1 : 3)));
+            // the bold sprites (a round drop, a puff), which still read as white water from afar
+            add(ctx, p.withSprite(sprite(ctx.spraySprites, RANDOM.nextBoolean() ? 0 : 3)));
         }
     }
 
@@ -270,7 +292,7 @@ public final class WaterEffects {
 
     private static void lipDrops(Ctx ctx, WaterScanner.Column c, double d) {
         int top = c.y() + c.height() - 1;
-        if (c.height() < 2 || c.lipY() <= top || c.dirX() == 0.0F && c.dirZ() == 0.0F) {
+        if (c.lipY() <= top || c.dirX() == 0.0F && c.dirZ() == 0.0F) {
             return;
         }
         double ly = c.lipY() + 0.3 + RANDOM.nextDouble() * 0.5;
@@ -278,7 +300,7 @@ public final class WaterEffects {
         if (dl > ctx.sprayRange * 0.85) {
             return;
         }
-        for (int n = count(0.035 * near(dl, ctx.sprayRange * 0.85) * ctx.scale); n > 0; n--) {
+        for (int n = count(0.05 * near(dl, ctx.sprayRange * 0.85) * ctx.scale); n > 0; n--) {
             double t = RANDOM.nextDouble() - 0.5;
             double x = c.x() + 0.5 + c.dirX() * 0.55 - c.dirZ() * t * 0.9;
             double z = c.z() + 0.5 + c.dirZ() * 0.55 + c.dirX() * t * 0.9;
@@ -294,15 +316,17 @@ public final class WaterEffects {
             return;
         }
         int h = Math.min(c.height(), 100);
-        double rate = (c.height() >= 2 ? 0.2 * (0.6 + 0.5 * Math.sqrt(h)) : 0.12) * near(d, ctx.sprayRange) * ctx.scale;
+        // even a step one block high keeps several bursts going at once at the foot of each column
+        double rate = (0.32 + 0.12 * Math.sqrt(h)) * near(d, ctx.sprayRange) * ctx.scale;
         // taller falls land harder and throw the water higher and further
-        double power = c.height() >= 2 ? Math.min(1.7, 0.5 + 0.12 * Math.sqrt(h)) : 0.4;
+        double power = Math.min(1.7, 0.45 + 0.12 * Math.sqrt(h));
         for (int n = count(rate); n > 0; n--) {
             double ox = (RANDOM.nextDouble() - 0.5) * 1.4;
             double oz = (RANDOM.nextDouble() - 0.5) * 1.4;
             double x = c.x() + 0.5 + ox;
             double z = c.z() + 0.5 + oz;
-            double y = c.surface() + 0.05;
+            // above the drawn water, which rises to the full block around the foot
+            double y = c.surface() + 0.12;
             if (ctx.level.getBlockState(BlockPos.containing(x, y, z)).blocksMotion()) {
                 continue;
             }
@@ -318,25 +342,26 @@ public final class WaterEffects {
     }
 
     /**
-     * Whitewater: where the water plunges into the pool it churns white. Dense patches of foam
-     * that hardly move and last only a second or two, right at the foot of the curtain (mostly in
-     * front of it), so every step of a cascade and the base of every fall shows a band of white.
+     * Whitewater: where the water plunges into the pool it churns white. Dense, large patches of
+     * foam that hardly move and last only a second or two, right at the foot of the curtain (mostly
+     * in front of it), so every step of a cascade and the base of every fall shows a band of white.
      */
     private static void churn(Ctx ctx, WaterScanner.Column c, double d) {
         if (d > ctx.foamRange) {
             return;
         }
         int h = Math.min(c.height(), 100);
-        double rate = (c.height() >= 2 ? 0.12 + 0.03 * Math.sqrt(h) : 0.1) * near(d, ctx.foamRange) * ctx.scale;
+        double rate = (0.16 + 0.04 * Math.sqrt(h)) * near(d, ctx.foamRange) * ctx.scale;
         for (int n = count(rate); n > 0; n--) {
-            double[] spot = footSpot(ctx.level, c, 0.45, 0.7 + Math.min(h, 40) * 0.015, 1.2);
+            float size = 0.26F + Math.min(h, 30) * 0.004F + RANDOM.nextFloat() * 0.18F;
+            double[] spot = footSpot(ctx.level, c, 0.45, 0.7 + Math.min(h, 40) * 0.015, 1.2, size * 0.8);
             if (spot == null) {
                 continue;
             }
-            float size = (c.height() >= 2 ? 0.2F : 0.15F) + RANDOM.nextFloat() * 0.13F;
             double xd = spot[3] * 0.004 + RANDOM.nextGaussian() * 0.003;
             double zd = spot[4] * 0.004 + RANDOM.nextGaussian() * 0.003;
-            FoamParticle p = new FoamParticle(ctx.level, spot[0], spot[2] + 0.03, spot[1], xd, zd, size, 22 + RANDOM.nextInt(30), ctx.foamCap);
+            FoamParticle p = new FoamParticle(ctx.level, spot[0], spot[2] + WaterSurface.LIFT, spot[1], xd, zd, size, 24 + RANDOM.nextInt(32),
+                ctx.foamCap);
             add(ctx, p.withSprite(sprite(ctx.foamSprites, RANDOM.nextInt(4))));
         }
     }
@@ -347,9 +372,10 @@ public final class WaterEffects {
             return;
         }
         int h = Math.min(c.height(), 100);
-        double rate = (c.height() >= 2 ? 0.09 * (0.5 + 0.35 * Math.sqrt(h)) : 0.06) * near(d, ctx.foamRange) * ctx.scale;
+        double rate = (c.height() >= 2 ? 0.09 * (0.5 + 0.35 * Math.sqrt(h)) : 0.08) * near(d, ctx.foamRange) * ctx.scale;
         for (int n = count(rate); n > 0; n--) {
-            double[] spot = footSpot(ctx.level, c, 0.6, 1.0 + Math.min(h, 60) * 0.03, 1.4);
+            float size = c.height() >= 2 ? 0.22F + RANDOM.nextFloat() * 0.2F : 0.18F + RANDOM.nextFloat() * 0.14F;
+            double[] spot = footSpot(ctx.level, c, 0.6, 1.0 + Math.min(h, 60) * 0.03, 1.4, size * 0.8);
             if (spot == null) {
                 continue;
             }
@@ -359,8 +385,8 @@ public final class WaterEffects {
             double push = (0.015 + RANDOM.nextDouble() * 0.025) * (1.0 + h / 40.0);
             double xd = ox / len * push + c.dirX() * (0.01 + RANDOM.nextDouble() * 0.02);
             double zd = oz / len * push + c.dirZ() * (0.01 + RANDOM.nextDouble() * 0.02);
-            float size = c.height() >= 2 ? 0.16F + RANDOM.nextFloat() * 0.2F : 0.1F + RANDOM.nextFloat() * 0.12F;
-            FoamParticle p = new FoamParticle(ctx.level, spot[0], spot[2] + 0.025, spot[1], xd, zd, size, 90 + RANDOM.nextInt(110), ctx.foamCap);
+            FoamParticle p = new FoamParticle(ctx.level, spot[0], spot[2] + WaterSurface.LIFT, spot[1], xd, zd, size, 90 + RANDOM.nextInt(110),
+                ctx.foamCap);
             add(ctx, p.withSprite(sprite(ctx.foamSprites, RANDOM.nextInt(4))));
         }
     }
@@ -369,9 +395,10 @@ public final class WaterEffects {
      * A spot on open water near the foot of a column: mostly downstream (in front of the curtain),
      * one time in four to a side or behind, {@code along} to {@code along + span} blocks out and
      * up to half of {@code side} across. A spot on the bank or under the curtain is tried once
-     * more. Returns x, z, the water surface there and the direction used, or null.
+     * more. Returns x, z, the highest point of the drawn water surface within {@code radius} of the
+     * spot and the direction used, or null.
      */
-    private static double[] footSpot(ClientLevel level, WaterScanner.Column c, double along, double span, double side) {
+    private static double[] footSpot(ClientLevel level, WaterScanner.Column c, double along, double span, double side, double radius) {
         for (int attempt = 0; attempt < 2; attempt++) {
             double ax = c.dirX();
             double az = c.dirZ();
@@ -384,7 +411,7 @@ public final class WaterEffects {
             double across = (RANDOM.nextDouble() - 0.5) * side;
             double x = c.x() + 0.5 + ax * out - az * across;
             double z = c.z() + 0.5 + az * out + ax * across;
-            double surface = surfaceAt(level, x, c.surface(), z);
+            double surface = surfaceAt(level, x, c.surface(), z, radius);
             if (!Double.isNaN(surface)) {
                 return new double[]{x, z, surface, ax, az};
             }
@@ -393,16 +420,16 @@ public final class WaterEffects {
     }
 
     /**
-     * The water surface near {@code nearY} at a point, if the block there (or the one below) is
-     * water open to the air; NaN otherwise.
+     * The highest point of the drawn water surface within {@code radius} of a point, if the block
+     * there near {@code nearY} (or the one below) is water open to the air; NaN otherwise.
      */
-    private static double surfaceAt(ClientLevel level, double x, double nearY, double z) {
+    private static double surfaceAt(ClientLevel level, double x, double nearY, double z, double radius) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(Mth.floor(x), Mth.floor(nearY - 0.05), Mth.floor(z));
         for (int i = 0; i < 2; i++) {
             FluidState fluid = level.getFluidState(pos);
             if (fluid.is(FluidTags.WATER)) {
                 if (level.getFluidState(pos.above()).isEmpty() && !level.getBlockState(pos.above()).blocksMotion()) {
-                    return pos.getY() + fluid.getOwnHeight();
+                    return WaterSurface.highest(level, x, pos.getY(), z, radius);
                 }
                 return Double.NaN;
             }
@@ -413,7 +440,7 @@ public final class WaterEffects {
 
     private static void footMist(Ctx ctx, WaterScanner.Column c, double d) {
         int h = Math.min(c.height(), 120);
-        double rate = 0.012 * Math.pow(h, 0.8) * near(d, ctx.mistRange * 0.75) * ctx.scale;
+        double rate = 0.012 * Math.pow(h, 0.8) * far(d, ctx.mistRange * 0.9) * ctx.scale;
         for (int n = count(rate); n > 0; n--) {
             double spread = 0.5 + h * 0.03;
             double ax = c.dirX() == 0.0F && c.dirZ() == 0.0F ? RANDOM.nextGaussian() * 0.5 : c.dirX();
@@ -440,7 +467,7 @@ public final class WaterEffects {
     /** The big cloud of a tall fall: large, slow puffs that rise above the pool and drift off. */
     private static void billow(Ctx ctx, Fall fall, double d) {
         int h = Math.min(fall.height, 120);
-        double rate = 0.0035 * Math.pow(fall.width, 0.8) * Math.pow(h, 0.6) * near(d, ctx.mistRange) * ctx.scale;
+        double rate = 0.0035 * Math.pow(fall.width, 0.8) * Math.pow(h, 0.6) * far(d, ctx.mistRange) * ctx.scale;
         double reach = 1.0 + Math.sqrt(fall.width * (double) h) * 0.18;
         for (int n = count(rate); n > 0; n--) {
             double forward = reach * (0.3 + RANDOM.nextDouble() * 0.6);
@@ -457,7 +484,7 @@ public final class WaterEffects {
         }
     }
 
-    /** Running water: flecks of foam riding the current, and a little whitewater thrown up. */
+    /** Running water near a drop: flecks of foam riding the current, and a little whitewater thrown up. */
     private static void rapids(Ctx ctx, WaterScanner.RapidPatch patch, boolean foam, boolean spray) {
         double d = Math.max(0.0, Math.sqrt(ctx.cam.distanceToSqr(patch.x(), patch.y(), patch.z())) - 8.0);
         if (d > ctx.foamRange) {
@@ -478,9 +505,13 @@ public final class WaterEffects {
             Vec3 flow = fluid.getFlow(ctx.level, pos);
             double x = pos.getX() + 0.15 + RANDOM.nextDouble() * 0.7;
             double z = pos.getZ() + 0.15 + RANDOM.nextDouble() * 0.7;
-            double y = pos.getY() + fluid.getOwnHeight();
+            float size = 0.1F + RANDOM.nextFloat() * 0.14F;
+            double y = WaterSurface.highest(ctx.level, x, pos.getY(), z, size * 0.8);
+            if (Double.isNaN(y)) {
+                continue;
+            }
             if (n > sprayCount) {
-                FoamParticle p = new FoamParticle(ctx.level, x, y + 0.025, z, flow.x * 0.05, flow.z * 0.05, 0.08F + RANDOM.nextFloat() * 0.12F,
+                FoamParticle p = new FoamParticle(ctx.level, x, y + WaterSurface.LIFT, z, flow.x * 0.05, flow.z * 0.05, size,
                     50 + RANDOM.nextInt(70), ctx.foamCap);
                 add(ctx, p.withSprite(sprite(ctx.foamSprites, RANDOM.nextInt(4))));
             } else {

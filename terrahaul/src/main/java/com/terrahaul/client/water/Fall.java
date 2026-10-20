@@ -29,6 +29,8 @@ final class Fall {
     final boolean pool;
     /** Identity of the fall across rescans: the lowest packed position of its feet. */
     final long key;
+    /** Distance from the camera this tick, for the effects. */
+    double cameraDistance;
 
     Fall(WaterScanner.Column[] columns) {
         this.columns = columns;

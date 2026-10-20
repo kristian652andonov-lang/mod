@@ -1,6 +1,7 @@
 package com.terrahaul.client.particle;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.terrahaul.client.water.WaterSurface;
 import com.terrahaul.client.wind.WindSystem;
 import java.util.Optional;
 import net.minecraft.client.Camera;
@@ -23,9 +24,13 @@ import org.joml.Vector3f;
  * <p>
  * It lies flat on the surface (a quad in the water plane, not a sprite turned to the camera) and
  * rides it: on running water it follows the current, so foam from a step travels down the stream;
- * on a still pool it keeps the push it was born with, slows down, turns a little and drifts with
- * the wind. It spreads at first, then slowly breaks up and fades. Foam carried over the edge of a
- * drop or onto the shore is gone within a few ticks.
+ * on a still pool it keeps the push it was born with, slows down, turns a little and drifts slowly
+ * with the wind. It spreads at first, then slowly breaks up and fades. Foam carried over the edge
+ * of a drop or onto the shore is gone within a few ticks.
+ * <p>
+ * It floats just above the surface as Minecraft draws it ({@link WaterSurface}), which rises to the
+ * full block next to falling water, and above the highest point of that surface under the patch,
+ * so the water never cuts through it.
  */
 public class FoamParticle extends TextureSheetParticle {
     private final ParticleGroup group;
@@ -40,7 +45,7 @@ public class FoamParticle extends TextureSheetParticle {
     private final BlockPos.MutableBlockPos cell = new BlockPos.MutableBlockPos();
 
     /**
-     * @param y    the water surface the foam floats on
+     * @param y    height of the foam: {@link WaterSurface#LIFT} above the drawn water surface
      * @param size half width of the patch when it has spread
      */
     public FoamParticle(ClientLevel level, double x, double y, double z, double xd, double zd, float size, int lifetime, ParticleGroup group) {
@@ -109,8 +114,11 @@ public class FoamParticle extends TextureSheetParticle {
             fluid = level.getFluidState(cell);
         }
         if (fluid.is(FluidTags.WATER) && !level.getFluidState(cell.above()).is(FluidTags.WATER)) {
-            surface = cell.getY() + fluid.getOwnHeight();
-            if (!fluid.isSource() && fluid.hasProperty(FlowingFluid.FALLING) && fluid.getValue(FlowingFluid.FALLING)) {
+            surface = WaterSurface.highest(level, x, cell.getY(), z, quadSize * 0.8);
+            if (Double.isNaN(surface)) {
+                // something lies on the water here
+                dissolving = true;
+            } else if (!fluid.isSource() && fluid.hasProperty(FlowingFluid.FALLING) && fluid.getValue(FlowingFluid.FALLING)) {
                 // carried over the edge of a drop: churned under
                 dissolving = true;
             } else if (!fluid.isSource()) {
@@ -123,7 +131,9 @@ public class FoamParticle extends TextureSheetParticle {
             // washed ashore, or under falling water
             dissolving = true;
         }
-        float wind = WindSystem.total(1.0F) * 0.0015F;
+        // the wind barely moves foam on the water (a few percent of what it does to mist in the
+        // air), so the push from the fall and the current carry it
+        float wind = WindSystem.total(1.0F) * 0.0002F;
         xd = xd * 0.985 + WindSystem.dirX(1.0F) * wind;
         zd = zd * 0.985 + WindSystem.dirZ(1.0F) * wind;
 
@@ -136,7 +146,12 @@ public class FoamParticle extends TextureSheetParticle {
             nx = x;
             nz = z;
         }
-        double ny = Double.isNaN(surface) ? y : y + (surface + 0.025 - y) * 0.5;
+        // up at once where the surface rises (towards falling water), gently down off a step
+        double ny = y;
+        if (!Double.isNaN(surface)) {
+            double target = surface + WaterSurface.LIFT;
+            ny = target > y ? target : y + (target - y) * 0.5;
+        }
         spin += spinRate * (float) Math.min(1.0, Math.sqrt(xd * xd + zd * zd) * 20.0 + 0.1);
         setPos(nx, ny, nz);
     }

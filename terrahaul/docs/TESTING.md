@@ -244,28 +244,47 @@ tested on a real GPU.
   ran `AutoTest` and stopped cleanly. The new particle types register on both sides; everything
   else is in `com.terrahaul.client` and is only reached from the client entry point, so the
   server loads none of it. No world generation code changed.
-- **In game** (development client, Mesa llvmpipe, render distance 10, the world above): the
-  effects found the falls near each screenshot and logged them, for example 17 falls of 130
-  columns (tallest 25, widest 94: a step across a river) at the waterfall and 29 falls of 80
-  columns at the cascade. The cascade shot shows a mist puff at the foot of a step and droplets
-  over the pools. The two waterfall shots were taken from viewpoints whose view of the curtain
-  was blocked by the gorge wall (the screenshot harness aims at the finder's point, about 20
-  blocks from the curtain), so they show little of it. Live particle counts matched the
-  expected rates (about 290 at 20 blocks from a 7-wide, 25-high fall, leaves included).
-- **Offline replay:** a small Python script (not kept in the repository) read the saved world's
-  region files around the two finder results and replayed the scanner (columns, landing, open
-  sides) and the foam placement: the waterfall is one curtain of 7 columns, 25 high, landing in its plunge
-  pool and open to the front (two edge columns also to the side); the cascade has 12 columns
-  of 2 and 3 blocks on two steps. Foam positions picked at random around a column land on open
-  water about half the time (the rest on banks or under the curtain), which is why foam now
-  takes the downstream side three times in four and tries a second spot. After this, a dense,
-  short-lived whitewater churn at the foot of every landing was added and splashes on small
-  steps made stronger; that tuning was not seen in game.
+- **First in-game run** (development client, Mesa llvmpipe, render distance 10, the world
+  above): the effects found the falls near each screenshot (17 falls of 130 columns, tallest 25,
+  widest 94, at the waterfall). The screenshots, aimed at the finder's point, showed little of
+  the curtain. A review then replayed the effects against the saved world and found:
+  - foam at the foot of every fall lay under the water as it is drawn. Minecraft draws the
+    corners of a water surface at the full block next to water with water above it, so the pool
+    rises towards the curtain; foam floated at the water's own height (8/9). That hid 72-100% of
+    the whitewater churn and 40-69% of the pool foam;
+  - Minecraft's particle shader drops everything under an opacity of 0.1, so a quarter to half of
+    the mist was invisible and the rest had hard edges;
+  - with Fabulous graphics, mist (drawn without depth writes) was laid behind the water layer;
+  - the sound came from the middle of a fall (silent from the banks of a 94-wide step), and the
+    loops were mastered at -16 to -18 dBFS, about 20 dB above Minecraft's ambient loops;
+  - foam drifted with the wind at 0.1 x wind blocks per tick, small steps had little white water,
+    and any running water open to the sky counted as rapids.
+- **Fixes, checked offline:** foam now floats 0.02 blocks above the highest point of the drawn
+  surface under it (the renderer's corner rule, the face split into two triangles, sampled at
+  the centre and eight points around the patch). A replay of the spawn code on the saved world
+  (waterfall at -683, -506 and cascade at -735, -694, 1347-2324 spawns per kind) puts 0% of
+  the foam centres and 0.0-0.4% of the patch area under the drawn surface, against 41-100% and
+  41-96% before. Mist has its own core shader (the particle shader with the cut-off at 1/255).
+  The loops were regenerated at -30.2 dBFS (roar) and -31.2 dBFS (rush) RMS, with peaks at -14 to
+  -17 dBFS; loop lengths are unchanged and the seams stay within the normal sample-to-sample
+  step. `tools/datagen_water_fx.py` still regenerates byte-identical files.
+- **Second in-game run** (same client and world, Fancy graphics, cameras placed by hand: in the
+  plunge pool 13 and 6 blocks in front of the 7-wide, 25-high curtain, beside the pool, 75 blocks
+  out, and in the cascade's lower pool 5 and 13 blocks from a 3-high step): the screenshots show
+  a soft mist cloud at the foot of the fall without hard edges, dense white foam and churn on
+  the pool in front of the curtain, and foam and splashes at the foot of both cascade steps.
+  The effects logged 61 falls of 275 columns at the waterfall (the scan now reaches seven chunks
+  at HIGH) and 347 cells of running water near drops; up to 767 particles were live. From 75
+  blocks the fall shows a small white cloud at its foot.
+- **Fabulous graphics: not checked in game.** The run switched to Fabulous for two more shots,
+  but the screenshot harness only set the option without rebuilding the renderer, and the client
+  crashed in vanilla code on the missing Fabulous render target. The harness now rebuilds the
+  renderer after switching. Both mist shaders (`terrahaul:mist`, `terrahaul:mist_depth`) loaded,
+  compiled and linked without a warning, but the depth pass's effect (mist in front of the pool and the curtain composited over the water)
+  has not been seen.
 - **Sounds:** the container has no audio device (OpenAL fails to open), so the loops were not
-  heard and the sound controller did not run in game. The four Ogg files decode with
-  stb_vorbis (the decoder Minecraft uses) as mono 44.1 kHz with exact loop lengths (7.0, 5.8,
-  8.0 and 6.6 s); their ends join within the normal sample-to-sample step (no click), and
-  `tools/datagen_water_fx.py` regenerates byte-identical files.
+  heard and the sound controller did not run in game. The four Ogg files decode as mono 44.1 kHz
+  with exact loop lengths (7.0, 5.8, 8.0 and 6.6 s).
 
 ## Not tested
 - **Real GPUs and drivers:** only Mesa's software renderer was used. Shader behaviour (sway, fog)
