@@ -178,6 +178,15 @@ tasks.register('waterStudy', JavaExec) {
     args = (project.findProperty('args') ?: 'solve 12345 4 build/water').toString().split(' ').toList()
 }
 
+tasks.register('fallStudy', JavaExec) {
+    group = 'terrahaul'
+    description = 'Measures what waterfalls cut and build, and renders them (development only).'
+    classpath = sourceSets.devtools.runtimeClasspath
+    mainClass = 'com.terrahaul.devtools.FallStudy'
+    jvmArgs '-Xmx3G', '-Djava.awt.headless=true'
+    args = (project.findProperty('args') ?: 'survey 12345 2048 build/falls/sites_12345.txt').toString().split(' ').toList()
+}
+
 tasks.register('peakStudy', JavaExec) {
     group = 'terrahaul'
     description = 'Renders views and profiles of mountain summits (development only).'

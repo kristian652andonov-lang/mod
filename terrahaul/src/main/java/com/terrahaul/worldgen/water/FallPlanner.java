@@ -21,12 +21,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * the same thing and {@code /terrahaul find} reports only what exists.
  * <p>
  * <b>Waterfalls</b> ({@value #FALL_CELL}-block cells) look for a knickpoint: high ground that is
- * level or rising behind, falling steeply ahead. The lip is placed at block resolution, the
- * channel's water one block below the lip's top, and the foot where the slope flattens out or
- * reaches the sea or a lake. The bowl the plan cuts makes any steep slope a free-hanging fall:
- * curtains where the foot is close, falls at the head of a gorge where it is farther. Falls are
- * more frequent and wider in wet climates, and where a canyon, fjord or sea cliff gives the land
- * a sudden edge.
+ * level or rising behind, falling steeply ahead in one of sixteen directions, where the face drops
+ * at least {@value #MIN_STEEPNESS} blocks per block of run. The lip is placed at block resolution,
+ * the channel's water one block below the lip's top, and the foot where the slope flattens out or
+ * reaches the sea or a lake. The fall comes down that slope as it is: its ledges, cleft, crags, pool
+ * and outflow are fitted to the natural ground (see {@link FallCourse}), never carved into it as a
+ * bowl. A site that would need more than a few blocks cut or built anywhere, more ground cut in all
+ * than {@link #cutCap} allows, rock built over open air, or whose water would not run all the way
+ * down to its pool, is no site. Steep faces make plunges, gentler ones tiered falls and horsetails,
+ * long cliff edges in wet climates fans of strands. Falls are more frequent and wider in wet
+ * climates, and where a canyon, fjord or sea cliff gives the land a sudden edge.
  * <p>
  * <b>Cascades</b> ({@value #CASCADE_CELL}-block cells) follow the steepest descent down a moderate
  * humid slope and lay two to six pools along it, each a few blocks below the last.
@@ -179,9 +183,23 @@ public final class FallPlanner {
     // waterfalls
     // =========================================================================================
 
-    private static final int[][] AXES = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-    /** Highest fall on a slope that is not a cliff (the bowl in front is cut into the slope). */
-    private static final int MAX_SLOPE_DROP = 40;
+    /** The eight directions of the coarse candidate scan, {@code d} being {@code 2 d} sixteenths of a turn. */
+    private static final int[][] AXES8 = {{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+    /** Gentlest face a waterfall comes down: on gentler slopes water runs in rapids and cascades. */
+    private static final double MIN_STEEPNESS = 1.2;
+    /** Longest face from the lip to the pool, in blocks along the fall. */
+    private static final int MAX_RUN = 44;
+    /** Highest drop from the lip to the pool. */
+    private static final int MAX_DROP = 64;
+    /** Ground a waterfall may cut away (see {@link #cutCap}): a base, and so much per block of drop. */
+    static final int CUT_BASE = 1400;
+    static final int CUT_PER_DROP = 30;
+    /** Deepest any column may be cut below the natural surface. */
+    static final int MAX_CUT_DEPTH = 10;
+    /** Highest any column may be built up above the natural surface. */
+    private static final int MAX_FILL = 3;
+    /** Highest bank the solver may have to raise beside the water. */
+    private static final int MAX_BANK = 2;
 
     private FallPlan planFall(int cx, int cz) {
         double roll = SeedMixer.cellUnit(fallSeed, cx, cz, 0);
@@ -216,8 +234,10 @@ public final class FallPlanner {
         if (roll > chance) {
             return null;
         }
-        // candidates on a 16-block grid: high ground with a steep drop ahead along an axis
-        List<double[]> cands = new ArrayList<>();
+        // candidates on a 16-block grid: high ground, level or rising behind, falling steeply ahead.
+        // A coarse look first, in eight directions over the grid's own samples (which every
+        // candidate shares), then the best of them in sixteen directions at block resolution
+        List<double[]> coarse = new ArrayList<>();
         for (int i = 0; i < 16; i++) {
             for (int j = 0; j < 16; j++) {
                 int px = x0 + 8 + 16 * i;
@@ -230,28 +250,55 @@ public final class FallPlanner {
                 double h0 = s.height;
                 // a stream running over the edge makes the most natural fall
                 double wet = smoothstep(-0.2, 0.7, s.humidity) * (s.stream > 0.3 ? 1.6 : 1.0);
-                for (int d = 0; d < 4; d++) {
-                    int dx = AXES[d][0];
-                    int dz = AXES[d][1];
+                for (int d = 0; d < 8; d++) {
+                    int dx = AXES8[d][0];
+                    int dz = AXES8[d][1];
+                    double len = dx != 0 && dz != 0 ? 22.6 : 16.0;
                     double hb = ps.corner(px - 16 * dx, pz - 16 * dz).height;
                     double ha = ps.corner(px + 16 * dx, pz + 16 * dz).height;
                     double ha2 = ps.corner(px + 32 * dx, pz + 32 * dz).height;
-                    if (hb - h0 < -6.0 || hb - h0 > 16.0 || h0 - ha < 10.0) {
+                    if ((hb - h0) / len < -0.6 || (hb - h0) / len > 1.4 || (h0 - ha) / len < 0.55) {
                         continue;
                     }
-                    cands.add(new double[]{(h0 - Math.min(ha, ha2)) * (0.5 + wet), px, pz, d});
+                    double steep = Math.min(2.5, (h0 - ha) / len);
+                    coarse.add(new double[]{(h0 - Math.min(ha, ha2)) * steep * (0.5 + wet), px, pz, 2 * d, wet});
                 }
+            }
+        }
+        if (coarse.isEmpty()) {
+            return null;
+        }
+        coarse.sort((a, b) -> Double.compare(b[0], a[0]));
+        List<double[]> cands = new ArrayList<>();
+        for (int c = 0; c < Math.min(16, coarse.size()); c++) {
+            double[] k = coarse.get(c);
+            int px = (int) k[1];
+            int pz = (int) k[2];
+            double h0 = ps.height(px, pz);
+            for (int d = (int) k[3] - 1; d <= k[3] + 1; d++) {
+                int dir = Math.floorMod(d, 16);
+                double ax = Math.cos(dir * Math.PI / 8.0);
+                double az = Math.sin(dir * Math.PI / 8.0);
+                double hb = ps.height((int) Math.round(px - 12 * ax), (int) Math.round(pz - 12 * az));
+                double ha = ps.height((int) Math.round(px + 12 * ax), (int) Math.round(pz + 12 * az));
+                double ha2 = ps.height((int) Math.round(px + 24 * ax), (int) Math.round(pz + 24 * az));
+                if (hb - h0 < -6.0 || hb - h0 > 16.0 || h0 - ha < 9.0) {
+                    continue;
+                }
+                // steep ground right ahead counts most: that is where water falls rather than runs
+                double steep = Math.min(2.5, (h0 - ha) / 12.0);
+                cands.add(new double[]{(h0 - Math.min(ha, ha2)) * steep * (0.5 + k[4]), px, pz, dir});
             }
         }
         if (cands.isEmpty()) {
             return null;
         }
         cands.sort((a, b) -> Double.compare(b[0], a[0]));
-        FallPlan best = null;
+        List<FallPlan> laid = new ArrayList<>();
         int tried = 0;
         List<double[]> done = new ArrayList<>();
         for (double[] c : cands) {
-            if (tried >= 5) {
+            if (tried >= 6) {
                 break;
             }
             boolean near = false;
@@ -263,21 +310,54 @@ public final class FallPlanner {
             }
             done.add(c);
             tried++;
-            FallPlan p = refineFall(ps, cx, cz, (int) c[1], (int) c[2], AXES[(int) c[3]][0], AXES[(int) c[3]][1]);
-            if (p != null && (best == null || p.score > best.score)) {
-                best = p;
+            FallPlan p = refineFall(ps, cx, cz, (int) c[1], (int) c[2], (int) c[3]);
+            if (p != null) {
+                laid.add(p);
             }
         }
-        return best;
+        // the best fall that passes the checks: checked best first, so the costly checks (every
+        // column of the footprint, the view) stop at the first that passes (a stable sort keeps
+        // the candidates' order among equal scores)
+        laid.sort((a, b) -> Double.compare(b.score, a.score));
+        for (FallPlan p : laid) {
+            if (checked(ps, p)) {
+                return p;
+            }
+        }
+        return null;
     }
 
-    /** Fits a waterfall to the slope through {@code (px, pz)} in direction {@code (dx, dz)}. */
-    private FallPlan refineFall(PlanSampler ps, int cx, int cz, int px, int pz, int dx, int dz) {
+    /**
+     * Fits a waterfall to the slope through {@code (px, pz)} in compass direction {@code dir}
+     * (sixteenths of a turn): finds the lip and the foot of the slope, chooses a style the slope
+     * suits, lays the course down the face (see {@link FallCourse}) and scores it; what it would
+     * build is checked afterwards ({@link #checked}).
+     */
+    private FallPlan refineFall(PlanSampler ps, int cx, int cz, int px, int pz, int dir) {
         int sl = model.seaLevel();
+        double ax = Math.cos(dir * Math.PI / 8.0);
+        double az = Math.sin(dir * Math.PI / 8.0);
+        // water gathers in the low line of a slope: the axis moves across to the bottom of the
+        // hollow ahead (a gully, the head of a valley), so the fall comes down between natural
+        // walls instead of over a spur
+        int shift = 0;
+        double low = Double.MAX_VALUE;
+        for (int v = -10; v <= 10; v += 2) {
+            double h = 0.25 * Math.abs(v);
+            for (int u = 6; u <= 18; u += 6) {
+                h += ps.height((int) Math.round(px + u * ax - v * az), (int) Math.round(pz + u * az + v * ax));
+            }
+            if (h < low) {
+                low = h;
+                shift = v;
+            }
+        }
+        px = (int) Math.round(px - shift * az);
+        pz = (int) Math.round(pz + shift * ax);
         final int o = 40;
         double[] prof = new double[o + 81];
         for (int k = -o; k <= 80; k++) {
-            prof[k + o] = ps.height(px + k * dx, pz + k * dz);
+            prof[k + o] = ps.height((int) Math.round(px + k * ax), (int) Math.round(pz + k * az));
         }
         // the lip: the steepest edge near the candidate with level or rising ground behind it
         int lip = Integer.MIN_VALUE;
@@ -285,7 +365,9 @@ public final class FallPlanner {
         for (int k = -14; k <= 14; k++) {
             double ahead = (prof[k + o] - prof[k + o + 3]) / 3.0;
             double behind = (prof[k + o - 4] - prof[k + o]) / 4.0;
-            if (ahead < 1.0 || behind < -0.6) {
+            // the edge of a steep stretch: the ground behind it level or rising gently, not the
+            // middle of a long slope
+            if (ahead < 0.9 || behind < -0.6 || behind > 1.4) {
                 continue;
             }
             double edge = ahead - 0.5 * Math.max(0.0, -behind) - 0.05 * Math.abs(k);
@@ -297,167 +379,263 @@ public final class FallPlanner {
         if (lip == Integer.MIN_VALUE) {
             return null;
         }
-        int lipX = px + lip * dx;
-        int lipZ = pz + lip * dz;
-        int top = (int) Math.ceil(prof[lip + o]) - 2;
-        // falls on slopes (not cliffs) vary in height from cell to cell
-        int slopeDrop = 14 + (int) Math.round((MAX_SLOPE_DROP - 14) * SeedMixer.cellUnit(fallSeed, cx, cz, 24));
+        int lipX = (int) Math.round(px + lip * ax);
+        int lipZ = (int) Math.round(pz + lip * az);
+        // the channel's water lies a block below the lowest ground of its last few blocks
+        int top = Integer.MAX_VALUE;
+        for (int u = 0; u <= 3; u++) {
+            top = Math.min(top, ps.ground((int) Math.round(lipX - u * ax), (int) Math.round(lipZ - u * az)) - 1);
+        }
         // the foot: where the slope flattens out, or the first water
         int foot = Integer.MIN_VALUE;
-        int pool = 0;
-        boolean waterFoot = false;
-        for (int k = lip + 1; k <= Math.min(80 - 4, lip + 60); k++) {
-            int fx = px + k * dx;
-            int fz = pz + k * dz;
+        int waterLevel = WaterSolver.NONE;
+        // on a long slope that never flattens, the gentlest bench well below the lip: the pool
+        // sits there and its stream runs on down the slope in rapids
+        int bench = Integer.MIN_VALUE;
+        double benchSlope = 0.7;
+        for (int k = lip + 1; k <= Math.min(80 - 6, lip + MAX_RUN + 4); k++) {
+            int fx = (int) Math.round(px + k * ax);
+            int fz = (int) Math.round(pz + k * az);
             double h = prof[k + o];
             ColumnSample c = ps.nearest(fx, fz);
             if (h < sl - 0.5 || c.bodyInside && h < c.bodyLevel - 0.5) {
-                waterFoot = true;
                 foot = k;
-                pool = (h < sl - 0.5 || !c.bodyInside ? sl : (int) c.bodyLevel) - 1;
+                waterLevel = h < sl - 0.5 || !c.bodyInside ? sl : (int) c.bodyLevel;
                 break;
             }
-            // where the slope flattens out, or on a long slope once the drop is big enough: a fall
-            // at the head of a deeper gorge would mean cutting away a whole hillside
-            if (h < top - 6 && ((h - prof[k + o + 4]) / 4.0 < 0.35 || top - h >= slopeDrop)) {
+            double ahead = (h - prof[k + o + 4]) / 4.0;
+            if (h < top - 6 && (ahead < 0.45 || top - h >= MAX_DROP)) {
                 foot = k;
-                pool = (int) Math.floor(h) - 1;
                 break;
             }
+            if (k - lip >= 10 && k - lip <= MAX_RUN && top - h >= 14 && ahead < benchSlope) {
+                benchSlope = ahead;
+                bench = k;
+            }
+        }
+        if (foot == Integer.MIN_VALUE) {
+            foot = bench;
         }
         if (foot == Integer.MIN_VALUE) {
             return null;
         }
-        int drop = top - pool;
         int run = foot - lip;
-        if (drop < 8 || drop > (waterFoot ? 120 : 70)) {
+        double drop = top - (waterLevel != WaterSolver.NONE ? waterLevel - 1 : prof[foot + o]);
+        if (drop < 10 || run > MAX_RUN || drop / Math.max(1, run) < (waterLevel != WaterSolver.NONE ? 0.8 : MIN_STEEPNESS)) {
             return null;
         }
-        int type;
-        if (waterFoot) {
-            if (run > 1.1 * drop + 6) {
-                return null;
-            }
-            type = FallPlan.SEA;
-        } else if (run <= 0.35 * drop + 2) {
-            type = FallPlan.CURTAIN;
-        } else if (run <= 1.1 * drop + 6 && run <= 48) {
-            type = FallPlan.GORGE;
-        } else {
+        double steep = drop / Math.max(1, run);
+        // how far the ground six blocks to either side of the face stands above it: a fall comes
+        // down a hollow or a cliff, never along a spur, where its water would have to be walled in
+        double hollow = 0.0;
+        int samples = 0;
+        for (int k = lip + 2; k <= foot - 1; k += 3) {
+            double kx = px + k * ax;
+            double kz = pz + k * az;
+            double left = ps.height((int) Math.round(kx - 6 * az), (int) Math.round(kz + 6 * ax));
+            double right = ps.height((int) Math.round(kx + 6 * az), (int) Math.round(kz - 6 * ax));
+            hollow += 0.5 * (left + right) - prof[k + o];
+            samples++;
+        }
+        hollow /= Math.max(1, samples);
+        if (hollow < -1.5) {
             return null;
         }
         ColumnSample lipSample = ps.nearest(lipX, lipZ);
         double wet = smoothstep(-0.2, 0.7, lipSample.humidity);
-        double unit = SeedMixer.cellUnit(fallSeed, cx, cz, 21);
-        long seed = SeedMixer.hash2(fallSeed, cx, cz);
-        FallPlan p = new FallPlan(model, type, seed, cx, cz);
-        p.lipX = lipX;
-        p.lipZ = lipZ;
-        p.dirX = dx;
-        p.dirZ = dz;
-        p.top = top;
-        p.pool = pool;
-        // wet climates feed wide curtains (up to 29 blocks); in dry ones falls are thin threads
-        int hw = (int) Math.min(14, Math.round(wet * (2.0 + 8.0 * unit) + Math.min(4.0, drop / 12.0) + (type == FallPlan.CURTAIN ? 2.0 : 0.0)));
-        // the edge must carry the whole curtain: the lip's ground within reach of the water's
-        // level (up to two blocks below it the plan builds the lip up) and the slope falling away
-        // in front of it, all the way across
-        int px2 = -dz;
-        int pz2 = dx;
-        while (hw > 0) {
-            boolean ok = true;
-            for (int v = -hw; v <= hw && ok; v++) {
-                double lipH = ps.height(lipX + v * px2, lipZ + v * pz2);
-                double front = ps.height(lipX + v * px2 + 4 * dx, lipZ + v * pz2 + 4 * dz);
-                ok = lipH >= top - 1.5 && lipH <= top + 10 && front <= top - 1;
-            }
-            if (ok) {
-                break;
-            }
-            hw--;
-        }
-        if (type == FallPlan.CURTAIN && hw < 1) {
-            type = FallPlan.GORGE;
-            p = new FallPlan(model, type, seed, cx, cz);
-            p.lipX = lipX;
-            p.lipZ = lipZ;
-            p.dirX = dx;
-            p.dirZ = dz;
-            p.top = top;
-            p.pool = pool;
-        }
-        p.halfWidth = hw;
-        // the feeding stream: joined to a stream of the land's network if one passes close behind
-        // the lip at about its level, otherwise 8-16 blocks over level or gently rising ground
-        // from a small spring-fed pool
-        int link = streamLink(ps, lipX, lipZ, dx, dz, top);
-        int channel = link > 0 ? link : 8 + (int) Math.round(8 * SeedMixer.cellUnit(fallSeed, cx, cz, 22));
-        for (int u = 1; u <= channel; u++) {
-            double h = ps.height(lipX - u * dx, lipZ - u * dz);
-            if (h > top + 9 || h < top - 0.5) {
-                channel = u - 1;
-                break;
-            }
-        }
-        if (channel < 3) {
-            return null;
-        }
-        p.channel = channel;
-        p.headR = channel == link ? 0.0 : clamp(2.5 + 0.35 * hw, 2.5, 6.0);
-        p.ru = clamp(3.0 + 0.12 * drop + 0.25 * hw, 3.0, 15.0);
-        p.rv = clamp(hw + 3.5 + 0.06 * drop, 3.0, 20.0);
-        p.uc = 0.5 + p.ru;
-        p.depth = (int) clamp(Math.round(2 + drop / 10.0), 2, 7);
-        p.shoreW = 2 + (wet > 0.5 ? 1 : 0);
-        p.wallSlope = 2.2 + 0.8 * SeedMixer.cellUnit(fallSeed, cx, cz, 23);
-        p.slotHalf = Math.max(1.5, hw + 1.0);
-        if (type == FallPlan.SEA) {
-            p.slotEnd = run;
+        long seed = SeedMixer.hash2(fallSeed, cx, cz) + dir;
+        FallCourse.Dice dice = new FallCourse.Dice(seed);
+        FallCourse course = new FallCourse(model, seed, lipX, lipZ, ax, az);
+        // the style the face suits; wet climates feed wider water, dry ones thin threads
+        double r = dice.next();
+        int style;
+        if (steep >= 2.3) {
+            style = r < 0.7 ? FallCourse.PLUNGE : FallCourse.TIERED;
+        } else if (steep >= 1.6) {
+            style = r < 0.45 ? FallCourse.TIERED : r < 0.75 ? FallCourse.HORSETAIL : FallCourse.PLUNGE;
         } else {
-            // the bowl opens into a slot down to where the natural ground is no higher than the
-            // pool's shore
-            int end = Integer.MIN_VALUE;
-            for (int u = (int) Math.ceil(p.uc); u <= 60; u++) {
-                if (ps.height(lipX + u * dx, lipZ + u * dz) <= pool + 2) {
-                    end = u;
+            style = r < 0.55 ? FallCourse.HORSETAIL : FallCourse.TIERED;
+        }
+        double hw = 0.5 + wet * (0.6 + 1.6 * dice.next());
+        if (style == FallCourse.PLUNGE) {
+            // a plunge from a cleft spreads into a broad, ragged column where the climate is wet
+            hw += 0.4 + wet * (1.0 + 1.6 * dice.next());
+        }
+        if (wet > 0.45 && steep >= 1.8 && dice.next() < 0.45) {
+            // a long cliff edge in a wet climate: many strands over it, if the edge carries them
+            // (on gentler slopes a wide sheet of water would read as a slide, not a fall)
+            double want = 4.0 + 5.0 * dice.next();
+            double fan = 0.0;
+            for (double w = want; w >= 4.0; w -= 1.0) {
+                boolean ok = true;
+                for (double v = -w; v <= w && ok; v += 1.0) {
+                    int g = ps.ground((int) Math.round(course.worldX(0, v)), (int) Math.round(course.worldZ(0, v)));
+                    int front = ps.ground((int) Math.round(course.worldX(4, v)), (int) Math.round(course.worldZ(4, v)));
+                    ok = g >= top && g <= top + 5 && front <= top - 2;
+                }
+                if (ok) {
+                    fan = w;
                     break;
                 }
             }
-            if (end == Integer.MIN_VALUE) {
-                return null;
-            }
-            p.slotEnd = end;
-        }
-        if (type == FallPlan.CURTAIN && hw >= 3) {
-            boolean prev = false;
-            for (int v = -hw + 1; v <= hw - 1; v++) {
-                boolean rib = !prev && SeedMixer.unit(SeedMixer.hash2(seed, v, 7)) < 0.18;
-                p.ribs[v + 32] = rib;
-                prev = rib;
+            if (fan > 0.0) {
+                style = FallCourse.FAN;
+                hw = fan;
             }
         }
+        course.style = style;
+        course.incise = 1 + (dice.next() < 0.6 * wet ? 1 : 0);
+        course.channelHalf = style == FallCourse.FAN ? hw : Math.min(hw, 0.7 + 0.8 * dice.next());
+        // a fan's water spreads thin over the ledge behind its edge
+        course.channelDepth = style == FallCourse.FAN ? 1 : 2;
+        course.wallSlope = 1.7 + 0.9 * dice.next();
+        course.outWallSlope = 1.2 + 0.6 * dice.next();
+        // the feeding stream: joined to a stream of the land's network if one passes close behind
+        // the lip at about its level, otherwise 8-16 blocks over level or gently rising ground
+        // from a small spring-fed pool
+        int link = streamLink(ps, course, top);
+        int channel = link > 0 ? link : 8 + (int) Math.round(8 * SeedMixer.cellUnit(fallSeed, cx, cz, 22));
+        double headR = link > 0 ? 0.0 : clamp(2.5 + 0.35 * course.channelHalf, 2.5, 5.0);
+        // the channel steps up with the ground behind the lip, its water a block below the ground
+        // and at most three blocks higher from one block to the next, cut at most a few blocks; it
+        // ends (at its spring) where the ground rises faster than that or falls away
+        int reach = channel + (int) Math.ceil(2.0 * headR);
+        int[] levels = new int[reach + 1];
+        levels[0] = top + 1;
+        int ok = 0;
+        for (int j = 1; j <= reach; j++) {
+            int g = ps.ground((int) Math.round(course.worldX(-j, 0)), (int) Math.round(course.worldZ(-j, 0)));
+            int lv = Math.max(levels[j - 1], Math.min(g, levels[j - 1] + 3));
+            if (g < lv - 2 || g - (lv - 1) > FallCourse.MAX_TREAD_CUT) {
+                break;
+            }
+            levels[j] = lv;
+            ok = j;
+        }
+        channel = Math.min(channel, ok - (int) Math.ceil(2.0 * headR));
+        if (channel < 2 && link <= 0 && ok >= 4) {
+            // the ground rises steeply behind the edge: the water breaks out of the rock in a small
+            // spring just behind the lip
+            headR = 1.6;
+            channel = Math.min(2, ok - 4);
+        }
+        if (channel < 1 || link > 0 && channel < link) {
+            return null;
+        }
+        course.channelLevel = java.util.Arrays.copyOf(levels, channel + 1);
+        course.channel = channel;
+        course.headR = headR;
+        if (!course.fit(ps, top, run, waterLevel, hw, dice)) {
+            return null;
+        }
+        if (style == FallCourse.FAN) {
+            placeOutcrops(course, dice);
+        } else if (course.maxHalfWidth() >= 1.4) {
+            // broad water hits a rock or two on its way down, splits around it and rejoins below
+            int n = (dice.next() < 0.6 ? 1 : 0) + (course.maxHalfWidth() >= 2.5 && dice.next() < 0.5 ? 1 : 0);
+            for (int i = 0; i < n; i++) {
+                addOutcrop(course, dice, 0.15 + 0.7 * dice.next(), 1.5 + 2.5 * dice.next());
+            }
+        }
+        course.bounds();
+        int type = course.intoWater ? FallPlan.SEA : course.outN >= 9 ? FallPlan.GORGE : FallPlan.CURTAIN;
+        FallPlan p = new FallPlan(model, type, seed, cx, cz);
+        p.course = course;
+        p.lipX = lipX;
+        p.lipZ = lipZ;
+        p.dirX = Math.abs(ax) >= Math.abs(az) ? (ax > 0 ? 1 : -1) : 0;
+        p.dirZ = Math.abs(ax) >= Math.abs(az) ? 0 : (az > 0 ? 1 : -1);
+        p.top = course.top();
+        p.pool = course.pool();
+        p.halfWidth = (int) Math.round(style == FallCourse.FAN ? hw : course.maxHalfWidth());
         double t = lipSample.temperature;
         p.material = lipSample.geology == Geology.VOLCANIC ? FallPlan.MAT_VOLCANIC : t < -0.15 ? FallPlan.MAT_COLD : FallPlan.MAT_FOREST;
-        bounds(p);
-        if (!fits(ps, p)) {
-            return null;
-        }
-        if (!viewpoint(ps, p)) {
-            return null;
-        }
-        p.score = drop * (2 * hw + 1) * (0.5 + wet) * (type == FallPlan.CURTAIN ? 1.3 : 1.0);
+        p.minX = course.minX;
+        p.minZ = course.minZ;
+        p.maxX = course.maxX;
+        p.maxZ = course.maxZ;
+        // steep faces make the finest falls: they count most
+        // and those in a hollow, between walls of their own, look the most natural
+        p.score = p.drop() * (2.0 + course.maxHalfWidth()) * (0.5 + wet) * Math.pow(Math.min(3.0, steep), 2.0)
+            * (course.outJoins || course.intoWater ? 1.3 : 1.0) * (1.0 + 0.12 * clamp(hollow, -1.5, 6.0));
         return p;
+    }
+
+    /** Whether a laid-out fall fits its surroundings (see {@link #fits}) and has a place to watch it from. */
+    private boolean checked(PlanSampler ps, FallPlan p) {
+        int fit = fits(ps, p);
+        if (fit == CUT_OFF && p.course.rocks > 0) {
+            // an outcrop closes the water off where the band is narrow: the fall comes down without
+            // its outcrops instead
+            p.course.rocks = 0;
+            fit = fits(ps, p);
+        }
+        return fit == FITS && viewpoint(ps, p);
+    }
+
+    /**
+     * Ribs of a fan: rock standing between strands of different widths along the edge, from just
+     * behind the lip down different lengths of the face. Where a rib ends the strands either side
+     * of it meet; ribs reaching the foot keep them apart as separate falls into the pool.
+     */
+    private static void placeOutcrops(FallCourse c, FallCourse.Dice dice) {
+        c.rocks = 0;
+        double w = c.halfAt(0.6);
+        int strands = (int) clamp(Math.round(2.0 * w / 3.5), 3, 6);
+        double[] parts = new double[2 * strands - 1];
+        double sum = 0.0;
+        for (int i = 0; i < parts.length; i++) {
+            // strands one to three and a half blocks wide, ribs between one and a half and four
+            parts[i] = i % 2 == 0 ? 1.0 + 2.5 * dice.next() : 1.5 + 2.5 * dice.next();
+            sum += parts[i];
+        }
+        double k = 2.0 * w / sum;
+        double at = -w;
+        for (int i = 0; i < parts.length && c.rocks < c.rockU.length; i++) {
+            double size = parts[i] * k;
+            if (i % 2 == 1) {
+                double top = -1.5 - dice.next();
+                // most ribs reach well down the face, some to its foot, so the strands stay apart
+                double end = c.faceEnd * (0.75 + 0.45 * dice.next());
+                int r = c.rocks++;
+                c.rockU[r] = 0.5 * (top + end);
+                c.rockA[r] = Math.max(1.5, 0.5 * (end - top));
+                c.rockV[r] = at + 0.5 * size;
+                c.rockB[r] = Math.max(0.7, 0.5 * size);
+                c.rockRib[r] = true;
+            }
+            at += size;
+        }
+    }
+
+    /**
+     * An outcrop a fraction {@code f} of the way down the face, {@code len} blocks long, inside the
+     * water there and never so wide that it closes the water off: the water parts around it and
+     * rejoins below.
+     */
+    private static void addOutcrop(FallCourse c, FallCourse.Dice dice, double f, double len) {
+        if (c.rocks >= c.rockU.length) {
+            return;
+        }
+        double u = 0.6 + f * (c.faceEnd - 0.6);
+        double w = c.halfAt(u);
+        int r = c.rocks++;
+        c.rockU[r] = u;
+        c.rockV[r] = (dice.next() - 0.5) * 1.6 * Math.max(0.0, w - 1.0);
+        c.rockA[r] = 0.5 * len;
+        c.rockB[r] = clamp(0.6 + 0.8 * dice.next(), 0.6, Math.max(0.6, w * 0.45));
+        c.rockRib[r] = false;
     }
 
     /**
      * Distance behind the lip (3-28 blocks) at which the centre line of a stream crosses the
      * fall's axis with its water at or above the channel's, or -1.
      */
-    private int streamLink(PlanSampler ps, int lipX, int lipZ, int dx, int dz, int top) {
+    private int streamLink(PlanSampler ps, FallCourse c, int top) {
         double[] info = new double[2];
         for (int u = 3; u <= 28; u++) {
-            int x = lipX - u * dx;
-            int z = lipZ - u * dz;
+            int x = (int) Math.round(c.worldX(-u, 0));
+            int z = (int) Math.round(c.worldZ(-u, 0));
             if (ps.nearest(x, z).stream <= 0.05) {
                 continue;
             }
@@ -469,77 +647,148 @@ public final class FallPlanner {
         return -1;
     }
 
-    /** World-space bounds of a waterfall's footprint. */
-    private static void bounds(FallPlan p) {
-        double shore = 1.0 + p.shoreW / Math.min(p.ru, p.rv);
-        int maxU = (int) Math.ceil(Math.max(p.slotEnd + 1, p.uc + p.ru * shore + FallPlan.WALL_REACH));
-        double slotWidest = p.slotHalf + 2.0 + 0.2 * Math.max(0, p.slotEnd - p.uc) + 3.0;
-        int maxV = (int) Math.ceil(Math.max(p.rv * shore + FallPlan.WALL_REACH, Math.max(slotWidest + FallPlan.WALL_REACH, p.halfWidth + 3)));
-        int minU = -p.channel - 2 - (int) Math.ceil(2.0 * p.headR + 2.0);
-        int ax = p.lipX + minU * p.dirX;
-        int az = p.lipZ + minU * p.dirZ;
-        int bx = p.lipX + maxU * p.dirX;
-        int bz = p.lipZ + maxU * p.dirZ;
-        p.minX = Math.min(ax, bx) - maxV * Math.abs(p.dirZ);
-        p.maxX = Math.max(ax, bx) + maxV * Math.abs(p.dirZ);
-        p.minZ = Math.min(az, bz) - maxV * Math.abs(p.dirX);
-        p.maxZ = Math.max(az, bz) + maxV * Math.abs(p.dirX);
+    /**
+     * Most blocks a waterfall dropping {@code drop} blocks may cut away below the natural surface,
+     * channel, ledges, pool, cleft and outflow together: a few dozen per block of drop, spread
+     * along its course. A plan needing more would be digging a hole into the slope. The devtools
+     * check the built result against it.
+     */
+    public static int cutCap(int drop) {
+        return CUT_BASE + CUT_PER_DROP * drop;
+    }
+
+    /** What {@link #fits} finds: the plan fits, it does not, or its water is cut off on the way down. */
+    private static final int FITS = 0;
+    private static final int MISFIT = 1;
+    private static final int CUT_OFF = 2;
+
+    /**
+     * Whether a waterfall's water runs all the way from its channel down to its pool (or the sea or
+     * lake below): followed downhill over the plan's water columns, from every column at or above
+     * the lip's level, it must reach the pool's level. A ledge, a knob of high ground or an outcrop
+     * closing the band off would leave the fall ending on a ledge above a separate pool.
+     */
+    private static boolean connected(FallPlan p, int[] level, int w, int h) {
+        int goal = p.course.poolLevel;
+        boolean[] seen = new boolean[w * h];
+        java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
+        for (int k = 0; k < w * h; k++) {
+            if (level[k] != WaterSolver.NONE && level[k] >= p.top + 1) {
+                seen[k] = true;
+                queue.add(k);
+            }
+        }
+        while (!queue.isEmpty()) {
+            int k = queue.poll();
+            if (level[k] <= goal) {
+                return true;
+            }
+            int x = k % w;
+            int z = k / w;
+            for (int d = 0; d < 4; d++) {
+                int nx = x + (d == 0 ? 1 : d == 1 ? -1 : 0);
+                int nz = z + (d == 2 ? 1 : d == 3 ? -1 : 0);
+                if (nx < 0 || nz < 0 || nx >= w || nz >= h) {
+                    continue;
+                }
+                int n = nz * w + nx;
+                if (!seen[n] && level[n] != WaterSolver.NONE && level[n] <= level[k]) {
+                    seen[n] = true;
+                    queue.add(n);
+                }
+            }
+        }
+        return false;
     }
 
     /**
-     * Whether the plan fits its surroundings: no river, lake or trail inside its footprint (a
-     * fall into the sea or a lake may reach that water), no rock formation near, and no shore or
-     * bank that would have to be built up more than a few blocks.
+     * Whether the plan fits its surroundings and stays an erosion-sized change: no river, lake or
+     * trail inside it (a fall may reach the sea or lake it drops into, and the outflow the water
+     * it joins), no rock formation or big overhang near, nothing built up more than a few blocks,
+     * no bank beside the water higher than two, no column cut deeper than {@value #MAX_CUT_DEPTH},
+     * nothing built over open air in the 3D terrain, no more cut away in all than {@link #cutCap}
+     * allows, and water that runs all the way down to the pool ({@link #CUT_OFF} if it does not).
      */
-    private boolean fits(PlanSampler ps, FallPlan p) {
+    private int fits(PlanSampler ps, FallPlan p) {
         int cellX = p.cellX * FALL_CELL;
         int cellZ = p.cellZ * FALL_CELL;
         if (p.minX < cellX - REACH || p.minZ < cellZ - REACH || p.maxX > cellX + FALL_CELL + REACH || p.maxZ > cellZ + FALL_CELL + REACH) {
             // the chunks it would cover could not find it
-            return false;
+            return MISFIT;
         }
+        int w = p.maxX - p.minX + 1;
+        int h = p.maxZ - p.minZ + 1;
+        int[] top = new int[w * h];
+        int[] level = new int[w * h];
         WaterPlan.Shape shape = new WaterPlan.Shape();
-        for (int x = p.minX; x <= p.maxX; x += 2) {
-            for (int z = p.minZ; z <= p.maxZ; z += 2) {
+        FallCourse c = p.course;
+        int lastOut = c.outN > 0 ? c.outLevel[c.outN - 1] : WaterSolver.NONE;
+        long cut = 0;
+        int cap = cutCap(p.drop());
+        for (int z = p.minZ; z <= p.maxZ; z++) {
+            for (int x = p.minX; x <= p.maxX; x++) {
+                int k = (z - p.minZ) * w + (x - p.minX);
                 int g = ps.ground(x, z);
                 shape.reset(g);
-                if (!p.shape(x, z, g, shape)) {
+                boolean shaped = p.shape(x, z, g, shape);
+                top[k] = shaped ? shape.ground : g;
+                level[k] = shaped ? shape.level : WaterSolver.NONE;
+                if (!shaped) {
                     continue;
                 }
-                ColumnSample c = ps.nearest(x, z);
-                boolean foot = p.type == FallPlan.SEA && p.u(x, z) >= 1 && g <= p.pool - 1;
-                if (ps.bodyWater(x, z) && !foot || c.trailDistance < 4.0) {
-                    return false;
+                if (shape.level != WaterSolver.NONE) {
+                    // the sea or lake below the fall, or the water the outflow runs into
+                    boolean foot = c.intoWater && shape.level == c.poolLevel || c.outJoins && shape.level == lastOut;
+                    if (ps.bodyWater(x, z) && !foot) {
+                        return MISFIT;
+                    }
                 }
-                if (shape.ground - g > 4) {
-                    return false;
+                if (ps.nearest(x, z).trailDistance < 4.0) {
+                    return MISFIT;
                 }
-                // beyond the pool the bowl and the gorge may only trim the slope, not cut a
-                // trench through high ground
-                if (p.type != FallPlan.SEA && p.u(x, z) > p.uc + p.ru + p.shoreW + 4 && g - shape.ground > 8 + 0.2 * p.drop()) {
-                    return false;
+                if (shape.ground - g > MAX_FILL) {
+                    return MISFIT;
+                }
+                if (shape.ground > g && !ps.solid(x, g - 1, z)) {
+                    // rock built up from the model surface where the 3D terrain is open below it
+                    // (an overhang's underside, a hollow) would stand over a gap
+                    return MISFIT;
+                }
+                int d = g - shape.ground;
+                if (d > 0) {
+                    // a pool's basin and a ledge's water count, but only to the depth of the water
+                    if (d > MAX_CUT_DEPTH + (shape.level != WaterSolver.NONE ? 2 : 0)) {
+                        return MISFIT;
+                    }
+                    cut += d;
+                    if (cut > cap) {
+                        return MISFIT;
+                    }
                 }
             }
         }
-        if (p.type == FallPlan.GORGE) {
-            // the gorge opens towards lower ground: its floor never has to be cut through a rise
-            int front = (int) Math.ceil(p.uc + p.ru);
-            if (p.slotEnd - front > 10 + 0.4 * p.drop()) {
-                return false;
-            }
-            double start = ps.height(p.lipX + front * p.dirX, p.lipZ + front * p.dirZ);
-            for (int u = front; u <= p.slotEnd; u++) {
-                int off = (int) Math.round(p.slotOffset(u));
-                if (ps.height(p.lipX + u * p.dirX - off * p.dirZ, p.lipZ + u * p.dirZ + off * p.dirX) > start + 2.0) {
-                    return false;
+        // banks: dry ground beside the water may be raised by at most two blocks to hold it
+        for (int z = p.minZ + 1; z < p.maxZ; z++) {
+            for (int x = p.minX + 1; x < p.maxX; x++) {
+                int k = (z - p.minZ) * w + (x - p.minX);
+                if (level[k] == WaterSolver.NONE || level[k] <= model.seaLevel()) {
+                    continue;
+                }
+                for (int n : new int[]{k - 1, k + 1, k - w, k + w}) {
+                    if (level[n] == WaterSolver.NONE && level[k] - 1 - top[n] > MAX_BANK) {
+                        return MISFIT;
+                    }
                 }
             }
         }
-        // big curved overhangs of the 3D terrain would be cut off at the edge of the bowl
+        if (!connected(p, level, w, h)) {
+            return CUT_OFF;
+        }
+        // big curved overhangs of the 3D terrain would be cut off at the edge of the cleft
         for (int x = p.minX & ~3; x <= p.maxX; x += 8) {
             for (int z = p.minZ & ~3; z <= p.maxZ; z += 8) {
                 if (TerrainDetail.curvedOverhang(model, x, z) != null) {
-                    return false;
+                    return MISFIT;
                 }
             }
         }
@@ -550,65 +799,92 @@ public final class FallPlanner {
             for (int dz = -1; dz <= 1; dz++) {
                 TerrainModel.FormationSite f = model.formationSite(fx + dx, fz + dz);
                 if (f != null && Math.abs(f.x - p.lipX) + Math.abs(f.z - p.lipZ) < 110) {
-                    return false;
+                    return MISFIT;
                 }
             }
         }
-        return true;
+        return FITS;
     }
 
     /**
-     * A place to watch the fall from: dry ground in front of the pool, in the gorge, on the rim of
-     * the bowl or beside the lip, chosen by how much of the curtain is in plain sight over the
+     * A place to watch the fall from: dry ground in front of the pool, beside it, on the far bank
+     * of the outflow or beside the lip, chosen by how much of the fall is in plain sight over the
      * shaped ground, preferring a distance from which the whole fall fits the view.
      */
     private boolean viewpoint(PlanSampler ps, FallPlan p) {
-        p.lookX = p.lipX + p.dirX;
-        p.lookZ = p.lipZ + p.dirZ;
+        FallCourse c = p.course;
+        double mid = c.faceEnd * 0.5;
+        p.lookX = (int) Math.floor(c.worldX(mid, c.centreAt(mid)));
+        p.lookZ = (int) Math.floor(c.worldZ(mid, c.centreAt(mid)));
         p.lookY = (p.top + p.pool) / 2;
-        int hw = p.halfWidth;
-        int[][] targets = {{-hw, p.pool + 1}, {0, p.pool + 1}, {hw, p.pool + 1}, {-hw, p.lookY}, {0, p.lookY}, {hw, p.lookY},
-            {-hw, p.top}, {0, p.top}, {hw, p.top}};
-        double front = p.type == FallPlan.SEA ? p.slotEnd + 1 : p.uc + p.ru + p.shoreW;
+        // targets on the water: the lip, the middle of the face and where it meets the pool
+        List<double[]> targets = new ArrayList<>();
+        double[] us = {0.6, c.faceEnd * 0.33, c.faceEnd * 0.66, c.faceEnd - 0.5};
+        for (int t = 0; t < us.length; t++) {
+            for (double side : new double[]{-0.6, 0.0, 0.6}) {
+                double v = c.centreAt(us[t]) + side * c.halfAt(us[t]);
+                int level = c.level(c.treadAt(us[t], v), us[t]);
+                targets.add(new double[]{c.worldX(us[t], v) + 0.5, level - 0.5 + (t == 0 ? 0.5 : 0.0), c.worldZ(us[t], v) + 0.5, t == 3 ? 2 : 1});
+            }
+        }
+        double front = c.intoWater ? c.poolU + c.poolA + 1.0 : c.poolU + c.poolA + 2.0;
         List<double[]> spots = new ArrayList<>();
-        for (double du : new double[]{2, 5, 9, 14, 20}) {
-            spots.add(new double[]{front + du, p.type == FallPlan.GORGE ? p.slotOffset((int) Math.round(front + du)) : 0});
+        for (double du : new double[]{2, 5, 9, 14, 20, 27}) {
+            spots.add(new double[]{front + du, c.poolV});
+            spots.add(new double[]{front + du, c.poolV + 0.5 * c.poolB + 3.0});
+            spots.add(new double[]{front + du, c.poolV - 0.5 * c.poolB - 3.0});
         }
-        spots.add(new double[]{front + 3, 0.7 * p.rv});
-        spots.add(new double[]{front + 3, -0.7 * p.rv});
         for (double side : new double[]{3, 7, 12}) {
-            spots.add(new double[]{p.uc, p.rv + p.shoreW + side});
-            spots.add(new double[]{p.uc, -p.rv - p.shoreW - side});
+            spots.add(new double[]{c.poolU, c.poolV + c.poolB + side});
+            spots.add(new double[]{c.poolU, c.poolV - c.poolB - side});
         }
-        spots.add(new double[]{-2, hw + 4});
-        spots.add(new double[]{-2, -hw - 4});
+        // off to the side, along the slope or cliff the water comes down: the view across the
+        // face, and from a fall into the sea the only dry ground near
+        double wide = c.maxHalfWidth() + Math.abs(c.poolV);
+        for (double u : new double[]{-4.0, c.faceEnd * 0.3, c.faceEnd * 0.6, c.faceEnd + 2.0}) {
+            for (double side : new double[]{6, 11, 17, 24}) {
+                spots.add(new double[]{u, wide + side});
+                spots.add(new double[]{u, -wide - side});
+            }
+        }
+        java.util.HashMap<Long, Integer> grounds = new java.util.HashMap<>();
         WaterPlan.Shape shape = new WaterPlan.Shape();
         double best = -1.0;
         int drop = p.drop();
         for (double[] spot : spots) {
-            int x = p.lipX + (int) Math.round(spot[0] * p.dirX - spot[1] * p.dirZ);
-            int z = p.lipZ + (int) Math.round(spot[0] * p.dirZ + spot[1] * p.dirX);
+            int x = (int) Math.floor(c.worldX(spot[0], spot[1]));
+            int z = (int) Math.floor(c.worldZ(spot[0], spot[1]));
             int g = shaped(ps, p, shape, x, z);
             if (shape.level != WaterSolver.NONE && shape.level > g + 1 || g < model.seaLevel() || ps.bodyWater(x, z)) {
+                continue;
+            }
+            // a place to stand on gentle ground: on a steep slope the overhangs and ledges of the
+            // 3D terrain may stand where the model has open air
+            double h0 = ps.height(x, z);
+            if (Math.abs(ps.height(x + 3, z) - h0) > 3.5 || Math.abs(ps.height(x - 3, z) - h0) > 3.5 || Math.abs(ps.height(x, z + 3) - h0) > 3.5
+                || Math.abs(ps.height(x, z - 3) - h0) > 3.5) {
+                continue;
+            }
+            // the finder sends the player here: open air for feet and head and ground just below
+            // in the 3D terrain, unless the plan reshapes the column (it clears everything above)
+            if (g == ps.ground(x, z) && (ps.solid(x, g + 1, z) || ps.solid(x, g + 2, z)
+                || !ps.solid(x, g, z) && !ps.solid(x, g - 1, z) && !ps.solid(x, g - 2, z))) {
                 continue;
             }
             double ex = x + 0.5;
             double ey = g + 2.62;
             double ez = z + 0.5;
-            // the foot of the fall, where it meets the pool, counts double
             int seen = 0;
-            int weight = 0;
-            for (int t = 0; t < targets.length; t++) {
-                double tx = p.lipX + p.dirX - targets[t][0] * p.dirZ + 0.5;
-                double tz = p.lipZ + p.dirZ + targets[t][0] * p.dirX + 0.5;
-                if (visible(ps, p, shape, ex, ey, ez, tx, targets[t][1] + 0.5, tz)) {
+            double weight = 0.0;
+            for (double[] t : targets) {
+                if (visibleCached(ps, p, shape, grounds, ex, ey, ez, t[0], t[1], t[2])) {
                     seen++;
-                    weight += t < 3 ? 2 : 1;
+                    weight += t[3];
                 }
             }
             double dist = Math.hypot(ex - (p.lookX + 0.5), ez - (p.lookZ + 0.5));
-            double score = weight / 12.0 - 0.2 * Math.abs(Math.log(Math.max(4.0, dist) / Math.max(10.0, 1.2 * drop)));
-            if (seen * 2 >= targets.length && score > best) {
+            double score = weight / 15.0 - 0.2 * Math.abs(Math.log(Math.max(4.0, dist) / Math.max(12.0, 1.1 * drop)));
+            if (seen * 2 >= targets.size() && score > best) {
                 best = score;
                 p.viewX = x;
                 p.viewY = g + 1;
@@ -616,6 +892,33 @@ public final class FallPlanner {
             }
         }
         return best > -1.0;
+    }
+
+    /** {@link #visible} over shaped ground looked up once per column. */
+    private static boolean visibleCached(PlanSampler ps, FallPlan p, WaterPlan.Shape shape, java.util.Map<Long, Integer> grounds,
+                                         double ex, double ey, double ez, double tx, double ty, double tz) {
+        double len = Math.sqrt((tx - ex) * (tx - ex) + (ty - ey) * (ty - ey) + (tz - ez) * (tz - ez));
+        for (double s = 0.25; s < len - 1.5; s += 0.25) {
+            double f = s / len;
+            int cx = (int) Math.floor(ex + (tx - ex) * f);
+            int cz = (int) Math.floor(ez + (tz - ez) * f);
+            if (shapedCached(ps, p, shape, grounds, cx, cz) >= ey + (ty - ey) * f - 0.3) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** {@link #shaped}, remembered per column. */
+    private static int shapedCached(PlanSampler ps, FallPlan p, WaterPlan.Shape shape, java.util.Map<Long, Integer> grounds, int x, int z) {
+        long key = (((long) x << 32) ^ (z & 0xFFFFFFFFL)) * 0x9E3779B97F4A7C15L;
+        Integer known = grounds.get(key);
+        if (known != null) {
+            return known;
+        }
+        int r = shaped(ps, p, shape, x, z);
+        grounds.put(key, r);
+        return r;
     }
 
     /** Whether the straight line between two points passes above the shaped ground. */

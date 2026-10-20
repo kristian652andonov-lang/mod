@@ -6,6 +6,8 @@ import com.terrahaul.worldgen.terrain.LakeType;
 import com.terrahaul.worldgen.terrain.TerrainFinder;
 import com.terrahaul.worldgen.terrain.TerrainModel;
 import com.terrahaul.worldgen.terrain.TerrainSettings;
+import com.terrahaul.worldgen.water.FallPlan;
+import com.terrahaul.worldgen.water.FallPlanner;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -227,6 +229,21 @@ public final class FinderAudit {
             case "overhang" -> {
                 double[] o = TerrainDetail.curvedOverhang(model, r.x() & ~3, r.z() & ~3);
                 return o == null ? "no overhang at the column" : null;
+            }
+            case "waterfall" -> {
+                // the reported place is the viewpoint of a planned fall, on dry ground near it
+                FallPlanner planner = FallPlanner.of(model);
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        FallPlan p = planner.fall(Math.floorDiv(r.x(), FallPlanner.FALL_CELL) + dx, Math.floorDiv(r.z(), FallPlanner.FALL_CELL) + dz);
+                        if (p != null && p.viewX == r.x() && p.viewZ == r.z()) {
+                            double d = Math.hypot(p.lookX - r.x(), p.lookZ - r.z());
+                            return p.drop() < 10 ? "a fall of only " + p.drop() + " blocks" : d > 90 ? "viewpoint " + Math.round(d) + " blocks from the fall"
+                                : wet ? "viewpoint in water" : null;
+                        }
+                    }
+                }
+                return "no planned fall has its viewpoint here";
             }
             default -> {
                 return null;
