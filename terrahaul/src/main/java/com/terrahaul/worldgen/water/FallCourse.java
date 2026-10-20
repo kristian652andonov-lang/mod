@@ -34,8 +34,10 @@ import java.util.List;
  *   <li>a modest, irregular <b>plunge pool</b> where the slope flattens, its basin dug a few blocks
  *       into the ground, with boulders on its rim and in its shallows (or the sea or a lake, which
  *       a fall from a coastal cliff drops straight into);</li>
- *   <li>an <b>outflow</b> stream traced down the steepest descent from the pool's lowest rim to the
- *       river, lake, sea or stream it joins, stepping down in small rapids.</li>
+ *   <li>an <b>outflow</b> stream traced down the land from the pool's lowest rim, across flats
+ *       and around knolls, to the river, lake, sea or stream it joins, stepping down in small
+ *       rapids; where it can join none within reach it ends in a small pond, but only on flat
+ *       ground or in a hollow, never part way down a slope (such a site is no site).</li>
  * </ol>
  * The water's centre line follows the low line of the face, the way water finds the gully of a
  * slope, with each style's swings laid over it. Beside the water the ground is shaped as erosion
@@ -47,10 +49,14 @@ import java.util.List;
  * where the water lands may the pool be dug a little deeper into high ground at the foot of the
  * face, so the fall always reaches it. The planner caps the volume cut.
  * <p>
- * Styles: a {@link #PLUNGE} on steep faces (tall risers, a ragged column changing width down the
- * drop), {@link #TIERED} falls (long ledges, the water swinging from side to side), a
- * {@link #HORSETAIL} sliding down a staircase of short steps and widening as it goes, and a
- * {@link #FAN} of several strands of different widths over a long cliff edge, split by outcrops.
+ * Every drop down to a ledge is at least three or four blocks: a step or two would be a rapid, not
+ * falling water. Styles: a {@link #PLUNGE} from a real step of the land, which leaves its lip in
+ * one tall drop (its first ledge may be cut back deeper under the lip, hidden behind the falling
+ * column) and then comes down in ledges as long as the cut allows, a ragged column changing width
+ * down the drop; {@link #TIERED} falls (long ledges, the water swinging from side to side); a
+ * {@link #HORSETAIL} on steep faces, sliding down a staircase of short steps and widening as it
+ * goes; and a {@link #FAN} of several strands of different widths over a long cliff band, split by
+ * ribs of rock that spread and close in with the band.
  * <p>
  * Everything is a pure function of the plan, so every chunk builds the same columns.
  */
@@ -64,6 +70,14 @@ final class FallCourse {
     static final int WALL_REACH = 10;
     /** Deepest a tread or the channel may be cut below the natural ground at its back. */
     static final int MAX_TREAD_CUT = 9;
+    /** Longest tread. */
+    private static final int MAX_TREAD = 5;
+    /**
+     * Deepest a plunge's first ledge below the lip may be cut at its back: the water leaves the
+     * notch in one tall drop, and the basin it lands in, cut back into the cliff under the lip, is
+     * full of water and hidden behind the falling column.
+     */
+    static final int MAX_LEAP_CUT = 13;
     /** Deepest a wall beside the water may be cut. */
     static final int MAX_WALL_CUT = 8;
     /** Highest a lip of rock beside the water may be built up above the natural ground. */
@@ -78,6 +92,19 @@ final class FallCourse {
     static final int OUT_WALL_CUT = 5;
     /** Farthest from the water that crags stand out of the slope. */
     static final double CRAG_REACH = 6.0;
+    /** Most two-block steps the outflow takes looking for the water it joins. */
+    static final int MAX_OUT_STEPS = 110;
+    /** Highest the ground ahead may rise above the outflow's surface for it to cut through. */
+    private static final int MAX_OUT_RISE = 3;
+    /** Most steps the outflow runs level, across a flat, before it gives up. */
+    private static final int MAX_OUT_FLAT = 30;
+    /** How far from the water it joins a stream's surface lies at that water's level. */
+    private static final double JOIN_REACH = 6.0;
+    /** Closest to a trail an outflow's course comes. */
+    private static final double TRAIL_CLEARANCE = 13.0;
+    /** Furthest the land may fall below a stream's last water around its end, if it joins no water. */
+    private static final int MAX_END_FALL = 5;
+
 
     private final TerrainModel model;
     final long seed;
@@ -131,6 +158,11 @@ final class FallCourse {
     final double[] rockB = new double[12];
     /** A long rib between strands: about as wide along most of its length, not lens-shaped. */
     final boolean[] rockRib = new boolean[12];
+    /**
+     * Half-width of the water where a fan's ribs were placed: down the face their offsets spread
+     * and close in with the band, so the strands between them widen, merge and pinch with it.
+     */
+    double ribHalf;
 
     // ---- plunge pool ---------------------------------------------------------------------------
     double poolU;
@@ -154,10 +186,22 @@ final class FallCourse {
     double outHalf;
     /** The outflow ends in other water (a river, lake, the sea or a stream). */
     boolean outJoins;
+    /**
+     * Radius of the small pond a stream that joins no water ends in, on the flat or in the hollow
+     * where it stops (0 if it joins water).
+     */
+    double pondR;
+    /** Length of the outflow in blocks. */
+    double outLength;
     private int outMinX;
     private int outMinZ;
     private int outMaxX;
     private int outMaxZ;
+
+    // ---- where the course may shape anything (see mayShape) -------------------------------------
+    private static final int MASK_CELL = 8;
+    private int maskW;
+    private boolean[] mask;
 
     // ---- walls ---------------------------------------------------------------------------------
     double wallSlope;
@@ -315,7 +359,8 @@ final class FallCourse {
                 // beside it are never parallel bands of even width
                 double wob = 1.1 * noise(2, u * 0.13, r * 3.1, 151.0);
                 double wid = 0.7 + 0.5 * noise(3, u * 0.21, r * 2.7, 157.0);
-                b = (v - c - rockV[r] - wob) / (rockB[r] * wid);
+                double spread = ribHalf > 0.0 ? clamp(halfAt(u) / ribHalf, 0.7, 1.6) : 1.0;
+                b = (v - c - rockV[r] * spread - wob) / (rockB[r] * wid);
             } else {
                 b = (v - c - rockV[r]) / rockB[r];
             }
@@ -331,6 +376,30 @@ final class FallCourse {
     /** Whether rocks may stand in the water at {@code (u, tread i)}: on the face, and on a fan's lip. */
     private boolean rocky(int i, double u) {
         return i > 0 || style == FAN && u > -2.5;
+    }
+
+    /**
+     * Share of a wall's deepest cut allowed {@code dist} blocks from the water: all of it close to
+     * the water, fading to none at {@link #WALL_REACH}, so every cut blends into the slope around
+     * it instead of stopping in a step.
+     */
+    static double cutFade(double dist) {
+        return 1.0 - smoothstep(0.4 * WALL_REACH, WALL_REACH, dist);
+    }
+
+    /**
+     * About how many blocks a point lies outside the plunge pool's rim (negative inside), along the
+     * line from the pool's centre: {@code pr} is its {@link #poolRadius}, which grows in proportion
+     * to the distance along that line, so the rim lies at {@code d / pr} and the point
+     * {@code d (pr - 1) / pr} beyond it, the same in blocks along the long and the short axis and
+     * past a lobe or a bay of the rim.
+     */
+    double poolDistance(double u, double v, double pr) {
+        double d = Math.hypot(u - poolU, v - poolV);
+        if (pr < 0.05) {
+            return -Math.min(poolA, poolB);
+        }
+        return d * (pr - 1.0) / pr;
     }
 
     /** Normalised radius of a point in the plunge pool, irregular around its rim. */
@@ -357,7 +426,7 @@ final class FallCourse {
      * are lower than the natural ground, and lips of rock where the ground is lower than the water.
      */
     boolean shape(int x, int z, int natural, WaterPlan.Shape out) {
-        if (x < minX || x > maxX || z < minZ || z > maxZ) {
+        if (!mayShape(x, z)) {
             return false;
         }
         double u = u(x, z);
@@ -418,7 +487,12 @@ final class FallCourse {
                     wall = Math.min(wall, up + 1.0 + 2.5 * rock + jag(x, z, 1.0));
                     lipNeed = up + 1.0;
                 } else {
-                    wall = Math.min(wall, up + wallSlope * rise + jag(x, z, rise));
+                    if (rise < WALL_REACH) {
+                        // the cleft's sides rise steeply from the water, and what they cut fades
+                        // out within WALL_REACH of it, so the cleft narrows into the slope
+                        // instead of ending in a step where the cut stops
+                        wall = Math.min(wall, Math.max(up + wallSlope * rise + jag(x, z, rise), natural - MAX_WALL_CUT * cutFade(rise)));
+                    }
                     if (rise < 1.5) {
                         lipNeed = up;
                     }
@@ -449,7 +523,7 @@ final class FallCourse {
                 out.role = WaterSolver.ROLE_BED;
                 return true;
             }
-            double dr = (pr - 1.0) * Math.min(poolA, poolB);
+            double dr = poolDistance(u, v, pr);
             if (dr < WALL_REACH && u >= faceEnd - 0.5) {
                 for (int b = 0; b < boulders; b++) {
                     if (Math.hypot(x + 0.5 - boulderX[b], z + 0.5 - boulderZ[b]) <= boulderR[b]) {
@@ -463,8 +537,9 @@ final class FallCourse {
                     }
                 }
                 // the basin's sides rise from the water, but cut no more than a few blocks into a
-                // slope: where the ground stands higher they end in a short bank of rock
-                wall = Math.min(wall, Math.max(poolLevel + 1.3 * Math.max(0.0, dr) + jag(x, z, dr), natural - POOL_WALL_CUT));
+                // slope, less and less away from the water: where the ground stands higher they
+                // end in a short bank of rock that blends into the slope
+                wall = Math.min(wall, Math.max(poolLevel + 1.3 * Math.max(0.0, dr) + jag(x, z, dr), natural - POOL_WALL_CUT * cutFade(dr)));
                 if (dr < 1.5) {
                     lipNeed = Math.min(lipNeed, poolLevel);
                 }
@@ -481,7 +556,11 @@ final class FallCourse {
                 out.role = WaterSolver.ROLE_BED;
                 return true;
             }
-            wall = Math.min(wall, poolLevel + wallSlope * dv + jag(x, z, dv));
+            if (dv < WALL_REACH) {
+                // its sides cut no deeper than the plunge pool's, so a short notch through a shore
+                // ridge never becomes a slot between sheer walls
+                wall = Math.min(wall, Math.max(poolLevel + wallSlope * dv + jag(x, z, dv), natural - POOL_WALL_CUT * cutFade(dv)));
+            }
         }
         // ---- outflow -------------------------------------------------------------------------------
         if (outN >= 2 && x >= outMinX && x <= outMaxX && z >= outMinZ && z <= outMaxZ) {
@@ -489,9 +568,12 @@ final class FallCourse {
             double best = near[0];
             int bestLevel = (int) near[1];
             double half = outHalf + 0.4 * noise(4, x * 0.3, z * 0.3, 83.0);
-            if (best <= half && near[2] > 0.0 && pr > 1.0) {
+            boolean pond = near[2] <= 0.0 && !outJoins && best <= pondR + 0.4 * noise(4, x * 0.3, z * 0.3, 89.0);
+            if ((best <= half && near[2] > 0.0 || pond) && pr > 1.0) {
                 out.level = bestLevel;
-                out.ground = bestLevel - 2 - (best < half * 0.5 ? 1 : 0);
+                // the bed lies a couple of blocks below the water, or lower where the ground does
+                // (the river, lake or sea the stream runs into keeps its own bed)
+                out.ground = Math.min(natural, bestLevel - 2 - (best < half * 0.5 || pond && best < pondR - 1.0 ? 1 : 0));
                 out.role = WaterSolver.ROLE_BED;
                 out.style = WaterSolver.STYLE_STREAM;
                 return true;
@@ -503,7 +585,7 @@ final class FallCourse {
                 cragMax = 2.0;
             }
             if (dv < WALL_REACH) {
-                wall = Math.min(wall, Math.max(bestLevel + outWallSlope * Math.max(0.0, dv) + jag(x, z, dv), natural - OUT_WALL_CUT));
+                wall = Math.min(wall, Math.max(bestLevel + outWallSlope * Math.max(0.0, dv) + jag(x, z, dv), natural - OUT_WALL_CUT * cutFade(dv)));
             }
         }
         // ---- walls: cut only where lower than the natural ground ---------------------------
@@ -545,11 +627,18 @@ final class FallCourse {
      * distance, with a blocky part so their tops break unevenly.
      */
     private int crag(int x, int z, double dist, double max) {
-        double amp = 1.0 - smoothstep(2.0, CRAG_REACH, dist);
-        double n = 0.75 * model.detail3(5, x / 3.2, 131.0, z / 3.2) + 0.45 * model.detail3(7, x / 7.0, 137.0, z / 7.0)
-            + 0.35 * (SeedMixer.unit(SeedMixer.hash2(seed ^ 0xC4A6L, x, z)) - 0.5);
-        double h = (n - 0.15) * 4.0 * amp;
-        return h < 1.0 ? 0 : (int) Math.min(max, Math.floor(h));
+        // clumps from smooth noise several blocks across, standing at different distances from
+        // the water along its banks rather than in an even row; only the tops of a clump break
+        // unevenly from column to column
+        double reach = CRAG_REACH * (0.6 + 0.4 * model.detail3(6, x / 17.0, 143.0, z / 17.0));
+        double amp = 1.0 - smoothstep(1.5, Math.max(2.5, reach), dist);
+        double n = 0.8 * model.detail3(7, x / 8.0, 137.0, z / 8.0) + 0.4 * model.detail3(5, x / 4.5, 131.0, z / 4.5);
+        double h = (n - 0.2) * 5.0 * amp;
+        if (h < 1.0) {
+            return 0;
+        }
+        h += 0.9 * (SeedMixer.unit(SeedMixer.hash2(seed ^ 0xC4A6L, x, z)) - 0.5);
+        return (int) clamp(Math.floor(h), 1.0, max);
     }
 
     /**
@@ -585,7 +674,7 @@ final class FallCourse {
      * same order, as {@link #shape}.
      */
     private int nominalLevel(int x, int z) {
-        if (x < minX || x > maxX || z < minZ || z > maxZ) {
+        if (!mayShape(x, z)) {
             return WaterSolver.NONE;
         }
         double u = u(x, z);
@@ -613,7 +702,8 @@ final class FallCourse {
         }
         if (outN >= 2 && x >= outMinX && x <= outMaxX && z >= outMinZ && z <= outMaxZ && pr > 1.0) {
             double[] near = outflowNear(x, z);
-            if (near[0] <= outHalf + 0.4 * noise(4, x * 0.3, z * 0.3, 83.0) && near[2] > 0.0) {
+            if (near[0] <= outHalf + 0.4 * noise(4, x * 0.3, z * 0.3, 83.0) && near[2] > 0.0
+                || near[2] <= 0.0 && !outJoins && near[0] <= pondR + 0.4 * noise(4, x * 0.3, z * 0.3, 89.0)) {
                 return (int) near[1];
             }
         }
@@ -655,15 +745,36 @@ final class FallCourse {
             best = Math.hypot(u - uu, dv);
         }
         if (!intoWater) {
-            best = Math.min(best, Math.max(0.0, poolRadius(u, v) - 1.0) * Math.min(poolA, poolB));
+            best = Math.min(best, Math.max(0.0, poolDistance(u, v, poolRadius(u, v))));
         }
         return best;
+    }
+
+    /**
+     * Whether a column lies under a plunge's leap: in its first ledge below the lip, which may be
+     * cut deeper than the others (see {@link #MAX_LEAP_CUT}).
+     */
+    boolean inLeap(int x, int z) {
+        if (style != PLUNGE || treads < 2) {
+            return false;
+        }
+        double u = u(x, z);
+        return u > 0.0 && u < faceEnd + 1.0 && treadAt(u, v(x, z)) == 1;
     }
 
     /** Whether a column lies on the face, between the lip and the pool. */
     boolean onFace(int x, int z) {
         double u = u(x, z);
         return u > 0.0 && u < faceEnd + 1.0;
+    }
+
+    /** Tallest single drop of the water down the face: from the channel, a ledge or the last ledge to the pool. */
+    int maxRiser() {
+        int best = channelLevel[0] - (treads > 1 ? treadLevel[1] : poolLevel);
+        for (int i = 2; i <= treads; i++) {
+            best = Math.max(best, treadLevel[i - 1] - (i == treads ? poolLevel : treadLevel[i]));
+        }
+        return best;
     }
 
     /** Half-width of the widest water on the face. */
@@ -742,7 +853,7 @@ final class FallCourse {
     /**
      * The band of water down the face, by style: a plunge's ragged column changing width down the
      * drop, a tiered fall swinging from side to side, a horsetail widening as it slides, a fan
-     * keeping its width. It starts at least as wide as the channel feeding it. Its centre follows
+     * spreading down the drop and pinched here and there. It starts at least as wide as the channel feeding it. Its centre follows
      * the low line of the face, as water finds the gully of a slope, and the style's own swings
      * and drift are laid over that line.
      */
@@ -776,8 +887,10 @@ final class FallCourse {
                     c = low + drift;
                 }
                 case FAN -> {
-                    w = halfW * (0.92 + 0.16 * dice.next());
-                    drift = clamp(drift + (dice.next() - 0.5) * 0.5, -1.0, 1.0);
+                    // the strands spread down the drop, pinched here and there where the band
+                    // narrows, and the whole fan leans a little one way and the other
+                    w = halfW * (0.78 + 0.3 * dice.next()) * (0.9 + 0.4 * f);
+                    drift = clamp(drift + (dice.next() - 0.5) * 0.9, -1.6, 1.6);
                     c = low + drift;
                 }
                 default -> {
@@ -831,10 +944,12 @@ final class FallCourse {
      * Lays the band of water, the face's treads from the lip to the foot of the slope, the pool
      * and the outflow. {@code top} is the channel's top water block at the lip, {@code foot} the
      * distance along the axis where the slope flattens out (or meets the sea or a lake,
-     * {@code waterLevel} then being its exclusive top). Returns {@code false} if the slope cannot
-     * carry the fall without cutting or building more than a few blocks anywhere.
+     * {@code waterLevel} then being its exclusive top), {@code limits} the rectangle
+     * ({minX, minZ, maxX, maxZ}) the outflow must stay in. Returns {@code false} if the slope cannot
+     * carry the fall without cutting or building more than a few blocks anywhere, or its outflow
+     * would stop part way down a slope.
      */
-    boolean fit(PlanSampler ps, int top, int foot, int waterLevel, double halfW, Dice dice) {
+    boolean fit(PlanSampler ps, int top, int foot, int waterLevel, double halfW, Dice dice, int[] limits) {
         int sl = model.seaLevel();
         intoWater = waterLevel != WaterSolver.NONE;
         envelope(ps, dice, halfW, foot);
@@ -927,7 +1042,7 @@ final class FallCourse {
             boulderTop[boulders] = poolLevel + (dice.next() < 0.5 ? 0 : 1);
             boulders++;
         }
-        return traceOutflow(ps, outAng, dice);
+        return traceOutflow(ps, outAng, dice, limits);
     }
 
     /**
@@ -945,7 +1060,16 @@ final class FallCourse {
             int nMax = Integer.MIN_VALUE;
             int lenOk = 0;
             int levelOk = facePrev;
-            for (int len = 1; len <= t; len++) {
+            // a tread goes on past its length while the drop down to it is too small to read as
+            // falling water (a step or two is a rapid, not a fall), as far as the cut allows
+            int minRiser = style == TIERED || style == PLUNGE ? 4 : 3;
+            // a plunge leaps from its lip: its first ledge may be cut deeper at the back
+            boolean leap = style == PLUNGE && treads == 1;
+            int maxCut = leap ? MAX_LEAP_CUT : MAX_TREAD_CUT;
+            for (int len = 1; len <= Math.max(t, MAX_TREAD); len++) {
+                if (len > t && facePrev - levelOk >= minRiser) {
+                    break;
+                }
                 // the water stands below the ground just beside it (the cleft), and is cut no
                 // deeper than the highest ground under it allows
                 groundRange(ps, faceA + len - 1.5, faceA + len - 0.5, range);
@@ -956,10 +1080,10 @@ final class FallCourse {
                 int level = Math.min(facePrev - 1, nMin + 1 - incise + lip);
                 // where the ground across the fall is uneven, the cleft is shallower and the low
                 // side gets a lip of rock rather than the high side a deep cut
-                while (nMax - (level - 1) > MAX_TREAD_CUT && level < Math.min(facePrev - 1, nMin + 2)) {
+                while (nMax - (level - 1) > maxCut && level < Math.min(facePrev - 1, nMin + 2)) {
                     level++;
                 }
-                if (nMax - (level - 1) > MAX_TREAD_CUT) {
+                if (nMax - (level - 1) > maxCut) {
                     break;
                 }
                 lenOk = len;
@@ -973,7 +1097,8 @@ final class FallCourse {
             }
             treadStart[treads] = faceA - 0.5;
             treadLevel[treads] = levelOk;
-            treadDepth[treads] = lenOk >= 2 || facePrev - levelOk >= 4 ? 2 : 1;
+            // (the basin under a plunge's leap a block deep: it is cut deep enough at the back)
+            treadDepth[treads] = leap ? 1 : lenOk >= 2 || facePrev - levelOk >= 4 ? 2 : 1;
             treads++;
             facePrev = levelOk;
             faceA += lenOk;
@@ -1015,25 +1140,33 @@ final class FallCourse {
         return true;
     }
 
-    /** Tread length for the style: short steps on plunges and horsetails, long ledges on tiered falls. */
+    /**
+     * Tread length for the style: short steps on horsetails and fans, long ledges on tiered falls.
+     * A plunge's treads are as long as the cut allows, so each drop down to the next is as tall as
+     * the natural step: over a real cliff the water leaves the lip and falls free to its foot.
+     */
     private int treadLength(Dice dice, int dropLeft) {
         double r = dice.next();
         return switch (style) {
             case TIERED -> r < 0.2 ? 1 : r < 0.55 ? 2 : r < 0.85 ? 3 : 4;
             case HORSETAIL -> r < 0.75 ? 1 : 2;
             case FAN -> r < 0.7 ? 1 : 2;
-            // a plunge drops in a few tall leaps from ledge to ledge
-            default -> r < 0.4 || dropLeft < 6 ? 1 : r < 0.8 ? 2 : 3;
+            default -> MAX_TREAD;
         };
     }
 
     /**
-     * Follows the steepest descent from the pool's outlet to other water, stepping the outflow's
-     * surface down with the ground in small rapids. The stream ends where it joins a river, lake,
-     * the sea or a stream of the land's network, at that water's level; it may also end on flat
-     * ground.
+     * Follows the land down from the pool's outlet until the stream meets other water: a river, a
+     * lake, the sea or a stream of the land's network, whose level its last point takes. Each step
+     * of two blocks goes where the ground ahead is lowest, looking a few blocks further too, so the
+     * stream finds its way across flats and around knolls instead of stopping on them; its surface
+     * steps down with the ground in small rapids and runs level (cut into the ground, if need be)
+     * over low rises. The stream may go {@value #MAX_OUT_STEPS} steps, within the rectangle
+     * {@code limits} ({minX, minZ, maxX, maxZ}) the plan may reach; it ends without joining
+     * anything ({@link #outJoins} false) at a trail, at a sink the land rises from on every side,
+     * or where it runs out of room.
      */
-    private boolean traceOutflow(PlanSampler ps, double outAng, Dice dice) {
+    private boolean traceOutflow(PlanSampler ps, double outAng, Dice dice, int[] limits) {
         outHalf = clamp(0.9 + 0.25 * halfAt(faceEnd) + 0.5 * dice.next(), 0.9, 2.0);
         double hu = Math.cos(outAng);
         double hv = Math.sin(outAng);
@@ -1050,26 +1183,32 @@ final class FallCourse {
         double x = sx;
         double z = sz;
         double[] info = new double[2];
-        int flat = 0;
+        int level0 = level;
+        int sinceDrop = 0;
         outJoins = false;
-        for (int step = 0; step < 34; step++) {
+        for (int step = 0; step < MAX_OUT_STEPS; step++) {
             double bestH = Double.MAX_VALUE;
             double bx = hx;
             double bz = hz;
-            for (int t = -2; t <= 2; t++) {
-                double ang = Math.atan2(hz, hx) + t * Math.PI / 9.0;
-                double nx = x + Math.cos(ang) * 2.0;
-                double nz = z + Math.sin(ang) * 2.0;
-                double h = ps.height((int) Math.floor(nx), (int) Math.floor(nz)) + 0.15 * Math.abs(t);
+            double head = Math.atan2(hz, hx);
+            for (int t = -4; t <= 4; t++) {
+                // the ground two blocks ahead decides, the ground five and nine blocks ahead
+                // shows the way down across a flat
+                double ang = head + t * Math.PI / 9.0;
+                double ca = Math.cos(ang);
+                double sa = Math.sin(ang);
+                double h = ps.height((int) Math.floor(x + 2.0 * ca), (int) Math.floor(z + 2.0 * sa))
+                    + 0.5 * ps.height((int) Math.floor(x + 5.0 * ca), (int) Math.floor(z + 5.0 * sa))
+                    + 0.25 * ps.height((int) Math.floor(x + 9.0 * ca), (int) Math.floor(z + 9.0 * sa)) + 0.12 * t * t;
                 if (h < bestH) {
                     bestH = h;
-                    bx = Math.cos(ang);
-                    bz = Math.sin(ang);
+                    bx = ca;
+                    bz = sa;
                 }
             }
-            // turning gradually, so the stream does not double back
-            hx = 0.55 * hx + 0.45 * bx;
-            hz = 0.55 * hz + 0.45 * bz;
+            // turning gradually, so the stream bends rather than zigzags
+            hx = 0.5 * hx + 0.5 * bx;
+            hz = 0.5 * hz + 0.5 * bz;
             hl = Math.hypot(hx, hz);
             hx /= hl;
             hz /= hl;
@@ -1077,14 +1216,22 @@ final class FallCourse {
             z += hz * 2.0;
             int ix = (int) Math.floor(x);
             int iz = (int) Math.floor(z);
+            if (x < limits[0] || z < limits[1] || x > limits[2] || z > limits[3]) {
+                break;
+            }
             ColumnSample s = ps.nearest(ix, iz);
-            if (s.trailDistance < 6.0) {
-                // the stream sinks into the ground short of a trail rather than cutting across it
+            if (s.trailDistance < TRAIL_CLEARANCE) {
+                // the stream may not cut across a trail: it stops short of it, with room for the
+                // pond it ends in and its banks
                 break;
             }
             int joinLevel = WaterSolver.NONE;
-            if (ps.bodyWater(ix, iz) || ps.height(ix, iz) < model.seaLevel() - 0.5) {
-                joinLevel = s.bodyInside ? (int) s.bodyLevel : model.seaLevel();
+            double body = ps.bodyLevel(ix, iz);
+            if (!Double.isNaN(body)) {
+                joinLevel = (int) body;
+            } else if (ps.height(ix, iz) < model.seaLevel() - 0.5 || ps.ground(ix, iz) < model.seaLevel()) {
+                // the sea, or ground below sea level by the coast, which the water table floods
+                joinLevel = model.seaLevel();
             } else if (s.stream > 0.05) {
                 model.streamInfo(ix, iz, info);
                 if (info[0] < 1.25 + 1.5 * s.stream) {
@@ -1092,23 +1239,58 @@ final class FallCourse {
                 }
             }
             if (joinLevel != WaterSolver.NONE) {
-                // the last point lies just short of the water it joins and takes its level, so
-                // the two run together (the step down to it is made a block or two upstream)
-                double[] last = pts.get(pts.size() - 1);
-                if (joinLevel <= last[2] && last[2] - joinLevel <= 3 && pts.size() >= 2) {
-                    last[2] = joinLevel;
-                    outJoins = true;
+                if (joinLevel > level || pts.size() < 2) {
+                    // water the stream cannot run down into (a lake above it): no place for a fall
+                    return false;
                 }
+                // the stream runs on into the water it joins at that water's level: its last
+                // few blocks, within reach of that water, lie at its level, and above them it
+                // comes down to it in steps of at most three blocks
+                pts.add(new double[]{x, z, joinLevel});
+                for (int k = pts.size() - 2; k >= 1; k--) {
+                    double[] q = pts.get(k);
+                    double need = Math.hypot(q[0] - x, q[1] - z) < JOIN_REACH ? joinLevel : pts.get(k + 1)[2] + 3;
+                    if (q[2] <= need) {
+                        break;
+                    }
+                    q[2] = need;
+                }
+                outJoins = true;
                 break;
             }
             int g = ps.ground(ix, iz);
-            int lv = Math.min(level, g);
-            flat = lv == level ? flat + 1 : 0;
-            pts.add(new double[]{x, z, lv});
-            level = lv;
-            if (flat >= 6 || level - 1 <= model.seaLevel()) {
+            if (g > level + MAX_OUT_RISE) {
+                // a sink: the land rises ahead more than the stream may cut through
                 break;
             }
+            int lv = Math.min(level, g);
+            sinceDrop = lv < level ? 0 : sinceDrop + 1;
+            pts.add(new double[]{x, z, lv});
+            level = lv;
+            if (sinceDrop > MAX_OUT_FLAT) {
+                break;
+            }
+        }
+        if (!outJoins && level0 - level < 2 && pts.size() > 4) {
+            // a stream that never got going: keep only its first stretch out of the pool
+            pts.subList(4, pts.size()).clear();
+        }
+        pondR = 0.0;
+        if (!outJoins) {
+            // a stream that joins no water ends in a small pond, but only on flat ground or in a
+            // hollow: where the land still falls away around its end, the water would just stop
+            // part way down a slope, and the site is no good
+            double[] last = pts.get(pts.size() - 1);
+            int surface = (int) last[2] - 1;
+            for (int r = 6; r <= 18; r += 6) {
+                for (int k = 0; k < 16; k++) {
+                    double ang = k * Math.PI / 8.0;
+                    if (ps.ground((int) Math.floor(last[0] + r * Math.cos(ang)), (int) Math.floor(last[1] + r * Math.sin(ang))) < surface - MAX_END_FALL) {
+                        return false;
+                    }
+                }
+            }
+            pondR = clamp(outHalf + 1.0 + 1.5 * dice.next(), 2.0, 3.5);
         }
         outN = pts.size();
         outX = new double[outN];
@@ -1118,10 +1300,14 @@ final class FallCourse {
         double z0 = Double.MAX_VALUE;
         double x1 = -Double.MAX_VALUE;
         double z1 = -Double.MAX_VALUE;
+        outLength = 0.0;
         for (int k = 0; k < outN; k++) {
             outX[k] = pts.get(k)[0];
             outZ[k] = pts.get(k)[1];
             outLevel[k] = (int) pts.get(k)[2];
+            if (k > 0) {
+                outLength += Math.hypot(outX[k] - outX[k - 1], outZ[k] - outZ[k - 1]);
+            }
             x0 = Math.min(x0, outX[k]);
             z0 = Math.min(z0, outZ[k]);
             x1 = Math.max(x1, outX[k]);
@@ -1141,13 +1327,16 @@ final class FallCourse {
         double z0 = Double.MAX_VALUE;
         double x1 = -Double.MAX_VALUE;
         double z1 = -Double.MAX_VALUE;
-        double maxV = channelHalf + 2.5;
+        // the water's own extent: the winding channel, the band down the face with its frayed edge,
+        // and the pool out to its farthest lobe; the walls beside them reach WALL_REACH further,
+        // which the margin below adds
+        double maxV = channelHalf + 3.0;
         for (int k = 0; k < envN; k++) {
-            maxV = Math.max(maxV, Math.abs(envC[k]) + envW[k] + 1.0);
+            maxV = Math.max(maxV, Math.abs(envC[k]) + envW[k] + 1.0 + 0.25 * envW[k]);
         }
         double uLo = -channel - 2.0 * headR - 3.0;
-        double uHi = Math.max(faceEnd + 2.0, poolU + poolA * 1.4 + 1.0);
-        double vHi = Math.max(maxV + 2.0, Math.abs(poolV) + poolB * 1.4 + 1.0);
+        double uHi = Math.max(faceEnd + 2.0, poolU + poolA * 1.6 + 1.0);
+        double vHi = Math.max(maxV + 2.0, Math.abs(poolV) + poolB * 1.6 + 1.0);
         double[][] corners = {{uLo, -vHi}, {uLo, vHi}, {uHi, -vHi}, {uHi, vHi}};
         for (double[] c : corners) {
             double x = worldX(c[0], c[1]);
@@ -1157,26 +1346,114 @@ final class FallCourse {
             x1 = Math.max(x1, x);
             z1 = Math.max(z1, z);
         }
-        for (int k = 0; k < outN; k++) {
-            x0 = Math.min(x0, outX[k]);
-            z0 = Math.min(z0, outZ[k]);
-            x1 = Math.max(x1, outX[k]);
-            z1 = Math.max(z1, outZ[k]);
-        }
         for (int b = 0; b < boulders; b++) {
             x0 = Math.min(x0, boulderX[b] - 2);
             z0 = Math.min(z0, boulderZ[b] - 2);
             x1 = Math.max(x1, boulderX[b] + 2);
             z1 = Math.max(z1, boulderZ[b] + 2);
         }
-        minX = (int) Math.floor(x0) - WALL_REACH - 3;
-        minZ = (int) Math.floor(z0) - WALL_REACH - 3;
-        maxX = (int) Math.ceil(x1) + WALL_REACH + 3;
-        maxZ = (int) Math.ceil(z1) + WALL_REACH + 3;
+        int pad = WALL_REACH + 3;
+        int coreX0 = (int) Math.floor(x0) - pad;
+        int coreZ0 = (int) Math.floor(z0) - pad;
+        int coreX1 = (int) Math.ceil(x1) + pad;
+        int coreZ1 = (int) Math.ceil(z1) + pad;
+        for (int k = 0; k < outN; k++) {
+            x0 = Math.min(x0, outX[k]);
+            z0 = Math.min(z0, outZ[k]);
+            x1 = Math.max(x1, outX[k]);
+            z1 = Math.max(z1, outZ[k]);
+        }
+        minX = (int) Math.floor(x0) - pad;
+        minZ = (int) Math.floor(z0) - pad;
+        maxX = (int) Math.ceil(x1) + pad;
+        maxZ = (int) Math.ceil(z1) + pad;
+        // a long outflow makes the bounds a large box that is mostly far from the water: the cells
+        // of a coarse grid that the course may shape are the box around the lip, face and pool and
+        // a band along the stream, as wide as its water, banks, crags and pond reach
+        maskW = (maxX - minX) / MASK_CELL + 1;
+        int maskH = (maxZ - minZ) / MASK_CELL + 1;
+        mask = new boolean[maskW * maskH];
+        markMask(coreX0, coreZ0, coreX1, coreZ1);
+        int reach = (int) Math.ceil(Math.max(outHalf + 0.4, pondR + 0.4) + WALL_REACH) + 2;
+        for (int k = 0; k < outN; k++) {
+            int ox = (int) Math.floor(outX[k]);
+            int oz = (int) Math.floor(outZ[k]);
+            markMask(ox - reach, oz - reach, ox + reach, oz + reach);
+        }
+    }
+
+    private void markMask(int x0, int z0, int x1, int z1) {
+        int i0 = Math.max(0, (x0 - minX) / MASK_CELL);
+        int j0 = Math.max(0, (z0 - minZ) / MASK_CELL);
+        int i1 = Math.min(maskW - 1, (Math.min(x1, maxX) - minX) / MASK_CELL);
+        int j1 = Math.min(mask.length / maskW - 1, (Math.min(z1, maxZ) - minZ) / MASK_CELL);
+        for (int j = j0; j <= j1; j++) {
+            for (int i = i0; i <= i1; i++) {
+                mask[j * maskW + i] = true;
+            }
+        }
+    }
+
+    /** Whether a cell of the coarse grid the course may shape meets the given rectangle. */
+    boolean meets(int x0, int z0, int x1, int z1) {
+        x0 = Math.max(x0, minX);
+        z0 = Math.max(z0, minZ);
+        x1 = Math.min(x1, maxX);
+        z1 = Math.min(z1, maxZ);
+        if (x0 > x1 || z0 > z1) {
+            return false;
+        }
+        if (mask == null) {
+            return true;
+        }
+        for (int j = (z0 - minZ) / MASK_CELL; j <= (z1 - minZ) / MASK_CELL; j++) {
+            for (int i = (x0 - minX) / MASK_CELL; i <= (x1 - minX) / MASK_CELL; i++) {
+                if (mask[j * maskW + i]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether a cell of the coarse grid the course may shape, grown by {@code margin} blocks, meets
+     * the part of plan {@code o} that it may shape (see {@link FallPlan#overlaps}).
+     */
+    boolean touches(FallPlan o, int margin) {
+        if (mask == null) {
+            return o.meets(minX - margin, minZ - margin, maxX + margin, maxZ + margin);
+        }
+        int maskH = mask.length / maskW;
+        for (int j = 0; j < maskH; j++) {
+            for (int i = 0; i < maskW; i++) {
+                if (!mask[j * maskW + i]) {
+                    continue;
+                }
+                int x0 = minX + i * MASK_CELL;
+                int z0 = minZ + j * MASK_CELL;
+                if (o.meets(x0 - margin, z0 - margin, Math.min(x0 + MASK_CELL - 1, maxX) + margin, Math.min(z0 + MASK_CELL - 1, maxZ) + margin)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether the course may shape a column at all: inside its bounds and in a cell of the coarse
+     * grid near the lip, the face, the pool or the outflow. Every column {@link #shape} changes
+     * passes; most of a long outflow's bounding box does not, and is skipped at once.
+     */
+    boolean mayShape(int x, int z) {
+        if (x < minX || x > maxX || z < minZ || z > maxZ) {
+            return false;
+        }
+        return mask == null || mask[((z - minZ) / MASK_CELL) * maskW + (x - minX) / MASK_CELL];
     }
 
     String region(int x, int z) {
         double u = u(x, z);
-        return u < 0.5 ? "channel" : u < faceEnd ? "face" : poolRadius(u, v(x, z)) < 1.6 ? "pool" : "out";
+        return u < 0.5 ? "channel" : inLeap(x, z) ? "leap" : u < faceEnd ? "face" : poolRadius(u, v(x, z)) < 1.6 ? "pool" : "out";
     }
 }

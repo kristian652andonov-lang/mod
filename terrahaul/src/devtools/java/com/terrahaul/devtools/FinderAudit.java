@@ -238,8 +238,17 @@ public final class FinderAudit {
                         FallPlan p = planner.fall(Math.floorDiv(r.x(), FallPlanner.FALL_CELL) + dx, Math.floorDiv(r.z(), FallPlanner.FALL_CELL) + dz);
                         if (p != null && p.viewX == r.x() && p.viewZ == r.z()) {
                             double d = Math.hypot(p.lookX - r.x(), p.lookZ - r.z());
-                            return p.drop() < 10 ? "a fall of only " + p.drop() + " blocks" : d > 90 ? "viewpoint " + Math.round(d) + " blocks from the fall"
-                                : wet ? "viewpoint in water" : null;
+                            // the ground as the game builds it: interpolated between the grid's
+                            // corners, not the column sampled on its own
+                            double hi = model.interpolatedHeight(r.x(), r.z());
+                            boolean wetHere = s.waterLevel != ColumnSample.NO_WATER && s.waterLevel > hi || hi < sl - 0.5;
+                            if (p.drop() < 10 || d > 90 || wetHere) {
+                                return p.drop() < 10 ? "a fall of only " + p.drop() + " blocks" : d > 90 ? "viewpoint " + Math.round(d) + " blocks from the fall"
+                                    : "viewpoint in water";
+                            }
+                            // and the fall is in sight from there: at least half of its centre line
+                            int seen = planner.visibleFromViewpoint(p);
+                            return seen * 2 < 4 ? "only " + seen + " of 4 points of the fall in sight from the viewpoint" : null;
                         }
                     }
                 }

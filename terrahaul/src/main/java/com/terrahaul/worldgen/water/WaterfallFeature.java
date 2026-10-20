@@ -34,8 +34,8 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
  *       falling water and on the cleft and crags beside it (not in cold climates);</li>
  *   <li>glow lichen grows on the rock just above the plunge pool;</li>
  *   <li>vines hang down the rock beside the water where it is humid;</li>
- *   <li>ferns and moss carpets grow on the shores, on mossy ledges and crags beside the fall and
- *       on the dams of cascades;</li>
+ *   <li>ferns and moss carpets grow on the shores and on the dams of cascades;</li>
+ *   <li>and on the mossy ledges and crags beside a fall, where ferns grow on the moss too;</li>
  *   <li>lily pads float on the still lowest pool of a cascade.</li>
  * </ul>
  * Neighbouring chunks may not have built their part of a plan yet, so nothing here depends on
@@ -127,7 +127,7 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
         }
         if (humid && (shape.role == WaterSolver.ROLE_SHORE || shape.role == WaterSolver.ROLE_NATURAL || shape.role == WaterSolver.ROLE_ROCK)) {
             // the shores, and the ledges and crags beside the water once the spray has made them mossy
-            placed |= plants(level, pos, p, x, top, z);
+            placed |= plants(level, pos, p, x, top, z, true);
         }
         return placed;
     }
@@ -196,13 +196,20 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
 
     /** Ferns and moss carpets on a shore or dam top, if it is soil or moss with air above. */
     private static boolean plants(WorldGenLevel level, BlockPos.MutableBlockPos pos, FallPlan p, int x, int top, int z) {
+        return plants(level, pos, p, x, top, z, false);
+    }
+
+    /**
+     * {@link #plants}; beside a waterfall ({@code fall}) ferns also grow on some of the moss the
+     * spray keeps, instead of a carpet everywhere (moss is a block of the dirt tag, below).
+     */
+    private static boolean plants(WorldGenLevel level, BlockPos.MutableBlockPos pos, FallPlan p, int x, int top, int z, boolean fall) {
         BlockState ground = level.getBlockState(pos.set(x, top, z));
         if (!level.getBlockState(pos.set(x, top + 1, z)).isAir()) {
             return false;
         }
         double h = hash(p, x * 3, z * 5);
-        if (ground.is(Blocks.MOSS_BLOCK) && h >= 0.12 && h < 0.45) {
-            // ferns too grow on moss (a block of the dirt tag), below
+        if (ground.is(Blocks.MOSS_BLOCK) && (h >= 0.12 || !fall) && h < 0.45) {
             level.setBlock(pos.set(x, top + 1, z), Blocks.MOSS_CARPET.defaultBlockState(), 2);
             return true;
         }

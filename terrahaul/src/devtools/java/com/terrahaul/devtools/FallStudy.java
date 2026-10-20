@@ -29,8 +29,16 @@ import javax.imageio.ImageIO;
  *       the solved world: cut volume (blocks removed below the model surface), fill, deepest cut,
  *       how far around the foot of the fall cut walls stand (an amphitheatre stands all around),
  *       rock built up over open air in the 3D terrain, the water invariants, planning cost; writes
- *       one site per line for {@code render}. Exits with status 1 if any plan cuts more than the
- *       planner's cap, digs a hole, builds over a gap or breaks a water invariant.</li>
+ *       one site per line for {@code render}; whether each outflow joins a river, lake, the sea or a
+ *       stream. Exits with status 1 if any plan cuts more than the planner's cap (the 3D rock over
+ *       the model surface that the carve removes included), digs a hole, cuts at its bounds or far
+ *       from its water, builds over a gap, breaks a water invariant, has an outflow that stops on a
+ *       slope, a fan without ribs, a plunge without a tall drop or a face of one- and two-block
+ *       steps.</li>
+ *   <li>{@code order <seed> <half>}: every waterfall cell in {@code [-half, half]^2} planned in
+ *       sweep order on one model, in a shuffled order on a fresh one, and each cell with a fall
+ *       alone on a fresh model; exits with status 1 if any plan depends on what the model computed
+ *       before (a chunk generated in another order would build a different fall).</li>
  *   <li>{@code render <seed> <sites> <outDir> <prefix> [max]}: for each site, views from the front,
  *       from the side, from high up and from the finder's viewpoint, and a top view, with the same
  *       cameras every run (they depend on the site line only), so a site can be compared before and
@@ -63,6 +71,31 @@ public final class FallStudy {
         }
     }
 
+    /** The planner's cap for a planned fall, its outflow's channel included (older planners: by its drop). */
+    static int cutCap(FallPlan p) {
+        try {
+            return FallPlanner.cutCap(p);
+        } catch (NoSuchMethodError e) {
+            return cutCap(p.drop());
+        }
+    }
+
+    /** Deepest the basin under a plunge's leap may be cut, by the planner's rule (older planners: the general limit). */
+    static int maxLeapDepth() {
+        try {
+            return FallPlanner.MAX_LEAP_DEPTH;
+        } catch (NoSuchFieldError e) {
+            return MAX_DEPTH;
+        }
+    }
+
+    /** Furthest the land may fall below the end of an outflow that joins no water, within 18 blocks. */
+    private static final int MAX_END_FALL = 5;
+    /** Shortest free drop a plunge must have. */
+    private static final int PLUNGE_LEAP = 9;
+    /** Least share of a fall's drop that must come in drops of four blocks or more (less is a creek). */
+    private static final double MIN_FALLING_SHARE = 0.25;
+
     public static void main(String[] args) throws Exception {
         String mode = args[0];
         long seed = Long.parseLong(args[1]);
@@ -73,6 +106,7 @@ public final class FallStudy {
             case "cost" -> cost(model, Integer.parseInt(args[2]));
             case "shot" -> shot(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), new File(args[4]));
             case "dump" -> dump(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]));
+            case "order" -> order(seed, Integer.parseInt(args[2]));
             default -> throw new IllegalArgumentException("unknown mode " + mode);
         }
     }
@@ -433,10 +467,18 @@ public final class FallStudy {
     /** How a waterfall reshapes the ground, from the solved region around it. */
     static final class Cut {
         long removed;
+        /** Of {@link #removed}: rock of the 3D terrain standing over the model surface (overhangs, ledges) that the carve takes away. */
+        long removed3d;
         long added;
         int maxDepth;
+        /** Deepest cut under a plunge's leap, which has a limit of its own (not in {@link #maxDepth}). */
+        int leapDepth;
         int deepColumns;
         int columns;
+        /** Columns on the edge of the plan's bounds cut two blocks or more: the cut would stop there in a straight step. */
+        int edgeCuts;
+        /** Dry columns cut three blocks or more further than {@link #QUARRY_REACH} from any of the plan's water. */
+        int farCuts;
         /** Degrees around the foot of the fall in which cut walls of six blocks or more stand. */
         int wallDegrees;
         long water;
@@ -445,31 +487,91 @@ public final class FallStudy {
 
         @Override
         public String toString() {
-            return String.format(Locale.ROOT, "cut %6d blocks (deepest %2d, %4d columns, %3d of them 6+ deep, walls around the foot %3d deg), fill %4d, water %5d%s",
-                removed, maxDepth, columns, deepColumns, wallDegrees, added, water, byPart.isEmpty() ? "" : " " + byPart);
+            return String.format(Locale.ROOT, "cut %6d blocks (3D rock %4d, deepest %2d%s, %4d columns, %3d of them 6+ deep, walls around the foot %3d deg), fill %4d, water %5d%s",
+                removed, removed3d, maxDepth, leapDepth > 0 ? ", under the leap " + leapDepth : "", columns, deepColumns, wallDegrees, added, water,
+                byPart.isEmpty() ? "" : " " + byPart);
         }
     }
 
     static Cut cut(Region r, FallPlan p) {
+        return cut(r, p, null);
+    }
+
+    /** Whether the plan itself shapes a column whose natural ground is {@code natural}. */
+    private static boolean shapes(FallPlan p, int x, int z, int natural) {
+        WaterPlan.Shape s = new WaterPlan.Shape();
+        s.reset(natural);
+        return p.shape(x, z, natural, s);
+    }
+
+    /** Farthest from a plan's water that a dry column may be cut three blocks or more: the walls' reach and a little. */
+    static final int QUARRY_REACH = 12;
+
+    /**
+     * What a plan cuts and builds; with the 3D terrain {@code f} it also counts the rock standing
+     * over the model surface in the columns the plan shapes, which the game carves away with them
+     * (an overhang's roof, a ledge), as part of the cut.
+     */
+    static Cut cut(Region r, FallPlan p, FragmentAudit.Field f) {
         Cut c = new Cut();
         WaterStudy.Area a = r.area;
-        for (int x = Math.max(p.minX(), r.ax); x <= Math.min(p.maxX(), r.ax + r.w - 1); x++) {
-            for (int z = Math.max(p.minZ(), r.az); z <= Math.min(p.maxZ(), r.az + r.h - 1); z++) {
+        int x0 = Math.max(p.minX(), r.ax);
+        int x1 = Math.min(p.maxX(), r.ax + r.w - 1);
+        int z0 = Math.max(p.minZ(), r.az);
+        int z1 = Math.min(p.maxZ(), r.az + r.h - 1);
+        int bw = x1 - x0 + 1;
+        int bh = z1 - z0 + 1;
+        float[] dist = new float[Math.max(0, bw * bh)];
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
+                int k = a.at(x, z);
+                dist[(z - z0) * bw + (x - x0)] = r.planned[k] && a.level[k] != WaterSolver.NONE ? 0.0f : Float.MAX_VALUE;
+            }
+        }
+        chamfer(dist, bw, bh);
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
                 int k = a.at(x, z);
                 if (!r.planned[k]) {
                     continue;
                 }
                 int topSolid = a.solidTop[k];
                 int d = a.natural[k] - topSolid;
+                if (f != null && r.shaped[k]) {
+                    // the game clears the column above the shaped ground: rock of the 3D terrain over
+                    // the model surface goes too
+                    int above = 0;
+                    for (int y = Math.max(a.natural[k], topSolid) + 1; y <= Math.max(a.natural[k], topSolid) + 64; y++) {
+                        if (f.solid(x - f.x0, y, z - f.z0)) {
+                            above++;
+                        }
+                    }
+                    c.removed3d += above;
+                    c.removed += above;
+                }
+                // (only what this plan shapes counts: a neighbouring plan's stream may cross its bounds)
+                boolean edge = x == p.minX() || x == p.maxX() || z == p.minZ() || z == p.maxZ();
+                if (edge && d >= 2 && shapes(p, x, z, a.natural[k])) {
+                    c.edgeCuts++;
+                }
+                if (d >= 3 && a.level[k] == WaterSolver.NONE && dist[(z - z0) * bw + (x - x0)] > QUARRY_REACH && shapes(p, x, z, a.natural[k])) {
+                    c.farCuts++;
+                }
                 if (d > 0) {
+                    String part = "";
                     try {
-                        c.byPart.merge(p.part(x, z), (long) d, Long::sum);
+                        part = p.part(x, z);
+                        c.byPart.merge(part, (long) d, Long::sum);
                     } catch (NoSuchMethodError e) {
                         // an older planner
                     }
                     c.removed += d;
                     c.columns++;
-                    c.maxDepth = Math.max(c.maxDepth, d);
+                    if (part.equals("leap") && a.level[k] != WaterSolver.NONE) {
+                        c.leapDepth = Math.max(c.leapDepth, d);
+                    } else {
+                        c.maxDepth = Math.max(c.maxDepth, d);
+                    }
                     if (d >= 6) {
                         c.deepColumns++;
                     }
@@ -486,22 +588,30 @@ public final class FallStudy {
         // within 20 blocks
         double fx = p.lipX + 0.5 + 2.0 * p.dirX;
         double fz = p.lipZ + 0.5 + 2.0 * p.dirZ;
-        double sx = 0.0;
-        double sz = 0.0;
-        int n = 0;
-        for (int x = Math.max(p.minX(), r.ax); x <= Math.min(p.maxX(), r.ax + r.w - 1); x++) {
-            for (int z = Math.max(p.minZ(), r.az); z <= Math.min(p.maxZ(), r.az + r.h - 1); z++) {
-                int k = a.at(x, z);
-                if (r.planned[k] && a.level[k] == p.pool + 1 && Math.hypot(x - p.lipX, z - p.lipZ) < 80) {
-                    sx += x + 0.5;
-                    sz += z + 0.5;
-                    n++;
+        try {
+            // where the water lands: the middle of the plunge pool, or of the notch down to the sea
+            double[] foot = p.foot();
+            fx = foot[0];
+            fz = foot[1];
+        } catch (NoSuchMethodError e) {
+            // an older planner: the middle of the water at the pool's level
+            double sx = 0.0;
+            double sz = 0.0;
+            int n = 0;
+            for (int x = Math.max(p.minX(), r.ax); x <= Math.min(p.maxX(), r.ax + r.w - 1); x++) {
+                for (int z = Math.max(p.minZ(), r.az); z <= Math.min(p.maxZ(), r.az + r.h - 1); z++) {
+                    int k = a.at(x, z);
+                    if (r.planned[k] && a.level[k] == p.pool + 1 && Math.hypot(x - p.lipX, z - p.lipZ) < 80) {
+                        sx += x + 0.5;
+                        sz += z + 0.5;
+                        n++;
+                    }
                 }
             }
-        }
-        if (n > 0 && p.type != FallPlan.SEA) {
-            fx = sx / n;
-            fz = sz / n;
+            if (n > 0 && p.type != FallPlan.SEA) {
+                fx = sx / n;
+                fz = sz / n;
+            }
         }
         int rays = 0;
         for (int deg = 0; deg < 360; deg += 10) {
@@ -530,8 +640,44 @@ public final class FallStudy {
      * {@code {count, deepest gap}}.
      */
     static int[] fillGaps(TerrainModel model, Region r, FallPlan p) {
+        return fillGaps(field(model, p), r, p);
+    }
+
+    /** The 3D terrain over a plan's bounds and a little around. */
+    static FragmentAudit.Field field(TerrainModel model, FallPlan p) {
         int size = Math.max(p.maxX() - p.minX(), p.maxZ() - p.minZ()) + 16;
-        FragmentAudit.Field f = FragmentAudit.Field.build(model, (p.minX() + p.maxX()) / 2, (p.minZ() + p.maxZ()) / 2, size);
+        return FragmentAudit.Field.build(model, (p.minX() + p.maxX()) / 2, (p.minZ() + p.maxZ()) / 2, size);
+    }
+
+    /** Chamfer distance (1 along an axis, 1.41 diagonally) to the nearest zero, in place. */
+    static void chamfer(float[] dist, int w, int h) {
+        for (int pass = 0; pass < 2; pass++) {
+            int dir = pass == 0 ? 1 : -1;
+            for (int j = pass == 0 ? 0 : h - 1; j >= 0 && j < h; j += dir) {
+                for (int i = pass == 0 ? 0 : w - 1; i >= 0 && i < w; i += dir) {
+                    int k = j * w + i;
+                    float d = dist[k];
+                    int pi = i - dir;
+                    int pj = j - dir;
+                    if (pi >= 0 && pi < w) {
+                        d = Math.min(d, dist[j * w + pi] + 1.0f);
+                    }
+                    if (pj >= 0 && pj < h) {
+                        d = Math.min(d, dist[pj * w + i] + 1.0f);
+                        if (pi >= 0 && pi < w) {
+                            d = Math.min(d, dist[pj * w + pi] + 1.4142f);
+                        }
+                        if (i + dir >= 0 && i + dir < w) {
+                            d = Math.min(d, dist[pj * w + i + dir] + 1.4142f);
+                        }
+                    }
+                    dist[k] = d;
+                }
+            }
+        }
+    }
+
+    static int[] fillGaps(FragmentAudit.Field f, Region r, FallPlan p) {
         WaterStudy.Area a = r.area;
         int count = 0;
         int deepest = 0;
@@ -584,27 +730,86 @@ public final class FallStudy {
         int overCap = 0;
         int holes = 0;
         int totalGaps = 0;
+        int edges = 0;
+        int quarries = 0;
+        int strandedEnds = 0;
+        int badStyles = 0;
+        int withPool = 0;
+        int joined = 0;
         for (FallPlan p : plans) {
             WaterStudy.Stats st = new WaterStudy.Stats();
             Region r = solve(model, p.minX() - 4, p.minZ() - 4, p.maxX() + 4, p.maxZ() + 4, st);
             WaterStudy.accumulate(total, st);
-            Cut c = cut(r, p);
-            int[] gaps = fillGaps(model, r, p);
+            FragmentAudit.Field field = field(model, p);
+            Cut c = cut(r, p, field);
+            int[] gaps = fillGaps(field, r, p);
             totalGaps += gaps[0];
             removed.add(c.removed);
             walls.add(c.wallDegrees);
             depths.add(c.maxDepth);
             // the earthworks of a natural fall: within the cap, no column cut deep, no cut walls
-            // standing around the foot of the fall (the amphitheatre of a quarried bowl)
+            // standing around the foot of the fall (the amphitheatre of a quarried bowl), no cut
+            // stopping in a step at the plan's bounds or far from the water (a quarry)
             String flags = "";
-            if (c.removed > cutCap(p.drop())) {
+            if (c.removed > cutCap(p)) {
                 overCap++;
-                flags += "  OVER CAP " + cutCap(p.drop());
+                flags += "  OVER CAP " + cutCap(p);
             }
-            if (c.maxDepth > MAX_DEPTH || c.wallDegrees > MAX_WALL_DEGREES) {
+            if (c.maxDepth > MAX_DEPTH || c.leapDepth > maxLeapDepth() || c.wallDegrees > MAX_WALL_DEGREES) {
                 holes++;
                 flags += "  HOLE";
             }
+            if (c.edgeCuts > 0) {
+                edges++;
+                flags += "  CUT AT BOUNDS " + c.edgeCuts;
+            }
+            if (c.farCuts > 0) {
+                quarries++;
+                flags += "  CUT FAR FROM WATER " + c.farCuts;
+            }
+            // the water: an outflow that joins nothing ends on flat ground or in a hollow, never
+            // part way down a slope; a fan keeps its strands apart, a plunge has a tall free drop,
+            // and no fall is a creek of one- and two-block steps
+            double[] end = p.outflowEnd();
+            if (end != null) {
+                withPool++;
+                if (p.joinsWater()) {
+                    joined++;
+                } else {
+                    int lowest = Integer.MAX_VALUE;
+                    for (int rr = 6; rr <= 18; rr += 6) {
+                        for (int k = 0; k < 16; k++) {
+                            double ang = k * Math.PI / 8.0;
+                            lowest = Math.min(lowest, (int) Math.ceil(model.interpolatedHeight((int) Math.floor(end[0] + rr * Math.cos(ang)),
+                                (int) Math.floor(end[1] + rr * Math.sin(ang)))) - 1);
+                        }
+                    }
+                    if (lowest < end[2] - MAX_END_FALL) {
+                        strandedEnds++;
+                        flags += "  OUTFLOW STOPS ON A SLOPE (land falls " + (int) (end[2] - lowest) + ")";
+                    }
+                }
+            }
+            int[] drops = p.drops();
+            int tallest = 0;
+            int falling = 0;
+            for (int d : drops) {
+                tallest = Math.max(tallest, d);
+                falling += d >= 4 ? d : 0;
+            }
+            if (p.style() == 3 && p.outcrops() < 2) {
+                badStyles++;
+                flags += "  FAN WITHOUT RIBS";
+            }
+            if (p.style() == 0 && tallest < PLUNGE_LEAP) {
+                badStyles++;
+                flags += "  PLUNGE WITHOUT A LEAP";
+            }
+            if (falling < MIN_FALLING_SHARE * p.drop()) {
+                badStyles++;
+                flags += "  CREEK";
+            }
+            flags = String.format(Locale.ROOT, "  tallest drop %d, %s%s", tallest, end == null ? "into the water" : p.joinsWater() ? "joins water" : "ends in a pond", flags);
             if (gaps[0] > 0) {
                 flags += "  GAPS " + gaps[0] + " (deepest " + gaps[1] + ")";
             }
@@ -629,8 +834,10 @@ public final class FallStudy {
                 removed.get(removed.size() - 1), depths.get(depths.size() / 2), depths.get(depths.size() - 1), walls.get(walls.size() / 2),
                 walls.get(walls.size() - 1));
         }
-        System.out.printf(Locale.ROOT, "cut over the cap: %d plans; holes (a column cut more than %d deep, or cut walls more than %d deg around the foot): %d plans%n",
-            overCap, MAX_DEPTH, MAX_WALL_DEGREES, holes);
+        System.out.printf(Locale.ROOT, "cut over the cap: %d plans; holes (a column cut more than %d deep, or cut walls more than %d deg around the foot): %d plans; "
+            + "cuts at the bounds: %d plans; cuts more than %d blocks from the water: %d plans%n", overCap, MAX_DEPTH, MAX_WALL_DEGREES, holes, edges, QUARRY_REACH, quarries);
+        System.out.printf(Locale.ROOT, "outflows joining a river, lake, the sea or a stream: %d of %d (%.0f%%); outflows stopping on a slope: %d; fans without ribs, "
+            + "plunges without a leap, creeks: %d%n", joined, withPool, 100.0 * joined / Math.max(1, withPool), strandedEnds, badStyles);
         System.out.printf(Locale.ROOT, "invariants over %d chunks: mismatches %d, source-air %d, water-above-air %d, banks %s; built-up columns over open air "
                 + "in the 3D terrain %d%n", total.chunks, total.mismatches, total.sourceFacingAir, total.waterAboveAir, WaterStudy.hist(total.bankHist), totalGaps);
         for (String e : total.examples) {
@@ -641,12 +848,71 @@ public final class FallStudy {
         }
         // the limits are asserted, not just reported: a plan over the cut cap, a hole, rock built
         // over a gap or a broken water invariant fails the run
-        long broken = overCap + holes + totalGaps + total.mismatches + total.sourceFacingAir + total.waterAboveAir;
+        long broken = overCap + holes + totalGaps + total.mismatches + total.sourceFacingAir + total.waterAboveAir + edges + quarries + strandedEnds
+            + badStyles;
         if (broken > 0) {
             System.out.println("FAILED: " + broken + " violations");
             System.exit(1);
         }
-        System.out.println("OK: every plan within the cut cap, no holes, nothing built over a gap, water invariants hold");
+        System.out.println("OK: every plan within the cut cap, no holes, no cut at the bounds or far from the water, nothing built over a gap, every outflow "
+            + "joins water or ends on flat ground, every fan has ribs and every plunge a tall drop, water invariants hold");
+    }
+
+    // =========================================================================================
+    // order
+    // =========================================================================================
+
+    /** What identifies a plan: its place, levels, bounds, viewpoint and score. */
+    private static String describe(FallPlan p) {
+        if (p == null) {
+            return "none";
+        }
+        return String.format(Locale.ROOT, "%s lip %d,%d top %d pool %d bounds %d..%d,%d..%d view %d,%d,%d score %.9g", p.typeName(), p.lipX, p.lipZ, p.top,
+            p.pool, p.minX(), p.maxX(), p.minZ(), p.maxZ(), p.viewX, p.viewY, p.viewZ, p.score);
+    }
+
+    private static void order(long seed, int half) {
+        int n = half / FallPlanner.FALL_CELL;
+        java.util.Map<Long, String> sweep = new java.util.HashMap<>();
+        List<int[]> cells = new ArrayList<>();
+        FallPlanner a = FallPlanner.of(new TerrainModel(seed, TerrainSettings.DEFAULT));
+        for (int cx = -n; cx < n; cx++) {
+            for (int cz = -n; cz < n; cz++) {
+                sweep.put(((long) cx << 32) ^ (cz & 0xFFFFFFFFL), describe(a.fall(cx, cz)));
+                cells.add(new int[]{cx, cz});
+            }
+        }
+        int diffs = 0;
+        java.util.Collections.shuffle(cells, new java.util.Random(seed));
+        FallPlanner b = FallPlanner.of(new TerrainModel(seed, TerrainSettings.DEFAULT));
+        for (int[] c : cells) {
+            String d = describe(b.fall(c[0], c[1]));
+            String w = sweep.get(((long) c[0] << 32) ^ (c[1] & 0xFFFFFFFFL));
+            if (!d.equals(w)) {
+                diffs++;
+                System.out.printf(Locale.ROOT, "cell %d,%d shuffled: %s%n    sweep: %s%n", c[0], c[1], d, w);
+            }
+        }
+        int alone = 0;
+        for (int[] c : cells) {
+            String w = sweep.get(((long) c[0] << 32) ^ (c[1] & 0xFFFFFFFFL));
+            if (w.equals("none")) {
+                continue;
+            }
+            alone++;
+            String d = describe(FallPlanner.of(new TerrainModel(seed, TerrainSettings.DEFAULT)).fall(c[0], c[1]));
+            if (!d.equals(w)) {
+                diffs++;
+                System.out.printf(Locale.ROOT, "cell %d,%d alone: %s%n    sweep: %s%n", c[0], c[1], d, w);
+            }
+        }
+        System.out.printf(Locale.ROOT, "%d cells in sweep and shuffled order, %d cells with a fall alone on a fresh model: %d plans differ%n", cells.size(), alone,
+            diffs);
+        if (diffs > 0) {
+            System.out.println("FAILED: plans depend on what the model computed before");
+            System.exit(1);
+        }
+        System.out.println("OK: every plan is the same whatever the order");
     }
 
     // =========================================================================================

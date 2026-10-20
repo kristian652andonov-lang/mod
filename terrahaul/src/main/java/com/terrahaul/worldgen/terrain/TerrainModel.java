@@ -1937,7 +1937,10 @@ public final class TerrainModel {
         }
         double relN = normal.hit ? normal.dist / normal.halfW : Double.MAX_VALUE;
         double relG = great.hit ? great.dist / great.halfW : Double.MAX_VALUE;
-        RiverTrace dom = relN <= relG ? normal : great;
+        // only a trace that hit the column may decide: one that did not still holds the fields of
+        // whichever column the thread computed before (a river narrowed to nothing has an
+        // infinite relative distance, which must not hand the column to a great river not there)
+        RiverTrace dom = !great.hit || normal.hit && relN <= relG ? normal : great;
         RiverTrace other = dom == normal ? great : normal;
         sc.fHalfW = dom.halfW;
         sc.fDist = dom.dist;

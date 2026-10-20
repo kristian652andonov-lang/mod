@@ -134,8 +134,27 @@ public final class FallPlan implements WaterPlan {
         return Math.abs(dx) >= Math.abs(dz) ? new int[]{dx >= 0 ? 1 : -1, 0} : new int[]{0, dz >= 0 ? 1 : -1};
     }
 
+    /**
+     * Whether two plans come within {@code margin} blocks of each other: their bounds, and for a
+     * waterfall only the part of them its course may shape (a long outflow's bounds are mostly
+     * open ground). The test is symmetric, so the cells on either side decide alike.
+     */
     boolean overlaps(FallPlan o, int margin) {
-        return minX - margin <= o.maxX && maxX + margin >= o.minX && minZ - margin <= o.maxZ && maxZ + margin >= o.minZ;
+        if (minX - margin > o.maxX || maxX + margin < o.minX || minZ - margin > o.maxZ || maxZ + margin < o.minZ) {
+            return false;
+        }
+        if (course != null) {
+            return course.touches(o, margin);
+        }
+        return o.course == null || o.course.touches(this, margin);
+    }
+
+    /** Whether some part of the plan's own bounds meets the given rectangle. */
+    boolean meets(int x0, int z0, int x1, int z1) {
+        if (x0 > maxX || x1 < minX || z0 > maxZ || z1 < minZ) {
+            return false;
+        }
+        return course == null || course.meets(x0, z0, x1, z1);
     }
 
     /**
@@ -149,6 +168,55 @@ public final class FallPlan implements WaterPlan {
     /** Whether a column lies on a waterfall's face, between the lip and the pool. */
     public boolean onFace(int x, int z) {
         return course.onFace(x, z);
+    }
+
+    /** Style of a waterfall's water: 0 plunge, 1 tiered, 2 horsetail, 3 fan of strands (for devtools). */
+    public int style() {
+        return course.style;
+    }
+
+    /**
+     * The drops of a waterfall's water from the lip down to its pool, ledge by ledge (for devtools):
+     * each is the difference of the water's surface between one ledge and the next.
+     */
+    public int[] drops() {
+        FallCourse c = course;
+        int[] d = new int[c.treads];
+        int prev = c.channelLevel[0];
+        for (int i = 1; i <= c.treads; i++) {
+            int lv = i >= c.treads ? c.poolLevel : c.treadLevel[i];
+            d[i - 1] = prev - lv;
+            prev = lv;
+        }
+        return d;
+    }
+
+    /** Rock ribs or outcrops standing in a waterfall's water (for devtools). */
+    public int outcrops() {
+        return course.rocks;
+    }
+
+    /** Whether a waterfall's water ends in a river, lake, the sea or a stream (for devtools). */
+    public boolean joinsWater() {
+        return course.intoWater || course.outJoins;
+    }
+
+    /**
+     * Where a waterfall's outflow ends, {@code {x, z, top water block}}, or {@code null} if it drops
+     * into the sea or a lake (for devtools).
+     */
+    public double[] outflowEnd() {
+        FallCourse c = course;
+        if (c.intoWater || c.outN == 0) {
+            return null;
+        }
+        return new double[]{c.outX[c.outN - 1], c.outZ[c.outN - 1], c.outLevel[c.outN - 1] - 1};
+    }
+
+    /** Where a waterfall's water lands: the middle of its plunge pool, {@code {x, z}} (for devtools). */
+    public double[] foot() {
+        FallCourse c = course;
+        return new double[]{c.worldX(c.poolU, c.poolV) + 0.5, c.worldZ(c.poolU, c.poolV) + 0.5};
     }
 
     /** The part of a waterfall a column belongs to: channel, face, pool or outflow (for devtools). */
