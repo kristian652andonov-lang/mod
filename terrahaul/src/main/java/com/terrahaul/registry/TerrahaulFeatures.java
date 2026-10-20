@@ -9,6 +9,8 @@ import com.terrahaul.worldgen.features.FloatingTerrainCleanup;
 import com.terrahaul.worldgen.features.OceanVentFeature;
 import com.terrahaul.worldgen.features.RockFormationFeature;
 import com.terrahaul.worldgen.features.WaterWallSealer;
+import com.terrahaul.worldgen.features.lake.LakeFloorFeature;
+import com.terrahaul.worldgen.features.lake.LakeLifeFeature;
 import com.terrahaul.worldgen.features.marine.CoralReefFeature;
 import com.terrahaul.worldgen.features.marine.SeaGrottoFeature;
 import com.terrahaul.worldgen.features.marine.SeaVegetationFeature;
@@ -66,6 +68,12 @@ public final class TerrahaulFeatures {
         FEATURES.register("sea_vegetation", () -> new SeaVegetationFeature(NoneFeatureConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, VanillaFallbackFeature> VANILLA_FALLBACK =
         FEATURES.register("vanilla_fallback", () -> new VanillaFallbackFeature(VanillaFallbackFeature.Config.CODEC));
+
+    // lake floors (see worldgen/features/lake)
+    public static final DeferredHolder<Feature<?>, LakeFloorFeature> LAKE_FLOOR =
+        FEATURES.register("lake_floor", () -> new LakeFloorFeature(NoneFeatureConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, LakeLifeFeature> LAKE_LIFE =
+        FEATURES.register("lake_life", () -> new LakeLifeFeature(NoneFeatureConfiguration.CODEC));
 
     private TerrahaulFeatures() {
     }

@@ -27,6 +27,11 @@ import javax.imageio.ImageIO;
  * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; find &lt;target&gt; [count=2] [size]   find targets with the finder, then as area
  * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; stats                        finder distances of every sea target
  * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; perf                         raster cost per chunk on sea chunks
+ * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakes [types] [count] [phase]  lake floors (see {@link LakeFloorStudy})
+ * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakeat &lt;x&gt; &lt;z&gt; [size]        render and check the lake floor around a point
+ * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakeview &lt;x&gt; &lt;z&gt; [...]       fixed diver and boat views of the lake floor at points
+ * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakesurvey [types] [count]       plants and objects on lake floors by depth band
+ * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakeperf                     lake raster cost per chunk on lake chunks
  * </pre>
  * Checks printed for each area: floating planned blocks, coral blocks without water next to them,
  * plants without support, seams (chunk-by-chunk assembly against one raster of the whole area),
@@ -121,6 +126,7 @@ public final class SeaFloorStudy {
                 }
             }
             case "perf" -> perf(planner);
+            case "lakes", "lakeat", "lakeview", "lakesurvey", "lakeperf" -> LakeFloorStudy.main(model, dir, mode, args);
             default -> throw new IllegalArgumentException("unknown mode " + mode);
         }
     }
