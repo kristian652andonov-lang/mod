@@ -10,6 +10,9 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import javax.imageio.ImageIO;
 
@@ -33,6 +36,12 @@ import javax.imageio.ImageIO;
  * ones; level beds give a ratio well below 1, vertical striations a ratio near or above 1.
  * Colours are false-contrast greys (tuff dark, andesite middle, stone light) so the stops are
  * easy to tell apart. Usage: {@code FadeStudy <seed> <out.png> [target=canyon]}.
+ * <p>
+ * Mode {@code flanks}: {@code FadeStudy <seed> <outDir> flanks [before|now] [size=176] [bench|-]
+ * [site,...]} renders mountain flanks block by block in the colours of the real blocks (granite,
+ * dark and limestone provinces, a temperate, a snowy and a desert mountain, the snow line, a
+ * foothill and synthetic flanks 1-3 blocks steep per block), prints speckle and patch-size
+ * measures and with {@code bench} the cost per column and per block (see {@link FlankView}).
  */
 public final class FadeStudy {
     private static final int AIR = -1;
@@ -55,6 +64,10 @@ public final class FadeStudy {
         File out = new File(args[1]);
         String targetName = args.length > 2 ? args[2] : "canyon";
         TerrainModel model = new TerrainModel(seed, TerrainSettings.DEFAULT);
+        if (targetName.equals("flanks")) {
+            flanks(model, out, args);
+            return;
+        }
         TerrainFinder.Result r = TerrainFinder.find(model, TerrainFinder.targets().get(targetName), 0, 0, 30000, () -> false);
         int cx = r == null ? 0 : r.x();
         int cz = r == null ? 0 : r.z();
@@ -123,6 +136,71 @@ public final class FadeStudy {
         g.dispose();
         ImageIO.write(img, "png", out);
         System.out.println("wrote " + out);
+    }
+
+    /**
+     * Mountain flanks block by block (see {@link FlankView}):
+     * {@code FadeStudy <seed> <outDir> flanks [before|now] [size=176] [bench|-] [site,...]}. Renders a flank of
+     * the granite, dark, limestone and temperate provinces, a snowy peak, the snow line, a desert
+     * mountain and three synthetic flanks of 1, 2 and 3 blocks per block, writes
+     * {@code before_<site>.png} or {@code after_<site>.png} (and {@code after_<site>_layers.png}
+     * with vanilla's snow layers where the air is cold enough) and prints the measures of the top
+     * and face views; {@code bench} also times the material choice per block.
+     */
+    private static void flanks(TerrainModel model, File dir, String[] args) throws Exception {
+        boolean now = !(args.length > 3 && args[3].equals("before"));
+        int size = args.length > 4 ? Integer.parseInt(args[4]) : 176;
+        boolean bench = args.length > 5 && args[5].equals("bench");
+        dir.mkdirs();
+        FlankView view = new FlankView(model);
+        List<FlankView.Site> sites = new ArrayList<>(view.findSites(size));
+        // synthetic flanks with the climate of the temperate site, from the rock zone up into the snow
+        FlankView.Site base = sites.stream().filter(s -> s.name().equals("temperate")).findFirst().orElse(sites.get(0));
+        ColumnSample climate = new ColumnSample();
+        model.sampleInto(base.x(), base.z(), climate);
+        climate.x = base.x();
+        climate.z = base.z();
+        double summit = 110.0 + (climate.baseTemperature + 0.35) * 560.0;
+        for (int slope = 1; slope <= 3; slope++) {
+            sites.add(view.synthetic("steep" + slope, slope, climate, size, summit));
+        }
+        String prefix = now ? "after_" : "before_";
+        List<String> only = args.length > 6 ? List.of(args[6].split(",")) : null;
+        for (FlankView.Site site : sites) {
+            if (only != null && !only.contains(site.name())) {
+                continue;
+            }
+            FlankView.Column[][] cols = view.columns(site, now);
+            int scale = Math.max(3, 528 / size);
+            FlankView.Panel panel = view.render(site, cols, now, scale, false);
+            String suffix = size == 176 ? "" : "_" + size;
+            File file = new File(dir, prefix + site.name() + suffix + ".png");
+            ImageIO.write(panel.image(), "png", file);
+            System.out.printf(Locale.ROOT, "%s at %d %d (rotation %d) -> %s%n", site.name(), site.x(), site.z(), site.rotation(), file);
+            System.out.println("  " + FlankView.measure("top view", panel.topView()));
+            System.out.println("  " + FlankView.measure("face view", panel.faceView()));
+            System.out.println("  " + view.surfaceMeasure(cols, now));
+            if (now) {
+                FlankView.Panel layers = view.render(site, cols, true, scale, true);
+                if (!Arrays.deepEquals(layers.topView(), panel.topView()) || hasSnowLayer(view, site, cols)) {
+                    ImageIO.write(layers.image(), "png", new File(dir, prefix + site.name() + suffix + "_layers.png"));
+                }
+            }
+            if (bench) {
+                view.bench(site);
+            }
+        }
+    }
+
+    private static boolean hasSnowLayer(FlankView view, FlankView.Site site, FlankView.Column[][] cols) {
+        for (FlankView.Column[] row : cols) {
+            for (FlankView.Column c : row) {
+                if (c.ground == FlankView.SNOWY || c.top > 360) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Strata of the released version: 5-block bands of a mixed palette with a dithered offset. */
