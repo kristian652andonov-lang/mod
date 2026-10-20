@@ -124,6 +124,20 @@ def sea_floor():
             add_features(f'sea/vanilla/{feature}', holders[feature], f'terrahaul:sea/vanilla/{feature}', step)
 
 
+def lake_floors():
+    # Terrahaul lake floors and the life in and around lakes; no-ops outside Terrahaul worlds (they
+    # need the terrain model) and away from lakes. Added to every overworld biome, since lakes lie in
+    # any biome. The floor runs after the surface water has filled the lakes, the plants after the
+    # floating-terrain cleanup
+    for name, step, conditions in (("lake_floor", "local_modifications", CONFIG_DETAILS),
+                                   ("lake_life", "vegetal_decoration", None)):
+        configured(name, 'terrahaul:' + name, {})
+        placed(name, 'terrahaul:' + name, [])
+        add_features('lake/' + name, '#minecraft:is_overworld', 'terrahaul:' + name, step)
+        if conditions:
+            with_conditions(f'terrahaul/neoforge/biome_modifier/lake/{name}.json', conditions)
+
+
 def water():
     # both features are no-ops outside Terrahaul worlds (they need the terrain model)
     configured('surface_water', 'terrahaul:surface_water', {})
@@ -836,6 +850,7 @@ def main():
     terrain_cleanup()
     water()
     oceans()
+    lake_floors()
     trees()
     details()
     volcano_vegetation()
