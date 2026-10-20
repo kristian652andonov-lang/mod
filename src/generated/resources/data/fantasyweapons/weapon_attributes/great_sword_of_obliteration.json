@@ -23,9 +23,9 @@
       },
       {
         "angle": 150.0,
-        "animation": "bettercombat:two_handed_slash_vertical_right",
+        "animation": "bettercombat:two_handed_slash_horizontal_left",
         "damage_multiplier": 1.3,
-        "hitbox": "VERTICAL_PLANE",
+        "hitbox": "HORIZONTAL_PLANE",
         "swing_sound": {
           "id": "bettercombat:claymore_slam"
         },

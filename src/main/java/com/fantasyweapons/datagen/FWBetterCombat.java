@@ -22,8 +22,8 @@ import java.util.concurrent.CompletableFuture;
  * <p>
  * Each weapon class gets its own chain of attacks, matched to how the weapon fights here: hitbox, arc and finisher.
  * No idle pose is set, so the weapons keep their own stances; the swing trails take the weapon's element colours.
- * The long blades (greatswords, Monolith) stay off Better Combat's slams, which end with the blade buried in the
- * ground: they sweep and cleave instead.
+ * Better Combat's overhead chops and slams end with the weapon pointing into the ground, which buries these long
+ * blades and heads, so the two-handed weapons sweep, thrust and spin instead; only Starforge, a hammer, slams.
  * Staffs and spellbooks get attributes without attacks, so Better Combat leaves their click (a bolt) alone. Of the
  * tools only the axes fight Better Combat's way, as vanilla axes do; pickaxes and shovels stay vanilla diggers.
  */
@@ -70,12 +70,12 @@ public class FWBetterCombat implements DataProvider {
                 attributes.addProperty("category", "claymore");
                 attacks.add(attack("HORIZONTAL_PLANE", 150, 0.9, "two_handed_slash_horizontal_right", "claymore_swing", 1f));
                 attacks.add(attack("FORWARD_BOX", 0, 1.0, "two_handed_stab_left", "claymore_stab", 1f));
-                attacks.add(attack("VERTICAL_PLANE", 150, 1.3, "two_handed_slash_vertical_right", "claymore_slam", 1f));
+                attacks.add(attack("HORIZONTAL_PLANE", 150, 1.3, "two_handed_slash_horizontal_left", "claymore_slam", 1f));
             }
             case BATTLEAXE -> {
                 attributes.addProperty("category", "double_axe");
                 attacks.add(attack("HORIZONTAL_PLANE", 150, 1.0, "two_handed_slash_horizontal_right", "double_axe_swing", 1f));
-                attacks.add(attack("VERTICAL_PLANE", 120, 1.1, "two_handed_slash_vertical_right", "double_axe_swing", 0.95f));
+                attacks.add(attack("HORIZONTAL_PLANE", 150, 1.1, "two_handed_slash_horizontal_left", "double_axe_swing", 0.95f));
                 attacks.add(attack("HORIZONTAL_PLANE", 360, 1.2, "two_handed_spin", "double_axe_swing", 0.85f));
             }
             case SCYTHE -> {
@@ -86,15 +86,15 @@ public class FWBetterCombat implements DataProvider {
             }
             case WARHAMMER -> {
                 attributes.addProperty("category", "hammer");
-                attacks.add(attack("VERTICAL_PLANE", 120, 1.0, "two_handed_slash_vertical_right", "hammer_slam", 1f));
                 attacks.add(attack("HORIZONTAL_PLANE", 180, 1.0, "two_handed_slash_horizontal_right", "mace_slash", 0.9f));
+                attacks.add(attack("HORIZONTAL_PLANE", 180, 1.0, "two_handed_slash_horizontal_left", "mace_slash", 0.85f));
                 attacks.add(attack("VERTICAL_PLANE", 150, 1.3, "two_handed_slam", "hammer_slam", 0.85f));
             }
             case LANCE -> {
                 attributes.addProperty("category", "spear");
                 attacks.add(attack("FORWARD_BOX", 0, 1.0, "two_handed_stab_right", "spear_stab", 1f));
                 attacks.add(attack("FORWARD_BOX", 0, 1.0, "two_handed_stab_left", "spear_stab", 1.1f));
-                attacks.add(attack("VERTICAL_PLANE", 120, 1.2, "two_handed_slash_vertical_right", "glaive_slash_quick", 1f));
+                attacks.add(attack("HORIZONTAL_PLANE", 150, 1.2, "two_handed_slash_horizontal_right", "glaive_slash_slow", 1f));
             }
             case COLOSSAL -> {
                 attributes.addProperty("category", "claymore");
