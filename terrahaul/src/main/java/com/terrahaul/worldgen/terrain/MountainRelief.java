@@ -27,8 +27,6 @@ final class MountainRelief {
     private static final double FEEDBACK = 0.4;
     /** Spread of the turn of an arête's bearing as it runs down from the summit (radians; half of it either way). */
     private static final double MEANDER = 0.32;
-    /** Gullies are cut {@code 1 + CUT_BIAS} times as deep as spurs are raised. */
-    private static final double CUT_BIAS = 0.2;
 
     private final long gullySeed;
 
@@ -239,22 +237,38 @@ final class MountainRelief {
      * oriented along the local gradient, so its crests (spurs) and troughs (gullies) follow the fall
      * line. The gradient includes the previous octaves, so finer gullies run down the sides of the
      * coarser spurs and the pattern branches like a drainage network (an approach popularised by
-     * Clay John's "eroded terrain" shader). Gentle ground gets no gullies: the depth fades in with
-     * the slope. Summits and crests are kept sharp by the caller, which fades the depth out where
-     * the fall line turns.
+     * Clay John's "eroded terrain" shader). The stripes are triangle waves of their blended phase,
+     * so spurs are knife edges and gullies V-shaped notches, as on real alpine faces, not the
+     * rounded ribs a sine wave gives. Gentle ground gets no gullies: the depth fades in with
+     * the slope. Summits are kept pointed by the caller, which fades the depth out where no fall
+     * line prevails.
+     * <p>
+     * Low mountains have short flanks, across which the coarsest gullies would make a gentle
+     * swell rather than a furrow: there ({@code fine} towards 1) the coarsest octave gives way to
+     * the next finer one, which then takes its depth, and one finer octave is added at the end, so
+     * a low flank is furrowed as steeply as a tall one. The scales stay fixed (a scale that changed
+     * with the relief would stretch the stripes wherever the relief changes), only their depths
+     * shift.
      *
-     * @param g     the terrain gradient (blocks per block) on entry, smooth across crests; the
-     *              gradient including the gullies on return
+     * @param g     the terrain gradient (blocks per block) on entry, and in {@code g[2]} how far
+     *              the gullies may bend around the spurs of the coarser octaves (0..1, see below);
+     *              the gradient including the gullies on return
      * @param depth depth of the coarsest gullies in blocks
+     * @param rise  how far the spurs rise above the uneroded surface, as a share of the gullies'
+     *              amplitude (0..1); the gullies are cut one amplitude deep whatever it is
+     * @param fine  how far the depth shifts from the coarsest octave to the finer ones (0..1)
      * @return the height change in blocks (mostly negative)
      */
-    double gullies(double x, double z, double[] g, double depth, double cell, int octaves) {
+    double gullies(double x, double z, double[] g, double depth, double cell, int octaves, double rise, double fine) {
         double gx = g[0];
         double gz = g[1];
         double total = 0.0;
         double size = cell;
-        double amp = depth;
         double r2 = GULLY_RADIUS * GULLY_RADIUS;
+        double share = 1.0;
+        if (fine > 0.0) {
+            octaves++;
+        }
         // gentle ground has no gullies: there the fall line wanders, and stripes that follow it
         // would curl into worm-like patterns
         double baseSlope = Math.sqrt(gx * gx + gz * gz);
@@ -263,8 +277,11 @@ final class MountainRelief {
             return 0.0;
         }
         for (int o = 0; o < octaves; o++) {
+            // depth of this octave: each finer octave 2.5 times shallower, the coarsest one
+            // handing its depth on to the others where `fine` says so
+            double amp = depth * share * (o == 0 ? 1.0 - fine : 1.0 + 1.5 * fine);
             double slope = Math.sqrt(gx * gx + gz * gz);
-            if (slope > 1.0E-4) {
+            if (slope > 1.0E-4 && amp > 0.01) {
                 // unit vector along the contour: the stripes vary across the slope, not down it
                 double tx = -gz / slope;
                 double tz = gx / slope;
@@ -294,21 +311,33 @@ final class MountainRelief {
                     }
                 }
                 if (sumW > 1.0E-6) {
-                    double v = sumC / sumW;
+                    // the blended stripes as a phase and an amplitude: a cosine profile would round
+                    // every spur into a hump and every gully into a trough, so the profile is a
+                    // triangle wave of the phase instead, with a knife edge on each spur (phase 0)
+                    // and a V-shaped notch in each gully (phase +-pi). Where the stripes of the
+                    // kernels cancel the amplitude, and with it the pattern, fades to nothing.
+                    double mag = Math.sqrt(sumC * sumC + sumS * sumS) / sumW;
+                    mag *= 2.0 - mag;
+                    double v = mag * (1.0 - Math.abs(atan2(sumS, sumC)) * (2.0 / Math.PI));
                     double a = amp * strength;
-                    // spurs rise a little, gullies are cut deeper: on average erosion removes rock
-                    total += a * (v - CUT_BIAS);
+                    // the gullies are cut into the uneroded surface and the spurs between them
+                    // rise above it by `rise` of the amplitude: on a flank the full amount, so a
+                    // face is furrowed rather than simply lowered, but on a crest little, so the
+                    // crest is notched by the gullies that cross it and not stacked with spires
+                    total += a * (v > 0.0 ? v * rise : v);
                     // derivative of the stripes (kernel weights treated as constant), fed into
                     // the next octave so that its gullies bend around this octave's spurs; capped
                     // so the fall line turns by at most about 30 degrees
-                    double dv = -sumS / sumW * TAU / size * a * FEEDBACK;
+                    // (the bend depends on which way the gradient points, which is ambiguous on a
+                    // crest, where the caller leaves it out)
+                    double dv = -sumS / sumW * TAU / size * a * FEEDBACK * g[2];
                     dv = Math.max(-0.55 * baseSlope, Math.min(0.55 * baseSlope, dv));
                     gx += dv * tx;
                     gz += dv * tz;
                 }
             }
             size /= 2.3;
-            amp /= 2.1;
+            share /= 2.5;
         }
         g[0] = gx;
         g[1] = gz;
