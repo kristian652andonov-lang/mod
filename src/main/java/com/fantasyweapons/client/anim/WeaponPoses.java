@@ -382,18 +382,10 @@ public final class WeaponPoses {
         return rendering;
     }
 
-    /**
-     * How much of the weapon's own grip to keep on an entity, 0..1: another mod animating the arms (Better Combat's
-     * swings) takes the grip over while it plays. Null keeps all of it.
-     */
-    public static java.util.function.ToDoubleFunction<LivingEntity> gripKeep;
-
     /** Grip of the main-hand weapon of the entity currently being rendered, or null. */
     public static Pose renderingPose(ItemStack stack) {
         if (rendering == null || rendering != lastEntity || rendering.getMainHandItem() != stack) return null;
-        if (gripKeep == null) return lastPose;
-        float keep = (float) gripKeep.applyAsDouble(rendering);
-        return keep >= 1 ? lastPose : lastPose.grip(lastPose.gx() * keep, lastPose.gz() * keep);
+        return lastPose;
     }
 
     /** Applies a pose to the model and mirrors vanilla's arm-pivot handling for body twist. */

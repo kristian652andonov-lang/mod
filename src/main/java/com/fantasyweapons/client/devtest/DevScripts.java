@@ -122,6 +122,7 @@ final class DevScripts {
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.equals("bettercombat")) betterCombat(b, null);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
+                else if (name.startsWith("bcframes:")) betterCombatFrames(b, name.substring(9).split(","));
                 else if (name.equals("magehud")) mageHud(b);
                 else if (name.startsWith("empower:")) empower(b, name.substring(8));
                 else if (name.equals("impacthit")) impactHit(b);
@@ -2829,6 +2830,22 @@ final class DevScripts {
         b.screenshot("bc_thrown").wait(100);
         logCombatFlags(b, "back in hand");
         b.camera(CameraType.FIRST_PERSON).playerView();
+    }
+
+    /** One weapon's Better Combat combo frame by frame (every 3 ticks), from behind and from the side. */
+    private static void betterCombatFrames(ScreenshotDirector.Builder b, String[] weapons) {
+        b.cmd("/gamemode creative").hud(false);
+        for (String w : weapons) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            int cooldown = Math.round(20f / def.weaponClass().attackSpeed());
+            b.cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]").cmd("/clear @s")
+                    .cmd("/fw give " + w + " 1").wait(12).slot(0).camera(CameraType.THIRD_PERSON_BACK).look(0, 8).wait(cooldown + 20);
+            for (int k = 0; k < 3; k++) {
+                b.click();
+                for (int f = 0; f * 3 < cooldown; f++) b.wait(f == 0 ? 1 : 3).screenshot("bcf_" + w + "_" + k + "_" + f);
+                b.wait(6);
+            }
+        }
     }
 
     private static void logDummies(ScreenshotDirector.Builder b, String weapon, String tag) {
