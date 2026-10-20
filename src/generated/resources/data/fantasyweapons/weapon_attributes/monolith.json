@@ -13,13 +13,13 @@
         "upswing": 0.5
       },
       {
-        "angle": 150.0,
-        "animation": "bettercombat:two_handed_slam",
-        "damage_multiplier": 1.4,
-        "hitbox": "VERTICAL_PLANE",
+        "angle": 160.0,
+        "animation": "bettercombat:two_handed_slash_horizontal_left",
+        "damage_multiplier": 1.3,
+        "hitbox": "HORIZONTAL_PLANE",
         "swing_sound": {
           "id": "bettercombat:claymore_slam",
-          "pitch": 0.8
+          "pitch": 0.75
         },
         "upswing": 0.5
       }

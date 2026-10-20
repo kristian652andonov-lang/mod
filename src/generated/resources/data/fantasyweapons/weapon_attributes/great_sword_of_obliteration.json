@@ -23,7 +23,7 @@
       },
       {
         "angle": 150.0,
-        "animation": "bettercombat:two_handed_slam",
+        "animation": "bettercombat:two_handed_slash_vertical_right",
         "damage_multiplier": 1.3,
         "hitbox": "VERTICAL_PLANE",
         "swing_sound": {
