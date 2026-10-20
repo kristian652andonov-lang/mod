@@ -1218,11 +1218,16 @@ public final class TerrainModel {
         double volcano = 0.0;
         double crater = 0.0;
         double volcanoHeight = sampleVolcano(x, z, base, sc);
+        // kept here: the lake sites sampled further down reuse the scratch
+        double craterLip = sc.craterLip;
         if (sc.volcanoInfluence > 0.0) {
             volcano = sc.volcanoInfluence;
             crater = sc.craterInfluence;
             if (sc.volcanoCraterMode) {
-                h = lerp(volcano, h, volcanoHeight);
+                // where higher ground (a mountain the volcano leans against) stands over the rim,
+                // it falls into the crater at a slope of scree instead of being cut off by a sheer
+                // ring along the outline; it only ever raises the crater, which still holds its lake
+                h = lerp(volcano, h, Math.max(volcanoHeight, h - CRATER_INFILL_SLOPE * sc.craterInside));
             } else {
                 h = Math.max(h, volcanoHeight);
             }
@@ -1386,8 +1391,9 @@ public final class TerrainModel {
         out.bigOverhangRim = Double.NaN;
         out.detailTop = Integer.MIN_VALUE;
         out.beach = (1.0 - coastCliff) * bump(h, sl - 3.0, sl + 1.0, sl + 5.0) * smoothstep(0.0, -0.16, cEff);
-        // no streams down the steep walls inside a crater, where they would need dams
-        out.stream = dry || aridity > 0.6 || crater > 0.0 ? 0.0 : streamFactor(vRaw, mountain, hillW, erosion, x, z);
+        // no streams down the steep walls inside a crater, where they would need dams; one that
+        // comes from higher ground fades out over the rim's lip instead of ending at its crest
+        out.stream = dry || aridity > 0.6 || craterLip <= 0.0 ? 0.0 : streamFactor(vRaw, mountain, hillW, erosion, x, z) * craterLip;
         out.cliff = clamp01(Math.max(Math.max(plateauEdge * 1.2, canyonWall), Math.max(coastCliff * smoothstep(sl, sl + 20.0, h),
             mountain * alpineW * smoothstep(0.5, 0.92, shape) * 0.7)));
         out.steepness = clamp01(Math.max(out.cliff, mountain * (0.3 + 0.7 * alpineW) * smoothstep(0.25, 0.8, shape)));
@@ -2251,12 +2257,19 @@ public final class TerrainModel {
     // Volcanoes
     // =========================================================================================
 
+    /**
+     * Steepest slope, in blocks per block, at which higher ground around a crater (a mountain the
+     * volcano leans against) falls into it.
+     */
+    private static final double CRATER_INFILL_SLOPE = 1.5;
+
     private double sampleVolcano(int x, int z, double base, Scratch sc) {
         sc.volcanoInfluence = 0.0;
         sc.craterInfluence = 0.0;
         sc.craterWaterLevel = ColumnSample.NO_WATER;
         sc.craterLavaLevel = ColumnSample.NO_WATER;
         sc.volcanoCraterMode = false;
+        sc.craterLip = 1.0;
         double cell = 4200.0 * hs;
         int cx = (int) Math.floor(x / cell);
         int cz = (int) Math.floor(z / cell);
@@ -2289,6 +2302,10 @@ public final class TerrainModel {
                     best = profile;
                     sc.volcanoInfluence = smoothstep(1.0, 0.55, t);
                     sc.craterInfluence = craterT;
+                    sc.craterInside = craterT > 0.0 ? sc.craterOut[2] - sc.craterOut[1] : 0.0;
+                    // 0 inside the crater, rising to 1 across the lip outside it
+                    sc.craterLip = craterT > 0.0 || sc.craterOut[0] >= 0.0 ? 0.0
+                        : r < v.craterReach ? smoothstep(0.0, 1.0, (sc.craterOut[1] - sc.craterOut[2]) / v.crater.lipWidth) : 1.0;
                     // only the crater of the volcano that shapes this column may flood it; where
                     // a neighbouring cone overlaps a crater, its flank is not under the crater lake
                     sc.craterWaterLevel = craterWater;
@@ -3292,6 +3309,11 @@ public final class TerrainModel {
         double phase;
         /** The crater's outline, rim, wall and floor (see {@link CraterShape}). */
         CraterShape.Crater crater;
+
+        /** A one-line account of the crater's shape, for the development tools. */
+        public String describeCrater() {
+            return CraterShape.describe(this);
+        }
     }
 
     /** Whether the ground 18 blocks around a point stays within 14 blocks of its height. */
@@ -3354,6 +3376,10 @@ public final class TerrainModel {
         double craterWaterLevel;
         double craterLavaLevel;
         boolean volcanoCraterMode;
+        /** How far inside the crater's outline the column lies, in blocks (0 outside). */
+        double craterInside;
+        /** How far a stream may run here: 0 inside the crater, rising to 1 across the rim's lip outside it. */
+        double craterLip;
         final double[] craterOut = new double[CraterShape.OUT];
         double plateau;
         double plateauTop;

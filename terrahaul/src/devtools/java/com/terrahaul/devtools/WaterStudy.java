@@ -1014,6 +1014,7 @@ public final class WaterStudy {
         Stats total = new Stats();
         int lakes = 0;
         int craters = 0;
+        int skipped = 0;
         long gaps = 0;
         List<String> bad = new ArrayList<>();
         List<double[]> sites = new ArrayList<>();
@@ -1053,8 +1054,11 @@ public final class WaterStudy {
             int ccz = Math.floorDiv((int) site[1] - r, 16);
             int nx = Math.floorDiv((int) site[0] + r, 16) - ccx + 1;
             int nz = Math.floorDiv((int) site[1] + r, 16) - ccz + 1;
-            // craters are few, so even the largest are solved whole
-            if (nx * nz > (site[4] > 0 ? 8000 : 900)) {
+            // craters are few, so even the largest are solved whole; anything too large to solve
+            // is named and counted rather than passed over in silence
+            if (nx * nz > (site[4] > 0 ? 12000 : 900)) {
+                skipped++;
+                System.out.printf(Locale.ROOT, "  skipped %s at %.0f,%.0f: %d chunks%n", site[4] > 0 ? "crater" : "lake", site[0], site[1], nx * nz);
                 continue;
             }
             Stats st = new Stats();
@@ -1116,8 +1120,9 @@ public final class WaterStudy {
                     site[0], site[1], site[3], st.sourceFacingAir, g, hist(st.bankHist)));
             }
         }
-        System.out.printf(Locale.ROOT, "%d elevated lakes and crater lakes (%d craters) solved (%d chunks): source-air %d, water-above-air %d, mismatches %d, "
-            + "dry gaps %d, banks %s%n", lakes, craters, total.chunks, total.sourceFacingAir, total.waterAboveAir, total.mismatches, gaps, hist(total.bankHist));
+        System.out.printf(Locale.ROOT, "%d elevated lakes and crater lakes (%d craters) solved (%d chunks), %d too large and skipped: source-air %d, water-above-air %d, "
+            + "mismatches %d, dry gaps %d, banks %s%n", lakes, craters, total.chunks, skipped, total.sourceFacingAir, total.waterAboveAir, total.mismatches, gaps,
+            hist(total.bankHist));
         for (String b : bad) {
             System.out.println("  " + b);
         }

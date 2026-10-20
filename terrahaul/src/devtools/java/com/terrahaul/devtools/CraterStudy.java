@@ -12,7 +12,9 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.stream.IntStream;
 import javax.imageio.ImageIO;
@@ -37,6 +39,206 @@ final class CraterStudy {
     private static final int RAYS = 720;
 
     private CraterStudy() {
+    }
+
+    /**
+     * Surveys every crater whose volcano lies within {@code half} blocks of the origin on the
+     * crater's own surface ({@link TerrainModel#volcanoSurface}, without the terrain around it),
+     * one block apart, and prints a line per crater and a summary: the steepest step between
+     * neighbouring blocks (and how many steps exceed 3 and 4 blocks), for crater lakes and lava
+     * pools the depth, the freeboard below the lowest crest, the pools, the islands and how high
+     * the highest stands above the liquid, and how much the outer shore's distance from the
+     * centre varies (0 for a disc), with the crater's own account of its shape (outline scale,
+     * wall share, how far the slope budget raised the floor).
+     */
+    static void survey(TerrainModel model, long seed, int half) {
+        List<TerrainModel.VolcanoSite> sites = new ArrayList<>();
+        for (int x = -half; x < half; x += 2000) {
+            for (int z = -half; z < half; z += 2000) {
+                TerrainModel.VolcanoSite v = model.nearestVolcano(x, z, 2000);
+                if (v != null && Math.abs(v.x) <= half && Math.abs(v.z) <= half && sites.stream().noneMatch(o -> o.x == v.x && o.z == v.z)) {
+                    sites.add(v);
+                }
+            }
+        }
+        sites.sort((a, b) -> a.x != b.x ? Double.compare(a.x, b.x) : Double.compare(a.z, b.z));
+        int steep3 = 0;
+        int steep4 = 0;
+        int liquids = 0;
+        int lakes = 0;
+        int above = 0;
+        int twoPools = 0;
+        List<Double> depths = new ArrayList<>();
+        List<Double> shores = new ArrayList<>();
+        double maxShare = 0.0;
+        double worstStep = 0.0;
+        for (TerrainModel.VolcanoSite v : sites) {
+            double[] r = surveyOne(model, v);
+            String kind = v.waterLevel != ColumnSample.NO_WATER ? "lake" : v.lavaLevel != ColumnSample.NO_WATER ? "lava" : "dry";
+            String account = v.describeCrater();
+            System.out.printf(Locale.ROOT, "%d %.0f,%.0f %s r0 %.0f depth %.0f reach %.0f | step max %.2f at %.0f,%.0f, >3: %d, >4: %d | %s | %s%n",
+                seed, v.x, v.z, kind, v.craterRadius, v.craterDepth, v.craterReach, r[0], r[1], r[2], (long) r[3], (long) r[4],
+                Double.isNaN(r[5]) ? "no liquid" : String.format(Locale.ROOT, "depth %.0f, freeboard %.1f, pools %d, islands %d (highest %.1f above), shore cv %.3f",
+                    r[5], r[6], (long) r[7], (long) r[8], r[9], r[10]), account);
+            steep3 += r[3] > 0 ? 1 : 0;
+            steep4 += r[4] > 0 ? 1 : 0;
+            worstStep = Math.max(worstStep, r[0]);
+            int at = account.indexOf("wall share ");
+            maxShare = Math.max(maxShare, Double.parseDouble(account.substring(at + 11).split("\\.\\.")[1].split(",")[0]));
+            if (!Double.isNaN(r[5])) {
+                liquids++;
+                lakes += kind.equals("lake") ? 1 : 0;
+                above += r[9] >= 2.0 ? 1 : 0;
+                twoPools += r[7] >= 2 ? 1 : 0;
+                depths.add(r[5]);
+                shores.add(r[10]);
+            }
+        }
+        depths.sort(null);
+        shores.sort(null);
+        System.out.printf(Locale.ROOT, "seed %d: %d craters, %d with liquid (%d lakes); steepest step %.2f; craters with steps over 3 blocks %d, over 4 blocks %d; "
+                + "widest wall share %.2f; liquid craters with an island or ridge 2+ blocks above the liquid %d, with two pools or more %d; "
+                + "liquid depth median %.0f (%.0f..%.0f); shore cv median %.3f (%.3f..%.3f)%n",
+            seed, sites.size(), liquids, lakes, worstStep, steep3, steep4, maxShare, above, twoPools,
+            median(depths), depths.isEmpty() ? Double.NaN : depths.get(0), depths.isEmpty() ? Double.NaN : depths.get(depths.size() - 1),
+            median(shores), shores.isEmpty() ? Double.NaN : shores.get(0), shores.isEmpty() ? Double.NaN : shores.get(shores.size() - 1));
+    }
+
+    private static double median(List<Double> a) {
+        return a.isEmpty() ? Double.NaN : a.get(a.size() / 2);
+    }
+
+    /**
+     * One crater of the survey: {steepest step, its x, z, steps over 3, steps over 4, liquid
+     * depth, freeboard, pools, islands, highest island above the liquid, shore cv}, the liquid
+     * entries NaN for a dry crater.
+     */
+    private static double[] surveyOne(TerrainModel model, TerrainModel.VolcanoSite v) {
+        int reach = (int) Math.ceil(v.craterReach) + 1;
+        int w = 2 * reach + 1;
+        int x0 = (int) Math.floor(v.x) - reach;
+        int z0 = (int) Math.floor(v.z) - reach;
+        double[] h = new double[w * w];
+        boolean[] inside = new boolean[w * w];
+        IntStream.range(0, w).parallel().forEach(j -> {
+            double[] out = new double[8];
+            for (int i = 0; i < w; i++) {
+                h[j * w + i] = model.volcanoSurface(v, x0 + i, z0 + j, out);
+                inside[j * w + i] = out[0] >= 0.0;
+            }
+        });
+        double worst = 0.0;
+        int wx = 0;
+        int wz = 0;
+        long over3 = 0;
+        long over4 = 0;
+        double r2 = v.craterReach * v.craterReach;
+        for (int j = 0; j < w; j++) {
+            for (int i = 0; i < w; i++) {
+                double dx = x0 + i - v.x;
+                double dz = z0 + j - v.z;
+                if (dx * dx + dz * dz >= r2) {
+                    continue;
+                }
+                double d = 0.0;
+                if (i > 0) {
+                    d = Math.abs(h[j * w + i] - h[j * w + i - 1]);
+                }
+                if (j > 0) {
+                    d = Math.max(d, Math.abs(h[j * w + i] - h[(j - 1) * w + i]));
+                }
+                if (d > worst) {
+                    worst = d;
+                    wx = x0 + i;
+                    wz = z0 + j;
+                }
+                over3 += d > 3.0 ? 1 : 0;
+                over4 += d > 4.0 ? 1 : 0;
+            }
+        }
+        double level = v.waterLevel != ColumnSample.NO_WATER ? v.waterLevel : v.lavaLevel;
+        double[] result = {worst, wx, wz, over3, over4, Double.NaN, Double.NaN, 0, 0, Double.NaN, Double.NaN};
+        if (level == ColumnSample.NO_WATER) {
+            return result;
+        }
+        // the liquid as the solver fills the crater: columns inside the crater whose ground is below the top liquid block
+        double surface = level - 1.0;
+        double[][] liquid = new double[w][w];
+        double bottom = Double.MAX_VALUE;
+        for (int j = 0; j < w; j++) {
+            for (int i = 0; i < w; i++) {
+                boolean wet = inside[j * w + i] && h[j * w + i] < surface;
+                liquid[j][i] = wet ? level : Double.NaN;
+                if (wet) {
+                    bottom = Math.min(bottom, h[j * w + i]);
+                }
+            }
+        }
+        int[] parts = components(liquid, w);
+        double highest = highestIsland(liquid, h, w);
+        highest = highest == -Double.MAX_VALUE ? Double.NaN : highest - surface;
+        double[] shore = new double[RAYS];
+        for (int a = 0; a < RAYS; a++) {
+            double ang = a * Math.PI * 2.0 / RAYS;
+            shore[a] = Double.NaN;
+            for (double r = 0.0; r < reach - 1; r += 1.0) {
+                int i = (int) Math.floor(v.x + Math.cos(ang) * r) - x0;
+                int j = (int) Math.floor(v.z + Math.sin(ang) * r) - z0;
+                if (!Double.isNaN(liquid[j][i])) {
+                    shore[a] = r;
+                }
+            }
+        }
+        double rimLow = Double.MAX_VALUE;
+        for (int a = 0; a < 4 * RAYS; a++) {
+            double ang = a * Math.PI * 2.0 / (4 * RAYS);
+            double rim = model.craterRimRadius(v, (int) Math.round(v.x + Math.cos(ang) * (v.craterReach + 2.0)), (int) Math.round(v.z + Math.sin(ang) * (v.craterReach + 2.0)));
+            double[] out = new double[8];
+            rimLow = Math.min(rimLow, model.volcanoSurface(v, (int) Math.round(v.x + Math.cos(ang) * rim), (int) Math.round(v.z + Math.sin(ang) * rim), out));
+        }
+        result[5] = surface - bottom;
+        result[6] = rimLow - surface;
+        result[7] = parts[0];
+        result[8] = parts[1];
+        result[9] = highest;
+        result[10] = cv(shore);
+        return result;
+    }
+
+    /** Height of the highest dry ground not connected to the border of the area (islands). */
+    private static double highestIsland(double[][] liquid, double[] h, int n) {
+        int[] label = new int[n * n];
+        ArrayDeque<Integer> queue = new ArrayDeque<>();
+        double best = -Double.MAX_VALUE;
+        for (int start = 0; start < n * n; start++) {
+            if (label[start] != 0 || !Double.isNaN(liquid[start / n][start % n])) {
+                continue;
+            }
+            label[start] = 1;
+            queue.add(start);
+            boolean border = false;
+            double top = -Double.MAX_VALUE;
+            int size = 0;
+            while (!queue.isEmpty()) {
+                int k = queue.poll();
+                size++;
+                int i = k % n;
+                int j = k / n;
+                top = Math.max(top, h[k]);
+                border |= i == 0 || j == 0 || i == n - 1 || j == n - 1;
+                int[] nb = {i > 0 ? k - 1 : -1, i < n - 1 ? k + 1 : -1, j > 0 ? k - n : -1, j < n - 1 ? k + n : -1};
+                for (int m : nb) {
+                    if (m >= 0 && label[m] == 0 && Double.isNaN(liquid[m / n][m % n])) {
+                        label[m] = 1;
+                        queue.add(m);
+                    }
+                }
+            }
+            if (!border && size >= 6) {
+                best = Math.max(best, top);
+            }
+        }
+        return best;
     }
 
     static void study(TerrainModel model, TerrainModel.VolcanoSite v, File out) throws Exception {
@@ -168,7 +370,7 @@ final class CraterStudy {
                 lowest = a;
             }
         }
-        int[] parts = components(liquid);
+        int[] parts = components(liquid, N);
         String stats = String.format(Locale.ROOT,
             "crater r %.0f depth %.0f | crest radius cv %.3f (min/max %.2f) | crest height %.0f..%.0f (sd %.1f) | %s | shore radius cv %s | pools %d islands %d",
             v.craterRadius, v.craterDepth, cv(crestR), min(crestR) / max(crestR), min(crestH), max(crestH), sd(crestH),
@@ -229,17 +431,17 @@ final class CraterStudy {
     }
 
     /** Liquid components larger than a few pixels, and dry components not touching the border (islands). */
-    private static int[] components(double[][] liquid) {
-        int[] label = new int[N * N];
+    private static int[] components(double[][] liquid, int n) {
+        int[] label = new int[n * n];
         int pools = 0;
         int islands = 0;
         ArrayDeque<Integer> queue = new ArrayDeque<>();
         int next = 1;
-        for (int start = 0; start < N * N; start++) {
+        for (int start = 0; start < n * n; start++) {
             if (label[start] != 0) {
                 continue;
             }
-            boolean wet = !Double.isNaN(liquid[start / N][start % N]);
+            boolean wet = !Double.isNaN(liquid[start / n][start % n]);
             label[start] = next;
             queue.add(start);
             int size = 0;
@@ -247,14 +449,14 @@ final class CraterStudy {
             while (!queue.isEmpty()) {
                 int k = queue.poll();
                 size++;
-                int i = k % N;
-                int j = k / N;
-                border |= i == 0 || j == 0 || i == N - 1 || j == N - 1;
-                int[] nb = {i > 0 ? k - 1 : -1, i < N - 1 ? k + 1 : -1, j > 0 ? k - N : -1, j < N - 1 ? k + N : -1};
-                for (int n : nb) {
-                    if (n >= 0 && label[n] == 0 && !Double.isNaN(liquid[n / N][n % N]) == wet) {
-                        label[n] = next;
-                        queue.add(n);
+                int i = k % n;
+                int j = k / n;
+                border |= i == 0 || j == 0 || i == n - 1 || j == n - 1;
+                int[] nb = {i > 0 ? k - 1 : -1, i < n - 1 ? k + 1 : -1, j > 0 ? k - n : -1, j < n - 1 ? k + n : -1};
+                for (int m : nb) {
+                    if (m >= 0 && label[m] == 0 && !Double.isNaN(liquid[m / n][m % n]) == wet) {
+                        label[m] = next;
+                        queue.add(m);
                     }
                 }
             }

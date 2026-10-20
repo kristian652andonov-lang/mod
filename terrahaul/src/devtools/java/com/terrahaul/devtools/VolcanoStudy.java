@@ -39,6 +39,11 @@ import javax.imageio.ImageIO;
  * water solver fills them), a view looking down into it from the south, and the crest of the rim
  * around the crater against the lake level, with numbers for how irregular the rim and the shore
  * are and whether the lake stays below the lowest point of the rim.
+ * <p>
+ * {@code VolcanoStudy cratersurvey <seed>[,<seed>...] [half=65536]} surveys every crater within
+ * {@code half} blocks of the origin on the crater's own surface: the steepest step between
+ * neighbouring blocks, and for lakes and lava pools their depth, freeboard, pools, islands and
+ * shore irregularity, with a summary per seed (see {@code CraterStudy#survey}).
  */
 public final class VolcanoStudy {
     /**
@@ -55,6 +60,13 @@ public final class VolcanoStudy {
     }
 
     public static void main(String[] args) throws Exception {
+        if (args[0].equals("cratersurvey")) {
+            for (String seed : args[1].split(",")) {
+                CraterStudy.survey(new TerrainModel(Long.parseLong(seed), TerrainSettings.DEFAULT), Long.parseLong(seed),
+                    args.length > 2 ? Integer.parseInt(args[2]) : 65536);
+            }
+            return;
+        }
         boolean craters = args[0].equals("craters");
         if (craters) {
             args = Arrays.copyOfRange(args, 1, args.length);
