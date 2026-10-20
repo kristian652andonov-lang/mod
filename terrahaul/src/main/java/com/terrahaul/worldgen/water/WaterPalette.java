@@ -160,6 +160,31 @@ final class WaterPalette {
         };
     }
 
+    /**
+     * Rock of a cascade: the outcrops of its hollow and the boulders on its banks and in its
+     * water. In forests mossy cobblestone boulders and stone outcrops, both mostly mossy on top;
+     * calcite in travertine country, bare stone in the cold, basalt on volcanoes. In patches a
+     * few blocks across.
+     */
+    BlockState cascadeRock(byte material, boolean boulder, int x, int y, int z, boolean isTop) {
+        double n = model.detail3(1, x / 3.5, y / 3.5 + 40.0, z / 3.5);
+        return switch (material) {
+            case FallPlan.MAT_TRAVERTINE -> isTop && humid() && n > -0.1 ? Blocks.MOSS_BLOCK.defaultBlockState()
+                : n > 0.3 && !boulder ? Blocks.STONE.defaultBlockState() : Blocks.CALCITE.defaultBlockState();
+            case FallPlan.MAT_COLD -> n > 0.25 ? Blocks.ANDESITE.defaultBlockState() : n > -0.2 || !boulder ? Blocks.STONE.defaultBlockState()
+                : Blocks.COBBLESTONE.defaultBlockState();
+            case FallPlan.MAT_VOLCANIC -> n > 0.0 ? Blocks.BASALT.defaultBlockState() : Blocks.SMOOTH_BASALT.defaultBlockState();
+            default -> {
+                if (boulder) {
+                    yield isTop && n > -0.2 ? Blocks.MOSS_BLOCK.defaultBlockState()
+                        : n > -0.15 ? Blocks.MOSSY_COBBLESTONE.defaultBlockState() : Blocks.COBBLESTONE.defaultBlockState();
+                }
+                yield isTop && n > 0.05 ? Blocks.MOSS_BLOCK.defaultBlockState() : n > 0.2 ? Blocks.MOSSY_COBBLESTONE.defaultBlockState()
+                    : n > -0.25 ? Blocks.STONE.defaultBlockState() : Blocks.ANDESITE.defaultBlockState();
+            }
+        };
+    }
+
     /** Bed of a planned pool: light sand, calcite and clay under travertine cascades (turquoise water). */
     BlockState planBed(byte material, int x, int y, int z) {
         if (material == FallPlan.MAT_TRAVERTINE) {
@@ -171,13 +196,14 @@ final class WaterPalette {
         return patch > 0.0 ? Blocks.GRAVEL.defaultBlockState() : Blocks.SAND.defaultBlockState();
     }
 
-    /** Ground a plan shaped: beds, rock, shores, dams and ribs. */
+    /** Ground a plan shaped: beds, rock, shores, dams, ribs and boulders. */
     BlockState shaped(byte role, byte material, boolean planned, int x, int y, int z, boolean isTop, boolean wet) {
         return switch (role) {
             case WaterSolver.ROLE_BED -> isTop ? (planned ? planBed(material, x, y, z) : bed(x, y, z)) : Blocks.STONE.defaultBlockState();
             case WaterSolver.ROLE_ROCK -> rock(x, y, z);
             case WaterSolver.ROLE_RIB -> planSill(material, x, y, z, false);
             case WaterSolver.ROLE_DAM -> planSill(material, x, y, z, isTop && !wet);
+            case WaterSolver.ROLE_BOULDER -> cascadeRock(material, true, x, y, z, isTop);
             case WaterSolver.ROLE_SHORE -> isTop ? (wet ? bed(x, y, z) : shoreTop()) : Blocks.DIRT.defaultBlockState();
             default -> isTop ? (wet ? bed(x, y, z) : bank(true, false)) : bank(false, false);
         };

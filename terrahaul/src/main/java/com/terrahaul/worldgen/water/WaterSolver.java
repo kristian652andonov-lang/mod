@@ -68,6 +68,8 @@ public final class WaterSolver {
     public static final byte ROLE_SHORE = 3;
     public static final byte ROLE_DAM = 4;
     public static final byte ROLE_RIB = 5;
+    /** A rock or boulder of a cascade, standing in its water or lying on its banks. */
+    public static final byte ROLE_BOULDER = 6;
 
     private static final int N = SIZE * SIZE;
     private static final int[] DX = {1, -1, 0, 0};
@@ -449,8 +451,9 @@ public final class WaterSolver {
     /**
      * Whether a step column is a sill or a chute. Columns that also step down to lower water
      * always pass the water on, and so do tall steps and deep columns; otherwise rivers mix sills
-     * and chutes in coherent runs along the step (a rapid), streams per column (a step pool),
-     * and cascades build travertine-like dams that the water spills over in places.
+     * and chutes in coherent runs along the step (a rapid) and streams per column (a step pool).
+     * A cascade's pools meet only at their lips (its plan keeps them apart elsewhere), so every
+     * step of a cascade is water spilling over a lip.
      */
     private byte chooseStep(TerrainModel model, int k, int x, int z, int drop, boolean lower) {
         if (rib[k]) {
@@ -460,7 +463,7 @@ public final class WaterSolver {
             return CHUTE;
         }
         return switch (style[k]) {
-            case STYLE_CASCADE -> drop <= 5 && model.detail3(6, x / 3.0, 9.0, z / 3.0) < -0.1 ? SILL : CHUTE;
+            case STYLE_CASCADE -> CHUTE;
             case STYLE_STREAM -> drop <= 2 && SeedMixer.unit(SeedMixer.hash2(model.siteSeed() ^ 0x57EAL, x, z)) < 0.55 ? SILL : CHUTE;
             case STYLE_RIVER -> drop <= 2 && model.detail3(5, x / 6.0, 7.0, z / 6.0) < -0.15 ? SILL : CHUTE;
             default -> CHUTE;

@@ -103,7 +103,11 @@ final class WaterView {
         return waterT >= 0 ? fog(waterColor, waterT) : sky;
     }
 
-    /** 0 air, 1 natural ground, 2 built or carved rock, 3 still water, 4 falling water. */
+    /**
+     * 0 air, 1 natural ground, 2 built or carved rock, 3 still water, 4 falling water, 5 mossy
+     * rock (dams, boulders, rock outcrops of cascades), 6 soil a plan or the solver shaped (grass
+     * on top, as the game grows it again), 7 the bed of a pool.
+     */
     private static int cell(TerrainModel model, WaterStudy.Area area, int x, int y, int z) {
         if (!area.contains(x, z)) {
             int g = (int) Math.ceil(model.interpolatedHeight(x, z)) - 1;
@@ -114,7 +118,26 @@ final class WaterView {
         }
         int k = area.at(x, z);
         if (area.solid(k, y)) {
-            return y > area.ground[k] || area.ground[k] < area.natural[k] ? 2 : 1;
+            boolean raised = y > area.ground[k];
+            boolean carved = area.ground[k] < area.natural[k];
+            boolean filled = y > area.natural[k];
+            if (raised) {
+                return area.step[k] == WaterSolver.SILL ? 2 : area.planned[k] && area.role[k] == WaterSolver.ROLE_DAM ? 5 : 6;
+            }
+            if (!area.planned[k]) {
+                return carved ? 2 : 1;
+            }
+            boolean cascade = area.style[k] == WaterSolver.STYLE_CASCADE;
+            return switch (area.role[k]) {
+                case WaterSolver.ROLE_BOULDER -> 5;
+                case WaterSolver.ROLE_DAM -> filled || cascade ? 5 : 1;
+                case WaterSolver.ROLE_ROCK -> cascade && y >= area.ground[k] - 6 ? 5 : 2;
+                case WaterSolver.ROLE_BED -> area.level[k] != WaterSolver.NONE ? 7 : 2;
+                case WaterSolver.ROLE_SHORE -> 6;
+                // soil cut down by four blocks or more is down to rock
+                case WaterSolver.ROLE_NATURAL -> carved && area.natural[k] - area.ground[k] >= 4 ? 2 : filled || carved ? 6 : 1;
+                default -> carved ? 2 : 1;
+            };
         }
         if (area.source(k, y) || area.level[k] != WaterSolver.NONE && area.kind[k] == WaterSolver.SEA && y < area.level[k] && y > area.ground[k]) {
             return 3;
@@ -136,6 +159,8 @@ final class WaterView {
                 shade = Math.max(shade, 0.85);
             }
             case 2 -> base = 0x8C8C88;
+            case 5 -> base = face == 1 ? 0x597D34 : 0x737C68;
+            case 7 -> base = 0xCBBD8E;
             default -> {
                 boolean top = !area.contains(x, z) ? face == 1 : y == area.solidTop[area.at(x, z)] && face == 1;
                 base = top ? (y < model.seaLevel() + 1 ? 0xD8C890 : 0x5E9E3E) : 0x7A6E60;
