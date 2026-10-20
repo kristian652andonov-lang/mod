@@ -72,15 +72,18 @@ public final class GeologyPalette {
     /**
      * The second rock of a province on mountains, which the surface rule mixes into the family in
      * large blobs (see {@code Fades.rock}): pink granite in granite provinces, so their mountains
-     * finally show it; grey andesite among the dark rock and the pale limestone; clay-brown
-     * terracotta among sedimentary beds; and cobblestone, broken rock of the same grey, elsewhere.
+     * finally show it; dark basalt among the dark rock (light andesite read as camouflage spots);
+     * grey andesite among the pale limestone; clay-brown terracotta among sedimentary beds; and
+     * lenses of pale diorite in the grey rock elsewhere. Cobblestone is kept for the small rubble
+     * blobs: in large patches it looked like man-made rubble.
      */
     public static BlockState mountainRock(int geology) {
         return switch (geology) {
             case Geology.GRANITE -> Blocks.GRANITE.defaultBlockState();
-            case Geology.DARK, Geology.LIMESTONE -> Blocks.ANDESITE.defaultBlockState();
+            case Geology.DARK -> Blocks.BASALT.defaultBlockState();
+            case Geology.LIMESTONE -> Blocks.ANDESITE.defaultBlockState();
             case Geology.SEDIMENTARY -> Blocks.TERRACOTTA.defaultBlockState();
-            default -> Blocks.COBBLESTONE.defaultBlockState();
+            default -> Blocks.DIORITE.defaultBlockState();
         };
     }
 

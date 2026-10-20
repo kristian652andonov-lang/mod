@@ -54,12 +54,14 @@ import net.minecraft.world.level.levelgen.SurfaceRules;
  * smooth, wavy boundary.
  * <p>
  * <b>Mountains have no level beds.</b> Level strata drew contour lines all the way round a
- * mountain, so mountain rock (grey, dark and pale provinces, desert mountains included) is a
- * mosaic of tilted blobs of the family, a second rock of the province, rubble and gravel instead,
- * with patchy snow that fills gullies, clings to high faces and leaves ridges bare, earth showing
+ * mountain, so mountain rock (grey, dark and pale provinces, desert mountains included, and the
+ * high plateau massifs, windswept peaks and steep high hills of those provinces) is a mosaic of
+ * tilted blobs of the family, a second rock of the province, rubble and gravel instead, with
+ * patchy snow that fills gullies, clings to high faces and leaves ridges bare, earth showing
  * through the snow, and grass, moss, dirt and gravel patches on ledges (see
  * {@link Fades#mountainBlock}). Foothills meet the strata in interlocking blobs; canyons,
- * badlands and volcanoes keep their own bands.
+ * badlands, sea cliffs and volcanoes keep their own bands, and so do cave roofs deep inside a
+ * mountain. Trails run on across the mosaic.
  * <p>
  * Fades never reach deeper than {@value #MAX_DEPTH} blocks below the nearest exposed surface.
  * That distance is measured both vertically and sideways, so cliff and mountain faces, trench
@@ -167,6 +169,8 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
         private final boolean trails;
         private final BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
         private final double[] blendScratch = new double[Fades.BLEND_FIELDS];
+        /** The model's height field, for the gullies and ridges of the mountain mosaic. */
+        private final Fades.Heights heights;
 
         private int lastX = Integer.MIN_VALUE;
         private int lastZ = Integer.MIN_VALUE;
@@ -210,6 +214,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             this.seaLevel = model.seaLevel();
             this.chunkPos = ctx.chunk.getPos();
             this.trails = TerrahaulConfig.trails();
+            this.heights = model::interpolatedHeight;
         }
 
         private void updateColumn(int x, int z) {
@@ -245,15 +250,18 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             trailDistance = trails ? model.trailDistance(x, z) : 1.0E9;
             trailGround = trailDistance < 4.0 && TerrainModel.trailGround(col, seaLevel);
             outcrop = rockiness(x, z, 0.95);
-            sandOutcrop = rockiness(x, z, SAND_ROCK);
+            // the same noise as the outcrops, at the steeper limit of sand
+            sandOutcrop = outcrop + 0.95 - SAND_ROCK;
             strataWarp = Fades.strataWarp(model, x, z);
             family = family();
-            // mountains: rock in chaotic blobs instead of level beds (see Fades.mountainBlock);
-            // sandstone country keeps its beds, and volcanic rock its own bands
+            // mountains and other high, steep ground: rock in chaotic blobs instead of level beds
+            // (see Fades.mountainBlock); sandstone country keeps its beds, and volcanic rock its
+            // own bands
             mountain.share = 0.0;
-            if ((family == GREY || family == DARK || family == PALE) && Fades.mountainShare(col) > 0.0) {
+            double share = family == GREY || family == DARK || family == PALE ? Fades.mountainShare(col, smoothSlope, top - seaLevel) : 0.0;
+            if (share > 0.0) {
                 int ground = ground(topBiome);
-                Fades.mountain(model, x, z, col, ground, smoothSlope, Fades.hollow(model, x, z), mountain);
+                Fades.mountain(model, x, z, col, share, ground, topBiome.value().getBaseTemperature(), smoothSlope, heights, mountain);
                 mountainRock = GeologyPalette.mountainRock(col.geology);
                 if (ground == Fades.GROUND_SOIL || ground == Fades.GROUND_SAND) {
                     // outcrops with ragged edges and small rock blobs poking through
@@ -337,7 +345,8 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             // a face: exposed sideways or from below, or on a very steep column. The two blocks
             // above open air are always rock, so undersides and cave roofs never show soil.
             boolean face = side < vertical - 1 || slope >= 6 || vertical > 0 && below <= 1;
-            roof = below < Math.min(vertical, lateral);
+            // the lip of an overhang counts too: its underside is open below and to the side
+            roof = vertical > 0 && (below == 0 || below < Math.min(vertical, lateral));
             BlockState state = choose(x, y, z, d, face);
             return y < 8 ? deep(state, x, y, z, d) : state;
         }
@@ -360,7 +369,8 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                 // keep vanilla's terracotta bands everywhere except on the beds of rivers and lakes
                 return null;
             }
-            mosaic = mountain.share > 0.0 && Fades.inMosaic(model, mountain, x, y, z);
+            // cave roofs deep inside a mountain keep the strata: the mosaic is a surface pattern
+            mosaic = mountain.share > 0.0 && !(roof && vertical > MAX_DEPTH) && Fades.inMosaic(model, mountain, x, y, z);
             // the wobble is read only once a path needs it: the mountain mosaic does without
             double n = Double.NaN;
 
@@ -382,9 +392,17 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             }
             // ---- mountains: rock in chaotic blobs, patchy snow, plants on ledges ---------------------
             if (mosaic && !underFluid) {
-                // roofs of caves and overhangs stay rock (no snow or earth hanging from them; the
-                // earth of the mosaic lies only in its top two blocks)
-                int code = roof ? Fades.rock(model, mountain, x, y, z, Math.max(d, 2))
+                if (!face) {
+                    // trails, pebble beaches and river bars run on across the mosaic as they did
+                    // across the strata
+                    BlockState landform = mosaicLandform(x, y, z, d, biome);
+                    if (landform != null) {
+                        return landform;
+                    }
+                }
+                // roofs of caves and overhangs stay solid rock (no snow, earth or rubble hanging
+                // from them: those lie only in the top few blocks)
+                int code = roof ? Fades.rock(model, mountain, x, y, z, Math.max(d, 4))
                     : Fades.mountainBlock(model, mountain, x, y, z, d, d == 0 && vertical == 0, face);
                 if (code != Fades.SOIL) {
                     return mosaicBlock(code, x, y, z, d, biome);
@@ -439,6 +457,32 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             // blocks exposed only sideways near the top (the riser of a small step) show the soil
             // profile like a cut through the ground, never top materials such as paths or podzol
             return profile(x, y, z, Math.max(d, 1), biome, n);
+        }
+
+        /**
+         * What the rule's landform paths would lay on a block of the mountain mosaic before the
+         * mosaic itself: trails on soil ground, pebbles under coastal cliffs and bars along river
+         * banks, the same tests as further down in {@link #choose}; null where none applies.
+         */
+        private BlockState mosaicLandform(int x, int y, int z, int d, Holder<Biome> biome) {
+            if (mountain.ground != Fades.GROUND_SOIL && mountain.ground != Fades.GROUND_SAND) {
+                // snowy and stony peaks came before these paths
+                return null;
+            }
+            if (d == 0 && vertical == 0 && trailGround && slope <= 3 && mountain.ground == Fades.GROUND_SOIL && !isRocky(biome)) {
+                BlockState trail = trail(x, y, z, wobble(x, y, z));
+                if (trail != null) {
+                    return trail;
+                }
+            }
+            if (col.coastCliff > 0.3 && d <= 2 && y <= seaLevel + 2 && y >= seaLevel - 6) {
+                return patch(x, z, 6.0, 3) > 0.0 && supported(x, y, z) ? loose() : family[2];
+            }
+            if (col.riverValley > 0.85 && col.river <= 0.0 && d <= 1 && y <= col.riverLevel + 2.0
+                && patch(x, z, 7.0, 0) > 0.35 && supported(x, y, z)) {
+                return barMaterial(x, z);
+            }
+            return null;
         }
 
         // =====================================================================================
@@ -734,7 +778,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                 return DEEPSLATE;
             }
             if (state == ANDESITE || state == DIORITE || state == CALCITE || state == SANDSTONE || state == SMOOTH_SANDSTONE
-                || state == RED_SANDSTONE || state == SMOOTH_RED_SANDSTONE || state == ORANGE_TERRACOTTA) {
+                || state == RED_SANDSTONE || state == SMOOTH_RED_SANDSTONE || state == ORANGE_TERRACOTTA || state == TERRACOTTA) {
                 return TUFF;
             }
             if (state == COBBLESTONE || state == MOSSY_COBBLESTONE) {

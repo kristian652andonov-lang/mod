@@ -25,8 +25,10 @@ import javax.imageio.ImageIO;
  * column fields interpolated and jittered like the rule does. The biome, which the rule reads from
  * the game, is approximated from the climate the model hands to the biome source (snowy peaks
  * below a temperature of 0.2 on high ground, stony peaks above it, deserts in hot and dry
- * lowlands). Two pipelines can be drawn: {@code before}, a copy of the rule as it was with level
- * strata on every face, and {@code now}, which calls the same {@link Fades} functions as the rule.
+ * lowlands), and so is the base temperature of the biome that decides the snow of soil ground
+ * (see {@link #biomeTemperature}). Two pipelines can be drawn: {@code before}, a copy of the
+ * rule as it was with level strata on every face, and {@code now}, which calls the same
+ * {@link Fades} functions as the rule (trails, overhangs and caves are not drawn).
  * <p>
  * Besides the picture, every panel reports speckle measures (as the other FadeStudy panels) and
  * patch statistics over the top view and the face view: the number of patches (4-connected
@@ -62,15 +64,16 @@ final class FlankView {
     static final int TERRACOTTA = 21;
     static final int BADLANDS = 22;
     static final int SNOW_LAYER = 23;
+    static final int BASALT = 24;
     /** Rough average colours of the block textures (grass tinted like a cool mountain biome). */
     private static final int[] RGB = {
         0x7D7D7D, 0x888889, 0x6C6D66, 0xBCBCBC, 0xDFE0DC, 0x956755, 0x505052, 0x48484E,
         0x4D4D50, 0x7A7A7A, 0x6A7660, 0x837F7E, 0x86603F, 0x77553B, 0x6E9A4E, 0x596D2D,
-        0xF6FAFA, 0x8DB4FA, 0xDBCFA3, 0xD8CB9B, 0xDFD6AA, 0x985E43, 0xB0653A, 0xFFFFFF};
+        0xF6FAFA, 0x8DB4FA, 0xDBCFA3, 0xD8CB9B, 0xDFD6AA, 0x985E43, 0xB0653A, 0xFFFFFF, 0x515156};
     static final String[] NAMES = {
         "stone", "andesite", "tuff", "diorite", "calcite", "granite", "deepslate", "smooth basalt",
         "cobbled deepslate", "cobblestone", "mossy cobblestone", "gravel", "dirt", "coarse dirt", "grass", "moss",
-        "snow", "packed ice", "sand", "sandstone", "smooth sandstone", "terracotta", "badlands", "snow layer"};
+        "snow", "packed ice", "sand", "sandstone", "smooth sandstone", "terracotta", "badlands", "snow layer", "basalt"};
 
     private static final int[] GREY = {TUFF, ANDESITE, STONE};
     private static final int[] DARK = {TUFF, SMOOTH_BASALT, DEEPSLATE};
@@ -160,8 +163,8 @@ final class FlankView {
                         case "snowline" -> s.temperature > 0.12 && s.temperature < 0.24 && peak > 0.4;
                         case "desert" -> s.baseTemperature > 0.6 && s.humidity < 0.0 && s.temperature > 0.56 && peak < 0.3 && s.mountain > 0.5;
                         // where the mosaic gives way to the strata of the lowlands
-                        case "foothill" -> Fades.mountainShare(s) > 0.3 && Fades.mountainShare(s) < 0.7 && s.temperature > 0.2 && s.temperature < 0.5
-                            && Fades.smoothSlope(model, gx, gz) > 1.5;
+                        case "foothill" -> s.temperature > 0.2 && s.temperature < 0.5 && Fades.smoothSlope(model, gx, gz) > 1.5
+                            && foothill(Fades.mountainShare(s, Fades.smoothSlope(model, gx, gz), s.height - model.seaLevel()));
                         default -> false;
                     };
                     if (ok && score > best[c]) {
@@ -182,6 +185,10 @@ final class FlankView {
             sites.add(new Site(names[c], x, z, uphillRotation(x, z), size, model::interpolatedHeight, null));
         }
         return sites;
+    }
+
+    private static boolean foothill(double share) {
+        return share > 0.3 && share < 0.7;
     }
 
     private static boolean rockZone(ColumnSample s) {
@@ -316,16 +323,17 @@ final class FlankView {
             default -> !mountainous && c.ground == SANDY_GROUND ? SANDY : GREY;
         };
         c.outcrop = Fades.rockiness(model, x, z, c.smooth, 0.95);
-        c.sandOutcrop = Fades.rockiness(model, x, z, c.smooth, 1.1);
+        c.sandOutcrop = c.outcrop + 0.95 - 1.1;
         c.m.share = 0.0;
-        if (!now || c.family == SANDY || Fades.mountainShare(s) <= 0.0) {
+        if (!now || c.family == SANDY) {
             return;
         }
-        // Fades.hollow on the scene's heights
-        double hollow = (h.at(x + 6, z) + h.at(x - 6, z) + h.at(x, z + 6) + h.at(x, z - 6)) * 0.125
-            + (h.at(x + 14, z) + h.at(x - 14, z) + h.at(x, z + 14) + h.at(x, z - 14)) * 0.0625 - 0.75 * h.at(x, z);
+        double share = Fades.mountainShare(s, c.smooth, c.top - model.seaLevel());
+        if (share <= 0.0) {
+            return;
+        }
         int ground = c.ground == HOT_PEAKS ? SOIL : c.ground;
-        Fades.mountain(model, x, z, s, ground, c.smooth, hollow, c.m);
+        Fades.mountain(model, x, z, s, share, ground, biomeTemperature(s, c.ground), c.smooth, h::at, c.m);
         if (ground == SOIL || ground == SANDY_GROUND) {
             // the rule takes the outcrops of mountain columns from the mosaic
             c.outcrop = c.m.rock;
@@ -335,6 +343,20 @@ final class FlankView {
 
     private static int top(Heights h, int x, int z) {
         return (int) Math.floor(h.at(x, z));
+    }
+
+    /**
+     * Approximate base temperature of the biome: snowy peaks -0.7, stony peaks 1, deserts and
+     * badlands 2; on soil ground vanilla's warm band above 0.2 holds jungles (humid, 0.95),
+     * savannas (dry, 2) and forests (0.7), the colder bands mostly meadows and taigas (0.5).
+     */
+    static double biomeTemperature(ColumnSample s, int ground) {
+        return switch (ground) {
+            case SNOWY -> -0.7;
+            case ROCKY -> 1.0;
+            case SANDY_GROUND, HOT_PEAKS -> 2.0;
+            default -> s.temperature < 0.2 ? 0.5 : s.humidity > 0.3 ? 0.95 : s.humidity < -0.1 ? 2.0 : 0.7;
+        };
     }
 
     /** Approximate biome class from the climate parameters (see the class comment). */
@@ -392,10 +414,10 @@ final class FlankView {
             case Fades.ROCK_PALE, Fades.ROCK_MID, Fades.ROCK_FRESH -> c.family[code];
             case Fades.ROCK_PROVINCE -> switch (c.col.geology) {
                 case Geology.GRANITE -> GRANITE;
-                case Geology.DARK -> ANDESITE;
+                case Geology.DARK -> BASALT;
                 case Geology.LIMESTONE -> ANDESITE;
                 case Geology.SEDIMENTARY -> TERRACOTTA;
-                default -> COBBLESTONE;
+                default -> DIORITE;
             };
             case Fades.COBBLE -> c.family == DARK ? COBBLED_DEEPSLATE : COBBLESTONE;
             case Fades.MOSSY_COBBLE -> MOSSY_COBBLESTONE;
@@ -586,12 +608,7 @@ final class FlankView {
      * lowered with altitude above Y 80, below 0.15 (noise of the vanilla adjustment left out).
      */
     private static boolean snowLayer(Column c) {
-        double biome = switch (c.ground) {
-            case SNOWY -> -0.7;
-            case ROCKY -> 1.0;
-            case SANDY_GROUND, HOT_PEAKS -> 2.0;
-            default -> 0.5;
-        };
+        double biome = biomeTemperature(c.col, c.ground);
         return biome - Math.max(0, c.top + 1 - 80) * 0.05 / 40.0 < 0.15 && biome < 1.5;
     }
 

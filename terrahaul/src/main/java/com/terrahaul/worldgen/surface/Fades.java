@@ -180,72 +180,92 @@ public final class Fades {
         public double plants;
         /** Field of dirt and gravel patches on gentle rock, in about [-1, 1]. */
         public double scree;
-        /** Lower bound of the {@code mid} field below which the province's second rock shows. */
+        /** Threshold of the lens field below which the province's second rock shows. */
         public double provinceCut;
+        /** Threshold of the lens fields above which the weathered stop shows. */
+        public double paleCut;
+        /** The stop that makes up most of the rock, and the one of the broad lenses between it. */
+        public int majority;
+        public int minority;
+        /**
+         * The snow field's raw value below which bare ground near the surface shows earth: the
+         * thawed edges and holes of the snow patches (negative infinity where there is no snow).
+         */
+        public double earthCut;
         /** Threshold of the rubble field: low where rubble blobs are many and large, high where rare. */
         public double rubble;
         /** Boundary noise between the mosaic and the strata of the foothills. */
         public double edge;
     }
 
+    /** Height field that {@link #mountain} reads gullies and ridges from (the model's, or a test scene's). */
+    @FunctionalInterface
+    public interface Heights {
+        double at(int x, int z);
+    }
+
     /**
      * Fills the per-column values of the mosaic. {@code col} holds the column's interpolated
-     * fields; {@code ground} comes from the biome. Columns that are not mountainous (see
-     * {@link #mountainShare}) get {@code share = 0} and nothing else is computed, so callers can
-     * skip {@link #hollow} for them.
+     * fields, {@code share} is its {@link #mountainShare} (positive), {@code ground} and
+     * {@code biomeTemperature} (the base temperature of the biome at the top) come from the
+     * biome. The gullies and ridges ({@link #hollow}, nine height reads) are only measured where
+     * snow or plants can lie.
      *
      * @param smoothSlope {@link #smoothSlope} of the column
-     * @param hollow      {@link #hollow} of the column
+     * @param heights     the terrain height field, for {@link #hollow}
      */
-    public static void mountain(TerrainModel model, int x, int z, ColumnSample col, int ground, double smoothSlope,
-                                double hollow, Mountain out) {
-        out.share = mountainShare(col);
-        if (out.share <= 0.0) {
-            return;
-        }
+    public static void mountain(TerrainModel model, int x, int z, ColumnSample col, double share, int ground,
+                                double biomeTemperature, double smoothSlope, Heights heights, Mountain out) {
+        out.share = share;
         out.ground = ground;
         out.steep = smoothSlope;
-        out.hollow = hollow;
         // tilts of up to 30-40 degrees that turn over a few dozen blocks
         double tilt = plane(model, 2, x, z, 90.0, 2300.0);
         out.warp = 16.0 * tilt + 6.0 * plane(model, 3, x, z, 31.0, 2350.0);
-        out.edge = out.share < 1.0 ? plane(model, 3, x, z, 30.0, 2650.0) : 0.0;
+        out.edge = share < 1.0 ? plane(model, 3, x, z, 30.0, 2650.0) : 0.0;
         // the province's second rock is common in some places and rare in others (the tilt
         // field serves again: nothing ties the two together that the eye could see)
-        out.provinceCut = (col.geology == Geology.GRANITE ? -0.25 : -0.5) + 0.3 * tilt;
+        out.provinceCut = (col.geology == Geology.GRANITE ? -0.3 : -0.45) + 0.3 * tilt;
+        // each family keeps its own colour: the pale limestone is mostly diorite (calcite, the
+        // weathered stop, is rarer there, as its blobs looked like snow), the dark rock mostly
+        // smooth basalt, the grey rock mostly stone
+        boolean midMajority = col.geology == Geology.DARK || col.geology == Geology.LIMESTONE;
+        out.majority = midMajority ? ROCK_MID : ROCK_FRESH;
+        out.minority = midMajority ? ROCK_FRESH : ROCK_MID;
+        // the weathered stop too is common on some slopes and rare on others
+        out.paleCut = (col.geology == Geology.LIMESTONE ? 0.8 : 0.65) + 0.25 * plane(model, 5, x, z, 70.0, 2700.0);
 
-        // Snow: below the snowy biomes the share of snowy ground grows with the cold, so it thins
-        // out over a band of altitude instead of ending at the edge of the biome; the band wanders
-        // with large-scale noise, and the steepest ground sheds some of it. Snowy biomes themselves are mostly white, steep faces
-        // included: vanilla lays a snow layer on every top there, so bare rock risers between
-        // white treads would draw regular stripes of snow and stone all over the mountain, and the
-        // rock shows in outcrops instead; only near-vertical walls shed the snow. Everywhere
-        // gullies collect it, ridges are blown bare, and a broad field makes whole slopes snowier
-        // or barer, so the rock shows in blobs of every size.
+        // Snow: the stony and the snowy peaks share one share of snowy ground, from the
+        // temperature and the slope (see snowCover), so the snow line runs on across the edge
+        // between them instead of stepping there; the band wanders with large-scale noise. Gullies collect snow,
+        // ridges are blown bare, and a broad field makes whole slopes snowier or barer, so the
+        // rock shows in blobs of every size.
         double broad = plane(model, 4, x, z, 38.0, 2400.0);
         double t = col.temperature + 0.07 * broad;
-        double cover;
-        double shed;
-        if (ground == GROUND_SNOW) {
-            cover = 0.7 + 0.22 * smoothstep(0.2, -0.45, t);
-            shed = 0.4 * smoothstep(1.6, 4.0, smoothSlope);
-        } else {
-            cover = 0.6 * smoothstep(SNOW_EDGE, 0.16, t);
-            if (ground == GROUND_SOIL) {
-                // a ragged fringe of snow patches just below the snowy biomes; colder soil biomes
-                // (groves, snowy taiga) are white with vanilla's snow layers anyway
-                cover *= 0.8 * smoothstep(0.02, 0.16, t);
-            } else if (ground == GROUND_SAND) {
-                cover = 0.0;
+        double cover = 0.0;
+        if (ground == GROUND_SOIL) {
+            // Soil biomes take their snow from the biome as well: none in those that never see
+            // snow (jungles, savannas) and none in those that vanilla covers with snow layers
+            // anyway (groves, snowy taiga and plains). Elsewhere a few patches begin where the
+            // warm biomes of the next temperature band end (vanilla's band edge at 0.2), lie
+            // mostly in gullies at first and grow with the cold, so the temperate flanks below
+            // the snowy peaks stay mostly green; towards the snowy biomes they take over the
+            // snowfields of the temperate biomes, at least as many as there were.
+            if (biomeTemperature > VANILLA_SNOW && biomeTemperature < NEVER_SNOW) {
+                cover = 0.3 * smoothstep(0.2, -0.2, t) + 0.6 * smoothstep(-0.2, -0.47, t);
             }
-            shed = 0.35 * smoothstep(1.0, 3.2, smoothSlope);
+        } else if (ground != GROUND_SAND) {
+            cover = snowCover(t, smoothSlope);
         }
+        // grass and moss below the snow, where it is not too dry
+        out.green = ground == GROUND_SAND ? 0.0 : smoothstep(-0.2, 0.2, t) * smoothstep(-0.7, -0.2, col.humidity);
+        out.hollow = cover > 0.0 || out.green > 0.0 ? hollow(heights, x, z) : 0.0;
         if (cover > 0.0) {
             // near the snow line, hollows only keep the snow there is: no snowy valley floors
             // below bare slopes
             double drift = Math.min(1.0, cover / 0.35);
-            cover -= shed;
-            cover += (0.3 * Math.max(-1.0, Math.min(1.0, hollow / 2.5)) + 0.15 * broad) * drift;
+            cover -= SNOW_SHED * smoothstep(1.3, 3.6, smoothSlope);
+            cover += (0.3 * Math.max(-1.0, Math.min(1.0, out.hollow / 2.5)) + 0.15 * broad) * drift;
         }
         // even the snowiest ground keeps a few blotches of rock and earth
         out.snow = Math.max(0.0, Math.min(0.9, cover));
@@ -253,9 +273,9 @@ public final class Fades {
             // snow lenses thin out at their edges: deeper blocks need a lower field value
             out.snowCut[d] = snowCut(out.snow - 0.09 * d);
         }
+        // earth shows in the holes and along the thawed edges of the snow patches
+        out.earthCut = out.snowCut[0] + EARTH_MARGIN;
 
-        // grass and moss below the snow, where it is not too dry
-        out.green = ground == GROUND_SAND ? 0.0 : smoothstep(-0.2, 0.2, t) * smoothstep(-0.7, -0.2, col.humidity);
         out.moss = col.humidity - 0.05 + 0.45 * plane(model, 7, x, z, 26.0, 2450.0);
         // two octaves each, so patches come in clusters and in every size; the broad octave is
         // shared with opposite signs, so plants gather where scree is scarce and the other way round
@@ -264,7 +284,7 @@ public final class Fades {
         out.scree = 0.75 * plane(model, 1, x, z, 12.0, 2550.0) - 0.45 * clusters;
         // rubble goes with the scree: some slopes are strewn with large blobs of broken rock,
         // others hardly have any
-        out.rubble = 0.56 + 0.16 * clusters;
+        out.rubble = 0.62 + 0.16 * clusters;
 
         // rock outcrops in soil and sand: steep ground, with small blobs of rock poking through
         // near the threshold so the outcrops have ragged, broken edges
@@ -277,24 +297,58 @@ public final class Fades {
     }
 
     /**
-     * How mountainous a column is for the mosaic (0..1), from its interpolated fields: foothills
-     * fade in from a mountain weight of 0.12 to 0.4. Canyon walls keep their level beds and
-     * volcanoes their own zones and banded rock; both fade out the mosaic smoothly, so it never
-     * ends along a seam.
+     * How mountainous a column is for the mosaic (0..1), from its interpolated fields and its
+     * relief: foothills fade in from a mountain weight of 0.12 to 0.4, and high ground of other
+     * landforms joins them, so that plateau massifs, windswept peaks, tall hills and rock towers
+     * lose their contour bands too. That is high plateau and windswept ground as a whole, and
+     * any steep ground well above the sea. Canyon walls keep their level beds and volcanoes
+     * their own zones and banded rock, and sea cliffs keep their strata; all of them fade out
+     * the mosaic smoothly, so it never ends along a seam.
+     *
+     * @param smoothSlope {@link #smoothSlope} of the column
+     * @param aboveSea    height of the ground above the sea
      */
-    public static double mountainShare(ColumnSample col) {
+    public static double mountainShare(ColumnSample col, double smoothSlope, double aboveSea) {
         if (col.volcano >= 0.3 || col.canyon >= 0.25) {
             return 0.0;
         }
-        return smoothstep(0.12, 0.4, Math.max(col.mountain, col.alpine))
-            * (1.0 - smoothstep(0.05, 0.25, col.canyon)) * (1.0 - smoothstep(0.05, 0.3, col.volcano));
+        double share = smoothstep(0.12, 0.4, Math.max(col.mountain, col.alpine));
+        if (share < 1.0 && aboveSea > 30.0) {
+            double landform = smoothstep(0.15, 0.45, Math.max(col.plateau, col.windswept));
+            double relief = Math.max(landform, smoothstep(0.9, 1.6, smoothSlope)) * smoothstep(30.0, 70.0, aboveSea)
+                * (1.0 - smoothstep(0.2, 0.5, col.coastCliff));
+            share = Math.max(share, relief);
+        }
+        return share * (1.0 - smoothstep(0.05, 0.25, col.canyon)) * (1.0 - smoothstep(0.05, 0.3, col.volcano));
     }
 
     /**
-     * Temperature above which no snow lies on mountains. The snowy biomes end at 0.2; below
-     * them the snow thins out over a band of altitude up to this temperature.
+     * Temperature above which no snow lies on rock. The snowy peaks begin at 0.2; below them the
+     * snow thins out over a band of altitude up to this temperature.
      */
     public static final double SNOW_EDGE = 0.36;
+    /** Base temperature of a biome at or below which vanilla lays snow layers on it everywhere. */
+    public static final double VANILLA_SNOW = 0.15;
+    /** Base temperature of a biome from which on it never snows (jungles 0.95, savannas and deserts 2). */
+    public static final double NEVER_SNOW = 0.9;
+    /** Largest loss of snow on the steepest ground. */
+    private static final double SNOW_SHED = 0.4;
+    /** How far past the snow patches' cut the thawed ground shows earth (in raw field units). */
+    private static final double EARTH_MARGIN = 0.1;
+
+    /**
+     * Share of snowy ground at temperature {@code t} before steep ground sheds some of it and
+     * gullies and ridges move it: none above {@link #SNOW_EDGE}, about half at 0.2 (where the
+     * snowy peaks begin) and nine tenths in the coldest air. The stony and the snowy peaks share
+     * it, so the snow line runs on across the edge between them instead of stepping. Gentle ground
+     * in the cold is almost all white: vanilla lays a snow layer on every top in the snowy
+     * biomes, and on gentle ground, where treads dominate, bare rock between white treads drew
+     * stripes of snow and stone; steep ground, where risers dominate, shows its rock.
+     */
+    static double snowCover(double t, double smoothSlope) {
+        return 0.62 * smoothstep(SNOW_EDGE, 0.12, t) + 0.3 * smoothstep(0.2, -0.45, t)
+            + 0.25 * smoothstep(0.25, -0.05, t) * (1.0 - smoothstep(0.7, 1.5, smoothSlope));
+    }
 
     /**
      * Whether the block belongs to the mountain mosaic or to the level strata of the foothills.
@@ -325,8 +379,13 @@ public final class Fades {
      * </ol>
      */
     public static int mountainBlock(TerrainModel model, Mountain m, int x, int y, int z, int d, boolean top, boolean face) {
-        if (d <= 3 && snowAt(model, m, x, y, z, d)) {
-            return SNOW;
+        // the snow field is read once and serves the earth at the snow's edges too
+        double snowField = Double.NaN;
+        if (d <= 3 && m.snowCut[0] != Double.NEGATIVE_INFINITY) {
+            snowField = snowField(model, x, y, z);
+            if (snowAt(model, m, x, y, z, d, snowField)) {
+                return SNOW;
+            }
         }
         if ((m.ground == GROUND_SOIL || m.ground == GROUND_SAND) && !face && m.rock <= 0.0) {
             return SOIL;
@@ -345,7 +404,7 @@ public final class Fades {
             // gentle rock: patches of soil and scree, one material per patch
             return m.plants > 0.25 && m.green > 0.3 ? DIRT : m.moss > 0.2 ? COARSE_DIRT : GRAVEL;
         }
-        return rock(model, m, x, y, z, d);
+        return rock(model, m, x, y, z, d, snowField);
     }
 
     /**
@@ -354,25 +413,34 @@ public final class Fades {
      */
     public static final double LEDGE = 1.25;
 
+    /** {@link #rock} away from the snow (no earth from thawed ground). */
+    public static int rock(TerrainModel model, Mountain m, int x, int y, int z, int d) {
+        return rock(model, m, x, y, z, d, Double.NaN);
+    }
+
     /**
      * The rock mosaic at a block. Two fields of tilted lenses ({@code big}, about 40 blocks wide
      * and 30 tall, and {@code mid}, about 16 blocks) pick between the stops of the province's
-     * family and its second rock: the two fresher stops share the ground in broad lenses, the
-     * weathered stop and the second rock form smaller blobs at the two ends of {@code mid}, so they
-     * never nest in each other. Near the surface a third field adds blobs of rubble (broken rock,
-     * gravel and mossy rubble, about 5-12 blocks), many on some slopes and few on others, and on
-     * gentle ground among the snow, earth; desert mountains are half sandstone. The lenses lie
-     * along {@link Mountain#warp}, so what remains of bedding is tilted, bent and interrupted.
+     * family and its second rock: the family's own majority stop and one other share the ground
+     * in broad lenses; the weathered stop forms blobs where {@code mid} is high and the second
+     * rock lenses where {@code big} is high and {@code mid} low, so both come in every size, from
+     * small spots at the edges to lenses tens of blocks across, lie inside the majority stop
+     * instead of nesting in rings, and are common on some slopes and rare on others. Near the
+     * surface a third field adds blobs of rubble (broken rock, gravel and mossy rubble, about
+     * 5-12 blocks), many on some slopes and few on others; on gentle ground earth shows in the
+     * holes and along the edges of the snow patches ({@code snowField}: the snow field's coarse
+     * value, NaN where unknown); desert mountains are half sandstone. The lenses lie along
+     * {@link Mountain#warp}, so what remains of bedding is tilted, bent and interrupted.
      * <p>
      * The fields are read at the block itself, without the wobble: on a staircase of steep
      * steps the wobble changes within a block or two, and any part of it in the material
      * choice frays the outlines into single blocks.
      */
-    public static int rock(TerrainModel model, Mountain m, int x, int y, int z, int d) {
+    public static int rock(TerrainModel model, Mountain m, int x, int y, int z, int d, double snowField) {
         double yy = y + m.warp;
         double big = model.detail3(0, x / 36.0, yy / 26.0 + 1500.0, z / 36.0);
         double mid = model.detail3(1, x / 15.0, yy / 14.0 + 1700.0, z / 15.0);
-        if (d <= 1 && m.snow > 0.1 && m.steep < 1.5 && mid < -0.15) {
+        if (d <= 1 && m.steep < 1.5 && snowField < m.earthCut && mid < 0.3) {
             // earth showing through the snow: terracotta-coloured soil and coarse dirt
             return big > 0.0 ? EARTH : COARSE_DIRT;
         }
@@ -389,13 +457,13 @@ public final class Fades {
         if (m.ground == GROUND_SAND && big > -0.05) {
             return SANDSTONE;
         }
-        if (mid > 0.55) {
+        if (mid + 0.3 * big > m.paleCut) {
             return ROCK_PALE;
         }
-        if (mid < m.provinceCut) {
+        if (0.6 * mid - big < m.provinceCut) {
             return ROCK_PROVINCE;
         }
-        return big > -0.25 ? ROCK_FRESH : ROCK_MID;
+        return big > -0.25 ? m.majority : m.minority;
     }
 
     /**
@@ -406,14 +474,13 @@ public final class Fades {
      * about 24 and 11 blocks) give snowfields and rock islands of every size; the blobs are
      * taller than wide, so on faces they hang as streaks. The finer octave can move the field by
      * at most {@link #SNOW_FINE} (simplex noise stays within about [-1, 1]), so it is only read
-     * where it can change the answer.
+     * where it can change the answer. {@code v} is the coarse octave there ({@link #snowField}).
      */
-    public static boolean snowAt(TerrainModel model, Mountain m, int x, int y, int z, int d) {
+    public static boolean snowAt(TerrainModel model, Mountain m, int x, int y, int z, int d, double v) {
         double cut = m.snowCut[d];
         if (cut == Double.NEGATIVE_INFINITY) {
             return false;
         }
-        double v = 0.5 * model.detail3(5, x / 24.0, y / 34.0 + 2100.0, z / 24.0);
         if (v + SNOW_FINE < cut) {
             return true;
         }
@@ -421,6 +488,11 @@ public final class Fades {
             return false;
         }
         return v + 0.3 * model.detail3(5, x / 11.0, y / 15.0 + 2900.0, z / 11.0) < cut;
+    }
+
+    /** Coarse octave of the snow field ({@code v} of {@link #snowAt}). */
+    public static double snowField(TerrainModel model, int x, int y, int z) {
+        return 0.5 * model.detail3(5, x / 24.0, y / 34.0 + 2100.0, z / 24.0);
     }
 
     /** Largest change of the snow field by its finer octave (0.3 times a little over 1). */
@@ -446,12 +518,10 @@ public final class Fades {
      * ridges, spurs and summits. It averages the points 6 and 14 blocks away in the four axis
      * directions, so both narrow clefts and broad couloirs count.
      */
-    public static double hollow(TerrainModel model, int x, int z) {
-        double near = model.interpolatedHeight(x + 6, z) + model.interpolatedHeight(x - 6, z)
-            + model.interpolatedHeight(x, z + 6) + model.interpolatedHeight(x, z - 6);
-        double far = model.interpolatedHeight(x + 14, z) + model.interpolatedHeight(x - 14, z)
-            + model.interpolatedHeight(x, z + 14) + model.interpolatedHeight(x, z - 14);
-        return near * 0.125 + far * 0.0625 - 0.75 * model.interpolatedHeight(x, z);
+    public static double hollow(Heights h, int x, int z) {
+        double near = h.at(x + 6, z) + h.at(x - 6, z) + h.at(x, z + 6) + h.at(x, z - 6);
+        double far = h.at(x + 14, z) + h.at(x - 14, z) + h.at(x, z + 14) + h.at(x, z - 14);
+        return near * 0.125 + far * 0.0625 - 0.75 * h.at(x, z);
     }
 
     /** Smooth 2D noise in about [-1, 1] at the given feature size, on its own slice of a channel. */
