@@ -26,17 +26,27 @@ import javax.imageio.ImageIO;
  * <pre>
  * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakes [types=all] [count=1] [before|after|both]
  * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakeat &lt;x&gt; &lt;z&gt; [size=160]
+ * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakeview &lt;x&gt; &lt;z&gt; [&lt;x&gt; &lt;z&gt; ...]
+ * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakesurvey [types=all] [count=2]
  * SeaFloorStudy &lt;seed&gt; &lt;outDir&gt; lakeperf
  * </pre>
  * {@code types} is a comma-separated list of {@code great, forest, mountain, glacial, plateau,
  * marsh, crater}. For each lake it writes a top view, a close-up, a diver's view, a view from a
  * boat just above the surface, a section and a sheet of them, before ({@code before_}, the lake
  * as the terrain and the water leave it) and after ({@code after_}) the lake features, from the
- * same cameras; for a great lake also the open water around its nearest shoal ({@code _open}).
+ * same cameras; for a great lake also the open water around its nearest shoal ({@code _open}) and
+ * the open water halfway out to its centre ({@code _far}). The diver of the sheet looks at the
+ * most interesting spot; besides it, a diver and a boat at a fixed point that nobody chose
+ * ({@code _fix_sheet}: halfway from the centre to the shore, or the middle of the area for a
+ * great lake) show what the lake is like on average.
  * It checks: planned blocks resting on nothing, plants without their support, blocks in the
  * water that would not hold it (not solid and not waterloggable), floor blocks replaced by
  * anything but solid ground, and seams (chunk-by-chunk assembly against one raster of the whole
- * area). {@code lakeperf} measures the cost per chunk.
+ * area). {@code lakeview} renders the same fixed views at given points. {@code lakesurvey} prints,
+ * per lake, the share of lake columns with plants and with objects (rocks, logs, ruins) in four
+ * depth bands, and how many columns have nothing within eight blocks. {@code lakeperf} measures the
+ * planning cost per chunk and counts the blocks a chunk writes (the world writes themselves, two
+ * reads and one write per planned block, are not timed here).
  */
 final class LakeFloorStudy {
     private static final String[] TYPE_KEYS = {"none", "forest", "mountain", "great", "marsh", "crater", "plateau", "glacial"};
@@ -83,6 +93,10 @@ final class LakeFloorStudy {
                                     l.level - 1 - sh.top());
                                 study(planner, dir, name + "_open", at, phase, 192, true);
                             }
+                            // and the open lake halfway out to its centre, wherever that falls
+                            int[] far = fixedPoint(planner, l);
+                            System.out.printf(Locale.ROOT, "   open water halfway to the centre at %d %d%n", far[0], far[1]);
+                            study(planner, dir, name + "_far", new Lake(type, far[0], far[1], 80, 80, l.level), phase, 192, true);
                         }
                     }
                 }
@@ -96,6 +110,32 @@ final class LakeFloorStudy {
                 Lake l = new Lake(c.type, x, z, size / 2.0 - 8, size / 2.0 - 8, c.surf + 1);
                 study(planner, dir, "lake_" + x + "_" + z, l, "after", size, false);
             }
+            case "lakeview" -> {
+                for (int i = 3; i + 1 < args.length; i += 2) {
+                    int x = Integer.parseInt(args[i]);
+                    int z = Integer.parseInt(args[i + 1]);
+                    LakeColumn c = new LakeColumn();
+                    planner.column(x, z, c);
+                    System.out.printf(Locale.ROOT, "%d %d: lake %b type %s surface %d floor %d temperature %.2f%n", x, z, c.wet, LakeType.name(c.type), c.surf, c.floor,
+                        c.temperature);
+                    if (!c.wet) {
+                        continue;
+                    }
+                    int size = 192;
+                    int minX = Math.floorDiv(x - size / 2, 16) * 16;
+                    int minZ = Math.floorDiv(z - size / 2, 16) * 16;
+                    LakeFloorArea after = new LakeFloorArea(planner, minX, minZ, size);
+                    after.applyFloor(1.0, 1.0);
+                    after.applyLife();
+                    String name = "view_" + x + "_" + z;
+                    LakeFloorArea before = new LakeFloorArea(planner, minX, minZ, size);
+                    fixedViews(before, dir, "before_" + name, x, z);
+                    fixedViews(after, dir, "after_" + name, x, z);
+                    ImageIO.write(before.top(minX, minZ, size, 2), "png", new File(dir, "before_" + name + "_top.png"));
+                    ImageIO.write(after.top(minX, minZ, size, 2), "png", new File(dir, "after_" + name + "_top.png"));
+                }
+            }
+            case "lakesurvey" -> survey(model, planner, args.length > 3 ? args[3] : "all", args.length > 4 ? Integer.parseInt(args[4]) : 2);
             case "lakeperf" -> perf(model, planner);
             default -> throw new IllegalArgumentException("unknown lake mode " + mode);
         }
@@ -195,14 +235,64 @@ final class LakeFloorStudy {
         checks(after);
         seams(planner, after);
         Views views = views(planner, after, lake, open);
+        // the fixed point: halfway from the centre to the shore, or the middle of a great lake's area
+        int[] fix = lake.type == LakeType.GREAT || fixedSize > 0 ? new int[]{cx, cz} : fixedPoint(planner, lake);
         if (!phase.equals("after")) {
-            render(new LakeFloorArea(planner, minX, minZ, size), dir, "before_" + name, lake, views, false);
+            LakeFloorArea before = new LakeFloorArea(planner, minX, minZ, size);
+            render(before, dir, "before_" + name, lake, views, false);
+            fixedViews(before, dir, "before_" + name, fix[0], fix[1]);
         }
         if (!phase.equals("before")) {
             render(after, dir, "after_" + name, lake, views, true);
+            fixedViews(after, dir, "after_" + name, fix[0], fix[1]);
         }
         System.out.println("wrote " + name + " images (area " + minX + "," + minZ + " size " + size + ", diver at "
             + (int) views.dive[0] + " " + (int) views.dive[1] + " " + (int) views.dive[2] + ")");
+    }
+
+    /** Whether a boat at {@code (x, z)} floats on lake water whose top block is {@code surf}. */
+    static boolean floats(LakePlanner planner, double x, double z, int surf) {
+        LakeColumn c = new LakeColumn();
+        planner.column((int) Math.floor(x), (int) Math.floor(z), c);
+        return c.wet && c.surf == surf && c.depth >= 2;
+    }
+
+    /**
+     * A point nobody chose for being interesting: halfway from the lake's centre to its radius,
+     * on the first of eight bearings where the lake has water.
+     */
+    static int[] fixedPoint(LakePlanner planner, Lake lake) {
+        LakeColumn c = new LakeColumn();
+        for (int a = 0; a < 8; a++) {
+            double angle = 0.3 + a * Math.PI / 4.0;
+            int x = (int) Math.floor(lake.x + Math.cos(angle) * lake.radius * 0.5);
+            int z = (int) Math.floor(lake.z + Math.sin(angle) * lake.radius * 0.5);
+            planner.column(x, z, c);
+            if (c.wet && c.depth >= 2) {
+                return new int[]{x, z};
+            }
+        }
+        return new int[]{lake.x, lake.z};
+    }
+
+    /**
+     * The views from a fixed point: a diver five blocks over the floor (or in the top water block
+     * of shallow water) looking east and looking south, and a boat just over the surface looking
+     * east, written with a sheet of the three ({@code _fix_sheet}).
+     */
+    static void fixedViews(LakeFloorArea area, File dir, String name, int x, int z) throws Exception {
+        LakeColumn c = area.column(x, z);
+        if (!c.wet) {
+            return;
+        }
+        int t = top(area, x, z);
+        double camY = Math.min(c.surf + 0.5, t + 5.5);
+        BufferedImage east = area.perspective(x + 0.5, camY, z + 0.5, 1.0, 0.0, -12.0, 640, 360);
+        BufferedImage south = area.perspective(x + 0.5, camY, z + 0.5, 0.0, 1.0, -12.0, 640, 360);
+        BufferedImage boat = area.surfaceView(x + 0.5, c.surf + 2.6, z + 0.5, 1.0, 0.0, -10.0, 640, 360);
+        ImageIO.write(east, "png", new File(dir, name + "_fixdive.png"));
+        ImageIO.write(boat, "png", new File(dir, name + "_fixboat.png"));
+        sheet(new File(dir, name + "_fix_sheet.png"), east, south, boat);
     }
 
     /** Chooses the cameras on the decorated area. */
@@ -224,11 +314,17 @@ final class LakeFloorStudy {
             double ol = Math.max(1e-6, Math.hypot(ox, oz));
             ox /= ol;
             oz /= ol;
-            double bx = shore[0] + 0.5 + ox * 7.0;
-            double bz = shore[1] + 0.5 + oz * 7.0;
             double lx = ox * Math.cos(1.0) - oz * Math.sin(1.0);
             double lz = ox * Math.sin(1.0) + oz * Math.cos(1.0);
-            boat = new double[]{bx - lx * 6.0, lake.level + 2.6, bz - lz * 6.0, lx, lz, -16.0};
+            // seven blocks out from the shore and six back along the view, then farther out along
+            // the lake-ward ray until the boat floats on the lake
+            double bx = shore[0] + 0.5 + ox * 7.0 - lx * 6.0;
+            double bz = shore[1] + 0.5 + oz * 7.0 - lz * 6.0;
+            for (int i = 0; i < 200 && !floats(planner, bx, bz, lake.level - 1); i++) {
+                bx += ox;
+                bz += oz;
+            }
+            boat = new double[]{bx, lake.level + 2.6, bz, lx, lz, -16.0};
         }
         int lowest = Integer.MAX_VALUE;
         for (int x = area.minX; x < area.minX + area.size; x++) {
@@ -272,8 +368,14 @@ final class LakeFloorStudy {
             }
         }
         if (best == null) {
+            // over the spot itself, in the water: at most in the top water block (surf is that
+            // block's index, so surf + 0.5 is its middle)
             LakeColumn sc = area.column(spot[0], spot[1]);
-            best = new double[]{spot[0] + 0.5, Math.min(sc.surf - 0.3, targetTop + 2.6), spot[1] + 0.5, spot[2], spot[3], -10.0};
+            double camY = Math.min(sc.surf + 0.5, targetTop + 2.6);
+            while (camY < sc.surf + 0.5 && area.get(spot[0], (int) Math.floor(camY), spot[1]) != LakeVolume.NAT_WATER) {
+                camY += 1.0;
+            }
+            best = new double[]{spot[0] + 0.5, camY, spot[1] + 0.5, spot[2], spot[3], -10.0};
         }
         return best;
     }
@@ -650,6 +752,110 @@ final class LakeFloorStudy {
     }
 
     // =========================================================================================
+    // Survey
+    // =========================================================================================
+
+    /**
+     * How full the lake floors are: for the {@code count} lakes of each type nearest the origin
+     * (the deep middle of a great lake, 384 blocks across; smaller lakes whole), the share of lake
+     * columns, in four bands of depth, that carry a plant, and that carry an object (rock, log,
+     * ruin); the share with nothing within eight blocks; and the plant counts.
+     */
+    static void survey(TerrainModel model, LakePlanner planner, String which, int count) {
+        for (int type = 1; type < TYPE_KEYS.length; type++) {
+            if (!which.equals("all") && !List.of(which.split(",")).contains(TYPE_KEYS[type])) {
+                continue;
+            }
+            for (Lake l : find(model, type, count)) {
+                int size = type == LakeType.GREAT ? 384 : Math.min(320, (int) Math.ceil((l.radius * 2.9 + 32) / 16.0) * 16);
+                int minX = Math.floorDiv(l.x - size / 2, 16) * 16;
+                int minZ = Math.floorDiv(l.z - size / 2, 16) * 16;
+                LakeFloorArea a = new LakeFloorArea(planner, minX, minZ, size);
+                a.applyFloor(1.0, 1.0);
+                a.applyLife();
+                surveyArea(planner, TYPE_KEYS[type], l, a);
+            }
+        }
+    }
+
+    /** Plants, and the moss growing on the bed (moss blocks: aquatic moss in deep clear water, moss in humid shallows). */
+    private static boolean plant(byte b) {
+        return b >= LakeVolume.SEAGRASS && b <= LakeVolume.MOSS_CARPET && b != LakeVolume.REED || b == LakeVolume.MOSS;
+    }
+
+    private static void surveyArea(LakePlanner planner, String type, Lake l, LakeFloorArea a) {
+        int n = a.size;
+        // per column: 0 nothing, 1 the bed's own top changed, 2 an object on it, 3 a plant
+        int[] what = new int[n * n];
+        int[] species = new int[4];
+        for (Map.Entry<Long, Byte> e : a.cells().entrySet()) {
+            int[] p = LakeFloorArea.unkey(e.getKey());
+            if (!a.in(p[0], p[2])) {
+                continue;
+            }
+            int i = (p[0] - a.minX) * n + (p[2] - a.minZ);
+            byte b = e.getValue();
+            int k = plant(b) ? 3 : p[1] > a.column(p[0], p[2]).floor ? 2 : 1;
+            what[i] = Math.max(what[i], k);
+            if (b == LakeVolume.SEAGRASS || b == LakeVolume.TALL_LOWER) {
+                species[0]++;
+            } else if (b == LakeVolume.KELP_TOP || b == LakeVolume.KELP_GROWING) {
+                species[1]++;
+            } else if (b == LakeVolume.LILY_PAD) {
+                species[2]++;
+            } else if (b == LakeVolume.REED) {
+                species[3]++;
+            }
+        }
+        int[] wet = new int[4];
+        int[] plants = new int[4];
+        int[] objects = new int[4];
+        int[] ps = new int[(n + 1) * (n + 1)];
+        for (int x = 0; x < n; x++) {
+            for (int z = 0; z < n; z++) {
+                ps[(x + 1) * (n + 1) + z + 1] = (what[x * n + z] >= 2 ? 1 : 0) + ps[x * (n + 1) + z + 1] + ps[(x + 1) * (n + 1) + z] - ps[x * (n + 1) + z];
+            }
+        }
+        int total = 0;
+        int empty = 0;
+        for (int x = 0; x < n; x++) {
+            for (int z = 0; z < n; z++) {
+                LakeColumn c = a.column(a.minX + x, a.minZ + z);
+                if (!c.wet) {
+                    continue;
+                }
+                total++;
+                int d = c.surf - c.floor;
+                int band = d <= 3 ? 0 : d <= 9 ? 1 : d <= 20 ? 2 : 3;
+                wet[band]++;
+                int w = what[x * n + z];
+                plants[band] += w == 3 ? 1 : 0;
+                objects[band] += w >= 2 ? 1 : 0;
+                int x0 = Math.max(0, x - 8);
+                int x1 = Math.min(n, x + 9);
+                int z0 = Math.max(0, z - 8);
+                int z1 = Math.min(n, z + 9);
+                if (ps[x1 * (n + 1) + z1] - ps[x0 * (n + 1) + z1] - ps[x1 * (n + 1) + z0] + ps[x0 * (n + 1) + z0] == 0) {
+                    empty++;
+                }
+            }
+        }
+        LakeColumn centre = new LakeColumn();
+        planner.column(l.x, l.z, centre);
+        StringBuilder sb = new StringBuilder();
+        String[] bands = {"1-3", "4-9", "10-20", "21+"};
+        for (int b = 0; b < 4; b++) {
+            sb.append(String.format(Locale.ROOT, " %s: %s/%s", bands[b], pct(plants[b], wet[b]), pct(objects[b], wet[b])));
+        }
+        System.out.printf(Locale.ROOT, "%-8s at %6d %6d r %3.0f T %5.2f | wet %6d | plants/objects %%%s | empty %4.1f%% | seagrass %d, weed %d, lily pads %d, reeds %d%n",
+            type, l.x, l.z, l.radius, centre.temperature, total, sb, 100.0 * empty / Math.max(1, total), species[0], species[1], species[2], species[3]);
+    }
+
+    private static String pct(int a, int b) {
+        return b == 0 ? "-" : String.format(Locale.ROOT, "%.1f", 100.0 * a / b);
+    }
+
+    // =========================================================================================
     // Cost
     // =========================================================================================
 
@@ -695,6 +901,9 @@ final class LakeFloorStudy {
             double plans = 0.0;
             double floor = 0.0;
             double life = 0.0;
+            long[] blocks = new long[TYPE_KEYS.length];
+            int[] most = new int[TYPE_KEYS.length];
+            int[] chunksOf = new int[TYPE_KEYS.length];
             for (int[] ch : chunks) {
                 warm(model, ch[0], ch[1]);
                 long t0 = System.nanoTime();
@@ -712,7 +921,7 @@ final class LakeFloorStudy {
                     for (int z = ch[1]; z < ch[1] + 16; z++) {
                         planner.column(x, z, c);
                         if (c.wet) {
-                            LakeLifeRaster.decide(planner, c, c.bed, LakeLifeRaster.naturalBed(c), plant);
+                            LakeLifeRaster.decide(planner, c, c.bed, LakeLifeRaster.naturalBed(planner, c), plant);
                         }
                     }
                 }
@@ -720,10 +929,34 @@ final class LakeFloorStudy {
                 plans += t1 - t0;
                 floor += t2 - t1;
                 life += t3 - t2;
+                if (pass == 0) {
+                    // the blocks the floor feature writes in this chunk (each costs two reads and a write in the world)
+                    int written = 0;
+                    for (int x = ch[0]; x < ch[0] + 16; x++) {
+                        for (int z = ch[1]; z < ch[1] + 16; z++) {
+                            for (int y = v.storedMin(x, z); y < v.storedMax(x, z); y++) {
+                                written += LakeVolume.isPlanned(v.get(x, y, z)) ? 1 : 0;
+                            }
+                        }
+                    }
+                    planner.column(ch[0] + 8, ch[1] + 8, c);
+                    int type = c.type;
+                    blocks[type] += written;
+                    most[type] = Math.max(most[type], written);
+                    chunksOf[type]++;
+                }
             }
             int n = chunks.size();
-            System.out.printf(Locale.ROOT, "%d lake chunks, planner caches %s: column plans %.2f ms, floor raster %.2f ms, plant decisions %.2f ms, total %.2f ms per chunk%n",
+            System.out.printf(Locale.ROOT, "%d lake chunks, planner caches %s: column plans %.2f ms, floor raster %.2f ms, plant decisions %.2f ms, total %.2f ms per chunk (planning only)%n",
                 n, pass == 0 ? "cold" : "warm", plans / n / 1.0e6, floor / n / 1.0e6, life / n / 1.0e6, (plans + floor + life) / n / 1.0e6);
+            if (pass == 0) {
+                for (int type = 0; type < TYPE_KEYS.length; type++) {
+                    if (chunksOf[type] > 0) {
+                        System.out.printf(Locale.ROOT, "  floor blocks written per %s chunk: mean %d, most %d (%d chunks)%n", TYPE_KEYS[type], blocks[type] / chunksOf[type],
+                            most[type], chunksOf[type]);
+                    }
+                }
+            }
         }
         System.out.printf(Locale.ROOT, "quick lake test (both features) on %d random chunks: %.3f ms per chunk with the model corners warm as in the game, %.3f ms cold; %d of %d tests pass%n",
             tests, quickWarm / tests / 1.0e6, quickCold / tests / 1.0e6, hits, 2 * tests);

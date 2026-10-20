@@ -47,7 +47,12 @@ import net.minecraft.world.level.material.Fluids;
  *       rests on something solid, bottom up: a column stops at the first block it may not place,
  *       so nothing is left hanging;</li>
  *   <li>plants only go into water sources (or onto the shore) where the block they need is
- *       really there; blocks that can hold water are placed waterlogged under the surface.</li>
+ *       really there; blocks that can hold water are placed waterlogged under the surface;</li>
+ *   <li>where the lake will freeze over (the freeze pass after the plants turns the top water
+ *       block to ice wherever the biome is cold enough there), nothing grows in or on the top
+ *       water block, so the ice sheet has no holes;</li>
+ *   <li>everything a column gets depends only on the plan and on blocks of its own chunk, so
+ *       it does not matter in which order neighbouring chunks are decorated.</li>
  * </ul>
  * Wood takes the species of the biome where the log, boat or pier lies, so it matches the
  * forest around the lake.
@@ -224,16 +229,15 @@ public final class LakeBlocks {
                     continue;
                 }
                 BlockState sediment = fillOf(level.getBlockState(pos.set(x, c.floor, z)));
+                // the block under the current one: read once, then carried up the column
+                BlockState below = level.getBlockState(pos.set(x, lo - 1, z));
                 for (int y = lo; y < hi; y++) {
                     byte code = v.get(x, y, z);
-                    if (!LakeVolume.isPlanned(code)) {
-                        continue;
-                    }
                     BlockState old = level.getBlockState(pos.set(x, y, z));
-                    BlockState below = level.getBlockState(pos.set(x, y - 1, z));
-                    boolean wet = y <= c.surf;
-                    BlockState state = state(code, wood(level, v, woods, x, y, z, code), sediment, x, y, z, wet);
+                    BlockState state = LakeVolume.isPlanned(code)
+                        ? state(code, wood(level, v, woods, x, y, z, code), sediment, x, y, z, y <= c.surf) : null;
                     if (state == null) {
+                        below = old;
                         continue;
                     }
                     if (y <= c.floor) {
@@ -241,14 +245,17 @@ public final class LakeBlocks {
                         if (sediment(old) && (!(state.getBlock() instanceof FallingBlock) || !FallingBlock.isFree(below))) {
                             level.setBlock(pos.set(x, y, z), state, 2);
                             placed = true;
+                            old = state;
                         }
+                        below = old;
                         continue;
                     }
-                    boolean free = wet ? waterSource(old) : old.isAir();
+                    boolean free = y <= c.surf ? waterSource(old) : old.isAir();
                     if (!free || !below.blocksMotion() || state.getBlock() instanceof FallingBlock && FallingBlock.isFree(below)) {
                         break;
                     }
                     level.setBlock(pos.set(x, y, z), state, 2);
+                    below = state;
                     placed = true;
                     if (code >= LakeVolume.CHEST && code < LakeVolume.CHEST + 4) {
                         loot(level, pos, v, x, y, z);
@@ -311,7 +318,10 @@ public final class LakeBlocks {
 
     /**
      * Grows the plants of one chunk: in each lake column on its real top (the bed, or a rock or
-     * log on it), on the water above it, and on the dry shore columns at the water's edge.
+     * log on it), on the water above it, and on the dry shore columns at the water's edge. A shore
+     * column only counts the lake water beside it in its own chunk: above sea level the water is
+     * placed chunk by chunk, so water across the chunk border may or may not be there yet,
+     * depending on the order the chunks are decorated in.
      */
     public static boolean grow(WorldGenLevel level, LakePlanner planner, int x0, int z0) {
         boolean placed = false;
@@ -328,7 +338,12 @@ public final class LakeBlocks {
                     // a dry column at the water's edge, its ground level with the water's top block
                     int type = -1;
                     for (int d = 0; d < 4 && type < 0; d++) {
-                        planner.column(x + LakeVolume.DIR_X[d], z + LakeVolume.DIR_Z[d], n);
+                        int nx = x + LakeVolume.DIR_X[d];
+                        int nz = z + LakeVolume.DIR_Z[d];
+                        if (nx >> 4 != x0 >> 4 || nz >> 4 != z0 >> 4) {
+                            continue;
+                        }
+                        planner.column(nx, nz, n);
                         if (n.wet && n.surf == c.floor && waterSource(level.getBlockState(pos.set(n.x, n.surf, n.z)))) {
                             type = n.type;
                         }
@@ -378,15 +393,25 @@ public final class LakeBlocks {
             return false;
         }
         LakeLifeRaster.decide(planner, c, top, kind, plant);
+        if (plant.kind == LakeLifeRaster.NONE && !plant.lily) {
+            return false;
+        }
         boolean placed = false;
         Direction facing = FACING[plant.facing];
+        // the freeze pass turns the top water block to ice where the biome there is cold enough;
+        // a plant in that block, or a lily pad on it, would leave a hole in the ice
+        boolean freezes = level.getBiome(pos.set(x, c.surf + 1, z)).value().coldEnoughToSnow(pos.set(x, c.surf, z));
+        int highest = freezes ? c.surf - 1 : c.surf;
+        if (freezes && plant.kind != LakeLifeRaster.KELP && plant.kind != LakeLifeRaster.NONE && top + 1 >= c.surf) {
+            return false;
+        }
         switch (plant.kind) {
             case LakeLifeRaster.SEAGRASS -> {
                 level.setBlock(pos.set(x, top + 1, z), Blocks.SEAGRASS.defaultBlockState(), 2);
                 placed = true;
             }
             case LakeLifeRaster.TALL_SEAGRASS -> {
-                if (top + 2 <= c.surf && waterSource(level.getBlockState(pos.set(x, top + 2, z)))) {
+                if (top + 2 <= highest && waterSource(level.getBlockState(pos.set(x, top + 2, z)))) {
                     level.setBlock(pos.set(x, top + 1, z), Blocks.TALL_SEAGRASS.defaultBlockState().setValue(TallSeagrassBlock.HALF, DoubleBlockHalf.LOWER), 2);
                     level.setBlock(pos.set(x, top + 2, z), Blocks.TALL_SEAGRASS.defaultBlockState().setValue(TallSeagrassBlock.HALF, DoubleBlockHalf.UPPER), 2);
                 } else {
@@ -395,8 +420,10 @@ public final class LakeBlocks {
                 placed = true;
             }
             case LakeLifeRaster.KELP -> {
+                // under ice the weed stays a block clear of it
+                int limit = freezes ? Math.min(plant.head, c.surf - 2) : plant.head;
                 int head = top;
-                while (head < plant.head && waterSource(level.getBlockState(pos.set(x, head + 1, z)))) {
+                while (head < limit && waterSource(level.getBlockState(pos.set(x, head + 1, z)))) {
                     head++;
                 }
                 if (head > top) {
@@ -409,6 +436,9 @@ public final class LakeBlocks {
                 }
             }
             case LakeLifeRaster.SMALL_DRIPLEAF -> {
+                if (freezes) {
+                    break;
+                }
                 BlockState lower = Blocks.SMALL_DRIPLEAF.defaultBlockState().setValue(SmallDripleafBlock.HALF, DoubleBlockHalf.LOWER)
                     .setValue(SmallDripleafBlock.FACING, facing).setValue(BlockStateProperties.WATERLOGGED, true);
                 BlockState up = level.getBlockState(pos.set(x, top + 2, z));
@@ -421,7 +451,7 @@ public final class LakeBlocks {
                 }
             }
             case LakeLifeRaster.BIG_DRIPLEAF -> {
-                boolean clear = ground.is(BlockTags.BIG_DRIPLEAF_PLACEABLE) && level.getBlockState(pos.set(x, c.surf + 1, z)).isAir();
+                boolean clear = !freezes && ground.is(BlockTags.BIG_DRIPLEAF_PLACEABLE) && level.getBlockState(pos.set(x, c.surf + 1, z)).isAir();
                 for (int y = top + 1; y <= c.surf && clear; y++) {
                     clear = waterSource(level.getBlockState(pos.set(x, y, z)));
                 }
@@ -438,7 +468,7 @@ public final class LakeBlocks {
             default -> {
             }
         }
-        if (plant.lily && plant.kind != LakeLifeRaster.BIG_DRIPLEAF && plant.kind != LakeLifeRaster.SMALL_DRIPLEAF) {
+        if (plant.lily && !freezes && plant.kind != LakeLifeRaster.BIG_DRIPLEAF && plant.kind != LakeLifeRaster.SMALL_DRIPLEAF) {
             BlockState lily = Blocks.LILY_PAD.defaultBlockState();
             BlockState surface = level.getBlockState(pos.set(x, c.surf, z));
             if (surface.getFluidState().isSourceOfType(Fluids.WATER) && level.getBlockState(pos.set(x, c.surf + 1, z)).isAir() && lily.canSurvive(level, pos)) {

@@ -5,7 +5,6 @@ import com.terrahaul.worldgen.features.lake.LakeLifeRaster;
 import com.terrahaul.worldgen.features.lake.LakePlanner;
 import com.terrahaul.worldgen.features.lake.LakeRaster;
 import com.terrahaul.worldgen.features.lake.LakeVolume;
-import com.terrahaul.worldgen.terrain.LakeType;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
@@ -103,9 +102,9 @@ final class LakeFloorArea {
 
     /**
      * Runs the floor raster for every chunk of the area and copies each chunk's core with the
-     * feature's write rules: the bed's top block may change, every other block only goes into
-     * open water (or air) and only onto something solid, bottom up; a column stops at the first
-     * block it may not place.
+     * feature's write rules: the bed's top block may change where it is sediment (not where the
+     * surface rule left bare rock), every other block only goes into open water (or air) and only
+     * onto something solid, bottom up; a column stops at the first block it may not place.
      */
     void applyFloor(double rockDensity, double detailDensity) {
         if (whole) {
@@ -139,7 +138,7 @@ final class LakeFloorArea {
                     }
                     byte here = get(x, y, z);
                     if (y <= c.floor) {
-                        if (here == LakeVolume.NAT_SOLID) {
+                        if (here == LakeVolume.NAT_SOLID && !(y == c.floor && rockBed(c))) {
                             set(x, y, z, code);
                             wood(v, x, y, z, code);
                         }
@@ -155,6 +154,11 @@ final class LakeFloorArea {
                 }
             }
         }
+    }
+
+    /** Whether the surface rule left the column's bed as bare rock, which the floor feature never replaces. */
+    boolean rockBed(LakeColumn c) {
+        return LakeLifeRaster.kindOf(planner.naturalBed(c)) == LakeLifeRaster.HARD;
     }
 
     private void wood(LakeVolume v, int x, int y, int z, byte code) {
@@ -189,7 +193,7 @@ final class LakeFloorArea {
                     if (get(x, top + 1, z) != LakeVolume.NAT_WATER) {
                         continue;
                     }
-                    int kind = kind(c, get(x, top, z));
+                    int kind = kind(planner, c, get(x, top, z));
                     if (kind < 0) {
                         continue;
                     }
@@ -202,28 +206,17 @@ final class LakeFloorArea {
         }
     }
 
-    private static int kind(LakeColumn c, byte code) {
+    /** The kind of the block a plant would stand on; untouched beds and fills are what the surface rule lines the bed with. */
+    private static int kind(LakePlanner planner, LakeColumn c, byte code) {
         if (code == LakeVolume.NAT_SOLID || code == LakeVolume.FILL) {
-            return LakeLifeRaster.naturalBed(c);
+            return LakeLifeRaster.kindOf(code == LakeVolume.FILL ? fillOf(planner.naturalBed(c)) : planner.naturalBed(c));
         }
-        if (code == LakeVolume.SAND) {
-            return LakeLifeRaster.SOFT;
-        }
-        if (code == LakeVolume.GRAVEL) {
-            return LakeLifeRaster.GRAVELLY;
-        }
-        if (code == LakeVolume.CLAY || code == LakeVolume.MUD || code == LakeVolume.MOSS) {
-            return LakeLifeRaster.MUDDY;
-        }
-        if (code >= LakeVolume.LOG_X && code <= LakeVolume.PLANKS) {
-            return LakeLifeRaster.WOOD;
-        }
-        if (code == LakeVolume.SLAB || code == LakeVolume.SLAB_TOP || code >= LakeVolume.STAIRS && code < LakeVolume.CHEST + 4
-            || code == LakeVolume.BRICK_SLAB) {
-            // not a full face to root on
-            return -1;
-        }
-        return LakeLifeRaster.HARD;
+        return LakeLifeRaster.kindOf(code);
+    }
+
+    /** What a shelf or drift copies from the bed (as the feature's {@code fillOf}): its sediment, sand over bare rock. */
+    static byte fillOf(byte bed) {
+        return bed == LakeVolume.SAND || bed == LakeVolume.GRAVEL || bed == LakeVolume.CLAY || bed == LakeVolume.MUD ? bed : LakeVolume.SAND;
     }
 
     private void grow(LakeColumn c, int x, int z, int top, LakeLifeRaster.Plant plant) {
@@ -281,8 +274,14 @@ final class LakeFloorArea {
         }
         int type = -1;
         for (int d = 0; d < 4 && type < 0; d++) {
-            LakeColumn n = column(x + LakeVolume.DIR_X[d], z + LakeVolume.DIR_Z[d]);
-            if (n.wet && n.surf == top && get(x + LakeVolume.DIR_X[d], top, z + LakeVolume.DIR_Z[d]) == LakeVolume.NAT_WATER) {
+            int nx = x + LakeVolume.DIR_X[d];
+            int nz = z + LakeVolume.DIR_Z[d];
+            if (nx >> 4 != x >> 4 || nz >> 4 != z >> 4) {
+                // as the feature: only the water of the column's own chunk counts
+                continue;
+            }
+            LakeColumn n = column(nx, nz);
+            if (n.wet && n.surf == top && get(nx, top, nz) == LakeVolume.NAT_WATER) {
                 type = n.type;
             }
         }
@@ -314,13 +313,9 @@ final class LakeFloorArea {
     static final int[][] BARK = {{109, 85, 50}, {216, 215, 210}, {58, 37, 16}, {85, 67, 25}, {103, 96, 86}, {60, 46, 26}, {84, 66, 36}, {54, 33, 44}};
     static final int[][] PLANK = {{162, 130, 78}, {196, 176, 118}, {114, 84, 48}, {160, 115, 80}, {168, 90, 50}, {66, 43, 20}, {117, 54, 48}, {226, 178, 172}};
 
-    /** The bed colour of an untouched lake floor (the surface rule's sediment, roughly). */
-    static int[] bed(LakeColumn c) {
-        return switch (LakeLifeRaster.naturalBed(c)) {
-            case LakeLifeRaster.MUDDY -> c.type == LakeType.MARSH || c.temperature > 0.3 ? new int[]{70, 62, 58} : new int[]{160, 166, 179};
-            case LakeLifeRaster.GRAVELLY -> new int[]{140, 132, 128};
-            default -> new int[]{214, 204, 160};
-        };
+    /** The bed colour of an untouched lake floor: the surface rule's sediment, or its bare rock. */
+    int[] bed(LakeColumn c) {
+        return colour(c.x, c.floor, c.z, planner.naturalBed(c));
     }
 
     int[] colour(int x, int y, int z, byte code) {
@@ -332,7 +327,7 @@ final class LakeFloorArea {
             return bed(c);
         }
         if (code == LakeVolume.FILL) {
-            return bed(c);
+            return colour(x, y, z, fillOf(planner.naturalBed(c)));
         }
         if (code >= LakeVolume.ROCK && code < LakeVolume.ROCK + 15) {
             return ROCKS[code - LakeVolume.ROCK];

@@ -8,9 +8,10 @@ import com.terrahaul.worldgen.noise.SeedMixer;
  * What grows in and around a lake, per column. Pure Java.
  * <p>
  * The decision is made from the plan (see {@link LakePlanner}) and what the column's top actually
- * is: seagrass roots in sand, mud and clay and thins out on gravel; weed (kelp) holds on to rock,
- * wood and gravel best; dripleaf needs mud, clay, moss or soil. The feature passes the real top
- * block it finds in the world, the devtools their planned one.
+ * is: seagrass roots in sand, mud and clay, thins out on gravel and only finds a foothold here and
+ * there in the sediment between bare stones; weed (kelp) holds on to rock, wood and gravel best;
+ * dripleaf needs mud, clay, moss or soil. The feature passes the real top block it finds in the
+ * world, the devtools the planned one (the surface rule's bed where nothing changed it).
  * <ul>
  *   <li>under water: meadows of short and tall seagrass with ragged edges, weed beds whose tallest
  *       stems reach the surface, weed along the tops of sunken trunks, dripleaf in lush
@@ -96,6 +97,12 @@ public final class LakeLifeRaster {
                     out.head = c.surf - (SeedMixer.cellUnit(h, 0, 0, 3) < 0.5 ? 0 : 1);
                     out.mature = true;
                     out.age = 25;
+                } else if (water > 14 && u < 0.15) {
+                    // in a deep bed some stems reach up to just under the surface, so the bed
+                    // shows from a boat as dark stands in the open water
+                    out.head = c.surf - 1 - (int) (SeedMixer.cellUnit(h, 0, 0, 3) * 3.0);
+                    out.mature = true;
+                    out.age = 25;
                 } else {
                     // the others stop at different heights; in deep water they reach far up
                     // towards the light, so a deep bed shows from the surface
@@ -117,8 +124,9 @@ public final class LakeLifeRaster {
                 }
             }
         }
-        double m = c.meadow * (floor == GRAVELLY ? 0.45 : floor == HARD || floor == WOOD ? 0.0 : 1.0);
-        double chance = 0.92 * smoothstep(0.08, 0.55, m);
+        // how well the meadow roots in the bed; the curve keeps small strengths as sparse tufts
+        double m = c.meadow * (floor == GRAVELLY ? 0.6 : floor == HARD ? 0.25 : floor == WOOD ? 0.0 : 1.0);
+        double chance = 0.92 * smoothstep(0.0, 0.5, m);
         if (floor == WOOD && c.temperature > -0.5 && water <= 14) {
             // weed grows along the tops of sunken trunks, in stretches
             chance = 0.55 * smoothstep(-0.1, 0.3, p.noise(LakePlanner.MOSS, c.x / 6.0, c.z / 6.0));
@@ -127,7 +135,9 @@ public final class LakeLifeRaster {
         }
         double r2 = SeedMixer.cellUnit(h, 0, 0, 5);
         if (r2 < chance) {
-            out.kind = r2 < 0.35 * m && water >= 2 ? TALL_SEAGRASS : SEAGRASS;
+            // tall grass where the meadow is thick, and most of it in the deeper beds (tape grass)
+            double tall = Math.min(1.0, 0.4 * m / Math.max(1.0E-6, chance) + 0.45 * smoothstep(4.0, 9.0, water));
+            out.kind = r2 < tall * chance && water >= 2 ? TALL_SEAGRASS : SEAGRASS;
         }
         lily(c, h, out);
         return out;
@@ -163,23 +173,30 @@ public final class LakeLifeRaster {
         return out;
     }
 
-    /**
-     * The kind of an untouched bed, approximating the surface rule's lake beds (mud in marshes and
-     * warm humid forest lakes, gravel in the mountains and in cold great lakes, sand or clay
-     * elsewhere). The feature uses the real block.
-     */
-    public static int naturalBed(LakeColumn c) {
-        switch (c.type) {
-            case com.terrahaul.worldgen.terrain.LakeType.MARSH:
-                return MUDDY;
-            case com.terrahaul.worldgen.terrain.LakeType.MOUNTAIN:
-            case com.terrahaul.worldgen.terrain.LakeType.GLACIAL:
-            case com.terrahaul.worldgen.terrain.LakeType.CRATER:
-                return GRAVELLY;
-            case com.terrahaul.worldgen.terrain.LakeType.GREAT:
-                return c.temperature < -0.25 ? GRAVELLY : SOFT;
-            default:
-                return c.temperature > 0.3 && c.humidity > 0.3 ? MUDDY : SOFT;
+    /** The kind of a bed block given as a {@code LakeVolume} code, or -1 if nothing roots on it. */
+    public static int kindOf(byte code) {
+        if (code == LakeVolume.SAND) {
+            return SOFT;
         }
+        if (code == LakeVolume.GRAVEL) {
+            return GRAVELLY;
+        }
+        if (code == LakeVolume.CLAY || code == LakeVolume.MUD || code == LakeVolume.MOSS) {
+            return MUDDY;
+        }
+        if (code >= LakeVolume.LOG_X && code <= LakeVolume.PLANKS) {
+            return WOOD;
+        }
+        if (code == LakeVolume.SLAB || code == LakeVolume.SLAB_TOP || code >= LakeVolume.STAIRS && code < LakeVolume.CHEST + 4
+            || code == LakeVolume.BRICK_SLAB) {
+            // not a full face to root on
+            return -1;
+        }
+        return HARD;
+    }
+
+    /** The kind of an untouched bed: the surface rule's sediment (see {@link LakePlanner#naturalBed}). */
+    public static int naturalBed(LakePlanner p, LakeColumn c) {
+        return kindOf(p.naturalBed(c));
     }
 }

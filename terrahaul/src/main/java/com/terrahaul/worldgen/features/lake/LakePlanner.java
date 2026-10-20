@@ -8,6 +8,7 @@ import com.terrahaul.worldgen.features.marine.MarinePlanner;
 import com.terrahaul.worldgen.noise.SeedMixer;
 import com.terrahaul.worldgen.noise.SimplexNoise;
 import com.terrahaul.worldgen.noise.TMath;
+import com.terrahaul.worldgen.surface.Fades;
 import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.Geology;
 import com.terrahaul.worldgen.terrain.LakeType;
@@ -26,18 +27,23 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * The habitats follow real lakes, adapted to each lake's type and climate:
  * <ul>
- *   <li>the littoral zone, down to six to ten blocks (deeper in clear cold water), carries
- *       meadows of short and tall seagrass on soft beds; lily pads float in colonies over calm
- *       water a few blocks deep, reeds line the shore, and in warm humid country dripleaf and
- *       moss grow in the shallows;</li>
- *   <li>weed beds (kelp standing in for pondweed, sparser than kelp forests in the sea) grow in
- *       temperate and cold lakes four to twenty blocks deep; in the clear water of a great lake,
- *       fewer and larger beds of tall weed also stand on the deep plain, reaching up towards the
- *       light, so the open lake shows dark stands under its surface;</li>
+ *   <li>the littoral zone carries meadows of short and tall seagrass, as deep as the light
+ *       reaches: six blocks in the brown water of forest pools and marshes, up to eighteen in the
+ *       clear water of great, mountain and crater lakes, where the deeper meadows break up into
+ *       separate beds of tall grass; rocky and cold lakes keep sparse tufts on their gravel and
+ *       clay. Lily pads float in mats over parts of calm shallow water, reeds line the shore,
+ *       and in warm humid country dripleaf and moss grow in the shallows;</li>
+ *   <li>weed beds (kelp standing in for pondweed and milfoil, sparser than kelp forests in the
+ *       sea) grow four to twenty-odd blocks deep, densest in temperate and cool lakes and
+ *       sparser in warm ones; on the deep plain of a great lake fewer and larger beds of tall
+ *       weed stand too, some stems reaching to just under the surface, so the open lake shows
+ *       dark stands under its surface; in glacial lakes weed roots in the rock flour (clay)
+ *       patches;</li>
  *   <li>great lakes hold shoals far from their shores: moraine mounds rising from the deep plain
  *       to a few blocks under the surface; the rest of their deep floor is gravel and clay;
- *       mountain and glacial lakes are rocky, with ledges, talus under steep shores, erratics and
- *       rock flour (clay);</li>
+ *       mountain and glacial lakes are rocky, with fields of ledges along each lake's own strike,
+ *       talus under steep shores, erratics and rock flour; crater lakes have sheets of old lava
+ *       flows and blocky talus, and aquatic moss on their deep floor (as in mountain lakes);</li>
  *   <li>marsh lakes are shallow wetland pools with reeds, lily pads and a little weed only.</li>
  * </ul>
  * One planner exists per terrain model; its noises are immutable and its caches thread-safe, so
@@ -81,7 +87,9 @@ public final class LakePlanner {
     static final int PROVINCE = 25;
     static final int WEATHER = 26;
     static final int DEEP_BEDS = 27;
-    private static final int NOISES = 28;
+    static final int CLARITY = 28;
+    static final int PEBBLE_PATCH = 29;
+    private static final int NOISES = 30;
 
     /** Wood species, in {@code TerrahaulBlocks.WOODS} order. */
     public static final int OAK = 0;
@@ -94,8 +102,14 @@ public final class LakePlanner {
     public static final int CHERRY = 7;
 
     // per lake type (NONE, FOREST, MOUNTAIN, GREAT, MARSH, CRATER, PLATEAU, GLACIAL)
-    private static final double[] MEADOW_T = {0.0, 0.95, 0.6, 1.0, 0.15, 0.35, 0.85, 0.3};
-    private static final double[] WEED_T = {0.0, 0.5, 0.55, 0.8, 0.0, 0.15, 0.45, 0.3};
+    private static final double[] MEADOW_T = {0.0, 0.95, 0.75, 1.0, 0.15, 0.75, 0.85, 0.7};
+    private static final double[] WEED_T = {0.0, 0.5, 0.55, 0.8, 0.0, 0.4, 0.45, 0.35};
+    /**
+     * How clear the water of a lake type is (0..1): the clear water of great, mountain and crater
+     * lakes lets the light, and the meadows, reach far deeper than the brown water of forest pools
+     * and marshes; the rock flour of glacial lakes clouds them.
+     */
+    private static final double[] CLARITY_T = {0.0, 0.4, 0.75, 0.8, 0.1, 0.65, 0.6, 0.35};
     private static final double[] LILY_T = {0.0, 0.9, 0.3, 0.45, 1.0, 0.2, 0.65, 0.0};
     private static final double[] REED_T = {0.0, 0.8, 0.35, 0.7, 1.0, 0.25, 0.6, 0.0};
     private static final double[] LUSH_T = {0.0, 1.0, 0.25, 0.5, 0.0, 0.2, 0.7, 0.0};
@@ -103,8 +117,8 @@ public final class LakePlanner {
     /** Boulders and sunken logs per lake type (relative). */
     static final double[] BOULDER_T = {0.0, 0.2, 0.6, 0.35, 0.0, 0.45, 0.3, 0.75};
     static final double[] LOG_T = {0.0, 0.55, 0.2, 0.16, 0.0, 0.04, 0.32, 0.05};
-    /** Chance that a discovery cell overlapping a lake of the type holds something. */
-    private static final double[] DISCOVERY_T = {0.0, 0.32, 0.16, 0.12, 0.18, 0.05, 0.26, 0.06};
+    /** Chance that a discovery cell overlapping a lake of the type holds something (marsh pools hold only plants). */
+    private static final double[] DISCOVERY_T = {0.0, 0.32, 0.16, 0.12, 0.0, 0.05, 0.26, 0.06};
 
     /** Discoveries (ruins, wrecks, piers) lie on a jittered grid of this many blocks. */
     public static final int DISCOVERY_CELL = 96;
@@ -113,11 +127,7 @@ public final class LakePlanner {
     private final SimplexNoise[] noise = new SimplexNoise[NOISES];
     private final long seed;
     private final int seaLevel;
-    private final double strikeCos1;
-    private final double strikeSin1;
-    private final double strikeCos2;
-    private final double strikeSin2;
-    private final ConcurrentHashMap<Long, Double> radii = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, LakeInfo> infos = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Discovery> discoveries = new ConcurrentHashMap<>();
     private static final Discovery NO_DISCOVERY = new Discovery(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0L);
 
@@ -128,11 +138,6 @@ public final class LakePlanner {
             noise[i] = new SimplexNoise(SeedMixer.derive(seed, i + 1));
         }
         this.seaLevel = model.seaLevel();
-        double angle = SeedMixer.cellUnit(seed, 0, 0, 7) * Math.PI * 2.0;
-        strikeCos1 = Math.cos(angle);
-        strikeSin1 = Math.sin(angle);
-        strikeCos2 = Math.cos(angle + 1.22);
-        strikeSin2 = Math.sin(angle + 1.22);
     }
 
     public static LakePlanner of(TerrainModel model) {
@@ -212,9 +217,11 @@ public final class LakePlanner {
         double fx = (x - x0) * 0.25;
         double fz = (z - z0) * 0.25;
         double t = 0.0;
+        double bt = 0.0;
         double hu = 0.0;
         double in = 0.0;
         double vo = 0.0;
+        double mo = 0.0;
         int level = Integer.MIN_VALUE;
         int type = LakeType.NONE;
         boolean other = false;
@@ -225,9 +232,11 @@ public final class LakePlanner {
             double w = (dx == 0 ? 1.0 - fx : fx) * (dz == 0 ? 1.0 - fz : fz);
             ColumnSample s = model.sample(x0 + dx, z0 + dz);
             t += w * s.temperature;
+            bt += w * s.baseTemperature;
             hu += w * s.humidity;
             in += w * Math.max(0.0, s.lake);
             vo += w * s.volcano;
+            mo += w * s.mountain;
             if (s.bodyInside) {
                 if (s.bodyKind == WaterBody.LAKE || s.bodyKind == WaterBody.CRATER) {
                     int lv = (int) s.bodyLevel;
@@ -243,20 +252,27 @@ public final class LakePlanner {
             }
         }
         ColumnSample n = model.sample((x + 2) & ~3, (z + 2) & ~3);
+        // the surface rule picks a lake bed's sediment by the type at the nearest model corner
+        c.bedType = n.lakeType;
         // the sea floor features own the columns they take for open sea
         boolean inland = n.lake > 0.0 || n.river > 0.0 || n.waterLevel != ColumnSample.NO_WATER;
         boolean sea = h < seaLevel - 0.5 && !inland && seaLevel - 1 - c.floor >= 1;
         c.geology = n.geology;
         c.temperature = t;
+        c.baseTemperature = bt;
         c.humidity = hu;
+        c.mountain = mo;
+        c.lakeField = in;
         c.inner = clamp01(in);
         c.lake = level != Integer.MIN_VALUE && !other && !sea && type != LakeType.NONE;
+        LakeInfo info = null;
         if (c.lake) {
             c.surf = level - 1;
             c.depth = c.surf - c.floor;
             c.wet = c.depth >= 1;
             c.type = type;
-            c.radius = lakeRadius(x, z, type);
+            info = lakeInfo(x, z, type);
+            c.radius = info.radius();
             c.size = smoothstep(12.0, 60.0, c.radius);
         } else {
             c.surf = LakeColumn.NO_SURF;
@@ -288,7 +304,7 @@ public final class LakePlanner {
             // shoals are moraine: gravel and rock, with boulders and ledges on their flanks
             c.rocky = Math.max(c.rocky, 0.6 * shoal);
             life(c, x, z);
-            outcrop(c, x, z);
+            outcrop(c, x, z, info);
         }
     }
 
@@ -307,33 +323,102 @@ public final class LakePlanner {
     }
 
     /**
-     * Radius of the lake around a column. Looked up once per 64-block tile from the tile's centre,
-     * so every chunk asking about the tile gets the same answer.
+     * The top block of an untouched lake bed as the surface rule lines it, as a {@link LakeVolume}
+     * code: one sediment per lake chosen by type and climate, and in mountain, glacial and crater
+     * lakes gravel in patches a few blocks across with the local rock showing between them. The
+     * features read the real block; the devtools use this, so their plants match the game's.
      */
+    public byte naturalBed(LakeColumn c) {
+        double n = Fades.patch(model, c.x, c.z, 6.0, 0);
+        double reach = Fades.patch(model, c.x, c.z, 80.0, 6);
+        double hot = c.baseTemperature;
+        double wet = c.humidity;
+        int family = c.family == MarinePlanner.SANDY && c.mountain > 0.3 ? MarinePlanner.GREY : c.family;
+        byte rock = (byte) (LakeVolume.ROCK + family * 3 + 2);
+        if (c.lakeField > 0.0) {
+            switch (c.bedType) {
+                case LakeType.MOUNTAIN, LakeType.GLACIAL, LakeType.CRATER -> {
+                    return n > 0.0 ? LakeVolume.GRAVEL : rock;
+                }
+                case LakeType.MARSH -> {
+                    return LakeVolume.MUD;
+                }
+                case LakeType.GREAT -> {
+                    return hot < -0.25 || reach < -0.45 ? LakeVolume.GRAVEL : LakeVolume.SAND;
+                }
+                default -> {
+                    if (hot > 0.3 && wet > 0.3) {
+                        return LakeVolume.MUD;
+                    }
+                    if (reach > 0.3 && hot < 0.5) {
+                        return LakeVolume.CLAY;
+                    }
+                    return reach > -0.25 ? LakeVolume.SAND : LakeVolume.GRAVEL;
+                }
+            }
+        }
+        if (c.mountain > 0.3) {
+            return n > -0.3 ? LakeVolume.GRAVEL : rock;
+        }
+        if (hot > 0.5 && wet > 0.3) {
+            return LakeVolume.MUD;
+        }
+        return reach + (hot > 0.35 ? 0.3 : -0.1) > 0.0 ? LakeVolume.SAND : LakeVolume.GRAVEL;
+    }
+
+    /**
+     * What the floor plan needs to know of a whole lake: its radius, its centre and the two strike
+     * directions its rock ledges run along (each lake its own, from a hash of its site, so the
+     * ledges of neighbouring lakes do not all share one bearing).
+     */
+    public record LakeInfo(double radius, double x, double z, double cos1, double sin1, double cos2, double sin2) {
+    }
+
+    /** Radius of the lake around a column (see {@link #lakeInfo}). */
     public double lakeRadius(int x, int z, int type) {
+        return lakeInfo(x, z, type).radius();
+    }
+
+    /**
+     * The lake around a column. Looked up once per 64-block tile from the tile's centre, so every
+     * chunk asking about the tile gets the same answer.
+     */
+    public LakeInfo lakeInfo(int x, int z, int type) {
         int tx = x >> 6;
         int tz = z >> 6;
         int kind = type == LakeType.CRATER ? 2 : type == LakeType.GREAT ? 1 : 0;
         long key = ((long) tx << 34) ^ ((tz & 0xFFFFFFFFL) << 2) ^ kind;
-        Double cached = radii.get(key);
+        LakeInfo cached = infos.get(key);
         if (cached != null) {
             return cached;
         }
         int cx = (tx << 6) + 32;
         int cz = (tz << 6) + 32;
         double r;
+        double sx = cx;
+        double sz = cz;
         if (kind == 2) {
             TerrainModel.VolcanoSite v = model.nearestVolcano(cx, cz, 1500.0);
             r = v == null ? 30.0 : v.craterRadius;
+            if (v != null) {
+                sx = v.x;
+                sz = v.z;
+            }
         } else {
             TerrainModel.LakeSite s = model.nearestLake(cx, cz, kind == 1 ? 7000 : 900, kind == 1);
             r = s == null ? 40.0 : s.radius;
+            if (s != null) {
+                sx = s.x;
+                sz = s.z;
+            }
         }
-        if (radii.size() > 8192) {
-            radii.clear();
+        double angle = SeedMixer.unit(SeedMixer.hash2(salt(13), (int) Math.floor(sx), (int) Math.floor(sz))) * Math.PI * 2.0;
+        LakeInfo info = new LakeInfo(r, sx, sz, Math.cos(angle), Math.sin(angle), Math.cos(angle + 1.22), Math.sin(angle + 1.22));
+        if (infos.size() > 8192) {
+            infos.clear();
         }
-        radii.put(key, r);
-        return r;
+        infos.put(key, info);
+        return info;
     }
 
     // =========================================================================================
@@ -345,12 +430,15 @@ public final class LakePlanner {
     /** Farthest a shoal's flank reaches from its centre (its largest lobed and roughened radius). */
     private static final int SHOAL_REACH = 70;
     private static final Shoal NO_SHOAL = new Shoal(0.0, 0.0, 0.0, 0, 0.0);
+    /** Most a shoal's crest rises over the floor at its centre. */
+    private static final int MAX_SHOAL_RISE = 18;
     private final ConcurrentHashMap<Long, Shoal> shoals = new ConcurrentHashMap<>();
 
     /**
      * A shoal of a great lake: a broad moraine mound of gravel and rock rising from the deep floor
-     * to two to five blocks under the surface, its outline lobed; weed and seagrass grow on its
-     * crest, so it shows from a boat as a patch of shallow water far from the shore.
+     * to two to five blocks under the surface (over the deepest water, eighteen blocks over the
+     * floor), its outline lobed; weed and seagrass grow on its crest, so it shows from a boat as a
+     * patch of shallow water far from the shore.
      */
     public record Shoal(double x, double z, double radius, int top, double phase) {
     }
@@ -397,7 +485,10 @@ public final class LakePlanner {
                 return NO_SHOAL;
             }
         }
-        int top = surf - 2 - (int) (SeedMixer.cellUnit(h, 0, 0, 4) * 4.0);
+        // the crest rises to two to five blocks under the surface, but never more than eighteen
+        // blocks over the floor: over the deepest water a shoal stays a submerged bank, and no
+        // chunk has to fill a column of gravel thirty blocks tall
+        int top = Math.min(surf - 2 - (int) (SeedMixer.cellUnit(h, 0, 0, 4) * 4.0), floor + MAX_SHOAL_RISE);
         return new Shoal(x, z, radius, top, SeedMixer.cellUnit(h, 0, 0, 5) * Math.PI * 2.0);
     }
 
@@ -454,8 +545,10 @@ public final class LakePlanner {
      * The bed: littoral shelves, gravel bars and patches of other sediment. Shelves build the
      * floor up, in stretches of shore, to a flat terrace one to three blocks under the surface
      * that ends in a drop-off of three to six blocks; where a stretch fades out the terrace sinks
-     * towards the natural floor, so it never ends in a wall along the shore. Patches are irregular
-     * blobs (warped noise) of the materials that set the bed apart from the lake's own sediment.
+     * towards the natural floor, so it never ends in a wall along the shore. Gravel bars are
+     * longshore bars: low ridges two to four blocks wide that follow a depth contour a few blocks
+     * off the shore, along some stretches of it. Patches are irregular blobs (warped noise) of the
+     * materials that set the bed apart from the lake's own sediment.
      */
     private void bed(LakeColumn c, int x, int z) {
         int type = c.type;
@@ -473,20 +566,28 @@ public final class LakePlanner {
                 }
             }
         }
-        double wx = x + 7.0 * noise(WARP_X, x / 22.0, z / 22.0);
-        double wz = z + 7.0 * noise(WARP_Z, x / 22.0, z / 22.0);
+        // gently warped, so the patches are irregular blobs; a strong warp at their own size
+        // would draw them out into thin curls
+        double wx = x + 5.0 * noise(WARP_X, x / 30.0, z / 30.0);
+        double wz = z + 5.0 * noise(WARP_Z, x / 30.0, z / 30.0);
         int water = c.surf - c.bed;
-        if (c.bed == c.floor && type != LakeType.MARSH && type != LakeType.CRATER && water >= 3 && water <= 9) {
-            // gravel bars: low winding ridges in the shallows
-            double ridge = 1.0 - Math.abs(noise(BAR, wx / 36.0, wz / 36.0));
-            double region = smoothstep(0.0, 0.3, noise(BAR, x / 150.0 + 70.0, z / 150.0));
-            if (ridge > 0.955 - 0.02 * region && region > 0.0) {
-                c.bed = c.floor + (ridge > 0.985 && water >= 5 ? 2 : 1);
+        if (c.bed == c.floor && type != LakeType.MARSH && type != LakeType.CRATER && c.size > 0.2 && water >= 2 && water <= 7
+            && c.slope > 0.08 && c.slope < 0.9) {
+            // the depth contour the bar follows, and how far (in blocks, across the slope) the
+            // column lies from it: the bar is as wide as the floor is gentle, two to four blocks
+            double contour = 3.6 + 1.1 * noise(BAR, x / 110.0 - 30.0, z / 110.0 + 12.0);
+            double off = Math.abs(c.surf + 1.0 - c.height - contour) / Math.max(0.25, c.slope);
+            double halfWidth = 1.0 + 0.9 * (0.5 + 0.5 * noise(BAR, x / 23.0 + 9.0, z / 23.0 - 4.0));
+            double stretch = noise(BAR, x / 70.0 + 70.0, z / 70.0);
+            if (stretch > 0.2 && off < halfWidth * smoothstep(0.2, 0.4, stretch)) {
+                c.bed = c.floor + (off < 0.6 && water >= 5 ? 2 : 1);
                 c.fill = LakeVolume.GRAVEL;
                 water = c.surf - c.bed;
             }
         }
-        double blob = noise(SED_PATCH, wx / 12.0, wz / 12.0) + 0.35 * noise(SED_PATCH, wx / 4.5 + 30.0, wz / 4.5);
+        // patches five to fifteen blocks across; a gentle second octave only, as a strong one
+        // breaks the blob edges up into single blocks
+        double blob = noise(SED_PATCH, wx / 20.0, wz / 20.0) + 0.2 * noise(SED_PATCH, wx / 7.0 + 30.0, wz / 7.0);
         double sel = noise(SED_SELECT, x / 80.0, z / 80.0);
         double t = c.temperature;
         boolean warmMud = t > 0.3 && c.humidity > 0.2 && water <= 3;
@@ -514,20 +615,25 @@ public final class LakePlanner {
                 }
             }
             case LakeType.MOUNTAIN -> {
-                if (water >= 10 && blob > 0.8) {
+                if (water >= 12 && deepMoss(x, z, blob) > 0.6) {
+                    patch = LakeVolume.MOSS;
+                } else if (water >= 10 && blob > 0.8) {
                     patch = LakeVolume.CLAY;
                 } else if (water <= 6 && blob > 0.9 && sel > 0.0) {
                     patch = LakeVolume.SAND;
                 }
             }
             case LakeType.GLACIAL -> {
-                // rock flour settles as clay in the still deep water
-                if (water >= 6 && blob > 0.7) {
+                // rock flour settles as clay in the still deep water, and in sheltered shallows
+                if (water >= 6 && blob > 0.55 || water >= 2 && blob > 0.75 && c.slope < 0.5) {
                     patch = LakeVolume.CLAY;
                 }
             }
             case LakeType.CRATER -> {
-                if (blob > 0.8) {
+                if (water >= 10 && deepMoss(x, z, blob) > 0.4) {
+                    // the clear water of a crater lake lets mosses grow far down on its floor
+                    patch = LakeVolume.MOSS;
+                } else if (blob > 0.8) {
                     patch = (byte) (LakeVolume.ROCK + MarinePlanner.VOLCANIC * 3 + (sel > 0.0 ? 0 : 2));
                 } else if (blob < -0.85) {
                     patch = LakeVolume.GRAVEL;
@@ -539,73 +645,127 @@ public final class LakePlanner {
         c.patch = patch;
     }
 
-    /** Plant strengths by depth (above the planned bed), climate and lake type. */
+    /** Beds of aquatic moss on the deep floor of clear lakes: broad patches with ragged edges. */
+    private double deepMoss(int x, int z, double blob) {
+        return noise(SED_SELECT, x / 45.0 + 17.0, z / 45.0 - 9.0) + 0.3 * blob;
+    }
+
+    /**
+     * Plant strengths by depth (above the planned bed), climate and lake type. Each kind of plant
+     * has its own depth range and its own patches, and every factor that thins a kind out keeps a
+     * floor, so a cold or rocky lake carries a sparse flora rather than none.
+     */
     private void life(LakeColumn c, int x, int z) {
         int type = c.type;
         double t = c.temperature;
         int water = c.surf - c.bed;
-        // seagrass meadows: clear cool water lets light, and the meadows, reach deeper
-        double tempOk = 0.3 + 0.7 * smoothstep(-0.6, -0.3, t);
-        double maxD = 6.0 + 3.0 * smoothstep(0.2, -0.3, t) + (type == LakeType.GREAT ? 2.0 : 0.0);
-        double depthOk = smoothstep(0.5, 1.5, water) * (1.0 - smoothstep(maxD - 3.0, maxD + 2.0, water));
-        if (tempOk > 0.0 && depthOk > 0.0) {
-            double patch = smoothstep(0.0, 0.35, noise(MEADOW, x / 36.0, z / 36.0) + 0.35 * noise(MEADOW_DETAIL, x / 10.0, z / 10.0));
-            double flat = 1.0 - smoothstep(0.5, 1.1, c.slope);
+        // how far down the light reaches, from the lake type's clarity, varying from one reach of
+        // a lake to the next
+        double clarity = clamp01(CLARITY_T[type] + 0.2 * noise(CLARITY, x / 260.0, z / 260.0));
+        // meadows of short and tall seagrass (eelgrass, tape grass, quillwort): from the shallows
+        // down to six blocks in murky water and to eighteen in the clearest; fewer in the cold
+        double maxD = 4.0 + 14.0 * clarity;
+        double climate = 0.45 + 0.55 * smoothstep(-0.6, -0.3, t);
+        double depthOk = smoothstep(0.5, 1.5, water) * (1.0 - smoothstep(maxD - 4.0, maxD + 2.0, water));
+        if (depthOk > 0.0) {
+            // deeper down the meadows break up into separate beds
+            double deep = smoothstep(5.0, maxD, water);
+            double n = noise(MEADOW, x / 36.0, z / 36.0) + 0.35 * noise(MEADOW_DETAIL, x / 10.0, z / 10.0);
+            double patch = smoothstep(0.3 * deep, 0.35 + 0.3 * deep, n);
             double blowout = noise(BLOWOUT, x / 9.0, z / 9.0) > 0.62 ? 0.0 : 1.0;
-            c.meadow = MEADOW_T[type] * tempOk * depthOk * patch * flat * blowout * (1.0 - 0.7 * smoothstep(0.4, 0.8, c.rocky));
+            // the cold, steep slopes and rocky floors (meadows only in the sediment between the
+            // stones) each thin the meadows out; together they leave sparse tufts, not nothing
+            double flat = 1.0 - 0.7 * smoothstep(0.6, 1.5, c.slope);
+            double rock = 1.0 - 0.5 * smoothstep(0.6, 1.0, c.rocky);
+            double habitat = Math.max(0.4, climate * flat * rock);
+            c.meadow = MEADOW_T[type] * depthOk * patch * blowout * habitat;
         }
-        // weed beds in temperate and cold water four to twenty blocks deep
-        double cool = (0.5 + 0.5 * smoothstep(-0.8, -0.45, t)) * (1.0 - smoothstep(0.35, 0.6, t));
-        double weedDepth = smoothstep(3.5, 6.0, water) * (1.0 - smoothstep(16.0, 23.0, water));
-        if (cool > 0.0 && weedDepth > 0.0) {
-            double patch = smoothstep(0.3, 0.6, noise(WEED, x / 50.0, z / 50.0) + 0.35 * noise(WEED_DETAIL, x / 15.0, z / 15.0));
+        // weed beds (pondweed and milfoil; kelp stands in for them) from four blocks down to
+        // sixteen to twenty-two: densest in temperate and cool water, sparser in warm lakes and
+        // under long winters
+        double cool = (0.5 + 0.5 * smoothstep(-0.8, -0.45, t)) * (1.0 - 0.55 * smoothstep(0.3, 0.6, t));
+        double reach = 16.0 + 6.0 * clarity;
+        double weedDepth = smoothstep(3.5, 6.0, water) * (1.0 - smoothstep(reach, reach + 7.0, water));
+        if (weedDepth > 0.0) {
+            double detail = noise(WEED_DETAIL, x / 15.0, z / 15.0);
+            double patch = smoothstep(0.3, 0.6, noise(WEED, x / 50.0, z / 50.0) + 0.35 * detail);
             c.weed = WEED_T[type] * cool * weedDepth * patch;
+            if (type == LakeType.GLACIAL && c.patch == LakeVolume.CLAY) {
+                // stoneworts and pondweed root in the rock flour that settles in still water
+                c.weed = Math.max(c.weed, 0.8 * weedDepth * smoothstep(-0.3, 0.2, detail));
+            }
         }
-        if (type == LakeType.GREAT && cool > 0.0 && water > 14) {
+        if (type == LakeType.GREAT && water > 14) {
             // the deep plain of a great lake: fewer, larger beds of tall weed, one or two hundred
-            // blocks apart, so the open lake is not an empty expanse
+            // blocks apart, so the open lake is not an empty expanse; in warm lakes a little sparser
             double beds = smoothstep(0.35, 0.65, noise(DEEP_BEDS, x / 85.0, z / 85.0) + 0.35 * noise(DEEP_BEDS, x / 24.0 + 60.0, z / 24.0 - 35.0));
             double deep = smoothstep(14.0, 20.0, water) * (1.0 - smoothstep(40.0, 46.0, water));
-            c.weed = Math.max(c.weed, 0.6 * cool * beds * deep);
+            c.weed = Math.max(c.weed, 0.6 * Math.max(0.7, cool) * beds * deep);
         }
-        // lily pads in colonies over calm water up to four blocks deep; on a great lake only along
-        // sheltered stretches of shore
+        // lily pads in colonies over calm water up to four blocks deep, in mats over parts of a
+        // pool with open water between them; on a great lake only along sheltered stretches of
+        // shore
         if (water >= 1 && water <= 4) {
             double warmEnough = smoothstep(-0.3, -0.05, t);
             double colony = smoothstep(0.25, 0.6, noise(LILY, x / 15.0, z / 15.0) + 0.3 * noise(LILY, x / 5.0 + 50.0, z / 5.0 - 20.0));
-            double shelter = type == LakeType.GREAT ? smoothstep(0.15, 0.45, noise(LILY, x / 140.0 - 80.0, z / 140.0 + 15.0)) : 1.0;
+            double shelter = type == LakeType.GREAT ? smoothstep(0.15, 0.45, noise(LILY, x / 140.0 - 80.0, z / 140.0 + 15.0))
+                : smoothstep(-0.2, 0.3, noise(LILY, x / 80.0 - 80.0, z / 80.0 + 15.0));
             c.lilies = LILY_T[type] * warmEnough * (1.0 - smoothstep(2.5, 4.5, water)) * colony * shelter;
         }
         // lush shallows (dripleaf, moss) in warm humid country
         if (water >= 1 && water <= 3) {
-            double climate = smoothstep(0.05, 0.4, t) * smoothstep(-0.05, 0.35, c.humidity);
-            c.lush = LUSH_T[type] * climate * smoothstep(0.25, 0.6, noise(LUSH, x / 20.0, z / 20.0));
+            double climate2 = smoothstep(0.05, 0.4, t) * smoothstep(-0.05, 0.35, c.humidity);
+            c.lush = LUSH_T[type] * climate2 * smoothstep(0.25, 0.6, noise(LUSH, x / 20.0, z / 20.0));
         }
     }
 
     /**
-     * Bedrock ledges on rocky floors: slabs of the local rock elongated along one of two fixed
-     * strike directions, flat-topped and stepped at their edges, one to four blocks high, always
-     * two blocks or more under the surface.
+     * Rock on rocky floors, in fields a hundred blocks and more across that alternate with
+     * stretches of smooth sediment. In most lakes these are bedrock ledges: slabs of the local rock
+     * elongated along one of the lake's two strike directions, flat-topped and stepped at their
+     * edges, one to four blocks high. Crater lakes have no bedding: their floors carry sheets of
+     * old lava flows with lobed fronts, one or two blocks thick, and blocky talus under the steep
+     * crater walls. Rock always stays two blocks or more under the surface.
      */
-    private void outcrop(LakeColumn c, int x, int z) {
+    private void outcrop(LakeColumn c, int x, int z, LakeInfo info) {
         int water = c.surf - c.bed;
-        if (c.rocky < 0.3 || water < 4) {
+        if (c.rocky < 0.3 || water < 4 || info == null) {
             return;
         }
-        double u1 = x * strikeCos1 + z * strikeSin1;
-        double w1 = -x * strikeSin1 + z * strikeCos1;
-        double u2 = x * strikeCos2 + z * strikeSin2;
-        double w2 = -x * strikeSin2 + z * strikeCos2;
-        double b1 = noise(STRIKE, u1 / 40.0, w1 / 12.0);
-        double b2 = noise(STRIKE, u2 / 40.0 + 100.0, w2 / 12.0);
-        double beds = lerp(smoothstep(-0.3, 0.3, noise(STRIKE_MIX, x / 500.0, z / 500.0)), b1, b2) + 0.3 * noise(LEDGE, x / 9.0, z / 9.0);
-        double threshold = 0.72 - 0.35 * c.rocky;
-        double o = smoothstep(threshold, threshold + 0.25, beds);
-        if (o > 0.0) {
-            int height = (int) Math.round(TMath.terrace(o * (1.0 + 3.0 * c.rocky), 2.0, 0.6));
-            c.outcrop = Math.max(0, Math.min(water - 2, Math.min(4, height)));
+        double field = smoothstep(-0.25, 0.35, noise(FIELD, x / 150.0 + 40.0, z / 150.0 - 25.0));
+        int height;
+        if (c.type == LakeType.CRATER) {
+            // lava sheets on the gentler parts of the floor
+            double wx = x + 9.0 * noise(WARP_X, x / 30.0, z / 30.0);
+            double wz = z + 9.0 * noise(WARP_Z, x / 30.0, z / 30.0);
+            double flow = noise(STRIKE, wx / 28.0, wz / 28.0) + 0.25 * noise(LEDGE, x / 8.0, z / 8.0);
+            double threshold = 0.5 + 0.5 * (1.0 - field) + 0.6 * smoothstep(0.6, 1.1, c.slope);
+            height = flow > threshold ? (flow > threshold + 0.22 ? 2 : 1) : 0;
+            // talus: blocks of fallen rock, each a warped cell of about three by three blocks, in
+            // aprons at the foot of the walls along stretches of the shore
+            double steep = smoothstep(0.35, 1.0, c.slope);
+            double apron = smoothstep(-0.1, 0.4, noise(FIELD, x / 60.0 - 13.0, z / 60.0 + 31.0)) * (1.0 - smoothstep(10.0, 18.0, water));
+            if (steep * apron > 0.0) {
+                long h = SeedMixer.hash2(salt(12), (int) Math.floor(wx / 3.0), (int) Math.floor(wz / 3.0));
+                if (SeedMixer.unit(h) < 0.4 * steep * apron) {
+                    height = Math.max(height, 1 + (int) (SeedMixer.cellUnit(h, 0, 0, 1) * 3.0));
+                }
+            }
+        } else {
+            double dx = x - info.x();
+            double dz = z - info.z();
+            double u1 = dx * info.cos1() + dz * info.sin1();
+            double w1 = -dx * info.sin1() + dz * info.cos1();
+            double u2 = dx * info.cos2() + dz * info.sin2();
+            double w2 = -dx * info.sin2() + dz * info.cos2();
+            double b1 = noise(STRIKE, u1 / 40.0, w1 / 12.0);
+            double b2 = noise(STRIKE, u2 / 40.0 + 100.0, w2 / 12.0);
+            double beds = lerp(smoothstep(-0.3, 0.3, noise(STRIKE_MIX, x / 500.0, z / 500.0)), b1, b2) + 0.3 * noise(LEDGE, x / 9.0, z / 9.0);
+            double threshold = 0.72 - 0.35 * c.rocky + 0.5 * (1.0 - field);
+            double o = smoothstep(threshold, threshold + 0.25, beds);
+            height = o > 0.0 ? (int) Math.round(TMath.terrace(o * (1.0 + 3.0 * c.rocky), 2.0, 0.6)) : 0;
         }
+        c.outcrop = Math.max(0, Math.min(water - 2, Math.min(4, height)));
     }
 
     // =========================================================================================

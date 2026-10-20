@@ -33,7 +33,14 @@ public final class LakeColumn {
     public double radius;
     public double size;
     public double temperature;
+    /** Climate temperature before altitude cooling, which the surface rule's lake beds go by. */
+    public double baseTemperature;
     public double humidity;
+    /** How mountainous the column is (blended like the surface rule's). */
+    public double mountain;
+    /** Lake field blended like the surface rule's (0 outside lakes), and the lake type it picks the bed by. */
+    public double lakeField;
+    public int bedType;
     public int geology;
     /** Rock family of boulders and ledges ({@code MarinePlanner} families). */
     public int family;
@@ -76,7 +83,11 @@ public final class LakeColumn {
         radius = o.radius;
         size = o.size;
         temperature = o.temperature;
+        baseTemperature = o.baseTemperature;
         humidity = o.humidity;
+        mountain = o.mountain;
+        lakeField = o.lakeField;
+        bedType = o.bedType;
         geology = o.geology;
         family = o.family;
         slope = o.slope;

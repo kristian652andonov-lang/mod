@@ -864,7 +864,11 @@ public final class LakeRaster {
         };
     }
 
-    /** Single cobbles, pebbles and knee-high rocks on the bed, densest on rocky floors. */
+    /**
+     * Single cobbles, pebbles and knee-high rocks on the bed, densest on rocky floors and gathered
+     * into stony patches a dozen blocks across rather than strewn evenly. They stay under the top
+     * water block, where they would keep the ice from closing over a freezing lake.
+     */
     private void scatter(double detailDensity) {
         long salt = p.salt(41);
         for (int x = v.coreMinX; x < v.coreMinX + v.coreSizeX; x++) {
@@ -874,11 +878,11 @@ public final class LakeRaster {
                     continue;
                 }
                 int y = c.bed + c.outcrop + 1;
-                if (y > c.surf || v.get(x, y, z) != NAT_WATER || !LakeVolume.isSolid(v.get(x, y - 1, z))) {
+                if (y >= c.surf || v.get(x, y, z) != NAT_WATER || !LakeVolume.isSolid(v.get(x, y - 1, z))) {
                     continue;
                 }
                 long h = SeedMixer.hash2(salt, x, z);
-                double r = SeedMixer.unit(h);
+                double r = SeedMixer.unit(h) / (0.15 + 1.7 * smoothstep(0.1, 0.55, p.noise(LakePlanner.PEBBLE_PATCH, x / 13.0, z / 13.0)));
                 double roll = SeedMixer.cellUnit(h, 0, 0, 1);
                 boolean mossy = c.temperature > -0.4 && c.temperature < 0.5 && c.surf - y <= 12;
                 double rocky = 0.25 + c.rocky;
