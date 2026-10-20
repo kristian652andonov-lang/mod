@@ -1,6 +1,7 @@
 package com.terrahaul.worldgen.surface;
 
 import com.terrahaul.worldgen.terrain.ColumnSample;
+import com.terrahaul.worldgen.terrain.Geology;
 import com.terrahaul.worldgen.terrain.TerrainModel;
 
 /**
@@ -98,6 +99,364 @@ public final class Fades {
      */
     public static int bareRockStop(TerrainModel model, int stops, int x, int z, int d, double n) {
         return stop(stops, 0.65 + 0.45 * patch(model, x, z, 18.0, 5) + d * 0.15, n * 0.25);
+    }
+
+    // =========================================================================================
+    // mountains: rock in chaotic blobs, patchy snow, plants on ledges
+    // =========================================================================================
+    //
+    // Level strata drew contour lines all the way round a mountain: every step of a slope cuts the
+    // same beds at the same heights. Real mountain rock is a jumble instead: lenses of different
+    // rock, tilted and broken, rubble and gravel in cracks, moss and grass on ledges, and snow that
+    // lies in patches, fills gullies, clings to high faces and leaves ridges bare. Mountain rock is
+    // therefore a mosaic of blobs from a few independent smooth 3D fields: each field picks one
+    // material where it is high or low, so a blob is one block type with a ragged outline, and
+    // because the fields are independent their blobs overlap and cut each other instead of nesting
+    // in rings. Nothing is chosen per block at random, so there is no speckle.
+
+    /** Ground of a mountain column, from its biome: what covers the rock. */
+    public static final int GROUND_SOIL = 0;
+    /** Bare rock (stony peaks). */
+    public static final int GROUND_ROCK = 1;
+    /** Snowy peaks and slopes. */
+    public static final int GROUND_SNOW = 2;
+    /** Deserts: sand, with rock where steep. */
+    public static final int GROUND_SAND = 3;
+
+    /** Not decided by the mosaic: the column's ordinary soil (or sand) profile applies. */
+    public static final int SOIL = -1;
+    /** The three stops of the province's rock family, palest first (see the surface rule's families). */
+    public static final int ROCK_PALE = 0;
+    public static final int ROCK_MID = 1;
+    public static final int ROCK_FRESH = 2;
+    /** A second rock of the province in large blobs: granite, andesite, terracotta or cobblestone. */
+    public static final int ROCK_PROVINCE = 3;
+    /** Broken rock: cobblestone (cobbled deepslate in dark provinces). */
+    public static final int COBBLE = 4;
+    public static final int MOSSY_COBBLE = 5;
+    /** Gravel; the caller turns it into cobble where it would fall. */
+    public static final int GRAVEL = 6;
+    /** Earth tones showing through snow: terracotta (granite in granite provinces). */
+    public static final int EARTH = 7;
+    public static final int COARSE_DIRT = 8;
+    public static final int DIRT = 9;
+    public static final int MOSS = 10;
+    public static final int GRASS = 11;
+    public static final int SNOW = 12;
+    /** Sand drifted onto ledges of desert mountains; the caller consolidates it where it would fall. */
+    public static final int SAND = 13;
+    /** Sandstone lenses of desert mountains. */
+    public static final int SANDSTONE = 14;
+
+    /**
+     * Per-column values of the mountain mosaic, computed once per column by {@link #mountain} and
+     * read for every block of the column by {@link #mountainBlock}.
+     */
+    public static final class Mountain {
+        /** How mountainous the column is (0..1): the share of blocks in the mosaic instead of strata. */
+        public double share;
+        /** One of the {@code GROUND_} constants. */
+        public int ground;
+        /** Share of the ground under snow here (0..1), after slope and gullies. */
+        public double snow;
+        /**
+         * Snow test per depth below the surface (0..3): snow lies where the snow field's raw
+         * value is below this (see {@link #snowAt} and {@link Fades#snowCut}).
+         */
+        public final double[] snowCut = new double[4];
+        /** Positive: the column is a rock outcrop in soil or sand ground. */
+        public double rock;
+        /** Smoothed slope (rise per block over 8 blocks). */
+        public double steep;
+        /** Height of the surroundings above the column: positive in gullies, negative on ridges. */
+        public double hollow;
+        /** Vertical shift of the rock lenses, which tilts and bends them. */
+        public double warp;
+        /** How readily grass and moss grow on ledges (0..1). */
+        public double green;
+        /** Positive: moss rather than grass on ledges (humid ground). */
+        public double moss;
+        /** Plant patch field on ledges, in about [-1, 1]. */
+        public double plants;
+        /** Field of dirt and gravel patches on gentle rock, in about [-1, 1]. */
+        public double scree;
+        /** Lower bound of the {@code mid} field below which the province's second rock shows. */
+        public double provinceCut;
+        /** Threshold of the rubble field: low where rubble blobs are many and large, high where rare. */
+        public double rubble;
+        /** Boundary noise between the mosaic and the strata of the foothills. */
+        public double edge;
+    }
+
+    /**
+     * Fills the per-column values of the mosaic. {@code col} holds the column's interpolated
+     * fields; {@code ground} comes from the biome. Columns that are not mountainous (see
+     * {@link #mountainShare}) get {@code share = 0} and nothing else is computed, so callers can
+     * skip {@link #hollow} for them.
+     *
+     * @param smoothSlope {@link #smoothSlope} of the column
+     * @param hollow      {@link #hollow} of the column
+     */
+    public static void mountain(TerrainModel model, int x, int z, ColumnSample col, int ground, double smoothSlope,
+                                double hollow, Mountain out) {
+        out.share = mountainShare(col);
+        if (out.share <= 0.0) {
+            return;
+        }
+        out.ground = ground;
+        out.steep = smoothSlope;
+        out.hollow = hollow;
+        // tilts of up to 30-40 degrees that turn over a few dozen blocks
+        double tilt = plane(model, 2, x, z, 90.0, 2300.0);
+        out.warp = 16.0 * tilt + 6.0 * plane(model, 3, x, z, 31.0, 2350.0);
+        out.edge = out.share < 1.0 ? plane(model, 3, x, z, 30.0, 2650.0) : 0.0;
+        // the province's second rock is common in some places and rare in others (the tilt
+        // field serves again: nothing ties the two together that the eye could see)
+        out.provinceCut = (col.geology == Geology.GRANITE ? -0.25 : -0.5) + 0.3 * tilt;
+
+        // Snow: below the snowy biomes the share of snowy ground grows with the cold, so it thins
+        // out over a band of altitude instead of ending at the edge of the biome; the band wanders
+        // with large-scale noise, and the steepest ground sheds some of it. Snowy biomes themselves are mostly white, steep faces
+        // included: vanilla lays a snow layer on every top there, so bare rock risers between
+        // white treads would draw regular stripes of snow and stone all over the mountain, and the
+        // rock shows in outcrops instead; only near-vertical walls shed the snow. Everywhere
+        // gullies collect it, ridges are blown bare, and a broad field makes whole slopes snowier
+        // or barer, so the rock shows in blobs of every size.
+        double broad = plane(model, 4, x, z, 38.0, 2400.0);
+        double t = col.temperature + 0.07 * broad;
+        double cover;
+        double shed;
+        if (ground == GROUND_SNOW) {
+            cover = 0.7 + 0.22 * smoothstep(0.2, -0.45, t);
+            shed = 0.4 * smoothstep(1.6, 4.0, smoothSlope);
+        } else {
+            cover = 0.6 * smoothstep(SNOW_EDGE, 0.16, t);
+            if (ground == GROUND_SOIL) {
+                // a ragged fringe of snow patches just below the snowy biomes; colder soil biomes
+                // (groves, snowy taiga) are white with vanilla's snow layers anyway
+                cover *= 0.8 * smoothstep(0.02, 0.16, t);
+            } else if (ground == GROUND_SAND) {
+                cover = 0.0;
+            }
+            shed = 0.35 * smoothstep(1.0, 3.2, smoothSlope);
+        }
+        if (cover > 0.0) {
+            // near the snow line, hollows only keep the snow there is: no snowy valley floors
+            // below bare slopes
+            double drift = Math.min(1.0, cover / 0.35);
+            cover -= shed;
+            cover += (0.3 * Math.max(-1.0, Math.min(1.0, hollow / 2.5)) + 0.15 * broad) * drift;
+        }
+        // even the snowiest ground keeps a few blotches of rock and earth
+        out.snow = Math.max(0.0, Math.min(0.9, cover));
+        for (int d = 0; d < out.snowCut.length; d++) {
+            // snow lenses thin out at their edges: deeper blocks need a lower field value
+            out.snowCut[d] = snowCut(out.snow - 0.09 * d);
+        }
+
+        // grass and moss below the snow, where it is not too dry
+        out.green = ground == GROUND_SAND ? 0.0 : smoothstep(-0.2, 0.2, t) * smoothstep(-0.7, -0.2, col.humidity);
+        out.moss = col.humidity - 0.05 + 0.45 * plane(model, 7, x, z, 26.0, 2450.0);
+        // two octaves each, so patches come in clusters and in every size; the broad octave is
+        // shared with opposite signs, so plants gather where scree is scarce and the other way round
+        double clusters = plane(model, 1, x, z, 45.0, 2520.0);
+        out.plants = out.green > 0.0 ? 0.75 * plane(model, 0, x, z, 13.0, 2500.0) + 0.45 * clusters : 0.0;
+        out.scree = 0.75 * plane(model, 1, x, z, 12.0, 2550.0) - 0.45 * clusters;
+        // rubble goes with the scree: some slopes are strewn with large blobs of broken rock,
+        // others hardly have any
+        out.rubble = 0.56 + 0.16 * clusters;
+
+        // rock outcrops in soil and sand: steep ground, with small blobs of rock poking through
+        // near the threshold so the outcrops have ragged, broken edges
+        if (ground == GROUND_SOIL || ground == GROUND_SAND) {
+            double limit = ground == GROUND_SAND ? 1.1 - 0.35 * out.share : 0.95;
+            out.rock = rockiness(model, x, z, smoothSlope, limit) + 0.15 * plane(model, 2, x, z, 8.0, 2600.0);
+        } else {
+            out.rock = 1.0;
+        }
+    }
+
+    /**
+     * How mountainous a column is for the mosaic (0..1), from its interpolated fields: foothills
+     * fade in from a mountain weight of 0.12 to 0.4. Canyon walls keep their level beds and
+     * volcanoes their own zones and banded rock; both fade out the mosaic smoothly, so it never
+     * ends along a seam.
+     */
+    public static double mountainShare(ColumnSample col) {
+        if (col.volcano >= 0.3 || col.canyon >= 0.25) {
+            return 0.0;
+        }
+        return smoothstep(0.12, 0.4, Math.max(col.mountain, col.alpine))
+            * (1.0 - smoothstep(0.05, 0.25, col.canyon)) * (1.0 - smoothstep(0.05, 0.3, col.volcano));
+    }
+
+    /**
+     * Temperature above which no snow lies on mountains. The snowy biomes end at 0.2; below
+     * them the snow thins out over a band of altitude up to this temperature.
+     */
+    public static final double SNOW_EDGE = 0.36;
+
+    /**
+     * Whether the block belongs to the mountain mosaic or to the level strata of the foothills.
+     * Where the share is partial, the boundary follows a smooth 3D field of blobs about 12 blocks
+     * across, so the two meet in ragged, interlocking blobs rather than along a vertical seam.
+     * (The wobble would change within a block or two on steep steps and fray the boundary.)
+     */
+    public static boolean inMosaic(TerrainModel model, Mountain m, int x, int y, int z) {
+        if (m.share >= 1.0 || m.share <= 0.0) {
+            return m.share > 0.0;
+        }
+        double blobs = model.detail3(2, x / 12.0, y / 12.0 + 3100.0, z / 12.0);
+        return m.share > 0.5 + 0.4 * blobs + 0.25 * m.edge;
+    }
+
+    /**
+     * Material of a mountain block. {@code d} is the depth below the nearest exposed surface,
+     * {@code top} marks the topmost block of the column under open sky and {@code face} an
+     * exposed face (see the surface rule).
+     * <ol>
+     *   <li>Snow lies in patches of the snow field, as lenses up to 3 blocks thick (thinner at
+     *       their edges), on gentle ground and faces alike.</li>
+     *   <li>Gentle soil and sand ground that is not an outcrop returns {@link #SOIL}: the
+     *       ordinary soil profile applies.</li>
+     *   <li>On rock, ledges carry patches of grass or moss below the snow, gentle rock patches of
+     *       coarse dirt, dirt and gravel; desert ledges collect sand.</li>
+     *   <li>Everything else is the rock mosaic ({@link #rock}).</li>
+     * </ol>
+     */
+    public static int mountainBlock(TerrainModel model, Mountain m, int x, int y, int z, int d, boolean top, boolean face) {
+        if (d <= 3 && snowAt(model, m, x, y, z, d)) {
+            return SNOW;
+        }
+        if ((m.ground == GROUND_SOIL || m.ground == GROUND_SAND) && !face && m.rock <= 0.0) {
+            return SOIL;
+        }
+        if (top && m.steep < LEDGE) {
+            // ledges and ridge tops: plants where the climate allows, ridges a little more
+            double ridge = Math.max(0.0, -m.hollow / 3.0);
+            if (m.green > 0.0 && m.plants + 0.25 * ridge > 1.2 - 0.6 * m.green) {
+                return m.moss > 0.0 ? MOSS : GRASS;
+            }
+            if (m.ground == GROUND_SAND && m.scree > 0.1) {
+                return SAND;
+            }
+        }
+        if (d <= 1 && !face && m.steep < 1.1 && m.scree > 0.55 && m.snow < 0.15) {
+            // gentle rock: patches of soil and scree, one material per patch
+            return m.plants > 0.25 && m.green > 0.3 ? DIRT : m.moss > 0.2 ? COARSE_DIRT : GRAVEL;
+        }
+        return rock(model, m, x, y, z, d);
+    }
+
+    /**
+     * Smoothed slope below which a column's top can hold plants or drifted sand: about 50
+     * degrees. (The block slope would decide column by column and fray the patches.)
+     */
+    public static final double LEDGE = 1.25;
+
+    /**
+     * The rock mosaic at a block. Two fields of tilted lenses ({@code big}, about 40 blocks wide
+     * and 30 tall, and {@code mid}, about 16 blocks) pick between the stops of the province's
+     * family and its second rock: the two fresher stops share the ground in broad lenses, the
+     * weathered stop and the second rock form smaller blobs at the two ends of {@code mid}, so they
+     * never nest in each other. Near the surface a third field adds blobs of rubble (broken rock,
+     * gravel and mossy rubble, about 5-12 blocks), many on some slopes and few on others, and on
+     * gentle ground among the snow, earth; desert mountains are half sandstone. The lenses lie
+     * along {@link Mountain#warp}, so what remains of bedding is tilted, bent and interrupted.
+     * <p>
+     * The fields are read at the block itself, without the wobble: on a staircase of steep
+     * steps the wobble changes within a block or two, and any part of it in the material
+     * choice frays the outlines into single blocks.
+     */
+    public static int rock(TerrainModel model, Mountain m, int x, int y, int z, int d) {
+        double yy = y + m.warp;
+        double big = model.detail3(0, x / 36.0, yy / 26.0 + 1500.0, z / 36.0);
+        double mid = model.detail3(1, x / 15.0, yy / 14.0 + 1700.0, z / 15.0);
+        if (d <= 1 && m.snow > 0.1 && m.steep < 1.5 && mid < -0.15) {
+            // earth showing through the snow: terracotta-coloured soil and coarse dirt
+            return big > 0.0 ? EARTH : COARSE_DIRT;
+        }
+        if (d <= 3) {
+            double rubble = model.detail3(4, x / 16.0, yy / 14.0 + 1900.0, z / 16.0);
+            if (rubble > m.rubble) {
+                // the material of a blob depends only on the broad field, so each blob is one material
+                if (m.green > 0.3 && m.moss > 0.0 && big < 0.1) {
+                    return MOSSY_COBBLE;
+                }
+                return big > 0.25 && m.steep < 1.4 ? GRAVEL : COBBLE;
+            }
+        }
+        if (m.ground == GROUND_SAND && big > -0.05) {
+            return SANDSTONE;
+        }
+        if (mid > 0.55) {
+            return ROCK_PALE;
+        }
+        if (mid < m.provinceCut) {
+            return ROCK_PROVINCE;
+        }
+        return big > -0.25 ? ROCK_FRESH : ROCK_MID;
+    }
+
+    /**
+     * Whether snow lies at a block {@code d} blocks (at most 3) below the surface. The snow field
+     * is about uniform in [0, 1] after its {@code tanh} (see {@link #snowCut}), so a share
+     * {@code s} of the ground lies below {@code s}; deeper blocks need 0.09 more per block, so
+     * snow forms lenses up to 3 blocks thick that thin out at their edges. Two octaves (blobs of
+     * about 24 and 11 blocks) give snowfields and rock islands of every size; the blobs are
+     * taller than wide, so on faces they hang as streaks. The finer octave can move the field by
+     * at most {@link #SNOW_FINE} (simplex noise stays within about [-1, 1]), so it is only read
+     * where it can change the answer.
+     */
+    public static boolean snowAt(TerrainModel model, Mountain m, int x, int y, int z, int d) {
+        double cut = m.snowCut[d];
+        if (cut == Double.NEGATIVE_INFINITY) {
+            return false;
+        }
+        double v = 0.5 * model.detail3(5, x / 24.0, y / 34.0 + 2100.0, z / 24.0);
+        if (v + SNOW_FINE < cut) {
+            return true;
+        }
+        if (v - SNOW_FINE >= cut) {
+            return false;
+        }
+        return v + 0.3 * model.detail3(5, x / 11.0, y / 15.0 + 2900.0, z / 11.0) < cut;
+    }
+
+    /** Largest change of the snow field by its finer octave (0.3 times a little over 1). */
+    private static final double SNOW_FINE = 0.33;
+
+    /** Gain that spreads the snow field's raw value about evenly over [0, 1] after {@code tanh}. */
+    private static final double SNOW_GAIN = 3.3;
+
+    /**
+     * The snow field's raw value below which a share {@code s} of the ground is snow: the
+     * inverse of {@code 0.5 + 0.5 tanh(SNOW_GAIN v)}.
+     */
+    public static double snowCut(double s) {
+        return s <= 0.0 ? Double.NEGATIVE_INFINITY : atanh(2.0 * Math.min(s, 0.999) - 1.0) / SNOW_GAIN;
+    }
+
+    private static double atanh(double v) {
+        return 0.5 * Math.log((1.0 + v) / (1.0 - v));
+    }
+
+    /**
+     * Height of the surroundings above a column: positive in gullies and hollows, negative on
+     * ridges, spurs and summits. It averages the points 6 and 14 blocks away in the four axis
+     * directions, so both narrow clefts and broad couloirs count.
+     */
+    public static double hollow(TerrainModel model, int x, int z) {
+        double near = model.interpolatedHeight(x + 6, z) + model.interpolatedHeight(x - 6, z)
+            + model.interpolatedHeight(x, z + 6) + model.interpolatedHeight(x, z - 6);
+        double far = model.interpolatedHeight(x + 14, z) + model.interpolatedHeight(x - 14, z)
+            + model.interpolatedHeight(x, z + 14) + model.interpolatedHeight(x, z - 14);
+        return near * 0.125 + far * 0.0625 - 0.75 * model.interpolatedHeight(x, z);
+    }
+
+    /** Smooth 2D noise in about [-1, 1] at the given feature size, on its own slice of a channel. */
+    private static double plane(TerrainModel model, int channel, int x, int z, double scale, double slice) {
+        return model.detail3(channel, x / scale, slice, z / scale);
     }
 
     // =========================================================================================

@@ -70,6 +70,21 @@ public final class GeologyPalette {
     }
 
     /**
+     * The second rock of a province on mountains, which the surface rule mixes into the family in
+     * large blobs (see {@code Fades.rock}): pink granite in granite provinces, so their mountains
+     * finally show it; grey andesite among the dark rock and the pale limestone; clay-brown
+     * terracotta among sedimentary beds; and cobblestone, broken rock of the same grey, elsewhere.
+     */
+    public static BlockState mountainRock(int geology) {
+        return switch (geology) {
+            case Geology.GRANITE -> Blocks.GRANITE.defaultBlockState();
+            case Geology.DARK, Geology.LIMESTONE -> Blocks.ANDESITE.defaultBlockState();
+            case Geology.SEDIMENTARY -> Blocks.TERRACOTTA.defaultBlockState();
+            default -> Blocks.COBBLESTONE.defaultBlockState();
+        };
+    }
+
+    /**
      * Pale, harder cap rock of hoodoos: white terracotta, a pinkish beige that reads as a layer of
      * different rock on both red and yellow sandstone (bright white calcite looked like snow).
      */
