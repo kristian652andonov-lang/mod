@@ -21,14 +21,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * From the summit down ({@code t} is the distance from the centre over the volcano's radius):
  * <ul>
- *   <li><b>crater and upper cone:</b> bare rock and ash. The lower edge of the bare cone is lobed,
- *       reaches further down the radial gullies (ash and scree wash down them) than along the
- *       ridges between them, and frays into patches of ash and grass over a band some fifty blocks
- *       wide. Active volcanoes (lava in the crater) have a large bare cone, long dormant ones
- *       (crater lakes) only a bare rim;</li>
- *   <li><b>lava flows:</b> tongues of fresh rock that leave the crater rim along a gully, meander,
- *       widen downslope and end in a rounded lobe, often deep inside the forest. Active volcanoes
- *       have several, dormant ones few or none;</li>
+ *   <li><b>crater and upper cone:</b> bare rock and ash. The crater is dark volcanic rock in
+ *       patches (blackstone, basalt, smooth basalt, tuff, ash on its gentler floor, red and brown
+ *       oxidised scoria), with plates of crust and magma beside a lava lake. The lower edge of the
+ *       bare cone is lobed, reaches further down the barrancos (ash and scree wash down them) than
+ *       along the ridges between them, and frays into patches of ash and grass over a band some
+ *       fifty blocks wide. Active volcanoes (lava in the crater) have a large bare cone, long
+ *       dormant ones (crater lakes) only a bare rim. Side cones are bare cinder cones of dark
+ *       scoria and ash, oxidised red and brown around their summit craters;</li>
+ *   <li><b>lava flows:</b> the tongues of rock the terrain raises on the cone ({@link ConeShape}),
+ *       leaving the crater at a notch of its rim, meandering, widening downslope and ending in a
+ *       lobed front, often deep inside the forest. Active volcanoes have several, dormant ones
+ *       few or none;</li>
  *   <li><b>pioneer belt:</b> just below the bare cone, grass with ash patches, shrubs and young
  *       trees;</li>
  *   <li><b>forest:</b> the established flanks, wooded more densely than the surrounding land and
@@ -42,6 +46,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * </ul>
  * Every weight is continuous, so materials and vegetation fade into each other instead of meeting
  * at hard lines; only the margins of lava flows are sharp, as they are in nature.
+ * <p>
+ * In cold air, snow lies only where {@link #snow} allows: never on the hot ground of a crater that
+ * is not long dormant or on the flows of an active volcano, and elsewhere on the bare cone in
+ * patches broken up by ash and scoria, thickest high on the cone of a cold, dormant volcano.
  * <p>
  * Cost: one site lookup and a handful of 2D noise samples per column (about a microsecond with
  * the model columns cached); {@link #at} keeps the last column per thread, so the surface rule,
@@ -110,8 +118,16 @@ public final class VolcanoZones {
         TUFF(true),
         /** Dark scoria (smooth basalt). */
         SCORIA(true),
+        /** Columnar and blocky basalt: broken lava crust, crater walls (basalt). */
+        BASALT(true),
         /** Fresh lava rock: lava flow cores and the crests between gullies (blackstone). */
         LAVA_ROCK(true),
+        /** Red oxidised scoria: side cones, patches in the crater and on the upper cone (red terracotta). */
+        RED_SCORIA(true),
+        /** Brown oxidised scoria (brown terracotta). */
+        BROWN_SCORIA(true),
+        /** Rock altered by hot gases, pale and pinkish, around vents in the crater (granite). */
+        ALTERED(true),
         /** Glowing crust next to a crater's lava lake (magma block). */
         MAGMA(true),
         /** Charred forest litter in burn scars (podzol). */
@@ -156,7 +172,7 @@ public final class VolcanoZones {
         public double forest;
         /** Pioneer belt below the bare cone (0..1). */
         public double pioneer;
-        /** Radial gullies of the cone: -1 on gully floors, 1 on the ridges between them. */
+        /** Barrancos of the cone: -1 on gully floors, 1 on the ridges between them. */
         public double gully;
         /**
          * Finer radial erosion furrows (-1 furrow, 1 rib), tens of blocks apart and wavy, that
@@ -165,6 +181,17 @@ public final class VolcanoZones {
         public double streak;
         /** Nearness to the crater rim: 1 on the rim and inside the crater, 0 well below it. */
         public double rim;
+        /** On a side cone: 1 on its cone, fading to 0 at its foot. */
+        public double sideCone;
+        /** How near a side cone's summit: 1 at its centre, 0 at its foot and beyond. */
+        public double coneTop;
+        /** Inside the crater: 0 at the rim's crest, rising to 1 at the centre; 0 outside. */
+        public double depth;
+        /**
+         * Inside the crater, the sectors of its wall where hot gases rose and oxidised the rock
+         * (above about 0.5); 0 outside.
+         */
+        public double vents;
         /** Inside the crater. */
         public boolean crater;
         /** Surface of the crater's lava lake, or {@link ColumnSample#NO_WATER}; set inside lava craters. */
@@ -184,6 +211,10 @@ public final class VolcanoZones {
             gully = 0.0;
             streak = 0.0;
             rim = 0.0;
+            sideCone = 0.0;
+            coneTop = 0.0;
+            depth = 0.0;
+            vents = 0.0;
             crater = false;
             lavaLevel = ColumnSample.NO_WATER;
             activity = 0.0;
@@ -244,10 +275,17 @@ public final class VolcanoZones {
      * that wander a little with height), never from per-block randomness, so materials form
      * single-colour patches and streaks:
      * <ul>
-     *   <li>lava flows: blackstone cores inside smooth basalt margins;</li>
-     *   <li>the bare cone: radial streaks following its gullies, light ash (gravel) and tuff down
+     *   <li>lava flows: blackstone cores broken into blocky basalt in places, inside smooth basalt
+     *       margins;</li>
+     *   <li>the crater: dark patches of blackstone, basalt, smooth basalt and tuff, ash on its
+     *       gentler floor, red and brown oxidised scoria and pale altered rock in places; beside a
+     *       lava lake magma crust, and on the lake plates of blackstone and basalt cracked with
+     *       magma;</li>
+     *   <li>side cones: dark scoria, cinders and ash in broad patches, red and brown oxidised
+     *       scoria around their summit craters;</li>
+     *   <li>the bare cone: radial streaks following its barrancos, light ash (gravel) and tuff down
      *       the gully floors, dark scoria and lava rock along the ridges, pale tuff around the rim,
-     *       and magma crust beside a crater's lava lake;</li>
+     *       and scattered patches of oxidised scoria;</li>
      *   <li>the frayed edge of the cone: patches of the cone's ground between patches of soil;</li>
      *   <li>burn scars: patches of charred litter, scorched soil and root mats, with ash beds in
      *       the hottest cores, thinning out into grass across the scar's fringe.</li>
@@ -276,12 +314,30 @@ public final class VolcanoZones {
         // a faint 3D term only roughens boundaries; the patches themselves are 10-30 blocks across
         double wobble = 0.04 * noise.noise3(x / 3.5, y / 3.5 + 500.0, z / 3.5);
         if (zone.inFlow()) {
-            return zone.flow + 0.15 * noise.noise2(x / 12.0 - 20.0, z / 12.0 + 45.0) + wobble > 0.4 ? Ground.LAVA_ROCK : Ground.SCORIA;
+            if (zone.flow + 0.15 * noise.noise2(x / 12.0 - 20.0, z / 12.0 + 45.0) + wobble <= 0.4) {
+                return Ground.SCORIA;
+            }
+            // the core's crust broke into blocks of basalt in places
+            return noise.noise2(x / 9.0 + 77.0, z / 9.0 - 31.0) > 0.35 ? Ground.BASALT : Ground.LAVA_ROCK;
+        }
+        if (zone.crater) {
+            return craterGround(noise, zone, x, y, z, wobble);
+        }
+        if (zone.sideCone > 0.45 + 0.25 * noise.noise2(x / 15.0 + 40.0, z / 15.0 - 90.0)) {
+            // a cinder cone of dark scoria, cinders and ash in broad patches, oxidised red and
+            // brown only around its summit crater and on its upper flank, where the hot gases rose
+            if (zone.coneTop + 0.12 * noise.noise2(x / 18.0 + 70.0, z / 18.0 - 15.0) + wobble > 0.52) {
+                double p = noise.noise2(x / 40.0 - 140.0, z / 40.0 + 60.0);
+                return p > 0.0 ? Ground.RED_SCORIA : p > -0.45 ? Ground.BROWN_SCORIA : Ground.SCORIA;
+            }
+            double p = noise.noise2(x / 45.0 + 260.0, z / 45.0 - 75.0) + wobble;
+            return p > 0.4 ? Ground.LAVA_ROCK : p > -0.3 ? Ground.SCORIA : Ground.ASH;
         }
         if (zone.bare * zone.presence > 0.5 + 0.3 * noise.noise2(x / 20.0 - 70.0, z / 20.0 + 23.0)) {
-            if (zone.lavaLevel != ColumnSample.NO_WATER && y <= zone.lavaLevel + 2.0
-                && noise.noise2(x / 16.0 + 5.0, z / 16.0 + 140.0) > 0.1) {
-                return Ground.MAGMA;
+            // scattered patches of oxidised scoria, more of them towards the rim
+            double rust = noise.noise2(x / 45.0 + 300.0, z / 45.0 - 210.0) + 0.1 * zone.rim + wobble;
+            if (rust > 0.72) {
+                return noise.noise2(x / 30.0 - 90.0, z / 30.0 + 45.0) > 0.0 ? Ground.RED_SCORIA : Ground.BROWN_SCORIA;
             }
             // radial streaks: ash down the gullies and erosion furrows, dark rock along the ribs, an
             // apron of loose ash fields towards the lower edge of the bare cone
@@ -299,6 +355,54 @@ public final class VolcanoZones {
         }
         double tone = 0.55 + 0.55 * noise.noise2(x / 32.0 + 90.0, z / 32.0 + 260.0) - 0.25 * (b - 0.6) + wobble;
         return tone < 0.32 ? Ground.CHARRED : tone < 0.88 ? Ground.SCORCHED : Ground.BURNT_ROOTS;
+    }
+
+    /**
+     * Inside the crater: dark volcanic rock in patches a dozen to thirty blocks across, oxidised
+     * scoria and altered rock in places, and around a lava lake magma crust on its shore and plates
+     * of blackstone and basalt, cracked with magma, on the lake itself.
+     */
+    private static Ground craterGround(SimplexNoise noise, Zone zone, int x, int y, int z, double wobble) {
+        if (zone.lavaLevel != ColumnSample.NO_WATER && y <= zone.lavaLevel + 2.0) {
+            if (y < zone.lavaLevel) {
+                // a plate of crust, flush with the lava
+                double crack = noise.noise2(x / 5.0 + 11.0, z / 5.0 - 9.0) + wobble;
+                return crack > 0.45 ? Ground.MAGMA : crack > -0.15 ? Ground.LAVA_ROCK : Ground.BASALT;
+            }
+            return noise.noise2(x / 16.0 + 5.0, z / 16.0 + 140.0) > 0.15 ? Ground.MAGMA : Ground.LAVA_ROCK;
+        }
+        // oxidised and altered rock in a sector or two of the wall, where hot gases rose
+        double rust = zone.vents + 0.3 * noise.noise2(x / 24.0 - 520.0, z / 24.0 + 140.0) + wobble - 0.4 * smoothstep(0.45, 0.75, zone.depth);
+        if (rust > 0.62) {
+            double p = noise.noise2(x / 30.0 + 230.0, z / 30.0 - 60.0);
+            return p > 0.1 ? Ground.RED_SCORIA : p > -0.45 ? Ground.BROWN_SCORIA : Ground.ALTERED;
+        }
+        // streaks of ash and tuff down the wall between ribs of dark rock, and on the floor dark
+        // rock with flats of ash
+        double s = 0.55 + 0.3 * zone.streak + 0.22 * noise.noise2(x / 30.0 + 410.0, z / 30.0 - 260.0) + wobble
+            - 0.2 * smoothstep(0.55, 0.85, zone.depth) * (0.5 + 0.5 * noise.noise2(x / 40.0 - 77.0, z / 40.0 + 31.0));
+        return s < 0.22 ? Ground.ASH : s < 0.38 ? Ground.TUFF : s < 0.62 ? Ground.SCORIA : s < 0.8 ? Ground.BASALT : Ground.LAVA_ROCK;
+    }
+
+    /**
+     * Whether snow may lie on the bare volcanic ground of zone {@code zone} at column
+     * {@code (x, z)}, whose climate temperature is {@code temperature}, in a snowy biome or not.
+     * Never on hot ground: inside a crater that is not long dormant, or on the lava flows of an
+     * active volcano. In a snowy biome it lies in patches broken up by blobs of ash and scoria,
+     * covering most of the upper cone of a cold, dormant volcano and less downhill and on active
+     * ones; elsewhere in snowfields on cold ground. The surface rule keeps it off steep ground.
+     */
+    public static boolean snow(TerrainModel model, Zone zone, int x, int z, double temperature, boolean snowyBiome) {
+        if (zone.crater && zone.activity > 0.4 || zone.inFlow() && zone.activity > 0.6) {
+            return false;
+        }
+        SimplexNoise noise = SCRATCH.get().noise(model);
+        double blobs = 0.5 + 0.5 * (0.65 * noise.noise2(x / 14.0 + 610.0, z / 14.0 - 330.0) + 0.35 * noise.noise2(x / 45.0 - 70.0, z / 45.0 + 820.0));
+        if (snowyBiome) {
+            double cover = 0.3 + 0.55 * smoothstep(0.35, 0.85, zone.elevation) - 0.5 * zone.activity - 0.3 * zone.sideCone;
+            return blobs < clamp01(cover);
+        }
+        return temperature < -0.3 && blobs < Math.min(0.9, (-0.3 - temperature) / 0.17 * 0.8);
     }
 
     private static void compute(TerrainModel model, int x, int z, Zone o, Scratch sc) {
@@ -323,7 +427,6 @@ public final class VolcanoZones {
         Site s = sc.site(model, v);
         SimplexNoise noise = sc.noise(model);
         double theta = Math.atan2(dz, dx);
-        double gully = Math.sin(theta * v.ridges + v.phase) * smoothstep(v.craterRadius, v.radius * 0.6, r);
 
         // the cone surface exactly as TerrainModel shapes it, crater included; where the generated
         // ground lies far above it, other terrain (a mountain the volcano leans against) owns the column
@@ -339,6 +442,10 @@ public final class VolcanoZones {
         if (presence <= 0.0) {
             return;
         }
+        // the lava flows, barrancos and side cones as the terrain shapes them
+        double[] shape = sc.cone;
+        model.volcanoCone(v, x, z, shape);
+        double gully = shape[2] * smoothstep(v.craterRadius, v.radius * 0.6, r);
         o.presence = presence;
         o.t = t;
         o.elevation = Math.max(0.0, cone / v.height);
@@ -346,9 +453,23 @@ public final class VolcanoZones {
         o.streak = Math.sin(theta * s.streaks + s.streakPhase + 1.8 * noise.noise2(x / 60.0 - 300.0, z / 60.0 + 120.0))
             * smoothstep(v.craterRadius, v.craterRadius * 1.5, r);
         o.activity = s.activity;
+        o.sideCone = shape[3];
+        o.coneTop = shape[4];
         // measured from the rim's own crest, which wanders in and out around the crater
         if (o.crater) {
             o.rim = 1.0;
+            o.depth = crater[0];
+            // furrows some twenty to thirty blocks apart down the inner wall, which bend as they run
+            // and fade out on the floor rather than converge on the centre
+            double c = Math.cos(theta);
+            double sn = Math.sin(theta);
+            double ring = Math.max(3.0, v.craterRadius / 18.0);
+            o.streak = noise.noise2(c * ring + 50.0 + 0.8 * crater[0], sn * ring - 80.0 + 0.5 * crater[0])
+                * (1.0 - smoothstep(0.3, 0.6, crater[0]));
+            // read on a small circle, so only one or two sectors of the wall rise above the
+            // threshold, and drifting sideways with the depth, so a sector is a patch that bends
+            // down the wall rather than a wedge converging on the floor
+            o.vents = noise.noise2(c * 0.5 + s.lobeX + 17.0 + 0.9 * crater[0], sn * 0.5 + s.lobeZ - 23.0 - 0.6 * crater[0]);
         } else if (r < v.craterReach) {
             o.rim = smoothstep(crater[2] + 0.1 * v.radius, crater[2], crater[1]);
         } else if (r < v.craterReach + 0.1 * v.radius) {
@@ -361,39 +482,13 @@ public final class VolcanoZones {
         double edge = s.edge * (1.0 + 0.2 * lobe - 0.12 * gully);
         double fray = 0.5 * s.band * noise.noise2(x / 34.0 + 31.7, z / 34.0 - 12.9);
         double bare = o.crater ? 1.0 : smoothstep(edge + 0.5 * s.band, edge - 0.5 * s.band, t + fray);
+        // side cones are bare cinder cones, wherever they stand
+        bare = Math.max(bare, smoothstep(0.35, 0.75, o.sideCone));
         o.bare = bare;
 
-        // ---- lava flows ---------------------------------------------------------------------
-        double flow = 0.0;
-        double halo = 0.0;
-        if (!o.crater) {
-            for (int i = 0; i < s.flows; i++) {
-                double end = s.flowEnd[i];
-                double width = s.flowWidth[i];
-                double reachMax = width + 2.0 * s.flowHalo[i];
-                if (r > end + reachMax) {
-                    continue;
-                }
-                double dTheta = Math.IEEEremainder(theta - s.flowAngle[i], Math.PI * 2.0);
-                double meander = s.flowMeander[i] * noise.noise2(r / s.flowWave[i] + s.flowPhase[i], 17.3 * i + 101.0);
-                double lateral = dTheta * r - meander;
-                if (Math.abs(lateral) > reachMax + 4.0) {
-                    continue;
-                }
-                double along = clamp01((r - v.craterRadius) / Math.max(1.0, end - v.craterRadius));
-                double w = width * (0.55 + 0.45 * along);
-                double toe = end - w;
-                double dist = r > toe ? Math.sqrt(lateral * lateral + (r - toe) * (r - toe)) : Math.abs(lateral);
-                // ragged margins
-                dist += 2.5 * noise.noise2(x / 7.0 + 3.1 * i, z / 7.0 - 5.3);
-                if (dist < w) {
-                    flow = Math.max(flow, Math.max(1.0E-3, clamp01((w - dist) / (0.45 * w))));
-                }
-                // scorched margin, wider ahead of the front where the lava ran into the forest
-                double reach = s.flowHalo[i] * (r > toe ? 1.0 + 0.8 * clamp01((r - toe) / w) : 1.0);
-                halo = Math.max(halo, smoothstep(w + reach, w + 0.25 * reach, dist));
-            }
-        }
+        // ---- lava flows: the tongues of rock the terrain raises, and their scorched halo ---------
+        double flow = o.crater ? 0.0 : shape[0];
+        double halo = o.crater ? 0.0 : shape[1];
         o.flow = flow;
 
         // ---- burn scars ---------------------------------------------------------------------
@@ -433,28 +528,11 @@ public final class VolcanoZones {
         /** Number of erosion furrows around the cone. */
         int streaks;
         double streakPhase;
-        int flows;
-        final double[] flowAngle = new double[MAX_FLOWS];
-        final double[] flowEnd = new double[MAX_FLOWS];
-        final double[] flowWidth = new double[MAX_FLOWS];
-        final double[] flowHalo = new double[MAX_FLOWS];
-        final double[] flowMeander = new double[MAX_FLOWS];
-        final double[] flowWave = new double[MAX_FLOWS];
-        final double[] flowPhase = new double[MAX_FLOWS];
-
-        static final int MAX_FLOWS = 5;
 
         void init(TerrainModel model, TerrainModel.VolcanoSite v) {
             volcano = v;
             long h = SeedMixer.hash2(model.siteSeed() ^ SALT, (int) Math.floor(v.x), (int) Math.floor(v.z));
-            double u0 = unit(h, 0);
-            if (v.lava) {
-                activity = 0.75 + 0.25 * u0;
-            } else if (v.waterLevel != ColumnSample.NO_WATER) {
-                activity = 0.1 + 0.3 * u0;
-            } else {
-                activity = 0.35 + 0.4 * u0;
-            }
+            activity = v.activity;
             craterT = v.craterRadius / v.radius;
             edge = craterT + 0.07 + 0.22 * activity;
             band = (40.0 + 0.03 * v.radius) / v.radius;
@@ -466,23 +544,6 @@ public final class VolcanoZones {
             // furrows about 50 blocks apart half way down the cone
             streaks = Math.max(24, (int) (v.radius * 0.5 * Math.PI * 2.0 / 50.0 * (0.8 + 0.4 * unit(h, 7))));
             streakPhase = Math.PI * 2.0 * unit(h, 8);
-            // lava flows leave the rim along gullies (where sin(angle * ridges + phase) = -1),
-            // spread around the cone
-            flows = Math.min(MAX_FLOWS, (int) (activity * 4.2 + 1.2 * unit(h, 5)));
-            double start = unit(h, 6);
-            for (int i = 0; i < flows; i++) {
-                int c = 10 + i * 8;
-                double around = start + (i + 0.5 * (unit(h, c) - 0.5)) / flows;
-                int k = Math.floorMod((int) Math.floor(around * v.ridges), v.ridges);
-                flowAngle[i] = (-0.5 * Math.PI - v.phase + 2.0 * Math.PI * k) / v.ridges;
-                double length = 0.1 + 0.5 * unit(h, c + 1);
-                flowEnd[i] = v.radius * Math.min(0.9, edge + length * (1.0 - edge));
-                flowWidth[i] = 7.0 + 15.0 * unit(h, c + 2) + 0.008 * v.radius;
-                flowHalo[i] = 10.0 + 0.4 * flowWidth[i] + 14.0 * unit(h, c + 3);
-                flowMeander[i] = 6.0 + 0.012 * v.radius;
-                flowWave[i] = 70.0 + 0.05 * v.radius;
-                flowPhase[i] = 100.0 * unit(h, c + 4);
-            }
         }
 
         private static double unit(long hash, int channel) {
@@ -490,11 +551,21 @@ public final class VolcanoZones {
         }
     }
 
+    /**
+     * The roll (0..1) a volcano's activity is drawn from, from the site seed and the volcano's
+     * centre: the roll its ecology was always drawn from, so each volcano keeps its character.
+     */
+    static double activityRoll(long siteSeed, double x, double z) {
+        return Site.unit(SeedMixer.hash2(siteSeed ^ SALT, (int) Math.floor(x), (int) Math.floor(z)), 0);
+    }
+
     /** Per-thread state: the last column's zones, the last volcano's parameters and the noise. */
     private static final class Scratch {
         final Zone zone = new Zone();
         /** Crater influence, distance and rim radius from {@link TerrainModel#volcanoSurface}. */
         final double[] crater = new double[CraterShape.OUT];
+        /** Lava flows, halo, barrancos and side cones from {@link TerrainModel#volcanoCone}. */
+        final double[] cone = new double[ConeShape.OUT];
         boolean valid;
         int x;
         int z;

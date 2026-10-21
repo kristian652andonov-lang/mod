@@ -894,10 +894,13 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
          * Volcanoes, by the ecological zones of {@link VolcanoZones} (shared with the vegetation
          * filter, so snags stand on scorched ground and forests on soil):
          * <ul>
-         *   <li>crater, upper cone and lava flows are bare rock and ash a few blocks deep over
-         *       banded volcanic rock, in single-colour patches and radial streaks; above the snow
-         *       line the cone of a snowy biome keeps its snow cap, in colder air of other biomes
-         *       snowfields lie on its gentle ground;</li>
+         *   <li>crater, upper cone, side cones and lava flows are bare rock and ash a few blocks
+         *       deep over banded volcanic rock, in single-colour patches and radial streaks: dark
+         *       rock, oxidised red and brown scoria (red and brown terracotta) and altered rock
+         *       (granite) in the crater, magma crust beside its lava. Snow lies only where
+         *       {@link VolcanoZones#snow} allows, never on the hot ground of an active crater: on
+         *       the cone of a snowy biome in patches broken up by ash and scoria, in colder air of
+         *       other biomes in snowfields on its gentle ground;</li>
          *   <li>burn scars have a scorched top block (charred litter, scorched soil, root mats,
          *       ash) over the normal soil profile;</li>
          *   <li>the forested flanks, and any terrain that rises above the cone, return
@@ -922,22 +925,28 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                     default -> COARSE_DIRT;
                 };
             }
-            if (isSnowy(biome) && !zone.inFlow()) {
-                // snow-capped cone: snow on gentle ground over volcanic rock (see snowy)
-                return null;
+            boolean snowyBiome = isSnowy(biome);
+            if (d <= 1 && !underFluid && VolcanoZones.snow(model, zone, x, z, col.temperature, snowyBiome)) {
+                if (snowyBiome) {
+                    // a patch of the snow cap: snow on gentle ground, bare rock where steep (see snowy)
+                    return null;
+                }
+                if (d == 0 && smoothSlope < 1.0) {
+                    return SNOW_BLOCK;
+                }
             }
             if (d > 3) {
                 return strata(x, y, z, d, n);
             }
-            if (d == 0 && !underFluid && col.temperature < -0.3 && smoothSlope < 1.0
-                && 0.5 + 0.5 * patch(x, z, 16.0, 6) < Math.min(0.9, (-0.3 - col.temperature) / 0.17 * 0.8)) {
-                return SNOW_BLOCK;
-            }
             return switch (ground) {
                 case ASH -> d == 0 && supported(x, y, z) ? GRAVEL : TUFF;
                 case SCORIA -> SMOOTH_BASALT;
+                case BASALT -> BASALT;
                 case LAVA_ROCK -> BLACKSTONE;
                 case MAGMA -> d <= 1 ? MAGMA : BLACKSTONE;
+                case RED_SCORIA -> Blocks.RED_TERRACOTTA.defaultBlockState();
+                case BROWN_SCORIA -> Blocks.BROWN_TERRACOTTA.defaultBlockState();
+                case ALTERED -> GRANITE;
                 default -> TUFF;
             };
         }

@@ -787,6 +787,13 @@ def volcano_vegetation():
     patch('volcano/pebbles', pebble_states([("blackstone", 3), ("tuff", 2), ("deepslate", 1)]), 10, 5, cone_ground)
     volcano_feature('pebbles', '#minecraft:is_overworld', volcano_detail_placement(1.6, "cone", density="ground_detail"))
 
+    # ---- no snow on hot ground: after freeze_top_layer, take its snow layers off the bare ground
+    # where VolcanoZones lets no snow lie (a hot crater, fresh lava flows, ash blobs in the snow);
+    # part of the terrain's look, so not behind a config key
+    configured('volcano/thaw', 'terrahaul:volcano_thaw', {})
+    placed('volcano/thaw', 'terrahaul:volcano/thaw', VOLCANO_GATE)
+    add_features('volcano/thaw', '#minecraft:is_overworld', 'terrahaul:volcano/thaw', 'top_layer_modification')
+
 
 CONFIG_ORES = [{"type": "terrahaul:config", "key": "ore_depth_fix"}]
 

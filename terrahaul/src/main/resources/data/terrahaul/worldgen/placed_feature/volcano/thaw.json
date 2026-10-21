@@ -1,0 +1,12 @@
+{
+  "feature": "terrahaul:volcano/thaw",
+  "placement": [
+    {
+      "type": "terrahaul:terrahaul_only"
+    },
+    {
+      "type": "terrahaul:volcano_zone",
+      "zone": "any"
+    }
+  ]
+}
