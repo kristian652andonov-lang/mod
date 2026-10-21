@@ -25,14 +25,17 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 
 /**
  * The living surroundings of planned waterfalls and cascades ({@link FallPlanner}). The water,
- * the bowl and the pools are built earlier by {@link SurfaceWaterFeature}; this feature runs in
- * the vegetation step, on the final terrain, and decorates its own chunk only:
+ * the cleft, the crags and the pools are built earlier by {@link SurfaceWaterFeature}; this
+ * feature runs in the vegetation step, on the final terrain, and decorates its own chunk only:
  * <ul>
+ *   <li>soil right beside a fall's water is scoured to bare rock, so the water comes down over
+ *       rock rather than a grassy bank;</li>
  *   <li>rock kept wet by spray turns to moss and mossy stone in coherent patches, behind the
- *       curtain and on the bowl walls near it (not in cold climates);</li>
- *   <li>glow lichen grows on the walls just above the plunge pool;</li>
- *   <li>vines hang down the walls of the bowl where it is humid;</li>
+ *       falling water and on the cleft and crags beside it (not in cold climates);</li>
+ *   <li>glow lichen grows on the rock just above the plunge pool;</li>
+ *   <li>vines hang down the rock beside the water where it is humid;</li>
  *   <li>ferns and moss carpets grow on the shores and on the dams of cascades;</li>
+ *   <li>and on the mossy ledges and crags beside a fall, where ferns grow on the moss too;</li>
  *   <li>lily pads float on the still lowest pool of a cascade.</li>
  *   <li>ferns and moss carpets also grow on the banks, rocks and boulders around a cascade's
  *       pools.</li>
@@ -43,6 +46,8 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
  */
 public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
     private static final Direction[] SIDES = {Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST};
+    /** How far from a fall's water its sides are scoured down to bare rock. */
+    static final double SCOUR = 1.6;
 
     public WaterfallFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -91,10 +96,11 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
     private static boolean decorateFall(WorldGenLevel level, TerrainModel model, FallPlan p, WaterPlan.Shape shape, BlockPos.MutableBlockPos pos,
                                         int x, int top, int z, boolean humid, boolean cold) {
         boolean placed = false;
-        int u = p.u(x, z);
-        int v = p.v(x, z);
-        // how close the column is to the curtain, which keeps nearby rock wet
-        double spray = Math.hypot(Math.max(0, u - 1), Math.max(0, Math.abs(v) - p.halfWidth));
+        // how close the column is to the falling water, which keeps nearby rock wet
+        double spray = p.spray(x, z);
+        if (spray <= SCOUR && p.onFace(x, z)) {
+            placed |= scour(level, model, p, pos, x, top, z, humid, cold);
+        }
         if (!cold && spray <= 7.0) {
             // wet rock: every rock block of the column with an open side, from the pool up to the lip
             for (int y = p.pool + 1; y <= Math.min(top, p.top); y++) {
@@ -112,8 +118,8 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
                 }
             }
         }
-        if (shape.role == WaterSolver.ROLE_ROCK || u <= 0 && spray <= 3.0) {
-            // glow lichen just above the pool, vines hanging from the bowl's rim where it is humid
+        if (shape.role == WaterSolver.ROLE_ROCK || spray <= 3.0) {
+            // glow lichen just above the pool, vines hanging from the rock beside the water where it is humid
             for (int y = p.pool + 1; y <= p.pool + 3; y++) {
                 placed |= lichen(level, pos, x, y, z, hash(p, x, y * 31 + z) < 0.12);
             }
@@ -121,10 +127,54 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
                 placed |= vines(level, pos, x, top + 1, z, 2 + (int) (7 * hash(p, z, x)));
             }
         }
-        if (humid && (shape.role == WaterSolver.ROLE_SHORE || shape.role == WaterSolver.ROLE_NATURAL && u < 0)) {
-            placed |= plants(level, pos, p, x, top, z);
+        if (humid && (shape.role == WaterSolver.ROLE_SHORE || shape.role == WaterSolver.ROLE_NATURAL || shape.role == WaterSolver.ROLE_ROCK)) {
+            // the shores, and the ledges and crags beside the water once the spray has made them mossy
+            placed |= plants(level, pos, p, x, top, z, true);
         }
         return placed;
+    }
+
+    /**
+     * Bare rock right beside the falling water: floods and spray strip the soil from the sides of
+     * the cleft, so the water comes down over rock (mossy where it is humid) rather than over a
+     * grassy bank. Only soil the open air or the water touches turns to rock, a few blocks deep,
+     * and plants that stood on it go with it.
+     */
+    private static boolean scour(WorldGenLevel level, TerrainModel model, FallPlan p, BlockPos.MutableBlockPos pos, int x, int top, int z,
+                                 boolean humid, boolean cold) {
+        boolean placed = false;
+        for (int y = top; y >= Math.max(p.pool, top - 3); y--) {
+            BlockState s = level.getBlockState(pos.set(x, y, z));
+            if (!isSoil(s) || y < top && !openSide(level, model, p, pos, x, y, z)) {
+                continue;
+            }
+            if (y == top) {
+                clearPlant(level, pos, x, y + 1, z);
+            }
+            double n = model.detail3(4, x / 4.0, y / 3.0, z / 4.0);
+            BlockState rock = cold ? Blocks.STONE.defaultBlockState()
+                : humid ? (n > 0.25 ? Blocks.MOSS_BLOCK.defaultBlockState() : Blocks.MOSSY_COBBLESTONE.defaultBlockState())
+                : n > 0.0 ? Blocks.STONE.defaultBlockState() : Blocks.COBBLESTONE.defaultBlockState();
+            level.setBlock(pos.set(x, y, z), rock, 2);
+            placed = true;
+        }
+        return placed;
+    }
+
+    private static boolean isSoil(BlockState s) {
+        return s.is(Blocks.GRASS_BLOCK) || s.is(Blocks.DIRT) || s.is(Blocks.COARSE_DIRT) || s.is(Blocks.PODZOL) || s.is(Blocks.ROOTED_DIRT)
+            || s.is(Blocks.MYCELIUM);
+    }
+
+    /** Removes a plant (both halves of a tall one) standing at {@code y}. */
+    private static void clearPlant(WorldGenLevel level, BlockPos.MutableBlockPos pos, int x, int y, int z) {
+        for (int i = 0; i < 2; i++) {
+            BlockState s = level.getBlockState(pos.set(x, y + i, z));
+            if (s.isAir() || !s.getFluidState().isEmpty() || !s.canBeReplaced()) {
+                return;
+            }
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
+        }
     }
 
     private static boolean decorateCascade(WorldGenLevel level, FallPlan p, WaterPlan.Shape shape, BlockPos.MutableBlockPos pos,
@@ -149,12 +199,20 @@ public final class WaterfallFeature extends Feature<NoneFeatureConfiguration> {
 
     /** Ferns and moss carpets on a shore or dam top, if it is soil or moss with air above. */
     private static boolean plants(WorldGenLevel level, BlockPos.MutableBlockPos pos, FallPlan p, int x, int top, int z) {
+        return plants(level, pos, p, x, top, z, false);
+    }
+
+    /**
+     * {@link #plants}; beside a waterfall ({@code fall}) ferns also grow on some of the moss the
+     * spray keeps, instead of a carpet everywhere (moss is a block of the dirt tag, below).
+     */
+    private static boolean plants(WorldGenLevel level, BlockPos.MutableBlockPos pos, FallPlan p, int x, int top, int z, boolean fall) {
         BlockState ground = level.getBlockState(pos.set(x, top, z));
         if (!level.getBlockState(pos.set(x, top + 1, z)).isAir()) {
             return false;
         }
         double h = hash(p, x * 3, z * 5);
-        if (ground.is(Blocks.MOSS_BLOCK) && h < 0.45) {
+        if (ground.is(Blocks.MOSS_BLOCK) && (h >= 0.12 || !fall) && h < 0.45) {
             level.setBlock(pos.set(x, top + 1, z), Blocks.MOSS_CARPET.defaultBlockState(), 2);
             return true;
         }

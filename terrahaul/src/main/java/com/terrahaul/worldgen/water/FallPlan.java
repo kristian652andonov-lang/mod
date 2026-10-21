@@ -1,22 +1,17 @@
 package com.terrahaul.worldgen.water;
 
-import com.terrahaul.worldgen.noise.TMath;
 import com.terrahaul.worldgen.terrain.TerrainModel;
 
 /**
  * A planned waterfall or forest cascade: a pure description of how it reshapes every column it
  * covers, so each chunk can build its part independently (see {@link FallPlanner}).
  * <p>
- * Waterfalls are described in a frame anchored at the lip: {@code u} runs along the direction of
- * the fall (the lip column is {@code u = 0}, the curtain falls in {@code u = 1}) and {@code v}
- * across it. A stream channel runs over the high ground to the lip; in front of the lip a
- * horseshoe-shaped bowl is cut into the slope, with a vertical headwall behind the curtain, a
- * plunge pool deepest under the curtain, a shore, and steep rock walls rising to the natural
- * ground. Where the foot of the slope is far away, the bowl opens into a slot (a gorge) down to
- * it; where the foot is the sea or a lake, a notch through the beach lets the fall drop straight
- * into it. Wide curtains are split into strands by ribs of rock. The water itself, the curtain
- * included, follows from the levels: the {@link WaterSolver} turns every pool column next to the
- * channel into falling water.
+ * A waterfall comes down the slope it was planned on rather than being carved into it: a channel
+ * over the high ground, a staircase of ledges and falling water fitted to the natural face, a modest
+ * irregular plunge pool and an outflow stream to the water it joins, with a narrow, jagged cleft cut
+ * beside the water only where the ground stands higher (see {@link FallCourse}). The water itself,
+ * every riser included, follows from the levels: the {@link WaterSolver} turns each column next to
+ * higher water into falling water.
  * <p>
  * Cascades are chains of two to eight pools of different sizes and outlines stepping down a slope
  * along a winding course, each spilling one to four blocks into the next over its lip, sometimes
@@ -34,9 +29,6 @@ public final class FallPlan implements WaterPlan {
     public static final byte MAT_TRAVERTINE = 1;
     public static final byte MAT_COLD = 2;
     public static final byte MAT_VOLCANIC = 3;
-
-    /** How far beyond the shore the walls of a bowl are cut back. */
-    static final int WALL_REACH = 44;
 
     private final TerrainModel model;
     public final int type;
@@ -58,20 +50,10 @@ public final class FallPlan implements WaterPlan {
     public int top;
     /** Top water block of the plunge pool, or of the sea or lake a fall drops into. */
     public int pool;
-    /** The curtain spans {@code v} in {@code [-halfWidth, halfWidth]}. */
+    /** Half-width of the widest water on the face. */
     public int halfWidth;
-    int channel;
-    /** Radius of the spring-fed pool the channel starts from (0: it is fed by a stream). */
-    double headR;
-    double ru;
-    double rv;
-    double uc;
-    int depth;
-    double shoreW;
-    double wallSlope;
-    int slotEnd;
-    double slotHalf;
-    final boolean[] ribs = new boolean[65];
+    /** The course of a waterfall's water and the ground it shapes ({@code null} for cascades). */
+    FallCourse course;
 
     // ---- cascades -----------------------------------------------------------------------------
     int tiers;
@@ -126,12 +108,16 @@ public final class FallPlan implements WaterPlan {
     }
 
     public String typeName() {
-        return switch (type) {
-            case CURTAIN -> "curtain";
-            case GORGE -> halfWidth >= 4 ? "curtain over a gorge" : "gorge";
-            case SEA -> "into the water";
-            default -> "cascade";
+        if (type == CASCADE) {
+            return "cascade";
+        }
+        String style = switch (course.style) {
+            case FallCourse.PLUNGE -> "plunge";
+            case FallCourse.TIERED -> "tiered fall";
+            case FallCourse.HORSETAIL -> "horsetail";
+            default -> "fan of strands";
         };
+        return type == SEA ? style + " into the water" : style;
     }
 
     /** Axis (a unit vector along x or z) the water flows along, for side views. */
@@ -153,27 +139,94 @@ public final class FallPlan implements WaterPlan {
         return type == CASCADE ? layout.course() : new double[0][];
     }
 
+    /**
+     * Whether two plans come within {@code margin} blocks of each other: their bounds, and for a
+     * waterfall only the part of them its course may shape (a long outflow's bounds are mostly
+     * open ground). The test is symmetric, so the cells on either side decide alike.
+     */
     boolean overlaps(FallPlan o, int margin) {
-        return minX - margin <= o.maxX && maxX + margin >= o.minX && minZ - margin <= o.maxZ && maxZ + margin >= o.minZ;
+        if (minX - margin > o.maxX || maxX + margin < o.minX || minZ - margin > o.maxZ || maxZ + margin < o.minZ) {
+            return false;
+        }
+        if (course != null) {
+            return course.touches(o, margin);
+        }
+        return o.course == null || o.course.touches(this, margin);
     }
 
-    /** Along-fall coordinate of a column. */
-    int u(int x, int z) {
-        return (x - lipX) * dirX + (z - lipZ) * dirZ;
+    /** Whether some part of the plan's own bounds meets the given rectangle. */
+    boolean meets(int x0, int z0, int x1, int z1) {
+        if (x0 > maxX || x1 < minX || z0 > maxZ || z1 < minZ) {
+            return false;
+        }
+        return course == null || course.meets(x0, z0, x1, z1);
     }
 
-    /** Across-fall coordinate of a column. */
-    int v(int x, int z) {
-        return (z - lipZ) * dirX - (x - lipX) * dirZ;
+    /**
+     * Distance from a column to a waterfall's falling water or plunge pool, for the spray that keeps
+     * rock wet and plants green near it.
+     */
+    public double spray(int x, int z) {
+        return course.spray(x, z);
     }
 
-    boolean isRib(int v) {
-        return v > -32 && v < 32 && ribs[v + 32];
+    /** Whether a column lies on a waterfall's face, between the lip and the pool. */
+    public boolean onFace(int x, int z) {
+        return course.onFace(x, z);
     }
 
-    /** Half-width of the feeding channel, narrowing upstream from the curtain's width. */
-    int channelHalf(int u) {
-        return Math.max(0, (int) Math.round(halfWidth * (1.0 - 0.5 * (-u) / Math.max(1, channel))));
+    /** Style of a waterfall's water: 0 plunge, 1 tiered, 2 horsetail, 3 fan of strands (for devtools). */
+    public int style() {
+        return course.style;
+    }
+
+    /**
+     * The drops of a waterfall's water from the lip down to its pool, ledge by ledge (for devtools):
+     * each is the difference of the water's surface between one ledge and the next.
+     */
+    public int[] drops() {
+        FallCourse c = course;
+        int[] d = new int[c.treads];
+        int prev = c.channelLevel[0];
+        for (int i = 1; i <= c.treads; i++) {
+            int lv = i >= c.treads ? c.poolLevel : c.treadLevel[i];
+            d[i - 1] = prev - lv;
+            prev = lv;
+        }
+        return d;
+    }
+
+    /** Rock ribs or outcrops standing in a waterfall's water (for devtools). */
+    public int outcrops() {
+        return course.rocks;
+    }
+
+    /** Whether a waterfall's water ends in a river, lake, the sea or a stream (for devtools). */
+    public boolean joinsWater() {
+        return course.intoWater || course.outJoins;
+    }
+
+    /**
+     * Where a waterfall's outflow ends, {@code {x, z, top water block}}, or {@code null} if it drops
+     * into the sea or a lake (for devtools).
+     */
+    public double[] outflowEnd() {
+        FallCourse c = course;
+        if (c.intoWater || c.outN == 0) {
+            return null;
+        }
+        return new double[]{c.outX[c.outN - 1], c.outZ[c.outN - 1], c.outLevel[c.outN - 1] - 1};
+    }
+
+    /** Where a waterfall's water lands: the middle of its plunge pool, {@code {x, z}} (for devtools). */
+    public double[] foot() {
+        FallCourse c = course;
+        return new double[]{c.worldX(c.poolU, c.poolV) + 0.5, c.worldZ(c.poolU, c.poolV) + 0.5};
+    }
+
+    /** The part of a waterfall a column belongs to: channel, face, pool or outflow (for devtools). */
+    public String part(int x, int z) {
+        return course.region(x, z);
     }
 
     @Override
@@ -188,150 +241,7 @@ public final class FallPlan implements WaterPlan {
     }
 
     private boolean shapeFall(int x, int z, int natural, Shape out) {
-        int u = u(x, z);
-        int v = v(x, z);
-        int av = Math.abs(v);
-        if (u <= 0) {
-            // the stream channel over the high ground, and banks where the ground beside it or
-            // beside the lip is lower than the water
-            if (headR > 0.0 && u <= -channel + 1) {
-                // the small pool the channel runs out of, slightly irregular
-                double hu = (u + channel + headR - 1.0) / headR;
-                double hv = v / (headR * 0.85);
-                double hr = Math.sqrt(hu * hu + hv * hv) + 0.12 * model.detail3(6, x / 4.0, 17.0, z / 4.0);
-                if (hr <= 1.0) {
-                    out.ground = top - 1 - (int) Math.round(1.5 * (1.0 - hr * hr));
-                    out.level = top + 1;
-                    out.role = WaterSolver.ROLE_BED;
-                    return true;
-                }
-                if (hr <= 1.0 + 1.6 / headR && natural < top) {
-                    out.ground = top;
-                    out.role = WaterSolver.ROLE_NATURAL;
-                    return true;
-                }
-            }
-            if (u < -channel - 1) {
-                return false;
-            }
-            int ch = channelHalf(u);
-            if (u >= -channel && av <= ch) {
-                out.ground = top - 2;
-                out.level = top + 1;
-                out.role = WaterSolver.ROLE_BED;
-                return true;
-            }
-            boolean bank = av <= ch + 1 || u >= -2 && av <= halfWidth + 2;
-            if (bank && natural < top) {
-                out.ground = top;
-                out.role = WaterSolver.ROLE_NATURAL;
-                return true;
-            }
-            return false;
-        }
-        double side = Math.max(0, av - halfWidth - 1);
-        if (u < 0.5 + 0.12 * side * side) {
-            // behind the horseshoe-shaped headwall: the cliff stays as it is
-            return false;
-        }
-        double n = model.detail3(6, x / 7.0, 13.0, z / 7.0);
-        if (type == SEA) {
-            return shapeSeaFall(u, av, natural, n, out);
-        }
-        // the plunge pool spans the whole curtain and rounds off beside it; deepest under the curtain
-        double vv = Math.max(0, av - halfWidth) / Math.max(1.5, rv - halfWidth);
-        double uu = (u - uc) / ru;
-        double rn = Math.sqrt(uu * uu + vv * vv);
-        if (rn > 0.7) {
-            rn += 0.12 * n;
-        }
-        if (u == 1 && av <= halfWidth || rn <= 1.0) {
-            double ud = (u - 1.5) / (1.3 * ru);
-            double rd = Math.sqrt(ud * ud + vv * vv);
-            int g = pool - (int) Math.round(depth * Math.sqrt(Math.max(0.0, 1.0 - rd * rd)));
-            out.ground = Math.min(g, pool - 1);
-            out.level = pool + 1;
-            out.role = WaterSolver.ROLE_BED;
-            out.rib = u == 1 && isRib(v);
-            return true;
-        }
-        double edge = Math.min(ru, rv);
-        double shore = 1.0 + shoreW / edge;
-        if (rn <= shore) {
-            out.ground = pool + 1;
-            out.role = WaterSolver.ROLE_SHORE;
-            return true;
-        }
-        // walls of the bowl, and of the gorge where the bowl opens into a winding slot
-        // the walls are sheer around the curtain (the amphitheatre the fall has cut back into the
-        // rock) and lean back further out, so the bowl opens into the slope instead of being a
-        // box cut into it; the gorge widens downstream like a ravine
-        double lean = 1.0 - 0.55 * Math.max(TMath.smoothstep(uc, uc + ru + 14.0, u), TMath.smoothstep(1.0, 10.0, av - halfWidth));
-        double wall = Double.MAX_VALUE;
-        double dist = (rn - shore) * edge;
-        if (dist <= WALL_REACH) {
-            wall = pool + 1 + rockWall(wallSlope * lean * dist, x, z, n);
-        }
-        if (u >= uc && u <= slotEnd) {
-            double sw = slotHalf + 1.8 * n + 0.2 * (u - uc);
-            double dv = Math.abs(v - slotOffset(u));
-            if (dv <= sw) {
-                if (natural <= pool + 1) {
-                    return false;
-                }
-                out.ground = pool + 1;
-                out.role = WaterSolver.ROLE_SHORE;
-                return true;
-            }
-            wall = Math.min(wall, pool + 1 + rockWall(wallSlope * 0.5 * (dv - sw), x, z, n));
-        }
-        if (wall < natural) {
-            out.ground = (int) Math.floor(wall);
-            out.role = WaterSolver.ROLE_ROCK;
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Height of a carved rock wall above the pool's shore for a smooth rise {@code h}: benches a
-     * couple of blocks wide between near-vertical risers of about six blocks, displaced by noise,
-     * the way rock walls of a plunge basin or gorge break up, instead of one even slope.
-     */
-    private double rockWall(double h, int x, int z, double n) {
-        double n2 = model.detail3(5, x / 9.0, 21.0, z / 9.0);
-        return Math.max(0.0, TMath.terrace(Math.max(0.0, h) + 4.0 * n2 + 2.0 * n, 7.0, 0.72));
-    }
-
-    /** Sideways offset of a gorge's slot from the fall's axis: the slot winds a little. */
-    double slotOffset(int u) {
-        double cx = lipX + u * dirX;
-        double cz = lipZ + u * dirZ;
-        return 3.0 * model.detail3(7, cx / 15.0, 3.0, cz / 15.0) * TMath.smoothstep(uc, uc + 8.0, u);
-    }
-
-    /** A fall into the sea or a lake: a notch through the beach or talus down to the water. */
-    private boolean shapeSeaFall(int u, int av, int natural, double n, Shape out) {
-        if (u > slotEnd + 1) {
-            return false;
-        }
-        double sw = halfWidth + 1 + 0.8 * n;
-        if (av <= sw || u == 1 && av <= halfWidth) {
-            if (natural <= pool - 1 && u > 1) {
-                return false;
-            }
-            out.ground = Math.min(natural, pool - 1);
-            out.level = pool + 1;
-            out.role = WaterSolver.ROLE_BED;
-            return true;
-        }
-        double wall = pool + 1 + wallSlope * (av - sw);
-        if (wall < natural && av - sw < WALL_REACH) {
-            out.ground = (int) Math.floor(wall);
-            out.role = WaterSolver.ROLE_ROCK;
-            return true;
-        }
-        return false;
+        return course.shape(x, z, natural, out);
     }
 
     private boolean shapeCascade(int x, int z, int natural, Shape out) {

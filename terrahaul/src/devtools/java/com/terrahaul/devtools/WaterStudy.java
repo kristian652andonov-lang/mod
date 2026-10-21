@@ -32,8 +32,8 @@ import javax.imageio.ImageIO;
  *       with surface water, and where the solver had to build banks of four blocks or more.</li>
  *   <li>{@code falls <seed> <half> <outDir> [renders] [all|curtain|gorge|sea|cascade]}:
  *       waterfalls and cascades per km2 by climate, their sizes, and every plan built and checked
- *       (the curtain falls from the lip, the space in front is open); side, first-person,
- *       overview and top views.</li>
+ *       (a fall's lip holds the channel's water and its water runs on, falling down the face, to
+ *       the pool); side, first-person, overview and top views.</li>
  *   <li>{@code rivers <seed> <half>}: great-river widths, perched channels, dry beds near
  *       water.</li>
  *   <li>{@code walls <seed> <half>}: steep steps the water carving cuts into gentle ground (abrupt
@@ -600,11 +600,12 @@ public final class WaterStudy {
             (planNanos - cascadeNanos) / 1e6 / Math.max(1, cells - cascadeCells), cascadeNanos / 1e6 / Math.max(1, cascadeCells));
         // build every plan on the solved world and check it
         Stats total = new Stats();
-        long curtainOk = 0;
-        long curtainBad = 0;
-        long frontOk = 0;
-        long frontBad = 0;
-        long channelBad = 0;
+        long lipOk = 0;
+        long lipBad = 0;
+        long reachOk = 0;
+        long reachBad = 0;
+        long fallingColumns = 0;
+        long dropTotal = 0;
         long cascadeSteps = 0;
         List<BufferedImage> tiles = new ArrayList<>();
         int rendered = 0;
@@ -629,37 +630,37 @@ public final class WaterStudy {
                 }
                 cascadeMetrics(area, p, cs);
             } else {
-                for (int v = -p.halfWidth; v <= p.halfWidth; v++) {
-                    int x1 = p.lipX + p.dirX - v * p.dirZ;
-                    int z1 = p.lipZ + p.dirZ + v * p.dirX;
-                    int x0 = p.lipX - v * p.dirZ;
-                    int z0 = p.lipZ + v * p.dirX;
-                    int x2 = x1 + p.dirX;
-                    int z2 = z1 + p.dirZ;
-                    int k1 = area.at(x1, z1);
-                    int k0 = area.at(x0, z0);
-                    int k2 = area.at(x2, z2);
-                    if (area.level[k0] != p.top + 1) {
-                        channelBad++;
-                        total.example(String.format(Locale.ROOT, "channel at %d,%d has level %d, expected %d", x0, z0, area.level[k0], p.top + 1));
-                    }
-                    if (area.step[k1] == WaterSolver.SILL) {
-                        continue;
-                    }
-                    if (area.step[k1] == WaterSolver.CHUTE && area.upper[k1] == p.top + 1) {
-                        curtainOk++;
-                    } else {
-                        curtainBad++;
-                        total.example(String.format(Locale.ROOT, "curtain column %d,%d of fall at %d,%d: step %d upper %d level %d",
-                            x1, z1, p.lipX, p.lipZ, area.step[k1], area.upper[k1], area.level[k1]));
-                    }
-                    // in front of the curtain the space must be open from the pool up to the lip
-                    if (area.solidTop[k2] <= Math.max(p.pool + 1, area.level[k2] - 1) && area.step[k2] != WaterSolver.CHUTE) {
-                        frontOk++;
-                    } else {
-                        frontBad++;
+                // the lip holds the channel's water (beside the lip column where a fan's rib of rock
+                // breaks the edge or the first ledge reaches back past it; the channel steps up
+                // upstream), and water runs on from it, falling down the face, to the pool (or the
+                // sea or lake below)
+                List<Integer> lip = new ArrayList<>();
+                int r = p.halfWidth + 1;
+                for (int dx = -r; dx <= r; dx++) {
+                    for (int dz = -r; dz <= r; dz++) {
+                        int k = area.at(p.lipX + dx, p.lipZ + dz);
+                        if (dx * dx + dz * dz <= r * r && area.level[k] != WaterSolver.NONE && area.level[k] >= p.top + 1) {
+                            lip.add(k);
+                        }
                     }
                 }
+                if (!lip.isEmpty()) {
+                    lipOk++;
+                } else {
+                    lipBad++;
+                    total.example(String.format(Locale.ROOT, "no water at or above the lip's level %d near the lip of fall at %d,%d", p.top + 1, p.lipX,
+                        p.lipZ));
+                }
+                int[] reach = waterCourse(area, p, lip);
+                if (reach[0] > 0) {
+                    reachOk++;
+                } else {
+                    reachBad++;
+                    total.example(String.format(Locale.ROOT, "water from the lip of fall at %d,%d does not reach its pool (level %d): down to %d at %d,%d",
+                        p.lipX, p.lipZ, p.pool + 1, reach[2], reach[3], reach[4]));
+                }
+                fallingColumns += reach[1];
+                dropTotal += p.drop();
             }
             if (rendered < renders && (which.equals("all") || which.equals(new String[]{"curtain", "gorge", "sea", "cascade"}[p.type]))) {
                 rendered++;
@@ -679,8 +680,9 @@ public final class WaterStudy {
         System.out.printf(Locale.ROOT, "built %d plans in %d chunks (%.2f ms/chunk): mismatches %d, source-air %d, water-above-air %d, banks %s, steps %s%n",
             plans.size(), total.chunks, total.nanos / 1e6 / Math.max(1, total.chunks), total.mismatches, total.sourceFacingAir, total.waterAboveAir,
             hist(total.bankHist), hist(total.stepHist));
-        System.out.printf(Locale.ROOT, "curtain columns falling from the lip: %d ok, %d not; open in front: %d ok, %d not; channel columns off level: %d; "
-            + "cascade step columns %d%n", curtainOk, curtainBad, frontOk, frontBad, channelBad, cascadeSteps);
+        System.out.printf(Locale.ROOT, "waterfalls: lip holding the channel's water %d ok, %d not; water running on from the lip to the pool %d ok, %d not; "
+                + "falling-water columns %.2f per block of drop; cascade step columns %d%n", lipOk, lipBad, reachOk, reachBad,
+            fallingColumns / (double) Math.max(1, dropTotal), cascadeSteps);
         for (String e : total.examples) {
             System.out.println("    " + e);
         }
@@ -1232,6 +1234,55 @@ public final class WaterStudy {
                 System.out.println("    " + b);
             }
         }
+    }
+
+    /**
+     * Follows a waterfall's water from its lip over neighbouring water columns of the plan:
+     * {@code {1 if it reaches the pool's level or lower, falling-water columns met, lowest level
+     * reached, and where}}.
+     */
+    private static int[] waterCourse(Area area, FallPlan p, List<Integer> start) {
+        boolean[] seen = new boolean[area.w * area.h];
+        java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
+        int reached = 0;
+        int falling = 0;
+        int lowest = Integer.MAX_VALUE;
+        int lowestAt = start.isEmpty() ? area.at(p.lipX, p.lipZ) : start.get(0);
+        for (int k : start) {
+            queue.add(k);
+            seen[k] = true;
+        }
+        while (!queue.isEmpty()) {
+            int k = queue.poll();
+            if (area.level[k] <= p.pool + 1) {
+                reached = 1;
+            }
+            if (area.level[k] < lowest) {
+                lowest = area.level[k];
+                lowestAt = k;
+            }
+            if (area.step[k] == WaterSolver.CHUTE) {
+                falling++;
+            }
+            int x = area.ax + k % area.w;
+            int z = area.az + k / area.w;
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                int nx = x + d[0];
+                int nz = z + d[1];
+                if (!area.contains(nx, nz) || nx < p.minX() || nx > p.maxX() || nz < p.minZ() || nz > p.maxZ()) {
+                    continue;
+                }
+                int n = area.at(nx, nz);
+                // water runs downhill: on to a column no higher than this one's water, which on a
+                // falling-water column or a sill reaches up to the level it comes from
+                int here = area.step[k] != WaterSolver.FLAT ? Math.max(area.level[k], area.upper[k]) : area.level[k];
+                if (!seen[n] && area.level[n] != WaterSolver.NONE && area.level[n] <= here) {
+                    seen[n] = true;
+                    queue.add(n);
+                }
+            }
+        }
+        return new int[]{reached, falling, lowest, area.ax + lowestAt % area.w, area.az + lowestAt / area.w};
     }
 
     private static String validate(TerrainModel model, String name, TerrainFinder.Result r) {
