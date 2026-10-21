@@ -47,6 +47,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * cascade gives way to any waterfall. The decision uses only the unfiltered plans of the cells
  * around, so it never depends on the order in which cells are computed; when two threads plan the
  * same cell at once, both use the plan stored first.
+ * <p>
+ * Planning a cell has two parts. Laying out its candidates (the cheap look at the cell, the scan
+ * for spots, each spot's course and its bounds) is the cheaper one; checking what each would
+ * build (every column of its footprint against the 3D terrain, the view) is the costly one. A
+ * cell's plan, if it has one, is one of its laid-out candidates, with the bounds it was laid out
+ * with, so the bounds of all of them (the cell's <i>reach</i>) say where its plan can be without
+ * checking any. Questions about a small area (the cave guard of a column, the plans near a chunk,
+ * whether a neighbour's plan could overlap) only check the cells whose reach meets that area:
+ * structure placement, {@code /locate} and explorer maps probe the ground at single columns far
+ * apart and must not plan every cell around each of them in full. The reach is a pure function
+ * of the cell too, and the laid-out candidates are kept for a while, so a cell planned after its
+ * reach was asked for is not laid out twice.
  */
 public final class FallPlanner {
     public static final int FALL_CELL = 256;
@@ -71,6 +83,12 @@ public final class FallPlanner {
     private final ConcurrentHashMap<Long, FallPlan> falls = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, FallPlan> rawCascades = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, FallPlan> cascades = new ConcurrentHashMap<>();
+    /** Reach of the cells whose reach was asked for before their plan (see {@link #reach}). */
+    private final ConcurrentHashMap<Long, Footprint[]> fallReach = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Footprint[]> cascadeReach = new ConcurrentHashMap<>();
+    /** Their laid-out candidates, until the cell is planned (see {@link Laid}). */
+    private final Map<Long, Laid> laidFalls = laidCache();
+    private final Map<Long, Laid> laidCascades = laidCache();
     private final long fallSeed;
     private final long cascadeSeed;
 
@@ -86,11 +104,17 @@ public final class FallPlanner {
         }
     }
 
-    /** Adds the active plans whose bounds intersect the given block rectangle. */
+    /**
+     * Adds the active plans whose bounds intersect the given block rectangle. Only the cells whose
+     * reach meets the rectangle are planned in full.
+     */
     public static void plansNear(TerrainModel model, int minX, int minZ, int maxX, int maxZ, List<WaterPlan> out) {
         FallPlanner planner = of(model);
         for (int cx = Math.floorDiv(minX - FALL_REACH, FALL_CELL); cx <= Math.floorDiv(maxX + FALL_REACH, FALL_CELL); cx++) {
             for (int cz = Math.floorDiv(minZ - FALL_REACH, FALL_CELL); cz <= Math.floorDiv(maxZ + FALL_REACH, FALL_CELL); cz++) {
+                if (!planner.mayMeet(false, cx, cz, minX, minZ, maxX, maxZ, false)) {
+                    continue;
+                }
                 FallPlan p = planner.fall(cx, cz);
                 if (p != null && p.minX <= maxX && p.maxX >= minX && p.minZ <= maxZ && p.maxZ >= minZ) {
                     out.add(p);
@@ -99,6 +123,9 @@ public final class FallPlanner {
         }
         for (int cx = Math.floorDiv(minX - REACH, CASCADE_CELL); cx <= Math.floorDiv(maxX + REACH, CASCADE_CELL); cx++) {
             for (int cz = Math.floorDiv(minZ - REACH, CASCADE_CELL); cz <= Math.floorDiv(maxZ + REACH, CASCADE_CELL); cz++) {
+                if (!planner.mayMeet(true, cx, cz, minX, minZ, maxX, maxZ, false)) {
+                    continue;
+                }
                 FallPlan p = planner.cascade(cx, cz);
                 if (p != null && p.minX <= maxX && p.maxX >= minX && p.minZ <= maxZ && p.maxZ >= minZ) {
                     out.add(p);
@@ -125,9 +152,12 @@ public final class FallPlanner {
      * so below everything higher up the fall too.
      * <p>
      * A pure function of the model like the plans, so every chunk sees the same; memoised in the
-     * sample of the grid corner, because the cave guard asks for every block of a column. Looking
-     * it up may plan the cells around, which uses the model's per-thread cache: callers must not
-     * hold a sample from {@link TerrainModel#sample} across the call.
+     * sample of the grid corner, because the cave guard asks for every block of a column. It
+     * plans only the cells whose reach meets the area, and decides whether a neighbour's plan
+     * overrides a cell's only if the cell's plan marks the area, so where no plan can be near a
+     * lookup costs little more than laying out the candidates of the cells around. Looking it up
+     * may plan cells, which uses the model's per-thread cache: callers must not hold a sample from
+     * {@link TerrainModel#sample} across the call.
      */
     public static double guardLevel(TerrainModel model, int x, int z) {
         int bx = x & ~3;
@@ -139,20 +169,36 @@ public final class FallPlanner {
         int cx = bx >> 2;
         int cz = bz >> 2;
         // the corner is shared by the cells (cx - 1, cz - 1) to (cx, cz); a margin around them
-        int x0 = (cx - 1 - GUARD_CELLS) << 2;
-        int z0 = (cz - 1 - GUARD_CELLS) << 2;
-        int x1 = ((cx + GUARD_CELLS) << 2) + 3;
-        int z1 = ((cz + GUARD_CELLS) << 2) + 3;
-        List<WaterPlan> plans = new ArrayList<>();
-        plansNear(model, x0, z0, x1, z1, plans);
+        int i0 = cx - 1 - GUARD_CELLS;
+        int j0 = cz - 1 - GUARD_CELLS;
+        int i1 = cx + GUARD_CELLS;
+        int j1 = cz + GUARD_CELLS;
+        int x0 = i0 << 2;
+        int z0 = j0 << 2;
+        int x1 = (i1 << 2) + 3;
+        int z1 = (j1 << 2) + 3;
+        FallPlanner planner = of(model);
         int lowest = Integer.MAX_VALUE;
-        for (WaterPlan wp : plans) {
-            FallPlan p = (FallPlan) wp;
-            for (int i = cx - 1 - GUARD_CELLS; i <= cx + GUARD_CELLS; i++) {
-                for (int j = cz - 1 - GUARD_CELLS; j <= cz + GUARD_CELLS; j++) {
-                    int top = p.guardTop(i, j);
-                    if (top != WaterSolver.NONE) {
-                        lowest = Math.min(lowest, top);
+        // the active plans that mark the area's cells (a plan marks only columns its course may
+        // shape, which mayMeet looks at); an unfiltered plan that marks none of them, or none
+        // lower than another plan does, cannot change the level whether it stays active or not,
+        // so only then are the neighbours that could override it looked at
+        for (int fx = Math.floorDiv(x0 - FALL_REACH, FALL_CELL); fx <= Math.floorDiv(x1 + FALL_REACH, FALL_CELL); fx++) {
+            for (int fz = Math.floorDiv(z0 - FALL_REACH, FALL_CELL); fz <= Math.floorDiv(z1 + FALL_REACH, FALL_CELL); fz++) {
+                if (planner.mayMeet(false, fx, fz, x0, z0, x1, z1, true)) {
+                    int top = lowestTop(planner.rawFall(fx, fz), i0, j0, i1, j1);
+                    if (top < lowest && planner.fall(fx, fz) != null) {
+                        lowest = top;
+                    }
+                }
+            }
+        }
+        for (int fx = Math.floorDiv(x0 - REACH, CASCADE_CELL); fx <= Math.floorDiv(x1 + REACH, CASCADE_CELL); fx++) {
+            for (int fz = Math.floorDiv(z0 - REACH, CASCADE_CELL); fz <= Math.floorDiv(z1 + REACH, CASCADE_CELL); fz++) {
+                if (planner.mayMeet(true, fx, fz, x0, z0, x1, z1, true)) {
+                    int top = lowestTop(planner.rawCascade(fx, fz), i0, j0, i1, j1);
+                    if (top < lowest && planner.cascade(fx, fz) != null) {
+                        lowest = top;
                     }
                 }
             }
@@ -161,6 +207,153 @@ public final class FallPlanner {
         // (planning may have evicted the corner's sample: sample it again to keep the memo)
         model.sample(bx, bz).planGuard = level;
         return level;
+    }
+
+    /**
+     * The lowest top a plan marks in the grid cells {@code (i0, j0)} to {@code (i1, j1)} (see
+     * {@link FallPlan#guardTop}), or {@link Integer#MAX_VALUE} if it marks none or is {@code null}.
+     */
+    private static int lowestTop(FallPlan p, int i0, int j0, int i1, int j1) {
+        int lowest = Integer.MAX_VALUE;
+        if (p == null || p.maxX < i0 << 2 || p.minX > (i1 << 2) + 3 || p.maxZ < j0 << 2 || p.minZ > (j1 << 2) + 3) {
+            return lowest;
+        }
+        for (int i = i0; i <= i1; i++) {
+            for (int j = j0; j <= j1; j++) {
+                int top = p.guardTop(i, j);
+                if (top != WaterSolver.NONE) {
+                    lowest = Math.min(lowest, top);
+                }
+            }
+        }
+        return lowest;
+    }
+
+    // =========================================================================================
+    // reach
+    // =========================================================================================
+
+    /**
+     * The laid-out candidates of a cell, in the order the planner checks them (see
+     * {@link #layFalls}, {@link #layCascades}); its plan is the first that passes the checks. The
+     * sampler they were laid out with comes along when the cell is planned at once and is dropped
+     * when they are kept for later, since it holds hundreds of samples.
+     */
+    private record Laid(PlanSampler ps, List<FallPlan> plans) {
+    }
+
+    /** Most cells whose laid-out candidates are kept for planning them later. */
+    private static final int LAID_KEPT = 256;
+
+    /** The reach of a cell none of whose candidates could become its plan. */
+    private static final Footprint[] NO_REACH = new Footprint[0];
+
+    private static Map<Long, Laid> laidCache() {
+        return Collections.synchronizedMap(new java.util.LinkedHashMap<>(64, 0.75f, false) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Long, Laid> eldest) {
+                return size() > LAID_KEPT;
+            }
+        });
+    }
+
+    /**
+     * What is kept of a laid-out candidate for its cell's reach: its bounds and, for a waterfall,
+     * the cells of the coarse grid its course may shape ({@link FallCourse#mask}; cascades shape
+     * anything in their bounds).
+     */
+    private record Footprint(int minX, int minZ, int maxX, int maxZ, boolean[] mask, int maskW) {
+        static Footprint of(FallPlan p) {
+            return p.course == null ? new Footprint(p.minX, p.minZ, p.maxX, p.maxZ, null, 0)
+                : new Footprint(p.minX, p.minZ, p.maxX, p.maxZ, p.course.mask(), p.course.maskWidth());
+        }
+
+        /** As {@link FallPlan#meets} ({@code shape}) or a test of the bounds alone. */
+        boolean meets(boolean shape, int x0, int z0, int x1, int z1) {
+            if (minX > x1 || maxX < x0 || minZ > z1 || maxZ < z0) {
+                return false;
+            }
+            return !shape || mask == null || FallCourse.meets(minX, minZ, maxX, maxZ, mask, maskW, x0, z0, x1, z1);
+        }
+    }
+
+    /**
+     * Whether the plan of a waterfall ({@code cascade} false) or cascade cell, if it has one, may
+     * meet the block rectangle {@code (x0, z0)} to {@code (x1, z1)}: always {@code true} if it
+     * does. With {@code shape} false this asks about the plan's bounds (as {@link #plansNear}
+     * does); with {@code shape} true, about the part of them it may shape ({@link FallPlan#meets}):
+     * what it marks for the cave guard, and what a neighbour's plan must meet to overlap it.
+     * Once the cell is planned this is the plan itself; before, the cell's reach (see
+     * {@link #reach}), so asking does not plan the cell.
+     */
+    private boolean mayMeet(boolean cascade, int cx, int cz, int x0, int z0, int x1, int z1, boolean shape) {
+        long k = key(cx, cz);
+        FallPlan raw = (cascade ? rawCascades : rawFalls).get(k);
+        if (raw != null) {
+            return raw != NONE && (shape ? raw.meets(x0, z0, x1, z1) : raw.minX <= x1 && raw.maxX >= x0 && raw.minZ <= z1 && raw.maxZ >= z0);
+        }
+        for (Footprint f : reach(cascade, cx, cz)) {
+            if (f.meets(shape, x0, z0, x1, z1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The reach of a cell: the footprints of every laid-out candidate that could become its plan.
+     * The plan is the first candidate to pass the checks and keeps the bounds and course it was
+     * laid out with; a candidate reaching further from its cell than the chunks around would look
+     * for it fails the first check, so it is left out.
+     */
+    private Footprint[] reach(boolean cascade, int cx, int cz) {
+        long k = key(cx, cz);
+        ConcurrentHashMap<Long, Footprint[]> map = cascade ? cascadeReach : fallReach;
+        Footprint[] r = map.get(k);
+        if (r != null) {
+            return r;
+        }
+        Laid laid = cascade ? layCascades(cx, cz) : layFalls(cx, cz);
+        int size = cascade ? CASCADE_CELL : FALL_CELL;
+        int far = cascade ? REACH : FALL_REACH;
+        int x0 = cx * size - far;
+        int z0 = cz * size - far;
+        int x1 = (cx + 1) * size + far;
+        int z1 = (cz + 1) * size + far;
+        List<Footprint> found = new ArrayList<>();
+        if (laid != null) {
+            for (FallPlan p : laid.plans) {
+                // (the first test of fits() and fitsCascade())
+                if (p.minX >= x0 && p.minZ >= z0 && p.maxX <= x1 && p.maxZ <= z1) {
+                    found.add(Footprint.of(p));
+                }
+            }
+        }
+        r = found.isEmpty() ? NO_REACH : found.toArray(new Footprint[0]);
+        if (r.length > 0) {
+            (cascade ? laidCascades : laidFalls).put(k, new Laid(null, laid.plans));
+        }
+        if (map.size() > 16384) {
+            map.clear();
+        }
+        Footprint[] known = map.putIfAbsent(k, r);
+        return known != null ? known : r;
+    }
+
+    /**
+     * The laid-out candidates to plan a cell with: those kept since its reach was asked for (taken,
+     * so only one thread checks them), or laid out now; {@code null} if it has none.
+     */
+    private Laid laid(boolean cascade, int cx, int cz) {
+        long k = key(cx, cz);
+        if ((cascade ? cascadeReach : fallReach).get(k) == NO_REACH) {
+            return null;
+        }
+        Laid kept = (cascade ? laidCascades : laidFalls).remove(k);
+        if (kept != null) {
+            return new Laid(new PlanSampler(model), kept.plans);
+        }
+        return cascade ? layCascades(cx, cz) : layFalls(cx, cz);
     }
 
     /** Collision-free key of a cell, spread by an odd multiplier so the maps' hashes do not cluster. */
@@ -201,7 +394,8 @@ public final class FallPlanner {
             }
             for (int dx = -FALL_NEIGHBOURS; dx <= FALL_NEIGHBOURS; dx++) {
                 for (int dz = -FALL_NEIGHBOURS; dz <= FALL_NEIGHBOURS; dz++) {
-                    if (dx == 0 && dz == 0) {
+                    // (a neighbour whose plan cannot come within the margin is not planned)
+                    if (dx == 0 && dz == 0 || !mayMeet(false, cx + dx, cz + dz, raw.minX - 6, raw.minZ - 6, raw.maxX + 6, raw.maxZ + 6, true)) {
                         continue;
                     }
                     FallPlan o = rawFall(cx + dx, cz + dz);
@@ -223,6 +417,9 @@ public final class FallPlanner {
             }
             for (int fx = Math.floorDiv(raw.minX - FALL_REACH, FALL_CELL); fx <= Math.floorDiv(raw.maxX + FALL_REACH, FALL_CELL); fx++) {
                 for (int fz = Math.floorDiv(raw.minZ - FALL_REACH, FALL_CELL); fz <= Math.floorDiv(raw.maxZ + FALL_REACH, FALL_CELL); fz++) {
+                    if (!mayMeet(false, fx, fz, raw.minX - 8, raw.minZ - 8, raw.maxX + 8, raw.maxZ + 8, true)) {
+                        continue;
+                    }
                     FallPlan o = rawFall(fx, fz);
                     if (o != null && o.overlaps(raw, 8)) {
                         return null;
@@ -231,7 +428,7 @@ public final class FallPlanner {
             }
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
-                    if (dx == 0 && dz == 0) {
+                    if (dx == 0 && dz == 0 || !mayMeet(true, cx + dx, cz + dz, raw.minX - 6, raw.minZ - 6, raw.maxX + 6, raw.maxZ + 6, true)) {
                         continue;
                     }
                     FallPlan o = rawCascade(cx + dx, cz + dz);
@@ -291,9 +488,41 @@ public final class FallPlanner {
     /** Highest bank the solver may have to raise beside the water. */
     private static final int MAX_BANK = 2;
 
+    /**
+     * Above the highest chance a cell can have to hold a waterfall ({@code (0.08 + 0.34) * 1.3},
+     * see {@link #layFalls}), a roll rules the cell out before anything is sampled.
+     */
+    private static final double MAX_FALL_CHANCE = 0.55;
+
+    /**
+     * The waterfall of a cell: the first of its laid-out candidates (see {@link #layFalls}) that
+     * fits its surroundings and has a place to watch it from.
+     */
     private FallPlan planFall(int cx, int cz) {
+        Laid laid = laid(false, cx, cz);
+        if (laid == null) {
+            return null;
+        }
+        for (FallPlan p : laid.plans) {
+            if (checked(laid.ps, p)) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Lays out a cell's waterfall candidates, in the order {@link #planFall} checks them, or
+     * returns {@code null} if the cell has none. Spots are tried in batches of six, best first: of
+     * each batch the best fall that passes the checks, which are costly (every column of the
+     * footprint, the view) and so run best first and stop at the first that passes; only if none
+     * of a batch passes is the next tried (a stable sort keeps the candidates' order among equal
+     * scores). Every batch is laid out here, so the bounds of all of them are known before any is
+     * checked (see {@link #reach}).
+     */
+    private Laid layFalls(int cx, int cz) {
         double roll = SeedMixer.cellUnit(fallSeed, cx, cz, 0);
-        if (roll > 0.75) {
+        if (roll > MAX_FALL_CHANCE) {
             return null;
         }
         PlanSampler ps = new PlanSampler(model);
@@ -391,10 +620,8 @@ public final class FallPlanner {
             return null;
         }
         cands.sort((a, b) -> Double.compare(b[0], a[0]));
-        // spots tried in batches of six, best first: of each batch the best fall that passes the
-        // checks, which are costly (every column of the footprint, the view) and so run best first
-        // and stop at the first that passes; only if none of a batch passes is the next tried (a
-        // stable sort keeps the candidates' order among equal scores)
+        // spots in batches of six, best first (see above)
+        List<FallPlan> order = new ArrayList<>();
         List<double[]> done = new ArrayList<>();
         int next = 0;
         for (int batch = 0; batch < 3 && next < cands.size(); batch++) {
@@ -417,13 +644,9 @@ public final class FallPlanner {
                 }
             }
             laid.sort((a, b) -> Double.compare(b.score, a.score));
-            for (FallPlan p : laid) {
-                if (checked(ps, p)) {
-                    return p;
-                }
-            }
+            order.addAll(laid);
         }
-        return null;
+        return order.isEmpty() ? null : new Laid(ps, order);
     }
 
     /**
@@ -1289,9 +1512,38 @@ public final class FallPlanner {
     /** Most points of a cascade's course (two blocks apart). */
     private static final int MAX_COURSE = 46;
 
+    /**
+     * Above the highest chance a cell can have to hold a cascade ({@code 0.06 + 0.30}, see
+     * {@link #layCascades}), a roll rules the cell out before anything is sampled.
+     */
+    private static final double MAX_CASCADE_CHANCE = 0.37;
+
+    /**
+     * The cascade of a cell: the first of its laid-out attempts (see {@link #layCascades}) that
+     * fits its surroundings and has a place to watch it from.
+     */
     private FallPlan planCascade(int cx, int cz) {
+        Laid laid = laid(true, cx, cz);
+        if (laid == null) {
+            return null;
+        }
+        for (FallPlan p : laid.plans) {
+            if (fitsCascade(laid.ps, p) && cascadeView(laid.ps, p)) {
+                p.score = p.tiers;
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Lays out a cell's cascade attempts, in the order {@link #planCascade} checks them, or returns
+     * {@code null} if the cell has none. All eight attempts are laid out, so the bounds of all of
+     * them are known before any is checked (see {@link #reach}).
+     */
+    private Laid layCascades(int cx, int cz) {
         double roll = SeedMixer.cellUnit(cascadeSeed, cx, cz, 0);
-        if (roll > 0.4) {
+        if (roll > MAX_CASCADE_CHANCE) {
             return null;
         }
         PlanSampler ps = new PlanSampler(model);
@@ -1308,18 +1560,23 @@ public final class FallPlanner {
         if (roll > chance) {
             return null;
         }
+        List<FallPlan> order = new ArrayList<>();
         for (int attempt = 0; attempt < 8; attempt++) {
             int sx = x0 + 24 + (int) ((CASCADE_CELL - 48) * SeedMixer.cellUnit(cascadeSeed, cx, cz, 1 + 2 * attempt));
             int sz = z0 + 24 + (int) ((CASCADE_CELL - 48) * SeedMixer.cellUnit(cascadeSeed, cx, cz, 2 + 2 * attempt));
-            FallPlan p = tryCascade(ps, cx, cz, sx, sz, attempt);
+            FallPlan p = layCascade(ps, cx, cz, sx, sz, attempt);
             if (p != null) {
-                return p;
+                order.add(p);
             }
         }
-        return null;
+        return order.isEmpty() ? null : new Laid(ps, order);
     }
 
-    private FallPlan tryCascade(PlanSampler ps, int cx, int cz, int sx, int sz, int attempt) {
+    /**
+     * Lays out a cascade from a spring at {@code (sx, sz)}: its course, pools, rocks and bounds;
+     * whether it fits its surroundings is checked afterwards ({@link #planCascade}).
+     */
+    private FallPlan layCascade(PlanSampler ps, int cx, int cz, int sx, int sz, int attempt) {
         int sl = model.seaLevel();
         ColumnSample s = ps.nearest(sx, sz);
         double h0 = ps.height(sx, sz);
@@ -1358,13 +1615,6 @@ public final class FallPlanner {
         cascadeBounds(p);
         p.pool = p.layout.pools[p.tiers - 1].level - 1;
         p.top = p.layout.pools[0].level - 1;
-        if (!fitsCascade(ps, p)) {
-            return null;
-        }
-        if (!cascadeView(ps, p)) {
-            return null;
-        }
-        p.score = p.tiers;
         return p;
     }
 

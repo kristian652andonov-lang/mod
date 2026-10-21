@@ -1396,6 +1396,24 @@ final class FallCourse {
 
     /** Whether a cell of the coarse grid the course may shape meets the given rectangle. */
     boolean meets(int x0, int z0, int x1, int z1) {
+        return meets(minX, minZ, maxX, maxZ, mask, maskW, x0, z0, x1, z1);
+    }
+
+    /** The cells of the coarse grid the course may shape, row by row (see {@link #mayShape}). */
+    boolean[] mask() {
+        return mask;
+    }
+
+    /** Width of {@link #mask} in cells. */
+    int maskWidth() {
+        return maskW;
+    }
+
+    /**
+     * {@link #meets} of a course with the given bounds and {@link #mask}, for what is kept of a
+     * course once it is gone (see {@code FallPlanner}'s reach).
+     */
+    static boolean meets(int minX, int minZ, int maxX, int maxZ, boolean[] mask, int maskW, int x0, int z0, int x1, int z1) {
         x0 = Math.max(x0, minX);
         z0 = Math.max(z0, minZ);
         x1 = Math.min(x1, maxX);
