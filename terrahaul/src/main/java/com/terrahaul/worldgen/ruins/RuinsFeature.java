@@ -36,7 +36,9 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 import net.minecraft.world.level.storage.loot.LootTable;
 
 /**
- * Builds the trail ruins, signposts, lamp posts and sunken ruins planned by {@link RuinSites}.
+ * Builds the trail ruins (broken houses, watchtowers, wells, wagons, shrines, campsites, field
+ * walls, bridge abutments and chapels), signposts, lamp posts and sunken ruins planned by
+ * {@link RuinSites}.
  * <p>
  * Every overworld chunk runs this feature once, in the surface-structures step. A chunk only
  * looks at the trail cell and the sea cell containing it (sites never cross their cell) and
@@ -48,7 +50,8 @@ import net.minecraft.world.level.storage.loot.LootTable;
  * Building a plan column: the ground is found below any trees, plants and snow; foundation
  * columns are filled from it up to the floor course (at most {@link RuinPlan#MAX_FILL} blocks);
  * then the cells are written, leaving tree trunks, block entities and bedrock alone; finally
- * decals are laid on the ground, each only where something solid carries it. Containers get
+ * decals are laid on the ground, each only where something solid carries it (never leaves, except
+ * under the second course of a hedge). Containers get
  * vanilla loot tables, brushable blocks archaeology loot, and signs their text.
  */
 public final class RuinsFeature extends Feature<NoneFeatureConfiguration> {
@@ -72,20 +75,22 @@ public final class RuinsFeature extends Feature<NoneFeatureConfiguration> {
         int z1 = chunk.getMaxBlockZ();
         boolean placed = false;
         TrailSurvey.Cell cell = sites.trailCell(Math.floorDiv(x0, RuinSites.TRAIL_CELL), Math.floorDiv(z0, RuinSites.TRAIL_CELL));
-        TrailRuin ruin = cell.ruin();
-        if (ruin != null && ruin.overlaps(x0, z0, x1, z1) && sites.allowed(ruin)) {
-            placed |= stamp(level, sites.plan(ruin), chunk);
+        for (TrailRuin ruin : cell.ruins()) {
+            if (ruin.overlaps(x0, z0, x1, z1) && sites.allowed(ruin)) {
+                placed |= stamp(level, sites.plan(ruin), chunk);
+            }
         }
         for (Signpost s : cell.signposts()) {
             if (inChunk(chunk, s.x, s.z) && sites.allowed(s)) {
                 placed |= stamp(level, SignpostPlanner.plan(sites, s), chunk);
             }
         }
-        LightStretch lights = cell.lights();
-        if (lights != null && lights.overlaps(x0, z0, x1, z1) && sites.allowed(lights)) {
-            for (int i = 0; i < lights.posts.length; i++) {
-                if (inChunk(chunk, lights.posts[i][0], lights.posts[i][1])) {
-                    placed |= stamp(level, LampPostPlanner.plan(lights, i), chunk);
+        for (LightStretch lights : cell.lights()) {
+            if (lights.overlaps(x0, z0, x1, z1) && sites.allowed(lights)) {
+                for (LightStretch.Post post : lights.posts) {
+                    if (inChunk(chunk, post.x(), post.z())) {
+                        placed |= stamp(level, LampPostPlanner.plan(post), chunk);
+                    }
                 }
             }
         }
@@ -261,7 +266,8 @@ public final class RuinsFeature extends Feature<NoneFeatureConfiguration> {
             return;
         }
         BlockState below = level.getBlockState(pos.set(x, y - 1, z));
-        if (!below.isSolid() || below.is(BlockTags.LEAVES)) {
+        // nothing sits on a tree's leaves, but a hedge grows a second course on its first
+        if (!below.isSolid() || below.is(BlockTags.LEAVES) && part != RuinPart.LEAVES) {
             return;
         }
         BlockState existing = level.getBlockState(pos.set(x, y, z));

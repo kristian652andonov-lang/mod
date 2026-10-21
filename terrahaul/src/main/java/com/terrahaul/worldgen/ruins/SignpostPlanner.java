@@ -11,15 +11,18 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Signposts and what they say. A junction gets a fingerpost: a stripped log with one hanging
- * sign per trail branch, each board pointing along its branch like a finger. A trail end gets a
- * board on a post facing the walkers who arrive.
+ * Signposts and what they say. A junction gets a fingerpost: a post with one hanging sign per
+ * trail branch, each board pointing along its branch like a finger. A trail end gets a board on a
+ * post facing the walkers who arrive. Along long trails stand direction posts, with an arm each
+ * way, and milestones: a dressed stone with a plate facing the path. Posts follow the country: a
+ * stripped log, a log in its bark, a stone pillar in the uplands, a bamboo pole in the jungle.
  * <p>
  * The text is real. Each arm names the destination that lies best in its direction, with its
  * distance: a lake from the lake sites, a volcano, a waterfall, a stone arch, the name of an
- * abandoned homestead (another trail ruin), or what a few rays along the branch run into first
- * (a river, the coast, a canyon, mountains, a marsh). Generic words are translatable, with an
- * English fallback; names and distances are literal.
+ * abandoned homestead (a broken house), a chapel, a watchtower, a well or a ford (other trail
+ * ruins), or what a few rays along the branch run into first (a river, the coast, a canyon,
+ * mountains, a marsh). Generic words are translatable, with an English fallback; names and
+ * distances are literal.
  */
 public final class SignpostPlanner {
     /** One sign: the direction its arm points from the post, its height above the ground and its text. */
@@ -36,26 +39,58 @@ public final class SignpostPlanner {
     public static Board[] boards(RuinSites sites, Signpost s) {
         Board[] b = s.boards;
         if (b == null) {
-            b = s.kind == Signpost.JUNCTION ? junctionBoards(sites, s) : endBoards(sites, s);
+            b = switch (s.kind) {
+                case Signpost.JUNCTION, Signpost.WAYPOST -> junctionBoards(sites, s);
+                case Signpost.MILESTONE -> milestoneBoards(sites, s);
+                default -> endBoards(sites, s);
+            };
             s.boards = b;
         }
         return b;
     }
 
+    /** The materials of a post: a bamboo pole is bamboo whatever the wood around. */
+    private static RuinMaterials postMaterials(Signpost s) {
+        RuinMaterials m = s.materials;
+        return s.style == Signpost.BAMBOO_POST ? new RuinMaterials(m.stone, RuinMaterials.BAMBOO, m.roofWood, m.roofCover, m.leaves) : m;
+    }
+
     /** The post as a grouped plan around its column; heights are relative to the ground there. */
     public static RuinPlan plan(RuinSites sites, Signpost s) {
         Board[] boards = boards(sites, s);
-        RuinPlan p = new RuinPlan(RuinPlan.GROUPED, s.x - 2, -1, s.z - 2, 5, 8, 5, 0, s.materials, false);
+        RuinPlan p = new RuinPlan(RuinPlan.GROUPED, s.x - 2, -1, s.z - 2, 5, 8, 5, 0, postMaterials(s), false);
         p.anchorX = s.x;
         p.anchorZ = s.z;
         long h = s.seed;
         boolean mossy = s.wetness > 0.45;
+        int weather = mossy ? RuinCell.MOSSY : SeedMixer.unit(SeedMixer.mix(h + 5)) < 0.4 ? RuinCell.CRACKED : RuinCell.PLAIN;
         p.set(s.x, 0, s.z, RuinCell.withWeathering(RuinCell.of(RuinPart.FOUNDATION), mossy ? RuinCell.MOSSY : RuinCell.PLAIN));
-        if (s.kind == Signpost.JUNCTION) {
+        if (s.kind == Signpost.MILESTONE) {
+            // a dressed stone with a plate on the side facing the path
+            p.set(s.x, 1, s.z, RuinCell.withWeathering(RuinCell.of(RuinPart.QUOIN), weather));
+            double r = SeedMixer.unit(SeedMixer.mix(h + 1));
+            p.set(s.x, 2, s.z, r < 0.5 ? RuinCell.withWeathering(RuinCell.of(RuinPart.MASONRY_SLAB), weather)
+                : RuinCell.withWeathering(RuinCell.of(RuinPart.MASONRY_WALL), weather));
+            int px = s.x + RuinCell.DX[s.toTrail];
+            int pz = s.z + RuinCell.DZ[s.toTrail];
+            p.set(px, 1, pz, RuinCell.of(RuinPart.WALL_SIGN, s.toTrail));
+            p.extras.add(new RuinPlan.Extra(px, 1, pz, false, null, 0L, boards[0].text));
+        } else if (s.kind == Signpost.JUNCTION || s.kind == Signpost.WAYPOST) {
+            int post = switch (s.style) {
+                case Signpost.BARK_POST, Signpost.BAMBOO_POST -> RuinCell.of(RuinPart.LOG);
+                case Signpost.STONE_POST -> RuinCell.withWeathering(RuinCell.of(RuinPart.MASONRY), weather);
+                default -> RuinCell.of(RuinPart.STRIPPED_LOG);
+            };
             for (int y = 1; y <= 3; y++) {
-                p.set(s.x, y, s.z, RuinCell.of(RuinPart.STRIPPED_LOG));
+                p.set(s.x, y, s.z, post);
             }
-            p.set(s.x, 4, s.z, SeedMixer.unit(SeedMixer.mix(h + 1)) < 0.5 ? RuinCell.of(RuinPart.FENCE) : RuinCell.of(RuinPart.PLANK_SLAB));
+            int cap;
+            if (s.style == Signpost.STONE_POST) {
+                cap = RuinCell.withWeathering(RuinCell.of(RuinPart.MASONRY_SLAB), weather);
+            } else {
+                cap = SeedMixer.unit(SeedMixer.mix(h + 1)) < 0.5 ? RuinCell.of(RuinPart.FENCE) : RuinCell.of(RuinPart.PLANK_SLAB);
+            }
+            p.set(s.x, 4, s.z, cap);
             for (Board b : boards) {
                 int ax = s.x + RuinCell.DX[b.dir];
                 int az = s.z + RuinCell.DZ[b.dir];
@@ -79,7 +114,8 @@ public final class SignpostPlanner {
                 }
             }
         } else {
-            p.set(s.x, 1, s.z, RuinCell.of(RuinPart.FENCE));
+            p.set(s.x, 1, s.z, s.style == Signpost.STONE_POST ? RuinCell.withWeathering(RuinCell.of(RuinPart.MASONRY_WALL), weather)
+                : RuinCell.of(RuinPart.FENCE));
             double ax = Math.cos(s.arms[0]);
             double az = Math.sin(s.arms[0]);
             int rotation = (int) Math.floor(Math.toDegrees(Math.atan2(-ax, az)) * 16.0 / 360.0 + 0.5) & 15;
@@ -176,6 +212,57 @@ public final class SignpostPlanner {
             out.add(new Board(dir, 3, new RuinPlan.SignSpec(t, t.clone(), s.materials.darkWood(), false)));
         }
         return out.toArray(new Board[0]);
+    }
+
+    /**
+     * The plate of a milestone: the destination that lies best along the trail in either
+     * direction, its distance and an arrow pointing the way, as walkers see it from the path.
+     */
+    private static Board[] milestoneBoards(RuinSites sites, Signpost s) {
+        List<Dest> fixed = destinations(sites, s);
+        Dest best = null;
+        double bestScore = Double.MAX_VALUE;
+        int bestArm = 0;
+        for (int i = 0; i < s.arms.length; i++) {
+            double dx = Math.cos(s.arms[i]);
+            double dz = Math.sin(s.arms[i]);
+            List<Dest> cands = new ArrayList<>(fixed);
+            cands.addAll(rays(sites, s, s.arms[i]));
+            for (Dest d : cands) {
+                double bx = d.x - s.nodeX;
+                double bz = d.z - s.nodeZ;
+                double dist = Math.hypot(bx, bz);
+                if (dist < 80) {
+                    continue;
+                }
+                double cos = (bx * dx + bz * dz) / dist;
+                if (cos < Math.cos(Math.toRadians(40))) {
+                    continue;
+                }
+                double score = dist * d.weight * (1.6 - 0.6 * cos);
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = d;
+                    bestArm = i;
+                }
+            }
+        }
+        String[] front;
+        double r = SeedMixer.unit(SeedMixer.mix(s.seed + 7));
+        if (best == null || r < 0.12) {
+            // worn smooth: only the cut of the old figures remains
+            front = r < 0.06 || best == null ? empty() : new String[]{"", "", distance(Math.hypot(best.x - s.nodeX, best.z - s.nodeZ)), ""};
+        } else {
+            // the arrow points the way as seen by someone standing on the path, facing the stone
+            double ax = Math.cos(s.arms[bestArm]);
+            double az = Math.sin(s.arms[bestArm]);
+            int face = RuinCell.opposite(s.toTrail);
+            int right = RuinCell.clockwise(face);
+            double side = ax * RuinCell.DX[right] + az * RuinCell.DZ[right];
+            String dist = distance(Math.hypot(best.x - s.nodeX, best.z - s.nodeZ));
+            front = new String[]{"", best.label, side >= 0 ? dist + " →" : "← " + dist, ""};
+        }
+        return new Board[]{new Board(s.toTrail, 1, new RuinPlan.SignSpec(front, empty(), s.materials.darkWood(), false))};
     }
 
     private static Board[] endBoards(RuinSites sites, Signpost s) {
@@ -279,9 +366,18 @@ public final class SignpostPlanner {
         int tc = RuinSites.TRAIL_CELL;
         for (int cx = Math.floorDiv(x, tc) - 1; cx <= Math.floorDiv(x, tc) + 1; cx++) {
             for (int cz = Math.floorDiv(z, tc) - 1; cz <= Math.floorDiv(z, tc) + 1; cz++) {
-                TrailRuin r = sites.trailCell(cx, cz).ruin();
-                if (r != null && sites.allowed(r)) {
-                    out.add(new Dest(r.name, r.x, r.z, 0.6));
+                for (TrailRuin r : sites.trailCell(cx, cz).ruins()) {
+                    String label = switch (r.kind) {
+                        case TrailRuin.HOUSE -> r.name;
+                        case TrailRuin.CHAPEL -> "@chapel|Chapel";
+                        case TrailRuin.WATCHTOWER -> "@watchtower|Watchtower";
+                        case TrailRuin.WELL -> "@well|Well";
+                        case TrailRuin.BRIDGE -> "@ford|Ford";
+                        default -> null;
+                    };
+                    if (label != null && sites.allowed(r)) {
+                        out.add(new Dest(label, r.x, r.z, r.kind == TrailRuin.HOUSE ? 0.6 : r.kind == TrailRuin.CHAPEL ? 0.55 : 0.7));
+                    }
                 }
             }
         }

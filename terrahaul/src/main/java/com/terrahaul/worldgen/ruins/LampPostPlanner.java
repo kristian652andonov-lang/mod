@@ -29,13 +29,13 @@ public final class LampPostPlanner {
     private LampPostPlanner() {
     }
 
-    /** Condition of post {@code i} of a stretch. */
-    public static int state(LightStretch s, int i) {
-        long h = SeedMixer.hash2(s.seed, i, 77);
+    /** Condition of a post. */
+    public static int state(LightStretch.Post s) {
+        long h = SeedMixer.hash2(s.seed(), 0, 77);
         double r = SeedMixer.unit(h);
-        double intact = Math.max(0.15, 0.6 - 0.5 * s.decay);
+        double intact = Math.max(0.15, 0.6 - 0.5 * s.decay());
         // keep at least every third post lit
-        if (i % 3 == 1 || r < intact) {
+        if (s.keeper() || r < intact) {
             return INTACT;
         }
         double t = (r - intact) / (1.0 - intact);
@@ -48,34 +48,33 @@ public final class LampPostPlanner {
         if (t < 0.6) {
             return WEBBED;
         }
-        if (t < 0.75 && s.style != LightStretch.STONE_LANTERN) {
+        if (t < 0.75 && s.style() != LightStretch.STONE_LANTERN) {
             return BENT;
         }
-        return s.style == LightStretch.STONE_LANTERN ? BARE : FALLEN_POST;
+        return s.style() == LightStretch.STONE_LANTERN ? BARE : FALLEN_POST;
     }
 
-    /** Post {@code i} as a grouped plan around its column; heights are relative to the ground there. */
-    public static RuinPlan plan(LightStretch s, int i) {
-        int[] post = s.posts[i];
-        int x = post[0];
-        int z = post[1];
-        int n = post[2];
+    /** A post as a grouped plan around its column; heights are relative to the ground there. */
+    public static RuinPlan plan(LightStretch.Post s) {
+        int x = s.x();
+        int z = s.z();
+        int n = s.toTrail();
         int along = RuinCell.clockwise(n);
-        long h = SeedMixer.hash2(s.seed, i, 78);
-        int state = state(s, i);
-        RuinMaterials m = s.materials;
-        if (s.style == LightStretch.STONE_LANTERN) {
+        long h = SeedMixer.hash2(s.seed(), 0, 78);
+        int state = state(s);
+        RuinMaterials m = s.materials();
+        if (s.style() == LightStretch.STONE_LANTERN) {
             m = new RuinMaterials(RuinMaterials.ASHLAR, m.wood, m.roofWood, m.roofCover, m.leaves);
-        } else if (s.style == LightStretch.BAMBOO) {
+        } else if (s.style() == LightStretch.BAMBOO) {
             m = new RuinMaterials(m.stone, RuinMaterials.BAMBOO, m.roofWood, m.roofCover, m.leaves);
         }
         RuinPlan p = new RuinPlan(RuinPlan.GROUPED, x - 3, -1, z - 3, 7, 9, 7, 0, m, false);
         p.anchorX = x;
         p.anchorZ = z;
-        boolean mossy = s.wetness > 0.45 && s.decay > 0.35;
+        boolean mossy = s.wetness() > 0.45 && s.decay() > 0.35;
         int footing = RuinCell.withWeathering(RuinCell.of(RuinPart.FOUNDATION), mossy ? RuinCell.MOSSY : RuinCell.PLAIN);
         int fence = RuinCell.of(RuinPart.FENCE);
-        int lantern = RuinCell.withAux(RuinCell.of(RuinPart.LANTERN), s.soulLanterns ? 1 : 0);
+        int lantern = RuinCell.withAux(RuinCell.of(RuinPart.LANTERN), s.soul() ? 1 : 0);
         int hanging = lantern | RuinCell.FLAG;
         int nx = RuinCell.DX[n];
         int nz = RuinCell.DZ[n];
@@ -83,9 +82,9 @@ public final class LampPostPlanner {
         int az = RuinCell.DZ[along];
         // where the lantern would be, as {x, y, z, hanging}
         int[] lamp;
-        switch (s.style) {
+        switch (s.style()) {
             case LightStretch.CHAIN_LAMP, LightStretch.LAMP_ARM -> {
-                boolean chain = s.style == LightStretch.CHAIN_LAMP;
+                boolean chain = s.style() == LightStretch.CHAIN_LAMP;
                 int top = chain ? 5 : 4;
                 p.set(x, 1, z, footing);
                 if (state == FALLEN_POST) {
@@ -97,8 +96,9 @@ public final class LampPostPlanner {
                 int pz = z;
                 for (int y = 2; y <= top; y++) {
                     if (state == BENT && y == top - 1) {
-                        // the post gave way at a joint: it jogs sideways and carries on
-                        p.set(px + ax, y, pz + az, fence);
+                        // the post gave way at a joint: it jogs sideways (a short rail on the
+                        // course below, so the pieces still touch) and carries on
+                        p.set(px + ax, y - 1, pz + az, fence);
                         px += ax;
                         pz += az;
                     }
@@ -118,13 +118,17 @@ public final class LampPostPlanner {
                 p.set(x, 2, z, RuinCell.withWeathering(RuinCell.of(RuinPart.MASONRY_WALL), mossy ? RuinCell.MOSSY : RuinCell.PLAIN));
                 lamp = new int[]{x, 3, z, 0};
                 lantern(p, s, state, lamp, lantern, hanging, x, z, nx, nz, h);
-                if (state != FALLEN_LANTERN || SeedMixer.unit(SeedMixer.mix(h)) < 0.5) {
+                if (RuinCell.part(p.get(x, 3, z)) == RuinPart.LANTERN) {
                     p.set(x, 4, z, RuinCell.of(RuinPart.MASONRY_SLAB));
+                } else {
+                    // with the lantern gone the cap has nothing to rest on: it lies at the foot
+                    int side = SeedMixer.unit(SeedMixer.mix(h)) < 0.5 ? 1 : -1;
+                    p.decals.add(new RuinPlan.Decal(x + side * ax, z + side * az, 1, RuinCell.of(RuinPart.MASONRY_SLAB)));
                 }
             }
             default -> {
                 // post-top lamps: a short wooden post, or a bamboo pole
-                int top = s.style == LightStretch.BAMBOO ? 3 : 2;
+                int top = s.style() == LightStretch.BAMBOO ? 3 : 2;
                 if (state == FALLEN_POST) {
                     p.set(x, 1, z, fence);
                     fallen(p, x, z, -nx, -nz, top - 1, lantern, h);
@@ -155,16 +159,27 @@ public final class LampPostPlanner {
     }
 
     /** The lantern of a standing post, or what is left of it. */
-    private static void lantern(RuinPlan p, LightStretch s, int state, int[] lamp, int lantern, int hanging, int x, int z, int nx, int nz, long h) {
+    private static void lantern(RuinPlan p, LightStretch.Post s, int state, int[] lamp, int lantern, int hanging, int x, int z, int nx, int nz, long h) {
         int cell = lamp[3] == 1 ? hanging : lantern;
         switch (state) {
             case INTACT, BENT -> p.set(lamp[0], lamp[1], lamp[2], cell);
             case WEBBED -> {
                 if (SeedMixer.unit(SeedMixer.mix(h + 7)) < 0.5) {
+                    // the lantern is lost in the web
                     p.set(lamp[0], lamp[1], lamp[2], RuinCell.of(RuinPart.COBWEB));
                 } else {
+                    // a web strung beside the lantern, from the arm it hangs on or the post it stands on
                     p.set(lamp[0], lamp[1], lamp[2], cell);
-                    p.set(lamp[0] - nx, lamp[1], lamp[2] - nz, RuinCell.of(RuinPart.COBWEB) | RuinCell.SOFT);
+                    int along = RuinCell.clockwise(RuinCell.dirOf(nx, nz));
+                    int side = SeedMixer.unit(SeedMixer.mix(h + 8)) < 0.5 ? 1 : -1;
+                    int wy = lamp[1] - 1;
+                    if (lamp[3] == 1) {
+                        wy = lamp[1] + 1;
+                        while (wy < lamp[1] + 3 && !RuinCell.part(p.get(lamp[0], wy, lamp[2])).structural) {
+                            wy++;
+                        }
+                    }
+                    p.set(lamp[0] + side * RuinCell.DX[along], wy, lamp[2] + side * RuinCell.DZ[along], RuinCell.of(RuinPart.COBWEB) | RuinCell.SOFT);
                 }
             }
             case FALLEN_LANTERN -> {
@@ -180,15 +195,34 @@ public final class LampPostPlanner {
         }
     }
 
-    /** A post that fell away from the trail: its pieces lie on the ground, the lantern at the end. */
+    /**
+     * A post that fell away from the trail: its pieces lie on the ground, the lantern at the end.
+     * The post was placed so that everything else stays inside its chunk; what lies on the ground
+     * is shortened where it would reach the next chunk, which builds nothing of this post.
+     */
     private static void fallen(RuinPlan p, int x, int z, int dx, int dz, int length, int lantern, long h) {
         int fence = RuinCell.of(RuinPart.FENCE);
-        for (int k = 1; k <= length; k++) {
+        int k = 1;
+        while (k <= length && sameChunk(x, z, x + dx * k, z + dz * k)) {
             p.decals.add(new RuinPlan.Decal(x + dx * k, z + dz * k, 1, fence));
+            k++;
         }
-        if (SeedMixer.unit(SeedMixer.mix(h + 11)) < 0.5) {
+        int end = k - 1;
+        if (end >= 1 && SeedMixer.unit(SeedMixer.mix(h + 11)) < 0.5) {
             int side = RuinCell.clockwise(RuinCell.dirOf(dx, dz));
-            p.decals.add(new RuinPlan.Decal(x + dx * length + RuinCell.DX[side], z + dz * length + RuinCell.DZ[side], 1, lantern));
+            int lx = x + dx * end + RuinCell.DX[side];
+            int lz = z + dz * end + RuinCell.DZ[side];
+            if (!sameChunk(x, z, lx, lz)) {
+                lx = x + dx * end - RuinCell.DX[side];
+                lz = z + dz * end - RuinCell.DZ[side];
+            }
+            if (sameChunk(x, z, lx, lz)) {
+                p.decals.add(new RuinPlan.Decal(lx, lz, 1, lantern));
+            }
         }
+    }
+
+    private static boolean sameChunk(int x, int z, int x2, int z2) {
+        return x >> 4 == x2 >> 4 && z >> 4 == z2 >> 4;
     }
 }

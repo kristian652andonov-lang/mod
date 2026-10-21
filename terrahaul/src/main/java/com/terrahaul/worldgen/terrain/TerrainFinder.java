@@ -1,6 +1,7 @@
 package com.terrahaul.worldgen.terrain;
 
 import com.terrahaul.worldgen.ruins.RuinSites;
+import com.terrahaul.worldgen.ruins.TrailRuin;
 import com.terrahaul.worldgen.water.FallPlan;
 import com.terrahaul.worldgen.water.FallPlanner;
 import java.util.ArrayList;
@@ -31,7 +32,8 @@ public final class TerrainFinder {
      * A search target and how to look for it. For {@link Kind#GRID} and {@link Kind#HIGHEST} the
      * step is the sampling distance in blocks; for {@link Kind#LAKE_SITE} it holds the
      * {@link LakeType} to look for (0 = any lake) and for {@link Kind#FORMATION} the formation type.
-     * For {@link Kind#RUIN} it is the {@link RuinSites} site type.
+     * For {@link Kind#RUIN} it is a {@link RuinSites#selector}: the site type, and for ruins beside
+     * trails the {@link TrailRuin} kind.
      */
     public record Target(String name, String description, int step, Predicate<ColumnSample> coarse, Predicate<ColumnSample> exact, Kind kind) {
     }
@@ -127,10 +129,26 @@ public final class TerrainFinder {
         add("seagrass_meadow", "a seagrass meadow", 0, null, null, Kind.MARINE);
         add("rocky_seabed", "a rocky sea floor with ledges and boulders", 0, null, null, Kind.MARINE);
         add("sea_grotto", "an underwater grotto", 0, null, null, Kind.MARINE);
-        add("trail_ruin", "a ruined house beside a trail", RuinSites.TRAIL_RUIN, null, null, Kind.RUIN);
-        add("signpost", "a signpost at a trail junction or trail end", RuinSites.SIGNPOST, null, null, Kind.RUIN);
-        add("path_lights", "old lamp posts along a trail", RuinSites.PATH_LIGHTS, null, null, Kind.RUIN);
-        add("sunken_ruin", "sunken ruins on the sea floor", RuinSites.SUNKEN_RUIN, null, null, Kind.RUIN);
+        // ruins beside trails: any of them, then one target per kind (trail_ruin and ruined_house
+        // are other names of broken_house)
+        int ruin = RuinSites.TRAIL_RUIN;
+        add("path_ruin", "a ruin beside a trail (any kind)", RuinSites.selector(ruin, -1), null, null, Kind.RUIN);
+        add("broken_house", "a broken house beside a trail", RuinSites.selector(ruin, TrailRuin.HOUSE), null, null, Kind.RUIN);
+        add("ruined_house", "a broken house beside a trail", RuinSites.selector(ruin, TrailRuin.HOUSE), null, null, Kind.RUIN);
+        add("trail_ruin", "a broken house beside a trail", RuinSites.selector(ruin, TrailRuin.HOUSE), null, null, Kind.RUIN);
+        add("watchtower", "a collapsed watchtower beside a trail", RuinSites.selector(ruin, TrailRuin.WATCHTOWER), null, null, Kind.RUIN);
+        add("abandoned_well", "an abandoned well beside a trail", RuinSites.selector(ruin, TrailRuin.WELL), null, null, Kind.RUIN);
+        add("wagon", "a broken wagon or cart beside a trail", RuinSites.selector(ruin, TrailRuin.WAGON), null, null, Kind.RUIN);
+        add("shrine", "a wayside shrine", RuinSites.selector(ruin, TrailRuin.SHRINE), null, null, Kind.RUIN);
+        add("campsite", "an old campsite beside a trail", RuinSites.selector(ruin, TrailRuin.CAMPSITE), null, null, Kind.RUIN);
+        add("field_walls", "old field walls with a ruined gateway", RuinSites.selector(ruin, TrailRuin.FIELD), null, null, Kind.RUIN);
+        add("old_bridge", "the abutments of a lost bridge where a trail fords a stream", RuinSites.selector(ruin, TrailRuin.BRIDGE), null, null,
+            Kind.RUIN);
+        add("ruined_chapel", "a ruined chapel beside a trail", RuinSites.selector(ruin, TrailRuin.CHAPEL), null, null, Kind.RUIN);
+        add("signpost", "a signpost at a trail junction, trail end or along a trail", RuinSites.selector(RuinSites.SIGNPOST, -1), null, null,
+            Kind.RUIN);
+        add("path_lights", "old lamp posts along a trail", RuinSites.selector(RuinSites.PATH_LIGHTS, -1), null, null, Kind.RUIN);
+        add("sunken_ruin", "sunken ruins on the sea floor", RuinSites.selector(RuinSites.SUNKEN_RUIN, -1), null, null, Kind.RUIN);
 
         // what must be visible around a matching column
         site("great_river", (m, s, x, z) -> {
@@ -198,7 +216,7 @@ public final class TerrainFinder {
             case FORMATION -> findFormation(model, target.step(), x, z, radius, cancelled);
             case OVERHANG -> findOverhang(model, target, x, z, radius, cancelled);
             case MARINE -> com.terrahaul.worldgen.features.marine.MarineFinder.find(model, target.name(), x, z, radius, cancelled);
-            case RUIN -> RuinSites.find(model, target.step(), x, z, radius, cancelled);
+            case RUIN -> RuinSites.find(model, target.step(), target.name(), x, z, radius, cancelled);
         };
     }
 

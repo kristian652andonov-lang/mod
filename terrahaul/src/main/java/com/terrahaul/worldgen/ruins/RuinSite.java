@@ -8,7 +8,10 @@ package com.terrahaul.worldgen.ruins;
  */
 public abstract class RuinSite {
     public final int type;
-    /** Position reported by the finder (a good place to look at the site from). */
+    /**
+     * Position of the site itself (the body of a ruin, a post, the middle post of a stretch). The
+     * finder reports a place to stand and look at it from instead: {@link RuinSites#visit}.
+     */
     public final int x;
     public final int y;
     public final int z;
@@ -20,6 +23,8 @@ public abstract class RuinSite {
     public final int maxZ;
     /** 0 unknown, 1 allowed, 2 refused by the world filter; see {@link RuinSites#allowed}. */
     volatile byte verdict;
+    /** Where the finder sends a player, worked out when first asked; see {@link RuinSites#visit}. */
+    volatile int[] visit;
 
     RuinSite(int type, int x, int y, int z, long seed, int minX, int minZ, int maxX, int maxZ) {
         this.type = type;
