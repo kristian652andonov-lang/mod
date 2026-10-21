@@ -69,14 +69,6 @@ public final class GeologyPalette {
         return family(geology, climate);
     }
 
-    /**
-     * Pale, harder cap rock of hoodoos: white terracotta, a pinkish beige that reads as a layer of
-     * different rock on both red and yellow sandstone (bright white calcite looked like snow).
-     */
-    public static BlockState cap(int climate) {
-        return Blocks.WHITE_TERRACOTTA.defaultBlockState();
-    }
-
     /** A stop (0..2) of a province's family. */
     public static BlockState stop(int geology, int climate, int stop) {
         BlockState[] family = family(geology, climate);

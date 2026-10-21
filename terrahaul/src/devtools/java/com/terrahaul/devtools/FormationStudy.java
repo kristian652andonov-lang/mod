@@ -28,11 +28,14 @@ import javax.imageio.ImageIO;
  *   <li>checks that no block floats: a 6-connected flood fill from the terrain must reach every
  *       formation block;</li>
  *   <li>measures the tops ({@link #summits}): how many end in a point, how many sit as a wide cap
- *       on a narrow neck, and how long their single-block tips are;</li>
+ *       on a narrow neck, how long their single-block tips are and whether a tip widens upwards
+ *       just under the point; for hoodoos also from every pillar's own tip block;</li>
  *   <li>with mode {@code check}, does the flood-fill check and the top measurements (no images)
- *       for many sites of every type and prints the totals.</li>
+ *       for many sites of every type and prints the totals, the planning time and a hash of all
+ *       the blocks (equal hashes: the shapes did not change); {@code check_<type>}, such as
+ *       {@code check_hoodoo}, does the same for one type.</li>
  * </ul>
- * Usage: {@code FormationStudy <seed> <outDir> [arch|hoodoo|spire|sea_stack|check] [count=4] [scale=5]},
+ * Usage: {@code FormationStudy <seed> <outDir> [arch|hoodoo|spire|sea_stack|check|check_<type>] [count=4] [scale=5]},
  * where {@code scale} is the size of a block in pixels in the views.
  * The terrain is the model's heightmap (no 3D detail, caves or water), so this judges shapes and
  * connectivity, not their exact fit into the generated ground.
@@ -62,12 +65,11 @@ public final class FormationStudy {
             }
             return;
         }
-        int type = switch (mode) {
-            case "hoodoo" -> TerrainModel.HOODOO;
-            case "spire" -> TerrainModel.SPIRE;
-            case "sea_stack" -> TerrainModel.SEA_STACK;
-            default -> TerrainModel.ARCH;
-        };
+        if (mode.startsWith("check_")) {
+            check(model, type(mode.substring(6)), count);
+            return;
+        }
+        int type = type(mode);
         List<TerrainModel.FormationSite> sites = sites(model, type, count);
         List<BufferedImage> tiles = new ArrayList<>();
         for (int i = 0; i < sites.size(); i++) {
@@ -87,6 +89,7 @@ public final class FormationStudy {
             for (String blunt : tops.blunt) {
                 System.out.println("    blunt top at " + blunt);
             }
+            printTips(tops.tips);
             BufferedImage iso = isometric(v, scale);
             BufferedImage section = section(v, scale);
             BufferedImage top = topView(v, Math.max(1, scale - 1));
@@ -107,12 +110,39 @@ public final class FormationStudy {
             g.setColor(Color.BLACK);
             g.drawString(String.format(Locale.ROOT, "%s %d  %s  floating=%d", TerrainModel.formationName(type), i, v.description, floating), 6, 14);
             g.drawString("tops: " + tops, 6, 28);
+            if (tops.tips != null) {
+                g.drawString("pillar tips: " + tops.tips, 6, 42);
+            }
             g.dispose();
             ImageIO.write(out, "png", new File(dir, TerrainModel.formationName(type) + "_" + i + ".png"));
             tiles.add(iso);
         }
         ImageIO.write(sheet(tiles), "png", new File(dir, TerrainModel.formationName(type) + "_sheet.png"));
         System.out.println("wrote " + dir);
+    }
+
+    /** The formation type of a mode name; arches for an unknown name. */
+    private static int type(String name) {
+        return switch (name) {
+            case "hoodoo" -> TerrainModel.HOODOO;
+            case "spire" -> TerrainModel.SPIRE;
+            case "sea_stack" -> TerrainModel.SEA_STACK;
+            default -> TerrainModel.ARCH;
+        };
+    }
+
+    /** Prints the measures of the pillar tips of a hoodoo field and the first few odd ones. */
+    private static void printTips(Summits tips) {
+        if (tips == null) {
+            return;
+        }
+        System.out.println("    pillar tips: " + tips);
+        for (String rod : tips.rods) {
+            System.out.println("    rod on a tip at " + rod);
+        }
+        for (String w : tips.widened) {
+            System.out.println("    cross on a neck under the tip at " + w);
+        }
     }
 
     /** Formation sites of one type, nearest to the origin first (rings of formation cells). */
@@ -146,8 +176,13 @@ public final class FormationStudy {
         int empty = 0;
         Summits tops = new Summits();
         long t0 = System.nanoTime();
+        double planMillis = 0.0;
+        long hash = 17;
         for (TerrainModel.FormationSite site : sites) {
             Voxels v = voxelise(model, site);
+            planMillis += v.planMillis;
+            // the blocks of every site, so a change that should leave a type alone can be checked
+            hash = hash * 1_000_003L + Arrays.hashCode(v.grid) * 31L + v.minX * 7919L + v.minY * 104_729L + v.minZ;
             int f = floating(v);
             blocks += v.formationBlocks;
             floating += f;
@@ -168,9 +203,10 @@ public final class FormationStudy {
                 empty++;
             }
         }
-        System.out.printf(Locale.ROOT, "%s: %d sites, %d blocks, %d floating blocks in %d formations, %d empty, %d blocks dropped by the plans, %.1f s%n",
-            TerrainModel.formationName(type), sites.size(), blocks, floating, bad, empty, dropped, (System.nanoTime() - t0) / 1e9);
+        System.out.printf(Locale.ROOT, "%s: %d sites, %d blocks, %d floating blocks in %d formations, %d empty, %d blocks dropped by the plans, %.1f s (planning %.1f s), blocks hash %016x%n",
+            TerrainModel.formationName(type), sites.size(), blocks, floating, bad, empty, dropped, (System.nanoTime() - t0) / 1e9, planMillis / 1e3, hash);
         System.out.println("    tops: " + tops);
+        printTips(tops.tips);
     }
 
     // =========================================================================================
@@ -188,12 +224,30 @@ public final class FormationStudy {
         int widestTop;
         int needleSum;
         int needleMax;
-        /** Tops whose single-block tip is 4 or more layers long: a rod rather than a point. */
-        int rods;
+        /** How many tops have a single-block tip of 0, 1, 2, 3 and 4 or more layers. */
+        final int[] needles = new int[5];
+        /**
+         * Tops where one of the top four layers holds more blocks than the layer under it. Most
+         * are a small cross or T under the point, but two tips that merge a few layers down count
+         * as well, when the neighbour's taper narrows under the join.
+         */
+        int widening;
+        /** Of those, the tops where the narrower layer holds 1 or 2 blocks: a cross or T on a neck, under the point. */
+        int crosses;
+        /** Tops whose top six layers all hold at most 3 blocks: a thin rod rather than a point. */
+        int slender;
+        /** Pillar tips that are not a top of their own (buried or lost); only counted for {@link #tips}. */
+        int missing;
         /** Position and area profile (top layer first) of the first few tops on a neck. */
         final List<String> necks = new ArrayList<>();
         /** The same for the first few tops that are not pointed. */
         final List<String> blunt = new ArrayList<>();
+        /** The same for the first few tops with a single-block tip of 3 or more layers. */
+        final List<String> rods = new ArrayList<>();
+        /** The same for the first few tops with a cross or T on a neck under the point. */
+        final List<String> widened = new ArrayList<>();
+        /** The tips of the hoodoo pillars, each measured from its own tip block; null for other formations. */
+        Summits tips;
 
         void add(Summits o) {
             count += o.count;
@@ -202,13 +256,95 @@ public final class FormationStudy {
             widestTop = Math.max(widestTop, o.widestTop);
             needleSum += o.needleSum;
             needleMax = Math.max(needleMax, o.needleMax);
-            rods += o.rods;
+            for (int i = 0; i < needles.length; i++) {
+                needles[i] += o.needles[i];
+            }
+            widening += o.widening;
+            crosses += o.crosses;
+            slender += o.slender;
+            missing += o.missing;
+            examples(necks, o.necks);
+            examples(blunt, o.blunt);
+            examples(rods, o.rods);
+            examples(widened, o.widened);
+            if (o.tips != null) {
+                if (tips == null) {
+                    tips = new Summits();
+                }
+                tips.add(o.tips);
+            }
+        }
+
+        /** Keeps the first three examples of a kind of top. */
+        private static void examples(List<String> to, List<String> from) {
+            for (String where : from) {
+                if (to.size() < 3) {
+                    to.add(where);
+                }
+            }
+        }
+
+        /** Adds one top, given its area profile (top layer first) and how far above the ground it is. */
+        void measure(List<Integer> profile, String where, int above) {
+            count++;
+            widestTop = Math.max(widestTop, profile.get(0));
+            if (profile.get(0) <= 2 && (profile.size() < 2 || profile.get(1) <= 6)) {
+                pointed++;
+            } else if (blunt.size() < 3) {
+                blunt.add(where);
+            }
+            int needle = 0;
+            while (needle < profile.size() && profile.get(needle) == 1) {
+                needle++;
+            }
+            needleSum += needle;
+            needleMax = Math.max(needleMax, needle);
+            needles[Math.min(needle, 4)]++;
+            if (needle >= 3 && rods.size() < 3) {
+                rods.add(where);
+            }
+            boolean widens = false;
+            boolean cross = false;
+            for (int k = 0; k < 4 && k + 1 < profile.size(); k++) {
+                if (profile.get(k) > profile.get(k + 1)) {
+                    widens = true;
+                    cross |= profile.get(k + 1) <= 2;
+                }
+            }
+            widening += widens ? 1 : 0;
+            crosses += cross ? 1 : 0;
+            if (cross && widened.size() < 3) {
+                widened.add(where);
+            }
+            if (profile.size() >= 6) {
+                boolean thin = true;
+                for (int k = 0; k < 6; k++) {
+                    thin &= profile.get(k) <= 3;
+                }
+                slender += thin ? 1 : 0;
+            }
+            int limit = Math.max(2, Math.min(10, (int) (0.4 * above)));
+            int widest = profile.get(0);
+            for (int k = 1; k < profile.size() && k <= limit; k++) {
+                int a = profile.get(k);
+                if (widest >= 6 && a <= 0.6 * widest && widest - a >= 5) {
+                    capped++;
+                    if (necks.size() < 3) {
+                        necks.add(where);
+                    }
+                    break;
+                }
+                widest = Math.max(widest, a);
+            }
         }
 
         @Override
         public String toString() {
-            return String.format(Locale.ROOT, "%d tops, %d pointed, %d on a neck (cap), widest top layer %d blocks, single-block tip %.1f layers on average (max %d, %d of 4 or more)",
-                count, pointed, capped, widestTop, count == 0 ? 0.0 : needleSum / (double) count, needleMax, rods);
+            return String.format(Locale.ROOT, "%d tops, %d pointed, %d on a neck (cap), widest top layer %d blocks, single-block tip %.1f layers on average"
+                    + " (max %d; 0/1/2/3/4+ layers: %d/%d/%d/%d/%d), %d crosses on a neck under the point, %d widening upwards in all, %d slender%s",
+                count, pointed, capped, widestTop, count == 0 ? 0.0 : needleSum / (double) count, needleMax,
+                needles[0], needles[1], needles[2], needles[3], needles[4], crosses, widening, slender,
+                missing > 0 ? String.format(Locale.ROOT, ", %d without a top of their own", missing) : "");
         }
     }
 
@@ -222,8 +358,16 @@ public final class FormationStudy {
      *   <li>on a neck: within the upper 40% of the top's height (at most 10 layers), a layer is
      *       under 60% of, and at least 5 blocks narrower than, a layer above it: a wide cap on a
      *       narrow neck, the mushroom shape;</li>
-     *   <li>single-block tip: how many layers at the very top hold one block.</li>
+     *   <li>single-block tip: how many layers at the very top hold one block (3 or more read as
+     *       a rod on the point);</li>
+     *   <li>cross: one of the top four layers holds more blocks than the layer under it, and that
+     *       one holds at most 2 blocks: a small cross or T on a neck just under the point
+     *       (widening counts every top where a layer of the four is wider than the one under it,
+     *       which also takes in tips that merge with a neighbour a few layers down);</li>
+     *   <li>slender: the top six layers all hold at most 3 blocks.</li>
      * </ul>
+     * For a hoodoo field the same measures are also taken from every pillar's own tip block
+     * ({@link Summits#tips}), whatever its height above the ground.
      */
     static Summits summits(Voxels v) {
         int plane = v.sx * v.sz;
@@ -285,9 +429,8 @@ public final class FormationStudy {
                 cells[fill[label[idx]]++] = idx % plane;
             }
         }
+        Patches patches = new Patches(label, area, layer, start, cells, plane);
         Summits out = new Summits();
-        int[] mark = new int[next];
-        int stamp = 0;
         for (int l = 1; l < next; l++) {
             if (covered[l]) {
                 continue;
@@ -298,11 +441,56 @@ public final class FormationStudy {
             if (above < SUMMIT_MIN) {
                 continue;
             }
-            // follow the patches under this top down
+            List<Integer> profile = patches.profileUnder(l);
+            out.measure(profile, String.format(Locale.ROOT, "%d %d %d (%d above the ground) %s", v.minX + c0 % v.sx, v.minY + j, v.minZ + c0 / v.sx, above, profile), above);
+        }
+        if (v.tips != null) {
+            out.tips = new Summits();
+            for (int[] t : v.tips) {
+                int i = t[0] - v.minX;
+                int j = t[1] - v.minY;
+                int k = t[2] - v.minZ;
+                int idx = j * plane + k * v.sx + i;
+                int l = i < 0 || j < 0 || k < 0 || i >= v.sx || j >= v.sy || k >= v.sz ? 0 : label[idx];
+                if (l == 0 || covered[l]) {
+                    out.tips.missing++;
+                    continue;
+                }
+                int above = t[1] - v.ground[k * v.sx + i];
+                List<Integer> profile = patches.profileUnder(l);
+                out.tips.measure(profile, String.format(Locale.ROOT, "%d %d %d (%d above the ground) %s", t[0], t[1], t[2], above, profile), above);
+            }
+        }
+        return out;
+    }
+
+    /** The horizontal patches of a formation's layers (see {@link #summits}). */
+    private static final class Patches {
+        final int[] label;
+        final int[] area;
+        final int[] layer;
+        final int[] start;
+        final int[] cells;
+        final int plane;
+        final int[] mark;
+        int stamp;
+
+        Patches(int[] label, int[] area, int[] layer, int[] start, int[] cells, int plane) {
+            this.label = label;
+            this.area = area;
+            this.layer = layer;
+            this.start = start;
+            this.cells = cells;
+            this.plane = plane;
+            this.mark = new int[start.length];
+        }
+
+        /** Area of the top patch {@code l} and of the patches under it, layer by layer down (at most 13 layers). */
+        List<Integer> profileUnder(int l) {
             List<Integer> profile = new ArrayList<>();
             profile.add(area[l]);
             List<Integer> current = List.of(l);
-            for (int jj = j - 1; jj >= 0 && profile.size() <= 12; jj--) {
+            for (int jj = layer[l] - 1; jj >= 0 && profile.size() <= 12; jj--) {
                 stamp++;
                 List<Integer> below = new ArrayList<>();
                 int a = 0;
@@ -322,36 +510,8 @@ public final class FormationStudy {
                 profile.add(a);
                 current = below;
             }
-            out.count++;
-            out.widestTop = Math.max(out.widestTop, profile.get(0));
-            String where = String.format(Locale.ROOT, "%d %d %d (%d above the ground) %s", v.minX + c0 % v.sx, v.minY + j, v.minZ + c0 / v.sx, above, profile);
-            if (profile.get(0) <= 2 && (profile.size() < 2 || profile.get(1) <= 6)) {
-                out.pointed++;
-            } else if (out.blunt.size() < 3) {
-                out.blunt.add(where);
-            }
-            int needle = 0;
-            while (needle < profile.size() && profile.get(needle) == 1) {
-                needle++;
-            }
-            out.needleSum += needle;
-            out.needleMax = Math.max(out.needleMax, needle);
-            out.rods += needle >= 4 ? 1 : 0;
-            int limit = Math.max(2, Math.min(10, (int) (0.4 * above)));
-            int widest = profile.get(0);
-            for (int k = 1; k < profile.size() && k <= limit; k++) {
-                int a = profile.get(k);
-                if (widest >= 6 && a <= 0.6 * widest && widest - a >= 5) {
-                    out.capped++;
-                    if (out.necks.size() < 3) {
-                        out.necks.add(where);
-                    }
-                    break;
-                }
-                widest = Math.max(widest, a);
-            }
+            return profile;
         }
-        return out;
     }
 
     // =========================================================================================
@@ -374,6 +534,8 @@ public final class FormationStudy {
         int dropped;
         double planMillis;
         String description = "";
+        /** The tip block of every hoodoo pillar (x, y, z), or null for other formations. */
+        List<int[]> tips;
         /** Section line: start point and direction in the xz plane. */
         double sectionX;
         double sectionZ;
@@ -436,9 +598,11 @@ public final class FormationStudy {
                 maxY = f.maxY;
                 baseLow = Integer.MAX_VALUE;
                 double tallest = 0.0;
+                v.tips = new ArrayList<>();
                 for (FormationShapes.Hoodoo p : f.pillars) {
                     baseLow = Math.min(baseLow, p.base);
                     tallest = Math.max(tallest, p.height);
+                    v.tips.add(new int[]{p.tipX(), p.base + p.apex, p.tipZ()});
                 }
                 FormationShapes.Column[] column = new FormationShapes.Column[1];
                 int[] at = {Integer.MIN_VALUE, Integer.MIN_VALUE};

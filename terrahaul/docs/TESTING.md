@@ -106,6 +106,14 @@ Each part of this round was also checked with the pure-Java devtools on the terr
   are nubs on fin crests and ledges), and none of the old capped profile (a wide layer over a
   narrow neck) is left: 4-5 flags per seed, all where two neighbouring tips touch or the ribs
   narrow a slender pillar well below its point; no sea stack head sits over its wave notch.
+- `formationStudy check_hoodoo` on the hoodoo points (60 fields on each of seeds 12345, 42, 1
+  and -7777, 5 807 pillar tips, each measured from its own tip block): the single block of a tip
+  stands on at most one more single block (before: 606 tips ended in a 1x1 post three layers
+  tall and 6 in one four layers tall), no layer under a point is wider than the one under it
+  on a one- or two-block neck (before: 312 small crosses and Ts), 0 floating blocks. Arches,
+  spires and sea stacks are unchanged block for block (equal block hashes). Planning a field
+  takes less than half as long as before the points were fixed (11.5 s against 26.0 s for the
+  240 fields), and less than before the points were added at all.
 - `formationStudy`, `fadeStudy`, `seaFloorStudy`, `waterStudy`, `volcanoStudy`, `peakStudy`:
   renders and statistics reviewed by eye.
 - `SeedMixer.hash2`: no collisions among 361 201 cells (mirrored cells collided before, which made

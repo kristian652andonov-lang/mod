@@ -598,7 +598,7 @@ public final class FormationShapes {
                     continue;
                 }
                 Hoodoo p = new Hoodoo(hx, hz, (int) Math.floor(base), height, r0, beadAmp, shoulder, shoulderRound, point, flute,
-                    tipX, tipZ, leanX * height, leanZ * height, aspect, rot, flare, this::bead);
+                    tipX, tipZ, leanX * height, leanZ * height, aspect, rot, flare, this::bead, off);
                 p.along = along;
                 p.finRoll = finRoll;
                 p.finHeight = finHeight;
@@ -654,6 +654,16 @@ public final class FormationShapes {
 
         public static HoodooField plan(TerrainModel model, TerrainModel.FormationSite site) {
             return new HoodooField(model, site);
+        }
+
+        /**
+         * The field's fine roughness at a block, within about -0.8..0.8: it frays the pillars and
+         * fins (a pillar also reads it under the blocks of its point, see {@link Hoodoo#solid}).
+         *
+         * @param off the field's noise offset
+         */
+        static double roughness(double off, int bx, int y, int bz) {
+            return 0.55 * ROUGH.noise3(bx * 0.3 + off, y * 0.25, bz * 0.3) + 0.25 * ROUGH.noise3(bx * 0.7 - off, y * 0.7, bz * 0.7);
         }
 
         /** Hardness of the bed at height {@code y}, -1 (soft) .. 1 (hard); the same on every pillar. */
@@ -716,7 +726,7 @@ public final class FormationShapes {
                 return AIR;
             }
             double bead = bead(y);
-            double n = 0.55 * ROUGH.noise3(bx * 0.3 + off, y * 0.25, bz * 0.3) + 0.25 * ROUGH.noise3(bx * 0.7 - off, y * 0.7, bz * 0.7);
+            double n = roughness(off, bx, y, bz);
             int result = AIR;
             for (Hoodoo p : column.pillars) {
                 if (p.near(bx, y, bz) && p.solid(bx, y, bz, n)) {
@@ -759,15 +769,40 @@ public final class FormationShapes {
      * on a neck.
      * <p>
      * The spine, one block per layer from the foot to the tip, joined face to face, is always
-     * rock, so the noise can fray the point but never cut it off.
+     * rock, so the noise can fray the point but never cut it off. So is everything within the
+     * least radius of the axis ({@link #tipFloor}): {@link #TIP_FLOOR} down the pillar, a block
+     * and its neighbours, so the noise never wears a slender pillar to a stalk under a wider
+     * point. The point itself is built so that it reads as a point and nothing else:
+     * <ul>
+     *   <li>under the tip the least radius widens by {@link #TIP_SLOPE} a layer, so the single
+     *       block of the tip stands on at most one more single block: no 1x1 rod on the
+     *       point;</li>
+     *   <li>through its top layers ({@link #TIP_LAYERS}) every block stands on rock of this
+     *       pillar in the layer below (the spine and the least radius of each layer are carried
+     *       down through them), so the point never widens upwards into a small cross or T on a
+     *       one-block neck.</li>
+     * </ul>
      */
     public static final class Hoodoo {
         /** Largest relative swelling of the broad bulges. */
         private static final double BULGE = 0.16;
-        /** Least widening of the point per layer below the tip, in blocks of radius... */
-        private static final double TIP_SLOPE = 0.4;
+        /**
+         * Least widening of the point per layer below the tip, in blocks of radius: two layers
+         * under the tip the least radius (1.1) holds the block nearest the axis and a neighbour...
+         */
+        private static final double TIP_SLOPE = 0.55;
         /** ...up to this radius, where a layer holds a block and its neighbours. */
         private static final double TIP_FLOOR = 1.3;
+        /**
+         * Layers under the tip block that are built as the point (see the class comment): the
+         * blocks of this many layers under the tip, and of the tip, stand on rock.
+         */
+        private static final int TIP_LAYERS = 4;
+        /**
+         * Largest size of the noise this shape uses ({@link SimplexNoise#noise3} stays within
+         * about 0.98), for the bounds that let most blocks skip the noise.
+         */
+        private static final double NOISE_MAX = 1.0;
         public final int x;
         public final int z;
         public final int base;
@@ -795,11 +830,29 @@ public final class FormationShapes {
         final double flare;
         /** Noise offset of this pillar's ribs and bulges, so neighbours differ. */
         final double off;
+        /** Noise offset of the field's fine roughness (see {@link HoodooField#roughness}). */
+        final double fieldOff;
         /** Furthest a block above the foot can lie from the axis, the noise included. */
         final double reach;
         final int ext;
         /** Radius of every layer from the base to the tip, before the ribs, bulges and roughness. */
         private final double[] profile;
+        /** The axis in every layer from the base to the tip, and the block nearest to it. */
+        private final double[] axisX;
+        private final double[] axisZ;
+        private final int[] spineX;
+        private final int[] spineZ;
+        /** The talus flare added to the radius of every layer. */
+        private final double[] flareAt;
+        /**
+         * Least and greatest radius of every layer that the ribs and bulges can give, the flare
+         * included and the fine roughness left out: within the one a block is rock, beyond the
+         * other it is not, and only between them is the noise worth evaluating.
+         */
+        private final double[] inner;
+        private final double[] outer;
+        /** Furthest a block of each layer can lie from the axis, the noise and the core included (see {@link #near}). */
+        private final double[] bound;
         double along;
         double finRoll;
         double finHeight;
@@ -808,10 +861,11 @@ public final class FormationShapes {
          * @param tipU direction and size of the tip offset along x, -1..1 of the largest offset
          * @param tipV the same along z
          * @param bead the field's bed hardness by height (see {@link HoodooField#bead})
+         * @param fieldOff the field's noise offset (see {@link HoodooField#roughness})
          */
         Hoodoo(int x, int z, int base, double height, double r0, double beadAmp, double shoulder, double round, double point,
                double flute, double tipU, double tipV, double leanX, double leanZ, double aspect, double rot, double flare,
-               IntToDoubleFunction bead) {
+               IntToDoubleFunction bead, double fieldOff) {
             this.x = x;
             this.z = z;
             this.base = base;
@@ -828,6 +882,7 @@ public final class FormationShapes {
             this.rc = Math.cos(rot);
             this.rs = Math.sin(rot);
             this.flare = flare;
+            this.fieldOff = fieldOff;
             this.apex = Math.max(1, (int) Math.floor(height));
             this.top = base + apex + 1;
             // the tip leans off the axis by up to about half the shoulder's radius, but never so
@@ -854,8 +909,54 @@ public final class FormationShapes {
             // tip the radius widens by at least TIP_SLOPE a layer up to TIP_FLOOR (this floor
             // never grows upwards either, so the profile stays free of waists)
             for (int yy = 0; yy <= apex; yy++) {
-                profile[yy] = Math.max(profile[yy], Math.min(TIP_SLOPE * (apex - yy), TIP_FLOOR));
+                profile[yy] = Math.max(profile[yy], tipFloor(yy));
             }
+            this.axisX = new double[apex + 1];
+            this.axisZ = new double[apex + 1];
+            this.spineX = new int[apex + 1];
+            this.spineZ = new int[apex + 1];
+            this.flareAt = new double[apex + 1];
+            this.inner = new double[apex + 1];
+            this.outer = new double[apex + 1];
+            for (int yy = 0; yy <= apex; yy++) {
+                double t = rel(yy);
+                double s = taperAt(t);
+                axisX[yy] = x + leanX * t * t + tipX * s * s;
+                axisZ[yy] = z + leanZ * t * t + tipZ * s * s;
+                spineX[yy] = (int) Math.round(axisX[yy]);
+                spineZ[yy] = (int) Math.round(axisZ[yy]);
+                double f = Math.max(0.0, 1.0 - t / 0.18);
+                flareAt[yy] = flare * f * f;
+                double r = profile[yy];
+                double k = Math.min(1.0, r * 0.5);
+                inner[yy] = r * (1.0 - k * flute * NOISE_MAX) * (1.0 - k * BULGE * NOISE_MAX) + flareAt[yy];
+                outer[yy] = r * (1.0 + k * flute * NOISE_MAX) * (1.0 + k * BULGE * NOISE_MAX) + flareAt[yy];
+            }
+            // the bound of each layer: the shape with the largest roughness (0.8 of the noise),
+            // and the core (see core), which in the point takes in the layers above
+            this.bound = new double[apex + 1];
+            for (int yy = 0; yy <= apex; yy++) {
+                double b = outer[yy] + 0.8 * NOISE_MAX;
+                for (int k = yy; k <= coreTop(yy); k++) {
+                    b = Math.max(b, Math.hypot(spineX[k] - axisX[yy], spineZ[k] - axisZ[yy]));
+                    if (k < apex) {
+                        b = Math.max(b, Math.hypot(spineX[k + 1] - axisX[yy], spineZ[k] - axisZ[yy]));
+                        b = Math.max(b, Math.hypot(spineX[k + 1] - axisX[yy], spineZ[k + 1] - axisZ[yy]));
+                    }
+                    b = Math.max(b, Math.hypot(axisX[k] - axisX[yy], axisZ[k] - axisZ[yy]) + tipFloor(k));
+                }
+                bound[yy] = b + 1.0E-6;
+            }
+        }
+
+        /** Least radius of the layer {@code yy} blocks above the base (see the class comment). */
+        private double tipFloor(int yy) {
+            return Math.min(TIP_SLOPE * (apex - yy), TIP_FLOOR);
+        }
+
+        /** Highest layer whose core reaches down to the layer {@code yy} (see {@link #core}). */
+        private int coreTop(int yy) {
+            return yy >= apex - TIP_LAYERS ? apex : yy;
         }
 
         /**
@@ -872,18 +973,19 @@ public final class FormationShapes {
             return t > shoulder ? (t - shoulder) / (1.0 - shoulder) : 0.0;
         }
 
-        /** X of the axis {@code yy} blocks above the base. */
-        private double axisX(double yy) {
-            double t = rel(yy);
-            double s = taperAt(t);
-            return x + leanX * t * t + tipX * s * s;
+        /** The layer of the axis tables for {@code yy}: below the base the axis stands at the foot. */
+        private int layer(int yy) {
+            return Math.max(0, Math.min(apex, yy));
         }
 
-        /** Z of the axis {@code yy} blocks above the base. */
-        private double axisZ(double yy) {
-            double t = rel(yy);
-            double s = taperAt(t);
-            return z + leanZ * t * t + tipZ * s * s;
+        /** X of the tip block, the top of the spine (it is always rock). */
+        public int tipX() {
+            return spineX[apex];
+        }
+
+        /** Z of the tip block. */
+        public int tipZ() {
+            return spineZ[apex];
         }
 
         /** Whether the pillar can have a block at {@code (bx, y, bz)}: a bound that ignores the noise. */
@@ -892,11 +994,12 @@ public final class FormationShapes {
             if (Math.abs(bx - x) > ext || Math.abs(bz - z) > ext || yy > apex) {
                 return false;
             }
-            double ex = bx - axisX(yy);
-            double ez = bz - axisZ(yy);
+            int l = layer(yy);
+            double ex = bx - axisX[l];
+            double ez = bz - axisZ[l];
             // the elliptical distance is never below the plain one (aspect <= 1)
-            double bound = yy < 0 ? r0 + flare + 5.0 : reach;
-            return ex * ex + ez * ez <= bound * bound;
+            double b = yy < 0 ? r0 + flare + 5.0 : bound[yy];
+            return ex * ex + ez * ez <= b * b;
         }
 
         /**
@@ -908,34 +1011,67 @@ public final class FormationShapes {
             if (yy < 0 || yy > apex) {
                 return false;
             }
-            int ax = (int) Math.round(axisX(yy));
-            int az = (int) Math.round(axisZ(yy));
+            int ax = spineX[yy];
+            int az = spineZ[yy];
             if (bx == ax && bz == az) {
                 return true;
             }
             if (yy == apex) {
                 return false;
             }
-            int nx = (int) Math.round(axisX(yy + 1));
-            int nz = (int) Math.round(axisZ(yy + 1));
+            int nx = spineX[yy + 1];
+            int nz = spineZ[yy + 1];
             return bx == nx && (bz == az || bz == nz);
+        }
+
+        /**
+         * Whether a block is always rock: on the spine or within the least radius of the axis
+         * ({@link #tipFloor}). In the point this holds for the layers above as well, so carried
+         * down this way every block of the point's core stands on another.
+         */
+        private boolean core(int bx, int yy, int bz) {
+            if (yy < 0) {
+                return false;
+            }
+            for (int k = yy; k <= coreTop(yy); k++) {
+                if (spine(bx, k, bz)) {
+                    return true;
+                }
+                double ex = bx - axisX[k];
+                double ez = bz - axisZ[k];
+                double r = tipFloor(k);
+                if (ex * ex + ez * ez <= r * r) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /**
          * Whether this pillar has rock at a block.
          *
-         * @param n the field's fine roughness at this block
+         * @param n the field's fine roughness at this block ({@link HoodooField#roughness})
          */
         boolean solid(int bx, int y, int bz, double n) {
             int yy = y - base;
             if (yy > apex) {
                 return false;
             }
-            if (spine(bx, yy, bz)) {
+            if (core(bx, yy, bz)) {
                 return true;
             }
-            double ex = bx - axisX(yy);
-            double ez = bz - axisZ(yy);
+            if (!shape(bx, y, bz, yy, n)) {
+                return false;
+            }
+            // in the point a block needs rock under it, so the point never widens upwards
+            return yy <= apex - TIP_LAYERS || solid(bx, y - 1, bz, HoodooField.roughness(fieldOff, bx, y - 1, bz));
+        }
+
+        /** Whether a block lies within the pillar's shape: the profile, ribs, bulges, flare and roughness. */
+        private boolean shape(int bx, int y, int bz, int yy, double n) {
+            int l = layer(yy);
+            double ex = bx - axisX[l];
+            double ez = bz - axisZ[l];
             double pu = ex * rc + ez * rs;
             double pv = (-ex * rs + ez * rc) / aspect;
             double d = Math.sqrt(pu * pu + pv * pv);
@@ -945,8 +1081,17 @@ public final class FormationShapes {
             }
             double r = profile[yy];
             if (d <= 1.0 && r >= 1.6) {
-                // a sturdy core wherever the pillar is broad, so the noise never leaves a thin stalk
+                // a sturdy core wherever the pillar is broad (down the pillar the least radius
+                // covers it, but under a blunt point it is wider)
                 return true;
+            }
+            // most blocks lie well inside or well outside: the ribs and bulges cannot change them
+            // (the limit below grows with the radius, so the least and greatest radius bound it)
+            if (d <= inner[yy] + n * Math.min(1.0, 0.4 + 0.3 * inner[yy])) {
+                return true;
+            }
+            if (d > outer[yy] + n * Math.min(1.0, 0.4 + 0.3 * outer[yy])) {
+                return false;
             }
             if (d > 1.0E-6) {
                 // ribs and flutes: the radius changes with the direction from the axis, slowly
@@ -958,8 +1103,7 @@ public final class FormationShapes {
                 double k = Math.min(1.0, r * 0.5);
                 r *= (1.0 + k * flute * rib) * (1.0 + k * BULGE * bulge);
             }
-            double f = Math.max(0.0, 1.0 - rel(yy) / 0.18);
-            r += flare * f * f;
+            r += flareAt[yy];
             // near the tip the fine roughness frays the point rather than burying it in lumps
             return d <= r + n * Math.min(1.0, 0.4 + 0.3 * r);
         }
