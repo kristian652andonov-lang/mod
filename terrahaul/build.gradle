@@ -242,9 +242,10 @@ tasks.register('ruinStudy', JavaExec) {
 }
 
 // terrain audits (development only): sheer walls and slots per landform, finder target checks,
-// floating fragments of the 3D terrain density, a line transect, a perspective snapshot and
-// wetland statistics of the model
-['wallAudit': 'WallAudit', 'finderAudit': 'FinderAudit', 'fragmentAudit': 'FragmentAudit', 'transect': 'Transect', 'snapshot': 'Snapshot', 'wetlandStats': 'WetlandStats'].each { name, cls ->
+// floating fragments of the 3D terrain density, a line transect, a perspective snapshot,
+// wetland statistics of the model and the shape of its mountains (slopes, ledges, crests)
+['wallAudit': 'WallAudit', 'finderAudit': 'FinderAudit', 'fragmentAudit': 'FragmentAudit', 'transect': 'Transect', 'snapshot': 'Snapshot', 'wetlandStats': 'WetlandStats',
+ 'mountainShapeStats': 'MountainShapeStats'].each { name, cls ->
     tasks.register(name, JavaExec) {
         group = 'terrahaul'
         classpath = sourceSets.devtools.runtimeClasspath

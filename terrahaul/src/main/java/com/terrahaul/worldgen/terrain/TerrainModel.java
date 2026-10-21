@@ -68,9 +68,11 @@ public final class TerrainModel {
     private final Fractal styleA;
     private final Fractal styleB;
     private final Fractal alpineRidges;
-    private final Fractal ancientDomes;
+    private final Fractal ancientRidges;
     private final Fractal mountainDetail;
     private final MountainRelief mountainRelief;
+    /** Pointed sub-peaks and notches along crests (see {@link #crestTeeth}). */
+    private final Fractal crestTeethNoise;
     /** Strength (0..1) of the colossal massif of each massif grid cell, by cell. */
     private final ConcurrentHashMap<Long, Double> massifSites = new ConcurrentHashMap<>();
     private final Fractal valleyNoise;
@@ -147,9 +149,11 @@ public final class TerrainModel {
         this.styleA = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         this.styleB = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         this.alpineRidges = new Fractal(SeedMixer.derive(seed, ++salt), 3, 2.1, 0.45);
-        this.ancientDomes = new Fractal(SeedMixer.derive(seed, ++salt), 5, 2.0, 0.45);
+        this.ancientRidges = new Fractal(SeedMixer.derive(seed, ++salt), 5, 2.0, 0.45);
         this.mountainDetail = new Fractal(SeedMixer.derive(seed, ++salt), 5, 2.0, 0.5);
         this.mountainRelief = new MountainRelief(SeedMixer.derive(seed, 0x6D6F756E7461696EL));
+        // a fixed salt outside the running sequence, so adding it changed no other field
+        this.crestTeethNoise = new Fractal(SeedMixer.derive(seed, 7203), 2, 2.0, 0.5);
         this.valleyNoise = new Fractal(SeedMixer.derive(seed, ++salt), 3, 2.0, 0.45);
         this.meadowNoise = new Fractal(SeedMixer.derive(seed, ++salt), 2, 2.0, 0.5);
         this.hillNoise = new Fractal(SeedMixer.derive(seed, ++salt), 5, 2.0, 0.5);
@@ -231,23 +235,66 @@ public final class TerrainModel {
     private static final double MOUNTAIN_FLOOR = 0.16;
     /** Spacing of pyramidal horn peaks in ordinary ranges. */
     private static final double HORN_CELL = 1100.0;
+    /**
+     * Radius of a horn between its arêtes, as the least share of the reach of its arêtes (up to a
+     * quarter more): the smaller, the deeper the faces between the arêtes are hollowed and the
+     * sharper the arêtes stand out.
+     */
+    private static final double HORN_FACE = 0.4;
     /** Spacing of colossal massifs (only those inside colossal regions rise). */
     private static final double MASSIF_CELL = 5600.0;
     /** Reach of a massif's arêtes as a fraction of {@link #MASSIF_CELL}. */
     private static final double MASSIF_REACH = 0.68;
+    /**
+     * Radius of a massif between its arêtes (as {@link #HORN_FACE}) and the power of its concave
+     * profile: steeper below the summit, gentler at the foot.
+     */
+    private static final double MASSIF_FACE = 0.38;
+    private static final double MASSIF_POWER = 2.3;
     /** Offset of the massif grid's hash seed from the horns' one. */
     private static final long MASSIF_CHANNEL = 101L;
     /** Extra relief of mountain walls over ordinary ranges. */
     private static final double WALL_BOOST = 0.3;
     /** Greatest relief of the ridges and peaks on a massif's flanks (half-way up), as a share of its height. */
     private static final double MASSIF_RELIEF = 0.22;
-    /** Spacing of the coarsest gullies and spurs on mountain flanks, and their greatest depth. */
-    private static final double GULLY_CELL = 540.0;
-    private static final double GULLY_DEPTH = 45.0;
+    /** Spacing of the coarsest gullies and spurs on mountain flanks, their greatest depth and the number of scales. */
+    private static final double GULLY_CELL = 420.0;
+    private static final double GULLY_DEPTH = 60.0;
+    private static final int GULLY_OCTAVES = 3;
+    /** Greatest gully amplitude as a share of the flank's height above its valley floor (see {@link #mountains}). */
+    private static final double GULLY_FLOOR_SHARE = 0.24;
+    /** Greatest height of the sub-peaks and depth of the notches along crests (see {@link #crestTeeth}). */
+    private static final double TEETH_HEIGHT = 20.0;
     /** Median gradient of 3-octave fBm noise, in noise units per unit of its input. */
     private static final double NOISE_GRADIENT = 2.9;
-    /** Step of the finite differences that give the gradient of the mountain relief. */
-    private static final double FD = 24.0;
+    /**
+     * Step of the finite differences that give the gradient of the mountain relief, which the
+     * gullies follow. The orientation of the slopes measured across a small triangle swings with
+     * every bend of a shoulder or crest, and the gully stripes swing with it (their phase is many
+     * times more sensitive to a turn than to a shift): over 24 blocks they crowded into needles and
+     * narrow slots wherever a crest curved.
+     */
+    private static final double FD = 48.0;
+    /**
+     * Least height of a mountain wall's crest as a share of the relief: it rises to the full relief
+     * where the range's crests and horns meet it and sags to this share between them, so the crest
+     * climbs to pointed summits and drops into cols rather than running level for kilometres.
+     */
+    private static final double WALL_CREST_LOW = 0.45;
+    /** Scale of the noise whose zero lines raise the summits along a mountain wall's crest (see {@link #rangeShape}). */
+    private static final double WALL_TOOTH = 640.0;
+    /**
+     * Share of the relief of an ancient range, compared with an alpine one: lower, but still steep
+     * enough that its crests are sharp.
+     */
+    private static final double ANCIENT_RELIEF = 0.85;
+    /** Scale of the noise whose zero lines raise the summits along an ancient range's crests (see {@link #rangeShape}). */
+    private static final double ANCIENT_TOOTH = 420.0;
+    /**
+     * How much of the range rising above a main valley's trough its sides keep (see
+     * {@link #rangeShape}).
+     */
+    private static final double TROUGH_KEEP = 0.5;
     /** Width of a mountain wall's face as a multiple of its height (a face of about 50 degrees). */
     private static final double WALL_FACE = 0.85;
     /** Height above the valley floors up to which horns rise; taller ranges carry them on their crests. */
@@ -306,6 +353,8 @@ public final class TerrainModel {
         double wallSide = 0.0;
         // the wall as a landform reported to the classification: its crest and face only
         double wallFace = 0.0;
+        // how mountainous the wall makes the column (before the coast fade, see below)
+        double wallMask = 0.0;
         double wallW = beltSeg * smoothstep(0.0, 0.25, styleB.fbm(wx / (es * 4.0) + 50.0, wz / (es * 4.0) - 20.0)) * coastFade;
         if (wallW > 0.0) {
             // signed distance from the belt line, and which side carries the face (it changes
@@ -322,16 +371,22 @@ public final class TerrainModel {
             // nor slope is cut off where the weight ends. Across all of it the range keeps the
             // height it has on the belt line: the mask falls off within a few hundred blocks of
             // the line and would squeeze the wall into a loaf with two steep sides.
-            double lineMask = smoothstep(-0.2, -0.82, clamp(erosionLow - 1.4 * beltSeg, -1.0, 1.0)) * coastFade;
+            // (its extent is judged on its height before the fade towards the coast: judged after
+            // it, the band shrank wherever the coast fade fell, and the mountains ended in a face
+            // that fell twice as fast)
+            double lineMask = smoothstep(-0.2, -0.82, clamp(erosionLow - 1.4 * beltSeg, -1.0, 1.0));
             double height = amp * lineMask * (1.0 - MOUNTAIN_FLOOR) * (1.0 + WALL_BOOST);
             double front = WALL_FACE * height + 80.0;
+            // (the band reaches beyond the back slope itself, which is 160 + 1.4 times the height
+            // long, see rangeShape: the range behind the wall is weighed in as well)
             double back = 200.0 + 2.4 * height;
             // (judged on the field value at its typical scale, which never changes faster than
             // the distance itself)
             double bandU = beltRaw * bs / NOISE_GRADIENT;
             wallW *= lerp(wallSide, wallBand(bandU, front, back), wallBand(-bandU, front, back));
             wallFace = wallW * lerp(wallSide, wallCore(wallU, front, back), wallCore(-wallU, front, back));
-            mountain = Math.max(mountain, wallW * lineMask);
+            wallMask = wallW / coastFade * lineMask;
+            mountain = Math.max(mountain, wallW * lineMask * coastFade);
         }
         // mountain walls are young, alpine ranges
         double alpineW = Math.max(wallW, smoothstep(-0.28, 0.22, gA + 0.7 * (rangeI - 0.5) + 1.2 * colossal));
@@ -340,6 +395,14 @@ public final class TerrainModel {
         double shape = 0.0;
         double meadow = 0.0;
         double mountainHeight = 0.0;
+        mt.uneroded = 0.0;
+        mt.gully = 0.0;
+        mt.ledge = 0.0;
+        mt.gullyDepth = 0.0;
+        mt.relief = 0.0;
+        mt.rangeS = 0.0;
+        mt.massif = 0.0;
+        mt.stand = 0.0;
         // colossal massifs: a huge summit pyramid whose arêtes reach out 3000-4800 blocks,
         // added on top of the range, so subsidiary peaks and ridges of the range stand on its
         // flanks and it rises from a base far wider than it is high
@@ -348,7 +411,7 @@ public final class TerrainModel {
             // massifs are young, alpine mountains
             alpineW = Math.max(alpineW, smoothstep(0.0, 0.3, massif));
             ancientW = 1.0 - alpineW;
-            double ampEff = amp * (alpineW + ancientW * 0.62);
+            double ampEff = amp * (alpineW + ancientW * ANCIENT_RELIEF);
             double m13 = Math.pow(mountain, 1.3);
             // valley floors rise with the range; the crests stand `relief` blocks above them,
             // higher along mountain walls, and higher still on the flanks of a massif, which
@@ -356,8 +419,15 @@ public final class TerrainModel {
             // on a massif the range gives way to the massif's own summit pyramid: peaks standing
             // on its steep upper slopes would add their faces to it, as walls of 80 degrees.
             double floorH = ampEff * (0.07 * Math.pow(mountain, 0.65) + MOUNTAIN_FLOOR * m13);
-            double relief = ampEff * m13 * (1.0 - MOUNTAIN_FLOOR) * (1.0 + WALL_BOOST * wallW) * (1.0 - 0.8 * smoothstep(0.15, 0.6, mt.massifRise))
-                + MASSIF_RELIEF * settings.colossalHeight() * coastFade * 4.0 * massif * (1.0 - mt.massifRise);
+            double reliefK = ampEff * (1.0 - MOUNTAIN_FLOOR) * (1.0 + WALL_BOOST * wallW) * (1.0 - 0.8 * smoothstep(0.15, 0.6, mt.massifRise));
+            double massifK = MASSIF_RELIEF * settings.colossalHeight() * 4.0 * massif * (1.0 - mt.massifRise);
+            double relief = reliefK * m13 + massifK * coastFade;
+            // the relief the range would have without its fade towards the coast: it decides the
+            // shape of the crests and peaks (see rangeShape), which the relief then only scales.
+            // Shaped by the faded relief, they changed their spacing and size wherever it fell
+            // quickly (towards a steep coast), and the change itself stood as a wall hundreds of
+            // blocks high.
+            double scale = reliefK * Math.pow(Math.min(1.0, Math.max(mountainE, wallMask)), 1.3) + massifK;
             // the main valleys follow the zero lines of the valley field, as the streams do (see
             // lineScale for the distance to them). Gradients are kept for the samples of the
             // neighbouring columns.
@@ -371,18 +441,25 @@ public final class TerrainModel {
             meadow = smoothstep(0.22, 0.55, meadowNoise.fbm(rx / (ms * 2.2), rz / (ms * 2.2)))
                 * (1.0 - 0.6 * alpineW) * smoothstep(0.25, 0.6, mountain) * (1.0 - colossal);
             double massifScale = settings.colossalHeight() * coastFade;
-            double s0 = rangeShape(rx, rz, Math.abs(valley), wallU, wallSide, alpineW, ancientW, wallW, relief, meadow, mt, true);
+            double s0 = rangeShape(rx, rz, Math.abs(valley), wallU, wallSide, alpineW, ancientW, wallW, scale, meadow, mt, true);
             double uneroded = floorH + relief * s0 + massifScale * massif;
             // gullies and spurs down every flank; some slopes are more deeply furrowed than others,
             // the floors of the main valleys and meadows stay smooth (the flank of a massif under
-            // a valley floor would otherwise furrow it lengthwise), and so, half, do the glaciated
-            // slopes high on the colossal massifs
-            double furrows = 0.55 + 0.9 * (0.5 + 0.5 * mountainDetail.fbm(rx / (ms * 1.2), rz / (ms * 1.2), 2));
+            // a valley floor would otherwise furrow it lengthwise), and the glaciated slopes high on
+            // the colossal massifs are a little smoother
+            double furrows = 0.7 + 0.6 * (0.5 + 0.5 * mountainDetail.fbm(rx / (ms * 1.2), rz / (ms * 1.2), 2));
+            // the flanks, where gullies and ledges form: not the valley floors and meadows
+            double flank = smoothstep(0.02, 0.25, Math.max(s0, massif)) * (1.0 - 0.8 * meadow) * smoothstep(0.0, 0.15, troughT(Math.abs(valley), scale));
             // (on the face of a mountain wall they are deeper: buttresses and couloirs)
-            double gullyDepth = Math.min(GULLY_DEPTH * (1.0 + 1.5 * wallW), (0.1 + 0.05 * wallW) * (relief + massifScale * massif)) * furrows
-                * smoothstep(0.02, 0.25, Math.max(s0, massif)) * (1.0 - 0.8 * meadow) * smoothstep(0.0, 0.15, troughT(Math.abs(valley), relief))
-                * (1.0 - 0.5 * smoothstep(1000.0, 1500.0, base + uneroded));
+            double gullyDepth = Math.min(GULLY_DEPTH * (1.0 + 0.4 * wallW), (0.14 + 0.025 * wallW) * (relief + massifScale * massif)) * furrows
+                * flank * (1.0 - 0.25 * smoothstep(1000.0, 1500.0, base + uneroded));
+            // the gullies of all scales together cut about 1.6 amplitudes deep, never below the
+            // valley floor: they deepen with the height of the flank above its floor and die out at
+            // its foot (cut to their full depth at the foot, they sank pits below the floor, into
+            // which rivers fell)
+            gullyDepth = Math.min(gullyDepth, GULLY_FLOOR_SHARE * (relief * s0 + massifScale * massif));
             double gully = 0.0;
+            double ledge = 0.0;
             if (gullyDepth > 0.5) {
                 // the uneroded relief (range and massif) at the corners of a triangle of radius FD
                 // around the column (z+, then the two corners towards z-)
@@ -391,36 +468,76 @@ public final class TerrainModel {
                     double ox = k == 0 ? 0.0 : k == 1 ? -0.866 * FD : 0.866 * FD;
                     double oz = k == 0 ? FD : -0.5 * FD;
                     double sk = rangeShape(rx + ox, rz + oz, Math.abs(valley + ox * vgx + oz * vgz),
-                        wallU + ox * wallNx + oz * wallNz, wallSide, alpineW, ancientW, wallW, relief, meadow, mt, false);
+                        wallU + ox * wallNx + oz * wallNz, wallSide, alpineW, ancientW, wallW, scale, meadow, mt, false);
                     relief3[k] = relief * sk + (massif > 0.0 ? massifScale * massif(rx + ox, rz + oz, mt, false) : 0.0);
                 }
                 // gradient of the uneroded mountains in blocks per block (the plane through the
                 // corners), and how consistent it is across the triangle: the corners' mean lies
                 // below the column's own value on crests and summits and above it in valley
-                // bottoms, where the fall line turns, and matches it on an even flank. The gullies
-                // follow this smoothed gradient (an exact one flips across a crest and would leave
-                // seams there) and fade out where it is not consistent, so crests stay sharp and
-                // gullies head just below them.
+                // bottoms, where the fall line turns, and matches it on an even flank
                 double here = relief * s0 + massifScale * massif;
+                double mean3 = (relief3[0] + relief3[1] + relief3[2]) / 3.0;
                 double gx = (relief3[2] - relief3[1]) * 0.57735 / FD;
                 double gz = (relief3[0] - 0.5 * (relief3[1] + relief3[2])) / (1.5 * FD);
-                double bend = Math.abs((relief3[0] + relief3[1] + relief3[2]) / 3.0 - here);
-                double coherence = 1.0 - bend / (0.8 * FD * Math.sqrt(gx * gx + gz * gz) + 1.0E-6);
+                double coherence = 1.0 - Math.abs(mean3 - here) / (0.8 * FD * Math.sqrt(gx * gx + gz * gz) + 1.0E-6);
                 double dMask = 1.3 * (ampEff * MOUNTAIN_FLOOR * Math.pow(mountain, 0.3) + relief * s0 / Math.max(mountain, 0.05)) * coastFade;
+                gx += dMask * maskGx;
+                gz += dMask * maskGz;
+                double slope = Math.sqrt(gx * gx + gz * gz);
+                // the gullies follow the fall line of the faces around the column (see fallLine),
+                // which carries on across a crest, so they cut through crests as notches; they
+                // fade out in valley bottoms (where they would dam the floor) and on summits
+                // (where no fall line prevails, and the summit stays a point)
                 double[] d = mt.fall;
-                d[0] = gx + dMask * maskGx;
-                d[1] = gz + dMask * maskGz;
-                gullyDepth *= smoothstep(0.05, 0.95, coherence);
+                double prevail = smoothstep(0.12, 0.35, fallLine(here, relief3, dMask * maskGx, dMask * maskGz, gx, gz, d));
+                // on an even flank the gradient itself is the steadier guide: the orientation from
+                // three directional slopes swings with the curvature, and stripes that swing with
+                // it sweep spurs and gullies across each other into needles and pits
+                towardGradient(d, gx, gz, smoothstep(0.2, 0.8, 1.0 - coherence));
+                // crests and summits: convex ground, where the fall line turns
+                double crestW = here > mean3 ? smoothstep(0.15, 0.7, 1.0 - coherence) : 0.0;
+                // (on a crest the gullies cut half as deep: its fall line swings round with the
+                // crest's curve, and so do the stripes, which crowd into narrow slots and needles)
+                gullyDepth *= (here > mean3 ? 1.0 - 0.5 * crestW : smoothstep(0.05, 0.95, coherence)) * prevail;
+                // small ledges and shoulders, scattered over the steep ground (meadows keep their
+                // turf). They are cut into the uneroded slope, and the gullies then cut through
+                // them, so a ledge is broken up where it crosses a gully and shows as a shoulder
+                // on the spurs. (Judged on the steepest drop to a corner as well: the plane
+                // through the corners lies almost flat across a sharp crest, whose sides are steep.)
+                double drop = Math.max(Math.abs(relief3[0] - here), Math.max(Math.abs(relief3[1] - here), Math.abs(relief3[2] - here))) / FD;
+                ledge = mountainRelief.ledges(rx, rz, uneroded, Math.max(drop, slope), flank * (1.0 - meadow));
                 if (gullyDepth > 0.5) {
-                    gully = mountainRelief.gullies(rx, rz, d, gullyDepth, GULLY_CELL * hs, 3);
+                    gully = mountainRelief.gullies(rx, rz, d, gullyDepth, GULLY_CELL * hs, GULLY_OCTAVES, 1.0 - 0.75 * crestW,
+                        1.0 - smoothstep(250.0, 550.0, relief + massifScale * massif));
+                }
+                // crests get pointed sub-peaks and notches; meadows and valley floors none
+                if (crestW > 0.0) {
+                    gully += crestTeeth(rx, rz, crestW * Math.min(TEETH_HEIGHT, 0.05 * (relief + massifScale * massif)) * (1.0 - meadow));
                 }
             }
-            mountainHeight = uneroded + gully;
-            shape = clamp01(Math.max(s0, massif) + gully / Math.max(relief + massifScale * massif, 1.0));
-            // ground that stands high above its valley floors counts as mountain whatever the
+            mountainHeight = uneroded + gully + ledge;
+            mt.uneroded = uneroded;
+            mt.gully = gully;
+            mt.ledge = ledge;
+            mt.gullyDepth = gullyDepth;
+            mt.relief = relief;
+            mt.rangeS = s0;
+            mt.massif = massif;
+            // (raised to a power below 1: the concave flanks and narrow crests leave less ground
+            // high in the relief than the rounder ranges the biome source, crags, scree, ruins and
+            // mountain lakes were tuned on, and their thresholds are kept on that scale)
+            shape = Math.pow(clamp01(Math.max(s0, massif) + (gully + ledge) / Math.max(relief + massifScale * massif, 1.0)), 0.9);
+            // a range that stands high above the base profile counts as mountain whatever the
             // mask says (a massif reaches far beyond it), so rivers, canyons, plateaus and hills
-            // keep off tall flanks instead of cutting slots hundreds of blocks deep into them
-            mountain = Math.max(mountain, smoothstep(40.0, 300.0, mountainHeight));
+            // keep off its flanks instead of cutting slots hundreds of blocks deep into them. It is
+            // judged on the height the range stands at (its valley floors, half its crests and
+            // the massif), which changes only over the range's own extent, not on the ground
+            // itself: weighed by the ground, the weight rose and fell with every crest and valley
+            // of the range, a river crossing it was cut to its full depth beside a crest and not
+            // at all on the crest, and the difference stood as a wall 150-300 blocks high.
+            double stand = floorH + 0.5 * relief + massifScale * massif;
+            mt.stand = stand;
+            mountain = Math.max(mountain, smoothstep(40.0, 300.0, stand));
         }
         mt.mask = mountainE;
         mt.weight = mountain;
@@ -431,6 +548,95 @@ public final class TerrainModel {
         mt.shape = shape;
         mt.meadow = meadow;
         return mountainHeight;
+    }
+
+    /**
+     * The fall line that the gullies at a column follow, from the uneroded relief {@code here} at
+     * the column and {@code relief3} at the corners of the triangle around it (see
+     * {@link #mountains}), plus the mountain mask's slope {@code (mx, mz)}: the prevailing
+     * orientation of the slopes from the column to the corners, summed as orientations (a
+     * structure tensor of the three directional slopes), not as a vector. On a crest the faces
+     * fall in opposite directions, so a gradient averaged over the triangle cancels to the slope
+     * along the crest, and gullies following it would turn through a right angle at every crest
+     * and leave a seam along it (or, faded out there, leave the crest as a flat-topped fin between
+     * the heads of the gullies). The orientation of the slopes on either side agrees instead, so
+     * the gullies of one face carry straight on into those of the other, and the crest is notched
+     * where they meet (a col) and toothed where the spurs between them do. The vector (as steep
+     * as the faces, pointing the way of the averaged gradient {@code (px, pz)}) is left in
+     * {@code out[0..1]}, and in {@code out[2]} how far it agrees with that gradient: on a crest not
+     * at all, and there a gully's bend around the spurs beside it could go either way, so it is
+     * left out (see {@link MountainRelief#gullies}).
+     *
+     * @return how far one orientation prevails: about 0.5 on an even flank or an arête, 0 on a
+     *         summit, where the faces fall every way
+     */
+    private static double fallLine(double here, double[] relief3, double mx, double mz, double px, double pz, double[] out) {
+        // slopes towards the corners (z+, then the two towards z-), with the mask's
+        double s0 = (relief3[0] - here) / FD + mz;
+        double s1 = (relief3[1] - here) / FD - 0.866 * mx - 0.5 * mz;
+        double s2 = (relief3[2] - here) / FD + 0.866 * mx - 0.5 * mz;
+        double q1 = s1 * s1;
+        double q2 = s2 * s2;
+        double txx = 0.75 * (q1 + q2);
+        double txz = 0.433 * (q1 - q2);
+        double tzz = s0 * s0 + 0.25 * (q1 + q2);
+        double half = 0.5 * (txx - tzz);
+        double root = Math.sqrt(half * half + txz * txz);
+        double major = 0.5 * (txx + tzz) + root;
+        // eigenvector of the larger eigenvalue, scaled to the faces' slope (on a plane the major
+        // eigenvalue is 9/8 of the squared gradient)
+        double vx = txx >= tzz ? major - tzz : txz;
+        double vz = txx >= tzz ? txz : major - txx;
+        double vl = Math.sqrt(vx * vx + vz * vz);
+        if (vl < 1.0E-9) {
+            out[0] = 0.0;
+            out[1] = 0.0;
+            out[2] = 0.0;
+            return 0.0;
+        }
+        double dot = vx * px + vz * pz;
+        double scale = Math.sqrt(major * (8.0 / 9.0)) / vl * (dot < 0.0 ? -1.0 : 1.0);
+        out[0] = vx * scale;
+        out[1] = vz * scale;
+        out[2] = smoothstep(0.3, 0.7, Math.abs(dot) / (vl * Math.sqrt(px * px + pz * pz) + 1.0E-9));
+        return root / (0.5 * (txx + tzz) + 1.0E-9);
+    }
+
+    /**
+     * Turns the fall line {@code d} (see {@link #fallLine}) towards the direction of the gradient
+     * {@code (gx, gz)}, keeping its length: fully for {@code k = 0} (an even flank), not at all for
+     * {@code k = 1} (a crest, where the gradient's direction flips).
+     */
+    private static void towardGradient(double[] d, double gx, double gz, double k) {
+        double gl = Math.sqrt(gx * gx + gz * gz);
+        double dl = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+        if (gl < 1.0E-9 || dl < 1.0E-9 || k >= 1.0) {
+            return;
+        }
+        // (fallLine already points d the way the gradient does)
+        double ux = (1.0 - k) * gx / gl + k * d[0] / dl;
+        double uz = (1.0 - k) * gz / gl + k * d[1] / dl;
+        double ul = Math.sqrt(ux * ux + uz * uz);
+        if (ul < 1.0E-9) {
+            return;
+        }
+        d[0] = ux / ul * dl;
+        d[1] = uz / ul * dl;
+    }
+
+    /**
+     * Pointed sub-peaks and V-shaped notches along a crest, up to {@code amp} blocks high or deep:
+     * a smooth crest line, however sharp in cross-section, reads as a drawn line; real ridges
+     * climb in teeth and gaps. Both follow the zero lines of a noise field, which cross a crest
+     * at irregular intervals, and fall off linearly on either side of them, so the teeth are
+     * cusps rather than knolls and the notches V-cuts rather than saddles.
+     */
+    private double crestTeeth(double x, double z, double amp) {
+        double peak = 1.0 - Math.abs(crestTeethNoise.fbm(x / (110.0 * hs), z / (110.0 * hs), 1));
+        double notch = 1.0 - Math.abs(crestTeethNoise.fbm(x / (150.0 * hs) + 53.0, z / (150.0 * hs) - 29.0, 1));
+        peak *= peak;
+        notch *= notch;
+        return amp * (peak * peak - 0.8 * notch * notch);
     }
 
     /** What {@link #mountains} hands back besides the height (one instance per thread). */
@@ -450,10 +656,26 @@ public final class TerrainModel {
         double meadow;
         /** How far up its massif the column lies: 0 at the foot, 1 at the summit (see {@link #massif}). */
         double massifRise;
+        /** How far the broad swell of an ancient range lifts its crests at the column (see {@link #rangeShape}). */
+        double swell;
+        /**
+         * The terms of the column's mountain height, for development tools (see
+         * {@link #mountainTerms}): the uneroded range and massif above the base profile, the
+         * gullies with the crest teeth, the ledges, the depth the gullies were given, the relief,
+         * the range shape and the height the range stands at (see {@link #mountains}).
+         */
+        double uneroded;
+        double gully;
+        double ledge;
+        double gullyDepth;
+        double relief;
+        double rangeS;
+        double massif;
+        double stand;
         /** Uneroded mountain relief at the three finite-difference neighbours of the column. */
         final double[] relief3 = new double[3];
         /** Gradient of the uneroded mountains, which the gullies follow (see {@link MountainRelief#gullies}). */
-        final double[] fall = new double[2];
+        final double[] fall = new double[3];
         /** Horn peaks near the column, on the ordinary and the twice as coarse grid (see {@link #rangeShape}). */
         final MountainRelief.Sites horns = new MountainRelief.Sites();
         final MountainRelief.Sites bigHorns = new MountainRelief.Sites();
@@ -482,69 +704,115 @@ public final class TerrainModel {
      *       whatever the relief: the crests grow further apart in tall ranges, and horns are at
      *       most {@link #HORN_HEIGHT} high (a second, twice as coarse grid of horns stands on tall
      *       ranges);</li>
-     *   <li>ancient ranges: rounded, worn-down domes;</li>
+     *   <li>ancient ranges: a lower, more even and closer network of sharp crests with cusped
+     *       summits and notches along them;</li>
      *   <li>mountain walls: a continuous crest along the belt line with a face of about 50 degrees
-     *       on one side and a long back slope on the other (see {@link #wallProfile}). The crest
-     *       rises into the summits of the range and sags into cols between them;</li>
+     *       on one side and a back slope on the other (see {@link #wallProfile}). The crest rises
+     *       into the summits of the range, and into cusped summits of its own every 600-900
+     *       blocks, and sags well down into cols between them;</li>
      *   <li>main valleys: troughs along the valley lines whose sides widen with the relief, so a
-     *       tall range is cut by broad valleys rather than slots;</li>
+     *       tall range is cut by broad valleys rather than slots. Their sides lower the crests and
+     *       peaks beside them rather than cutting them off;</li>
      *   <li>high meadows: shelves of gentle ground at about a third of the relief.</li>
      * </ul>
      *
      * @param valley distance to the nearest main valley line, in blocks
      * @param wallU  signed distance from the mountain wall's crest line, in blocks
-     * @param relief height of the crests above the valley floors, in blocks
+     * @param scale  height of the crests above the valley floors, in blocks, before the range's
+     *               fade towards the coast (see {@link #mountains}): it sets the spacing and size
+     *               of the crests and peaks, and the faded relief only scales them
      */
     private double rangeShape(double x, double z, double valley, double wallU, double wallSide, double alpineW, double ancientW,
-                              double wallW, double relief, double meadow, MountainState mt, boolean collect) {
+                              double wallW, double scale, double meadow, MountainState mt, boolean collect) {
         double ms = settings.mountainScale() * hs;
         double s = 0.0;
         double peaks = 0.0;
         if (alpineW > 0.01) {
-            // sharpness 1: V-shaped crests and rounded valley bottoms, values spread evenly
-            double wide = smoothstep(380.0, 700.0, relief);
-            double ridges = wide < 1.0 ? alpineRidges.ridged(x / (ms * 1.7), z / (ms * 1.7), 1.0) : 0.0;
+            // sharpness 1: V-shaped crests and rounded valley bottoms, values spread evenly. The
+            // crests lie further apart in tall ranges and closer together in low ones, so the
+            // flanks are steep whatever the relief (low ranges were rolling hills between crests
+            // two kilometres apart)
+            double wide = smoothstep(380.0, 700.0, scale);
+            double narrow = 1.0 - smoothstep(160.0, 380.0, scale);
+            double ridges = wide < 1.0 && narrow < 1.0 ? alpineRidges.ridged(x / (ms * 1.7), z / (ms * 1.7), 1.0) : 0.0;
             if (wide > 0.0) {
                 ridges = lerp(wide, ridges, alpineRidges.ridged(x / (ms * 3.1) + 71.3, z / (ms * 3.1) - 33.1, 1.0));
+            }
+            if (narrow > 0.0) {
+                ridges = lerp(narrow, ridges, alpineRidges.ridged(x / (ms * 0.9) - 47.9, z / (ms * 0.9) + 18.4, 1.0));
             }
             // horns are about 1.7 times as wide as high: faces of about 60 degrees at the top that
             // ease out towards the foot. Foothills get none (they would stand on the plain as
             // lone cones).
             // (the column's finite-difference neighbours reuse the peaks collected for it)
-            double hornH = Math.min(relief, HORN_HEIGHT);
+            double hornH = Math.min(scale, HORN_HEIGHT);
             double cell = HORN_CELL * hs;
             double reach = clamp(1.7 * hornH / cell, 0.35, 0.9) * cell;
             if (collect) {
-                MountainRelief.collect(mt.horns, x, z, cell, 0.72, reach * MountainRelief.MAX_SPOKE + FD + 1.0, hornSeed, 0.5);
+                MountainRelief.collect(mt.horns, x, z, cell, 0.72, reach * MountainRelief.MAX_SPOKE + FD + 1.0, hornSeed, HORN_FACE);
             }
-            double horns = MountainRelief.peaks(mt.horns, x, z, reach, 2.0) * hornH * smoothstep(100.0, 300.0, relief);
-            if (relief > HORN_HEIGHT) {
-                double bigH = Math.min(relief, 2.0 * HORN_HEIGHT);
+            double horns = MountainRelief.peaks(mt.horns, x, z, reach, 2.0) * hornH * smoothstep(100.0, 300.0, scale);
+            if (scale > HORN_HEIGHT) {
+                double bigH = Math.min(scale, 2.0 * HORN_HEIGHT);
                 double bigReach = clamp(0.85 * bigH / cell, 0.35, 0.9) * 2.0 * cell;
                 if (collect) {
-                    MountainRelief.collect(mt.bigHorns, x, z, 2.0 * cell, 0.72, bigReach * MountainRelief.MAX_SPOKE + FD + 1.0, hornSeed + 7L, 0.5);
+                    MountainRelief.collect(mt.bigHorns, x, z, 2.0 * cell, 0.72, bigReach * MountainRelief.MAX_SPOKE + FD + 1.0, hornSeed + 7L, HORN_FACE);
                 }
                 double big = MountainRelief.peaks(mt.bigHorns, x, z, bigReach, 2.0) * bigH;
-                horns = Math.max(horns, big * smoothstep(HORN_HEIGHT, 1.3 * HORN_HEIGHT, relief));
+                horns = Math.max(horns, big * smoothstep(HORN_HEIGHT, 1.3 * HORN_HEIGHT, scale));
             }
-            horns /= Math.max(relief, 1.0);
+            horns /= Math.max(scale, 1.0);
             // the crest network fills the whole relief, valley floors to ridge tops; the power
             // makes the flanks concave
-            double crest = Math.pow(clamp01((ridges - 0.12) / 0.74), 1.3) * 0.88 * (0.66 + 0.34 * Math.min(1.0, horns * 1.6));
-            peaks = smoothMax(crest, horns, 0.08);
+            double crest = Math.pow(clamp01((ridges - 0.12) / 0.74), 1.5) * 0.88 * (0.66 + 0.34 * Math.min(1.0, horns * 1.6));
+            // where crests and horns meet, the higher wins outright: a smooth maximum rounded the
+            // junctions into domed shoulders
+            peaks = Math.max(crest, horns);
             s = alpineW * peaks;
         }
         if (ancientW > 0.01) {
-            double domes = 0.5 + 0.5 * ancientDomes.fbm(x / (ms * 1.5), z / (ms * 1.5), 3);
-            s += ancientW * smoothstep(0.08, 0.92, domes) * 0.9;
+            // old ranges: lower, more evenly spread and broken up than alpine ones, but still sharp
+            // crests between steep flanks (worn-down domes looked like a field of dunes). The
+            // crests lie close together, some 500 blocks apart, so the flanks between them are
+            // steep although the relief is lower (twice as far apart, they were gentle slopes of
+            // 25-30 degrees). A broad swell of the field lifts some groups of crests above the
+            // others. Along each crest the height climbs to cusped summits and drops into notches
+            // where the zero lines of a second field cross it (as on a mountain wall's crest):
+            // following the ridged field alone, a crest rose and fell smoothly along its length,
+            // and its summits were rounded knobs.
+            // Where the relief is tall (an ancient range beside an alpine one) the crests lie
+            // further apart, as alpine ones do, or their flanks would be over 75 degrees.
+            // (the swell changes little over kilometres: the column's finite-difference neighbours
+            // reuse the column's own)
+            double tallA = smoothstep(300.0, 500.0, scale);
+            double ridge = tallA < 1.0 ? ancientRidges.ridged(x / (ms * 0.45), z / (ms * 0.45), 1.0, 3) : 0.0;
+            if (tallA > 0.0) {
+                ridge = lerp(tallA, ridge, ancientRidges.ridged(x / (ms * 0.65) - 29.0, z / (ms * 0.65) + 83.0, 1.0, 3));
+            }
+            if (collect) {
+                mt.swell = 0.55 + 0.45 * smoothstep(0.2, 0.8, 0.5 + 0.5 * ancientRidges.fbm(x / (ms * 2.6) + 40.0, z / (ms * 2.6) - 70.0, 2));
+            }
+            double tooth = clamp01(1.0 - 1.4 * Math.abs(crestTeethNoise.fbm(x / (ANCIENT_TOOTH * hs) + 63.0, z / (ANCIENT_TOOTH * hs) - 7.0, 1)));
+            s += ancientW * Math.pow(clamp01((ridge - 0.1) / 0.8), 1.5) * mt.swell * (0.72 + 0.33 * tooth);
         }
         if (wallW > 0.01) {
             // one continuous crest along the belt line, which carries the summits of the range and
             // sags into cols between them; in front of the face the range drops to a foreland, so
-            // the face stands above it as one long escarpment
-            double crestH = 0.62 + 0.38 * peaks;
-            double front = WALL_FACE * crestH * relief + 80.0;
-            double back = 200.0 + 2.4 * relief;
+            // the face stands above it as one long escarpment. (With the crest kept above 0.62 of
+            // the relief, it ran level for kilometres: a table with teeth on it.) Besides the
+            // range's own crests and horns, the crest climbs to summits of its own wherever the
+            // zero lines of a noise field cross it, every 600-900 blocks: each is a cusp that
+            // falls away along the crest at about 45 degrees whatever the wall's height (so the
+            // notches between the summits of a tall wall are shallower, relative to its height,
+            // than those of a low one: cut as deep, they were slots with sides of 70-75 degrees).
+            // (Following the range alone, the crest stayed at its lowest share for kilometres
+            // wherever no crest or horn of the range met it, as a level ridge that read as a dome
+            // or a loaf.)
+            double tooth = 1.0 - Math.abs(crestTeethNoise.fbm(x / (WALL_TOOTH * hs) - 17.0, z / (WALL_TOOTH * hs) + 41.0, 1))
+                * Math.min(1.6, 560.0 / Math.max(scale, 1.0));
+            double crestH = WALL_CREST_LOW + (1.0 - WALL_CREST_LOW) * Math.max(peaks, tooth);
+            double front = WALL_FACE * crestH * scale + 80.0;
+            double back = 160.0 + 1.4 * scale;
             double wall = lerp(wallSide, wallProfile(wallU, front, back), wallProfile(-wallU, front, back)) * crestH;
             double fore = lerp(wallSide, smoothstep(0.0, 1.5 * front, wallU), smoothstep(0.0, 1.5 * front, -wallU));
             s = lerp(wallW, s, Math.max(wall, s * (1.0 - 0.6 * fore)));
@@ -554,12 +822,17 @@ public final class TerrainModel {
         // so summits beside a valley keep their shape instead of being flattened into domes.
         // The valley lines lie only some 300-1100 blocks apart, so the sides are at most
         // TROUGH_WIDTH wide; in taller ranges the troughs are shallower instead of steeper (cut
-        // to the full depth, they capped every summit between them at half the relief).
-        double t = troughT(valley, relief);
+        // to the full depth, they capped every summit between them at half the relief). Where
+        // a trough cuts a crest, its shoulder is a sharp edge (rounded off, it read as a dome).
+        // Above the floor, the sides keep part of the range that rises above them, so the crests
+        // and peaks beside a valley are lowered rather than cut off: cut to the trough's smooth
+        // surface, they left table-like tops and shelves high in tall ranges.
+        double t = troughT(valley, scale);
         if (t < 1.0) {
-            double depth = 0.96 * TROUGH_WIDTH / Math.max(TROUGH_WIDTH, 80.0 + 1.3 * relief);
-            double trough = 1.0 - depth * Math.pow(1.0 - t, 1.5);
-            s = smoothMin(s, trough, 0.06);
+            double trough = 1.0 - 0.96 * TROUGH_WIDTH / Math.max(TROUGH_WIDTH, 80.0 + 1.3 * scale) * Math.pow(1.0 - t, 1.5);
+            if (s > trough) {
+                s = trough + TROUGH_KEEP * smoothstep(0.1, 0.5, t) * (s - trough);
+            }
         }
         s = lerp(meadow * 0.85, s, 0.3);
         return clamp01(s);
@@ -599,13 +872,13 @@ public final class TerrainModel {
                     if (d2 < range * range) {
                         double strength = massifStrength(cx + dx, cz + dz, h, cell, mt);
                         if (strength > 0.0) {
-                            sites.put(sx, sz, h, d2, 0.45, strength);
+                            sites.put(sx, sz, h, d2, MASSIF_FACE, strength);
                         }
                     }
                 }
             }
         }
-        double value = MountainRelief.peaks(sites, x, z, reach, 2.0);
+        double value = MountainRelief.peaks(sites, x, z, reach, MASSIF_POWER);
         mt.massifRise = sites.rise;
         return value;
     }
@@ -659,29 +932,18 @@ public final class TerrainModel {
         return clamp01((valley - (20.0 + 0.04 * relief)) / Math.min(80.0 + 1.3 * relief, TROUGH_WIDTH));
     }
 
-    /** Polynomial smooth maximum: like {@code max(a, b)} but rounded over a width of {@code k}. */
-    private static double smoothMax(double a, double b, double k) {
-        double h = Math.max(k - Math.abs(a - b), 0.0) / k;
-        return Math.max(a, b) + h * h * k * 0.25;
-    }
-
-    /** Polynomial smooth minimum: like {@code min(a, b)} but rounded over a width of {@code k}. */
-    private static double smoothMin(double a, double b, double k) {
-        double h = Math.max(k - Math.abs(a - b), 0.0) / k;
-        return Math.min(a, b) - h * h * k * 0.25;
-    }
-
     /**
      * Cross-section of a mountain wall around its crest line ({@code u = 0}): a concave face
      * {@code front} blocks wide on the positive side, about 50 degrees on average and 60-65
-     * just below the crest, and a long back slope on the other side. The gullies later cut buttresses
-     * and couloirs into the face.
+     * just below the crest, and a back slope on the other side, concave as well, so the crest stands
+     * as an edge rather than a broad top. The gullies later cut buttresses and couloirs into the
+     * face.
      */
     private static double wallProfile(double u, double front, double back) {
         if (u >= 0.0) {
             return u < front ? Math.pow(1.0 - u / front, 1.6) : 0.0;
         }
-        return -u < back ? Math.pow(1.0 + u / back, 1.2) : 0.0;
+        return -u < back ? Math.pow(1.0 + u / back, 1.4) : 0.0;
     }
 
     /**
@@ -917,6 +1179,32 @@ public final class TerrainModel {
         computeColumn(x, z, out, true, scratch.get());
     }
 
+    /**
+     * Development tools: the terms of the mountain height at {@code (x, z)} (see
+     * {@link #mountains}), so the gullies, ledges and the range's shape can be measured on their
+     * own. {@code out} receives, in blocks unless noted: 0 the uneroded range and massif above the
+     * base profile, 1 the gullies and crest teeth, 2 the ledges, 3 the depth the gullies were
+     * given, 4 the relief, 5 the range shape (0..1), 6 the blurred mountain mask (0..1), 7 the
+     * mountain weight (0..1), 8 the height the range stands at above the base profile, which the
+     * weight follows (see {@link #mountains}), 9 the colossal massif (0..1). The column is
+     * computed without its lakes, which would compute other columns with the same scratch.
+     */
+    public void mountainTerms(int x, int z, double[] out) {
+        Scratch sc = scratch.get();
+        computeColumn(x, z, new ColumnSample(), false, sc);
+        MountainState mt = sc.mountains;
+        out[0] = mt.uneroded;
+        out[1] = mt.gully;
+        out[2] = mt.ledge;
+        out[3] = mt.gullyDepth;
+        out[4] = mt.relief;
+        out[5] = mt.rangeS;
+        out[6] = mt.mask;
+        out[7] = mt.weight;
+        out[8] = mt.stand;
+        out[9] = mt.massif;
+    }
+
     /** Caves and carvers keep at least this many blocks below the surface of nearby surface water. */
     public static final int WATER_GUARD = 14;
 
@@ -1130,7 +1418,9 @@ public final class TerrainModel {
         double plains = (3.6 * plainsNoise.fbm(rx / (720.0 * hs), rz / (720.0 * hs))
             + 1.4 * plainsDetail.fbm(x / (130.0 * hs), z / (130.0 * hs))) * reliefInland;
 
-        double detail = (1.2 + 2.5 * hillW + 7.0 * mountain * shape + 3.0 * windswept) * plainsDetail.fbm(rx / (46.0 * hs) + 300.0, rz / (46.0 * hs) - 120.0);
+        // (little on mountains, whose texture comes from their gullies, ledges and crest teeth: bumps
+        // of noise only rounded them)
+        double detail = (1.2 + 2.5 * hillW + 2.5 * mountain * shape + 3.0 * windswept) * plainsDetail.fbm(rx / (46.0 * hs) + 300.0, rz / (46.0 * hs) - 120.0);
         double h = base + mountainHeight + hillHeight + plateauHeightValue + windHeight + plains * (1.0 - mountain) + detail * reliefInland;
 
         // ocean floors: rolling abyssal plains, long ridges and rare seamounts instead of a flat bed;

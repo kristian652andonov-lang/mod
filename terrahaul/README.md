@@ -32,11 +32,16 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
 - **Mountains** in five styles:
   - **alpine:** pointed horn peaks with three to five meandering arêtes, cusped cols between
     them and faces that steepen towards the summit, cut by broad glacial troughs;
-  - **ancient:** rounded and worn;
-  - **walls:** long continuous escarpments with buttresses, gullies and peaks along the crest,
-    which do not fall away behind the crest;
+  - **ancient:** lower and more forested, but still steep with sharp, jagged crests;
+  - **walls:** long escarpments with buttresses and couloirs on the face, whose crest climbs to
+    pointed summits and drops into notches along its length;
   - **volcanic:** cones with craters, lava flows and ecological zones (see below);
-  - **meadow:** gentle high pastures.
+  - **meadow:** gentle high pastures between steeper slopes.
+
+  Nothing is rounded: every steep flank is cut by deep V-shaped gullies between knife-edge spurs,
+  ridgelines are sawtooth with notches and small sub-peaks, and the steep slopes (often 45-70
+  degrees) climb, level out briefly on small, scattered ledges and shoulders, and climb again.
+  Valley floors between the mountains stay flat.
 
   Most terrain is moderate. **Colossal massifs** are rare: broad pyramids with long arêtes and
   radiating valleys whose summits approach Y 1500–1900.

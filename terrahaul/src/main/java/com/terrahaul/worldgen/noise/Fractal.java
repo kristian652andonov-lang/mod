@@ -79,13 +79,33 @@ public final class Fractal {
      * crests sharp and lets detail accumulate along ridges while valleys stay comparatively smooth.
      */
     public double ridged(double x, double y, double sharpness) {
+        return ridged(x, y, sharpness, octaves.length);
+    }
+
+    /**
+     * The first {@code maxOctaves} octaves of {@link #ridged(double, double, double)}, normalised
+     * by the octaves used so the field still spans [0, 1]: fewer octaves give the same crests with
+     * less fine detail, at a lower cost.
+     */
+    public double ridged(double x, double y, double sharpness, int maxOctaves) {
+        int count = Math.min(maxOctaves, octaves.length);
+        double scale = normaliser;
+        if (count < octaves.length) {
+            double total = 0.0;
+            double a = 1.0;
+            for (int i = 0; i < count; i++) {
+                total += a;
+                a *= gain;
+            }
+            scale = 1.0 / total;
+        }
         double sum = 0.0;
         double amp = 1.0;
         double weight = 1.0;
         double px = x;
         double py = y;
-        for (SimplexNoise octave : octaves) {
-            double n = 1.0 - Math.abs(octave.noise2(px, py));
+        for (int i = 0; i < count; i++) {
+            double n = 1.0 - Math.abs(octaves[i].noise2(px, py));
             n = Math.pow(Math.max(n, 0.0), sharpness);
             n *= weight;
             weight = Math.min(1.0, Math.max(0.0, n * 1.6));
@@ -96,7 +116,7 @@ public final class Fractal {
             py = ny;
             amp *= gain;
         }
-        return Math.min(1.0, sum * normaliser);
+        return Math.min(1.0, sum * scale);
     }
 
     /** Billowy noise in [0, 1]: rounded domes, used for ancient worn-down mountain ranges. */
