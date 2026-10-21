@@ -776,9 +776,15 @@ public final class TerrainModel {
             // where the zero lines of a second field cross it (as on a mountain wall's crest):
             // following the ridged field alone, a crest rose and fell smoothly along its length,
             // and its summits were rounded knobs.
+            // Where the relief is tall (an ancient range beside an alpine one) the crests lie
+            // further apart, as alpine ones do, or their flanks would be over 75 degrees.
             // (the swell changes little over kilometres: the column's finite-difference neighbours
             // reuse the column's own)
-            double ridge = ancientRidges.ridged(x / (ms * 0.45), z / (ms * 0.45), 1.0, 3);
+            double tallA = smoothstep(300.0, 500.0, scale);
+            double ridge = tallA < 1.0 ? ancientRidges.ridged(x / (ms * 0.45), z / (ms * 0.45), 1.0, 3) : 0.0;
+            if (tallA > 0.0) {
+                ridge = lerp(tallA, ridge, ancientRidges.ridged(x / (ms * 0.65) - 29.0, z / (ms * 0.65) + 83.0, 1.0, 3));
+            }
             if (collect) {
                 mt.swell = 0.55 + 0.45 * smoothstep(0.2, 0.8, 0.5 + 0.5 * ancientRidges.fbm(x / (ms * 2.6) + 40.0, z / (ms * 2.6) - 70.0, 2));
             }
