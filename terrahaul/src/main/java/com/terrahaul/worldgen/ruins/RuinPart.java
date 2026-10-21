@@ -35,6 +35,10 @@ public enum RuinPart {
     LOG(true),
     STRIPPED_LOG(true),
     FENCE(true),
+    /** Gate in a fence line or gateway (facing; FLAG: open). Hangs between its posts. */
+    FENCE_GATE(false),
+    /** Tent canvas (aux: colour). */
+    WOOL(true),
 
     // ---- roofs ----------------------------------------------------------------------------------
     ROOF(true),
@@ -107,6 +111,15 @@ public enum RuinPart {
     CHAIN(false),
     STANDING_SIGN(false),
     WALL_HANGING_SIGN(false),
+    /** A sign flat against the block behind it (facing away from that block). */
+    WALL_SIGN(false),
+    /** Candles (aux: count - 1; FLAG: lit). */
+    CANDLE(false),
+    /** A bell (FLAG: hanging from the block above, else lying on the floor). */
+    BELL(false),
+    LECTERN(false),
+    /** The head of a scarecrow. */
+    CARVED_PUMPKIN(false),
 
     // ---- the sea --------------------------------------------------------------------------------
     SEAGRASS(false),
@@ -136,7 +149,7 @@ public enum RuinPart {
         return switch (this) {
             case FOUNDATION, MASONRY, QUOIN, CHIMNEY, PLANKS, FLOOR, LOG, STRIPPED_LOG, ROOF, THATCH, PACKED_MUD, PILLAR, CAPITAL,
                 COLUMN_BASE, TRIM, PAVING, SEA_LANTERN, SOIL, SEDIMENT, COARSE_DIRT, GRAVEL, MOSS_BLOCK, HAY, BOOKSHELF,
-                CRAFTING_TABLE, BARREL, FURNACE, WET_SPONGE -> true;
+                CRAFTING_TABLE, BARREL, FURNACE, WET_SPONGE, WOOL -> true;
             default -> false;
         };
     }
@@ -147,7 +160,7 @@ public enum RuinPart {
             case DOOR, SHORT_GRASS, FERN, TALL_GRASS, FLOWER, DEAD_BUSH, MUSHROOM, SWEET_BERRY_BUSH, LITTER, ROCK, CAMPFIRE,
                 CRAFTING_TABLE, CHEST, BARREL, FURNACE, BOOKSHELF, CAULDRON, FLOWER_POT, HAY, COMPOSTER, ANVIL, BED, CARPET,
                 DECORATED_POT, STANDING_SIGN, MOSS_CARPET, SEAGRASS, TALL_SEAGRASS, KELP, KELP_PLANT, SEA_PICKLE,
-                SUSPICIOUS_GRAVEL, SUSPICIOUS_SAND -> true;
+                SUSPICIOUS_GRAVEL, SUSPICIOUS_SAND, CANDLE, LECTERN, CARVED_PUMPKIN -> true;
             default -> false;
         };
     }

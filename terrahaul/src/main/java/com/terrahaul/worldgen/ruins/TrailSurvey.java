@@ -11,8 +11,7 @@ import java.util.Set;
 
 /**
  * Surveys one {@value RuinSites#TRAIL_CELL}-block cell of the trail network and plans what stands
- * beside its trails: at most one ruined house, signposts at junctions and trail ends, and at most
- * one stretch of old lamp posts.
+ * beside its trails: broken houses and other ruins, signposts and old lamp posts.
  * <ol>
  *   <li>A lattice scan every 8 blocks finds where trails run (most cells are done after this).</li>
  *   <li>Lattice points near a trail are snapped to its centre line and classified by how many
@@ -21,25 +20,62 @@ import java.util.Set;
  *       rejects the false ends and blobs around junction plazas. The scan reaches 48 blocks into
  *       the neighbouring cells, so a junction near a border is seen identically from both sides
  *       and gets exactly one signpost.</li>
- *   <li>A house is tried beside a straight, laid stretch running within 30 degrees of an axis:
- *       its front faces the trail across a small yard, on dry, level ground away from water,
- *       cliffs, rock formations and waterfalls.</li>
- *   <li>Lamp posts follow the trail from the house (or a random stretch) both ways.</li>
+ *   <li>The laid trail is traced into pieces between junctions, ends and the cell border. Ruins
+ *       stand in slots spaced {@value #SLOT} blocks apart along each piece: a broken house in
+ *       seven of ten, one of the other ruins (a watchtower, a well, a wagon, a shrine,
+ *       a campsite, field walls, a chapel) in the rest, chosen by climate. A ruin is tried at its
+ *       slot and a few blocks either way, on either side of the trail, beside a straight stretch
+ *       on dry, level ground away from water, cliffs, rock formations and waterfalls; a house
+ *       that finds no room is tried as a hut and is owed to the next slot, and a slot whose ruin
+ *       found none may get a small one instead. Where the trail fords a stream, or a piece runs
+ *       into one and the trail goes on beyond it, the abutments of a lost bridge stand on the
+ *       banks.</li>
+ *   <li>Junctions and trail ends get signposts; long trails get a direction post or milestone
+ *       where they cross the marker lines of the cell, away from junctions and other signs.</li>
+ *   <li>Lamp posts follow lit sections of trail. Whether a stretch of trail is lit is a smooth
+ *       field over the world, and posts stand where the trail crosses a fixed grid of lines
+ *       {@value #LAMP_LINE} blocks apart (the lines running across it, x lines for trails that
+ *       run east and west, z lines for the others). Both are pure functions of position, so a lit
+ *       section runs on across cell borders with even spacing, its posts seen identically from
+ *       either side; each cell keeps the posts that stand inside it.</li>
  * </ol>
- * Every site lies inside its cell; posts are moved so that each lies wholly inside one chunk.
+ * Every site lies inside its cell; each signpost and lamp post stands in a column chosen so that
+ * it lies wholly inside one chunk.
  */
 public final class TrailSurvey {
     static final int CELL = RuinSites.TRAIL_CELL;
     private static final int LATTICE = 8;
     private static final int MARGIN = 48;
-    /** Chance that a cell with trails gets a house (if a good spot is found). */
-    static final double P_RUIN = 0.6;
-    static final double P_JUNCTION_SIGN = 0.7;
-    static final double P_END_SIGN = 0.45;
-    static final double P_LIGHTS_WITH_RUIN = 0.35;
-    static final double P_LIGHTS = 0.07;
+    /** Lattice columns of the scanned area (the cell and its margins). */
+    private static final int GRID = (CELL + 2 * MARGIN) / LATTICE;
+    /** Trail length between two ruin slots. */
+    static final int SLOT = 80;
+    /** Chance that a slot stays empty. */
+    static final double P_EMPTY_SLOT = 0.1;
+    /** Share of the filled slots that hold a broken house. */
+    static final double P_HOUSE = 0.7;
+    /** Chance that a slot whose ruin found no room gets a small one (a well, a wagon, a shrine, a campsite) instead. */
+    static final double P_FALLBACK = 0.6;
+    static final double P_JUNCTION_SIGN = 0.95;
+    static final double P_END_SIGN = 0.9;
+    /** Chance that a crossing of a marker line gets a direction post or milestone. */
+    static final double P_MARKER = 0.9;
+    /** Least distance from a direction post or milestone to any other sign. */
+    static final int MARKER_SPACING = 150;
+    static final double P_BRIDGE = 0.8;
+    /**
+     * Widest run of stream water, along a trail or across the lane of an old bridge, that a
+     * bridge spanned; over other water (a pond, the edge of a lake) the limit is
+     * {@value #SPAN_MAX_BROAD}, and anything wider is a river, a lake or the sea.
+     */
+    static final int SPAN_MAX = 12;
+    static final int SPAN_MAX_BROAD = 8;
+    /** Distance from the centre of the trail to the near side of a bridge's lane. */
+    static final int BRIDGE_LANE = 4;
+    /** Spacing of the lamp grid lines. */
+    static final int LAMP_LINE = 22;
 
-    // statistics slots in RuinSites.stats
+    // statistics slots in RuinSites.stats (20-23 belong to the sunken ruins)
     static final int ST_CELLS = 0;
     static final int ST_TRAIL_CELLS = 1;
     static final int ST_ATTEMPTS = 2;
@@ -60,12 +96,34 @@ public final class TrailSurvey {
     static final int ST_NANOS = 17;
     static final int ST_MAX_NANOS = 18;
     static final int ST_LAID_POINTS = 19;
+    static final int ST_SLOTS = 24;
+    static final int ST_OVERLAP = 25;
+    static final int ST_PIECE_BLOCKS = 26;
+    static final int ST_BRIDGE_CROSSINGS = 27;
+    static final int ST_MARKER_CROSSINGS = 28;
+    static final int ST_LAMP_CROSSINGS = 29;
+    static final int ST_LAMP_LIT = 30;
+    static final int ST_LAMP_NODE = 31;
+    static final int ST_LAMP_NO_SPOT = 32;
+    static final int ST_LAMP_OWN = 33;
+    static final int ST_LAMP_GROUND = 34;
+    static final int ST_LAMP_RUIN = 35;
+    static final int ST_LAMP_SIGN = 36;
+    static final int ST_LAMP_BIOME = 37;
+    // why stream crossings get no bridge abutments
+    static final int ST_BRIDGE_ROLL = 38;
+    static final int ST_BRIDGE_LANE = 39;
+    static final int ST_BRIDGE_SPAN = 40;
+    static final int ST_BRIDGE_BANKS = 41;
+    static final int ST_BRIDGE_GROUND = 42;
+    static final int ST_BRIDGE_DECK = 43;
+    static final int ST_BRIDGE_ROOM = 44;
 
     /** What a trail cell holds. */
-    public record Cell(TrailRuin ruin, List<Signpost> signposts, LightStretch lights) {
+    public record Cell(List<TrailRuin> ruins, List<Signpost> signposts, List<LightStretch> lights) {
     }
 
-    static final Cell EMPTY = new Cell(null, List.of(), null);
+    static final Cell EMPTY = new Cell(List.of(), List.of(), List.of());
 
     private final RuinSites sites;
     private final TerrainModel m;
@@ -75,6 +133,9 @@ public final class TrailSurvey {
     private final int x0;
     private final int z0;
     private final long seed;
+    /** Trail distance at the lattice points of the cell and its margins. */
+    private final double[] grid = new double[GRID * GRID];
+    private final ColumnSample scratch = new ColumnSample();
 
     private TrailSurvey(RuinSites sites, int cx, int cz) {
         this.sites = sites;
@@ -104,11 +165,19 @@ public final class TrailSurvey {
     private Cell run() {
         // 1. where do trails run? (lattice points sit at 4 mod 8, the same in every cell)
         List<int[]> points = new ArrayList<>();
-        for (int x = x0 + LATTICE / 2; x < x0 + CELL; x += LATTICE) {
-            for (int z = z0 + LATTICE / 2; z < z0 + CELL; z += LATTICE) {
+        List<int[]> near = new ArrayList<>();
+        for (int i = 0; i < GRID; i++) {
+            for (int j = 0; j < GRID; j++) {
+                int x = x0 - MARGIN + LATTICE / 2 + i * LATTICE;
+                int z = z0 - MARGIN + LATTICE / 2 + j * LATTICE;
                 double d = m.trailDistance(x, z);
-                if (d < 6.0) {
+                grid[i * GRID + j] = d;
+                boolean inside = x >= x0 && x < x0 + CELL && z >= z0 && z < z0 + CELL;
+                if (inside && d < 6.0) {
                     points.add(new int[]{x, z, (int) Math.round(d * 100)});
+                }
+                if (d < 4.0) {
+                    near.add(new int[]{x, z});
                 }
             }
         }
@@ -116,33 +185,19 @@ public final class TrailSurvey {
             return EMPTY;
         }
         sites.stats.incrementAndGet(ST_TRAIL_CELLS);
-        // the same lattice reaches into the neighbouring cells, so junctions near a border are
-        // clustered identically from both sides
-        List<int[]> near = new ArrayList<>();
-        for (int x = x0 - MARGIN + LATTICE / 2; x < x0 + CELL + MARGIN; x += LATTICE) {
-            for (int z = z0 - MARGIN + LATTICE / 2; z < z0 + CELL + MARGIN; z += LATTICE) {
-                boolean inside = x >= x0 && x < x0 + CELL && z >= z0 && z < z0 + CELL;
-                if (!inside && m.trailDistance(x, z) < 4.0) {
-                    near.add(new int[]{x, z});
-                }
-            }
-        }
         for (int[] p : points) {
-            if (p[2] < 400) {
-                near.add(new int[]{p[0], p[1]});
-            }
             if (p[2] < 200 && TrailGeometry.laid(m, p[0], p[1])) {
                 sites.stats.incrementAndGet(ST_LAID_POINTS);
             }
         }
         // 2. junctions and trail ends
         List<Node> nodes = nodes(near);
-        // 3. a ruined house
-        TrailRuin ruin = null;
-        if (SeedMixer.cellUnit(seed, cx, cz, 0) < P_RUIN) {
-            ruin = ruin(points);
-        }
-        // 4. signposts
+        // 3. laid pieces of trail, and the ruins beside them
+        List<Piece> pieces = pieces(points);
+        List<TrailRuin> ruins = new ArrayList<>();
+        bridges(pieces, ruins);
+        slots(pieces, ruins);
+        // 4. signposts at junctions and ends, markers along long trails
         List<Signpost> signs = new ArrayList<>();
         for (Node n : nodes) {
             if (!inCell(n.x, n.z, 0)) {
@@ -152,21 +207,19 @@ public final class TrailSurvey {
             if (roll >= (n.junction ? P_JUNCTION_SIGN : P_END_SIGN)) {
                 continue;
             }
-            Signpost s = signpost(n, ruin, signs);
+            Signpost s = signpost(n, ruins, signs);
             if (s != null) {
                 signs.add(s);
                 sites.stats.incrementAndGet(ST_SIGNS);
             }
         }
+        markers(nodes, ruins, signs);
         // 5. lamp posts
-        LightStretch lights = null;
-        if (SeedMixer.cellUnit(seed, cx, cz, 1) < (ruin != null ? P_LIGHTS_WITH_RUIN : P_LIGHTS)) {
-            lights = lights(points, ruin, signs, nodes);
-        }
-        if (ruin == null && signs.isEmpty() && lights == null) {
+        List<LightStretch> lights = lamps(nodes, ruins, signs);
+        if (ruins.isEmpty() && signs.isEmpty() && lights.isEmpty()) {
             return EMPTY;
         }
-        return new Cell(ruin, List.copyOf(signs), lights);
+        return new Cell(List.copyOf(ruins), List.copyOf(signs), List.copyOf(lights));
     }
 
     // =========================================================================================
@@ -338,124 +391,324 @@ public final class TrailSurvey {
     }
 
     // =========================================================================================
-    // Houses
+    // Pieces of laid trail
     // =========================================================================================
 
-    private TrailRuin ruin(List<int[]> points) {
-        List<int[]> cands = new ArrayList<>();
-        for (int[] p : points) {
-            if (p[2] <= 300 && inCell(p[0], p[1], 24)) {
-                cands.add(p);
+    /** A laid stretch of trail inside the cell: centre points {x, z, tx, tz} about 4 blocks apart. */
+    record Piece(List<double[]> pts, double[] at) {
+        double length() {
+            return at[at.length - 1];
+        }
+
+        /** Index of the point nearest an arc length. */
+        int index(double s) {
+            int best = 0;
+            for (int i = 0; i < at.length; i++) {
+                if (Math.abs(at[i] - s) < Math.abs(at[best] - s)) {
+                    best = i;
+                }
             }
+            return best;
         }
-        if (cands.isEmpty()) {
-            return null;
+    }
+
+    /**
+     * Traces the laid trail of the cell into pieces: from each lattice point near a plain stretch
+     * not yet covered, the trail is marched both ways until it forks, ends, stops being laid or
+     * leaves the cell. Lattice points are visited in a fixed order, so the pieces are the same
+     * whoever asks.
+     */
+    private List<Piece> pieces(List<int[]> points) {
+        int n = CELL / LATTICE;
+        int[] index = new int[n * n];
+        Arrays.fill(index, -1);
+        for (int i = 0; i < points.size(); i++) {
+            int[] p = points.get(i);
+            index[(p[0] - x0) / LATTICE * n + (p[1] - z0) / LATTICE] = i;
         }
-        for (int a = 0; a < 10; a++) {
-            int[] p = cands.get((int) (SeedMixer.cellUnit(seed, cx, cz, 10 + a) * cands.size()));
-            sites.stats.incrementAndGet(ST_ATTEMPTS);
-            int[] c = TrailGeometry.centre(m, p[0], p[1]);
-            if (c == null || !TrailGeometry.laid(m, c[0], c[1])) {
-                sites.stats.incrementAndGet(ST_NO_TANGENT);
+        boolean[] used = new boolean[points.size()];
+        List<Piece> out = new ArrayList<>();
+        for (int i = 0; i < points.size(); i++) {
+            int[] p = points.get(i);
+            if (used[i] || p[2] > 200) {
                 continue;
             }
+            used[i] = true;
+            int[] c = TrailGeometry.centre(m, p[0], p[1]);
+            if (c == null || !inCell(c[0], c[1], 0) || !TrailGeometry.laid(m, c[0], c[1])) {
+                continue;
+            }
+            double[] t = TrailGeometry.tangent(m, c[0], c[1]);
+            if (t == null) {
+                continue;
+            }
+            List<double[]> fwd = TrailGeometry.march(m, c, t, 80, x0, z0, x0 + CELL - 1, z0 + CELL - 1);
+            List<double[]> back = TrailGeometry.march(m, c, new double[]{-t[0], -t[1]}, 80, x0, z0, x0 + CELL - 1, z0 + CELL - 1);
+            List<double[]> line = new ArrayList<>();
+            for (int k = back.size() - 1; k >= 1; k--) {
+                double[] q = back.get(k);
+                line.add(new double[]{q[0], q[1], -q[2], -q[3]});
+            }
+            line.addAll(fwd);
+            for (double[] q : line) {
+                int li = (int) Math.floor((q[0] - x0) / LATTICE);
+                int lj = (int) Math.floor((q[1] - z0) / LATTICE);
+                for (int a = li - 1; a <= li + 1; a++) {
+                    for (int b = lj - 1; b <= lj + 1; b++) {
+                        if (a >= 0 && b >= 0 && a < n && b < n && index[a * n + b] >= 0) {
+                            int[] lp = points.get(index[a * n + b]);
+                            if (Math.abs(lp[0] - q[0]) <= 8 && Math.abs(lp[1] - q[1]) <= 8) {
+                                used[index[a * n + b]] = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if (line.size() < 2) {
+                continue;
+            }
+            double[] at = new double[line.size()];
+            for (int k = 1; k < line.size(); k++) {
+                at[k] = at[k - 1] + Math.hypot(line.get(k)[0] - line.get(k - 1)[0], line.get(k)[1] - line.get(k - 1)[1]);
+            }
+            out.add(new Piece(line, at));
+            sites.stats.addAndGet(ST_PIECE_BLOCKS, (long) at[at.length - 1]);
+        }
+        return out;
+    }
+
+    // =========================================================================================
+    // Ruins in slots along the pieces
+    // =========================================================================================
+
+    /** Kinds of ruin by climate, weights per {@link TrailRuin} kind (houses are drawn separately). */
+    private static double[] kindWeights(int climate) {
+        // watchtower, well, wagon, shrine, campsite, field, chapel
+        return switch (climate) {
+            case RuinSites.COLD -> new double[]{12, 10, 14, 14, 22, 8, 6};
+            case RuinSites.UPLAND -> new double[]{20, 10, 10, 20, 16, 14, 8};
+            case RuinSites.HOT_DRY -> new double[]{12, 26, 16, 18, 14, 8, 6};
+            case RuinSites.HOT_WET -> new double[]{8, 16, 10, 26, 30, 0, 6};
+            default -> new double[]{10, 14, 14, 14, 14, 20, 12};
+        };
+    }
+
+    private static final int[] OTHER_KINDS = {TrailRuin.WATCHTOWER, TrailRuin.WELL, TrailRuin.WAGON, TrailRuin.SHRINE, TrailRuin.CAMPSITE,
+        TrailRuin.FIELD, TrailRuin.CHAPEL};
+    /** The small kinds that may stand in a slot where the planned ruin found no room. */
+    private static final int[] SMALL_KINDS = {TrailRuin.WELL, TrailRuin.WAGON, TrailRuin.SHRINE, TrailRuin.CAMPSITE};
+
+    /** Weights of the small kinds by climate, in the proportions of {@link #kindWeights}. */
+    private static double[] smallWeights(int climate) {
+        double[] w = kindWeights(climate);
+        return new double[]{w[1], w[2], w[3], w[4]};
+    }
+
+    private static int pick(double[] weights, double r) {
+        double total = 0;
+        for (double w : weights) {
+            total += w;
+        }
+        double x = r * total;
+        for (int i = 0; i < weights.length; i++) {
+            x -= weights[i];
+            if (x < 0) {
+                return i;
+            }
+        }
+        return weights.length - 1;
+    }
+
+    /**
+     * One slot every {@value #SLOT} blocks along each piece, from a seeded offset. A house that
+     * finds no room at its slot is owed: the next slot along the piece holds a house whatever it
+     * drew, so stretches of awkward ground do not leave long gaps between houses.
+     */
+    private void slots(List<Piece> pieces, List<TrailRuin> ruins) {
+        for (Piece pc : pieces) {
+            double[] first = pc.pts.get(0);
+            double off = SLOT * SeedMixer.unit(SeedMixer.hash2(seed ^ 0x5107L, (int) first[0], (int) first[1]));
+            boolean owed = false;
+            for (double s = off; s < pc.length(); s += SLOT) {
+                double[] q = pc.pts.get(pc.index(s));
+                long ss = SeedMixer.hash2(seed ^ 0x51075L, (int) q[0], (int) q[1]);
+                sites.stats.incrementAndGet(ST_SLOTS);
+                if (SeedMixer.unit(ss) < P_EMPTY_SLOT && !owed) {
+                    continue;
+                }
+                int climate = climateAt((int) q[0], (int) q[1]);
+                if (climate < 0) {
+                    continue;
+                }
+                double r = SeedMixer.unit(SeedMixer.mix(ss + 1));
+                int kind = r < P_HOUSE || owed ? TrailRuin.HOUSE : OTHER_KINDS[pick(kindWeights(climate), (r - P_HOUSE) / (1.0 - P_HOUSE))];
+                TrailRuin site = slot(pc, s, kind, climate, ss, ruins);
+                if (kind == TrailRuin.HOUSE) {
+                    owed = site == null;
+                }
+                if (site == null && kind != TrailRuin.SHRINE && kind != TrailRuin.WELL && SeedMixer.unit(SeedMixer.mix(ss + 2)) < P_FALLBACK) {
+                    // too big for the spot: something small may stand beside the trail instead
+                    int small = SMALL_KINDS[pick(smallWeights(climate), SeedMixer.unit(SeedMixer.mix(ss + 4)))];
+                    site = slot(pc, s, small, climate, ss + 3, ruins);
+                }
+                if (site != null) {
+                    ruins.add(site);
+                    sites.stats.incrementAndGet(ST_RUINS);
+                }
+            }
+        }
+    }
+
+    /** Climate class at a trail point, or -1 where trails are not drawn (by the biome). */
+    private int climateAt(int x, int z) {
+        ColumnSample s = new ColumnSample();
+        s.copyFrom(m.sample(x & ~3, z & ~3));
+        int biome = sites.biome(x, (int) s.height, z, s);
+        return RuinBiomes.trailVisible(biome) ? RuinSites.climateClass(s, biome, sl) : -1;
+    }
+
+    /**
+     * Tries a ruin of one kind at a slot: its variant, style and state are fixed for the slot,
+     * then it is tried at the slot point and 8, 16 and 24 blocks either way along the trail (a
+     * house up to 32), on both sides. A house that does not fit is tried once more as a hut.
+     */
+    private TrailRuin slot(Piece pc, double s, int kind, int climate, long ss, List<TrailRuin> ruins) {
+        long vs = SeedMixer.mix(ss ^ 0x7A21A7L);
+        int variant;
+        int style = 0;
+        int state = 0;
+        if (kind == TrailRuin.HOUSE) {
+            style = houseStyle(climate, SeedMixer.unit(vs));
+            variant = houseLayout(style, SeedMixer.unit(SeedMixer.mix(vs + 1)));
+            state = houseState(style, climate, SeedMixer.unit(SeedMixer.mix(vs + 2)));
+        } else {
+            variant = variant(kind, climate, SeedMixer.unit(vs));
+        }
+        TrailRuin r = trySlot(pc, s, kind, variant, style, state, climate, ss, ruins);
+        if (r == null && kind == TrailRuin.HOUSE && variant != HousePlanner.HUT) {
+            r = trySlot(pc, s, kind, HousePlanner.HUT, style, state, climate, ss + 7, ruins);
+        }
+        return r;
+    }
+
+    /** Offsets along the trail at which a ruin is tried, nearest the slot first. */
+    private static final int[] OFFSETS = {0, 8, -8, 16, -16, 24, -24};
+    private static final int[] HOUSE_OFFSETS = {0, 8, -8, 16, -16, 24, -24, 32, -32};
+
+    private TrailRuin trySlot(Piece pc, double s, int kind, int variant, int style, int state, int climate, long ss, List<TrailRuin> ruins) {
+        RuinSpec spec = RuinSites.spec(kind, variant, style);
+        boolean square = kind == TrailRuin.HOUSE || kind == TrailRuin.CHAPEL || kind == TrailRuin.WAGON || kind == TrailRuin.FIELD;
+        // a house may move further along its slot than the small ruins, which find room easily
+        int[] offsets = kind == TrailRuin.HOUSE ? HOUSE_OFFSETS : OFFSETS;
+        for (int a = 0; a < offsets.length; a++) {
+            double sa = s + offsets[a];
+            if (sa < 0 || sa > pc.length()) {
+                continue;
+            }
+            sites.stats.incrementAndGet(ST_ATTEMPTS);
+            double[] q = pc.pts.get(pc.index(sa));
+            int[] c = {(int) q[0], (int) q[1]};
             double[] t = TrailGeometry.tangent(m, c[0], c[1]);
             if (t == null) {
                 sites.stats.incrementAndGet(ST_NO_TANGENT);
                 continue;
             }
-            // houses are axis-aligned, so the trail must run close to an axis to face it squarely
+            // square buildings face the trail squarely: it must run close to an axis
             double ang = Math.atan2(t[1], t[0]);
             double off = Math.abs(Math.IEEEremainder(ang, Math.PI / 2.0));
-            if (off > Math.toRadians(30)) {
+            if (square && off > Math.toRadians(kind == TrailRuin.HOUSE ? 35 : 30)) {
                 sites.stats.incrementAndGet(ST_NOT_AXIS);
                 continue;
             }
-            ColumnSample sc = new ColumnSample();
-            sc.copyFrom(m.sample(c[0] & ~3, c[1] & ~3));
-            int biome = sites.biome(c[0], (int) sc.height, c[1], sc);
-            if (!RuinBiomes.trailVisible(biome)) {
-                sites.stats.incrementAndGet(ST_BIOME);
-                continue;
-            }
-            int climate = RuinSites.climateClass(sc, biome, sl);
-            int template = pickTemplate(climate, SeedMixer.cellUnit(seed, cx, cz, 20 + a));
-            for (int alt = 0; alt < 2; alt++) {
-                if (alt == 1) {
-                    if (template == HousePlanner.LEAN_TO) {
-                        break;
-                    }
-                    template = HousePlanner.LEAN_TO;
-                }
-                for (int sideTry = 0; sideTry < 2; sideTry++) {
-                    boolean first = SeedMixer.cellUnit(seed, cx, cz, 30 + a) < 0.5;
-                    int side = first ^ sideTry == 1 ? 1 : -1;
-                    TrailRuin r = place(c, t, side, template, climate, biome, a);
-                    if (r != null) {
-                        sites.stats.incrementAndGet(ST_RUINS);
-                        return r;
-                    }
+            long rs = SeedMixer.hash2(ss, a, kind);
+            for (int sideTry = 0; sideTry < 2; sideTry++) {
+                boolean first = SeedMixer.unit(SeedMixer.mix(rs + 5)) < 0.5;
+                int side = first ^ sideTry == 1 ? 1 : -1;
+                TrailRuin r = place(kind, variant, style, state, spec, c, t, side, rs + sideTry * 101L, climate, ruins);
+                if (r != null) {
+                    return r;
                 }
             }
         }
         return null;
     }
 
-    private static int pickTemplate(int climate, double r) {
-        int[] types;
-        double[] weights;
-        switch (climate) {
-            case RuinSites.COLD -> {
-                types = new int[]{HousePlanner.LOG_CABIN, HousePlanner.BOTHY, HousePlanner.COTTAGE, HousePlanner.CHIMNEY_RUIN,
-                    HousePlanner.WATCHTOWER, HousePlanner.LEAN_TO};
-                weights = new double[]{40, 18, 12, 12, 8, 10};
-            }
-            case RuinSites.UPLAND -> {
-                types = new int[]{HousePlanner.BOTHY, HousePlanner.LOG_CABIN, HousePlanner.WATCHTOWER, HousePlanner.CHIMNEY_RUIN,
-                    HousePlanner.LEAN_TO};
-                weights = new double[]{38, 26, 16, 10, 10};
-            }
-            case RuinSites.HOT_DRY -> {
-                types = new int[]{HousePlanner.ADOBE, HousePlanner.LEAN_TO, HousePlanner.WATCHTOWER};
-                weights = new double[]{70, 16, 14};
-            }
-            case RuinSites.HOT_WET -> {
-                types = new int[]{HousePlanner.STILT_HUT, HousePlanner.COTTAGE, HousePlanner.LEAN_TO, HousePlanner.WATCHTOWER};
-                weights = new double[]{50, 22, 18, 10};
-            }
-            default -> {
-                types = new int[]{HousePlanner.COTTAGE, HousePlanner.FARMSTEAD, HousePlanner.LOG_CABIN, HousePlanner.CHIMNEY_RUIN,
-                    HousePlanner.BOTHY, HousePlanner.WATCHTOWER, HousePlanner.LEAN_TO};
-                weights = new double[]{30, 14, 14, 10, 8, 8, 8};
-            }
-        }
-        double total = 0;
-        for (double w : weights) {
-            total += w;
-        }
-        double x = r * total;
-        for (int i = 0; i < types.length; i++) {
-            x -= weights[i];
-            if (x < 0) {
-                return types[i];
-            }
-        }
-        return types[types.length - 1];
+    /** House style by climate: timber frames in temperate land, log cabins in the cold, stone in the uplands. */
+    private static int houseStyle(int climate, double r) {
+        return switch (climate) {
+            case RuinSites.COLD -> r < 0.75 ? HousePlanner.LOG_CABIN : r < 0.95 ? HousePlanner.STONE : HousePlanner.TIMBER_FRAME;
+            case RuinSites.UPLAND -> r < 0.75 ? HousePlanner.STONE : HousePlanner.LOG_CABIN;
+            case RuinSites.HOT_DRY -> HousePlanner.ADOBE;
+            case RuinSites.HOT_WET -> r < 0.8 ? HousePlanner.RAISED : HousePlanner.STONE;
+            default -> r < 0.7 ? HousePlanner.TIMBER_FRAME : r < 0.88 ? HousePlanner.STONE : HousePlanner.LOG_CABIN;
+        };
     }
 
-    /** Tries one house on one side of the trail; returns the site or {@code null}. */
-    private TrailRuin place(int[] c, double[] t, int side, int template, int climate, int biome, int a) {
-        HousePlanner.Spec spec = HousePlanner.spec(template);
+    /**
+     * House layout: huts and cottages most often, then two-room houses, farmhouses, two storeys;
+     * stone country has its tower houses.
+     */
+    private static int houseLayout(int style, double r) {
+        double[] w = style == HousePlanner.STONE ? new double[]{18, 24, 14, 10, 14, 20} : new double[]{22, 28, 16, 14, 12, 8};
+        for (int layout = 0; layout < w.length; layout++) {
+            if (!HousePlanner.fits(layout, style)) {
+                w[layout] = 0;
+            }
+        }
+        return pick(w, r);
+    }
+
+    /** State of decay: wet country overgrows, dry country keeps its walls. */
+    private static int houseState(int style, int climate, double r) {
+        double[] w = {28, 22, 12, 12, 26};
+        if (climate == RuinSites.HOT_WET) {
+            w[HousePlanner.OVERGROWN] = 45;
+        } else if (climate == RuinSites.HOT_DRY) {
+            w[HousePlanner.OVERGROWN] = 6;
+            w[HousePlanner.WALL_COLLAPSED] = 30;
+        }
+        for (int state = 0; state < w.length; state++) {
+            if (!HousePlanner.fitsState(style, state)) {
+                w[state] = 0;
+            }
+        }
+        return pick(w, r);
+    }
+
+    /** Variant of a ruin that is not a house, by climate. */
+    private static int variant(int kind, int climate, double r) {
+        boolean wood = climate == RuinSites.COLD || climate == RuinSites.HOT_WET;
+        return switch (kind) {
+            case TrailRuin.WATCHTOWER -> pick(wood ? new double[]{30, 50, 20} : new double[]{45, 25, 30}, r);
+            case TrailRuin.WELL -> pick(climate == RuinSites.HOT_DRY ? new double[]{25, 20, 15, 40} : new double[]{30, 25, 25, 20}, r);
+            case TrailRuin.WAGON -> pick(new double[]{35, 25, 20, 20}, r);
+            case TrailRuin.SHRINE -> pick(climate == RuinSites.UPLAND || climate == RuinSites.COLD ? new double[]{25, 25, 50}
+                : climate == RuinSites.HOT_WET ? new double[]{20, 60, 20} : new double[]{45, 35, 20}, r);
+            case TrailRuin.CAMPSITE -> pick(new double[]{35, 25, 20, 20}, r);
+            case TrailRuin.FIELD -> pick(climate == RuinSites.UPLAND || climate == RuinSites.COLD ? new double[]{55, 20, 5, 20}
+                : new double[]{30, 25, 25, 20}, r);
+            case TrailRuin.CHAPEL -> pick(wood ? new double[]{25, 50, 25} : new double[]{50, 15, 35}, r);
+            default -> 0;
+        };
+    }
+
+    /**
+     * Tries one ruin on one side of the trail point {@code c}; returns the site or {@code null}.
+     * The front of the ruin faces the trail a small yard's width beyond the frayed edge of the
+     * path, the body stands on level ground off the path, the yard on dry land.
+     */
+    private TrailRuin place(int kind, int variant, int style, int state, RuinSpec spec, int[] c, double[] t, int side, long rs, int climate,
+                            List<TrailRuin> ruins) {
         int vdir = RuinCell.dirOf(-t[1] * side, t[0] * side);
         int vx = RuinCell.DX[vdir];
         int vz = RuinCell.DZ[vdir];
-        boolean mirror = SeedMixer.cellUnit(seed, cx, cz, 45 + a) < 0.5;
+        boolean mirror = SeedMixer.unit(SeedMixer.mix(rs + 11)) < 0.5;
         int ux = mirror ? -vz : vz;
         int uz = mirror ? vx : -vx;
-        // the front wall stands a small yard's width beyond the frayed edge of the path
+        double clear = spec.minTrail() + 0.5;
         int f0 = -1;
         for (int o = 2; o <= 14; o++) {
-            if (m.trailDistance(c[0] + vx * o, c[1] + vz * o) >= 4.5) {
+            if (m.trailDistance(c[0] + vx * o, c[1] + vz * o) >= clear) {
                 f0 = o;
                 break;
             }
@@ -464,19 +717,20 @@ public final class TrailSurvey {
             sites.stats.incrementAndGet(ST_ON_TRAIL);
             return null;
         }
-        int gap = f0 + 1 + (int) (3.0 * SeedMixer.cellUnit(seed, cx, cz, 40 + a));
-        if (template == HousePlanner.LOG_CABIN || template == HousePlanner.STILT_HUT) {
-            gap += 2;
-        }
-        int shift = (int) Math.round((SeedMixer.cellUnit(seed, cx, cz, 50 + a) - 0.5) * 4.0);
+        // a wagon's near wheels stand at the first clear column; everything else leaves a small yard
+        int gap = f0 + spec.gap() + (kind == TrailRuin.WAGON ? 1 : 1 + (int) (3.0 * SeedMixer.unit(SeedMixer.mix(rs + 12))));
+        int shift = (int) Math.round((SeedMixer.unit(SeedMixer.mix(rs + 13)) - 0.5) * 4.0);
         int u0 = spec.doorU() + shift;
         Canvas.Frame f = new Canvas.Frame(c[0] + vx * gap - ux * u0, c[1] + vz * gap - uz * u0, ux, uz, vx, vz);
         // the footpath runs from the door to the trail
-        int path = gap;
-        for (int k = 1; k <= gap + 4; k++) {
-            if (m.trailDistance(f.x(spec.doorU(), -k), f.z(spec.doorU(), -k)) < 2.0) {
-                path = k;
-                break;
+        int path = 0;
+        if (spec.footpath()) {
+            path = gap;
+            for (int k = 1; k <= gap + 4; k++) {
+                if (m.trailDistance(f.x(spec.doorU(), -k), f.z(spec.doorU(), -k)) < 2.0) {
+                    path = k;
+                    break;
+                }
             }
         }
         int minV = Math.min(spec.minV(), -path) - 1;
@@ -488,20 +742,25 @@ public final class TrailSurvey {
             sites.stats.incrementAndGet(ST_BORDER);
             return null;
         }
-        // the house itself: never on the path, on level ground
+        for (TrailRuin o : ruins) {
+            if (o.overlaps(bx0 - 4, bz0 - 4, bx1 + 4, bz1 + 4)) {
+                sites.stats.incrementAndGet(ST_OVERLAP);
+                return null;
+            }
+        }
+        // the body itself: never on the path, on level ground
         double lo = Double.MAX_VALUE;
         double hi = -Double.MAX_VALUE;
-        int vBack = spec.d();
-        int vFront = template == HousePlanner.LOG_CABIN || template == HousePlanner.STILT_HUT ? -3 : -1;
+        int vFront = -1 - spec.gap();
         for (int u = -1; u <= spec.w(); u++) {
-            for (int v = vFront; v <= vBack; v++) {
+            for (int v = vFront; v <= spec.d(); v++) {
                 int x = f.x(u, v);
                 int z = f.z(u, v);
-                if (m.trailDistance(x, z) < 4.0) {
+                if (m.trailDistance(x, z) < spec.minTrail()) {
                     sites.stats.incrementAndGet(ST_ON_TRAIL);
                     return null;
                 }
-                if ((u & 1) == 0 && (v & 1) == 0 || u == spec.w() || v == vBack) {
+                if ((u & 1) == 0 && (v & 1) == 0 || u == spec.w() || v == spec.d()) {
                     double h = m.interpolatedHeight(x, z);
                     lo = Math.min(lo, h);
                     hi = Math.max(hi, h);
@@ -522,7 +781,7 @@ public final class TrailSurvey {
                     return null;
                 }
                 boolean pathStrip = v < 0 && Math.abs(u - spec.doorU()) <= 1;
-                if (!pathStrip && m.trailDistance(x, z) < 3.0) {
+                if (!pathStrip && m.trailDistance(x, z) < Math.min(3.0, spec.minTrail())) {
                     sites.stats.incrementAndGet(ST_ON_TRAIL);
                     return null;
                 }
@@ -532,31 +791,49 @@ public final class TrailSurvey {
                 }
             }
         }
+        // no part of it in a stream, a pond or the sea (the coarse test above misses narrow streams)
+        for (int u = spec.minU() - 1; u <= spec.maxU() + 1; u++) {
+            for (int v = Math.min(spec.minV(), -path) - 1; v <= spec.maxV() + 1; v++) {
+                if (water(f.x(u, v), f.z(u, v))) {
+                    sites.stats.incrementAndGet(ST_LAND);
+                    return null;
+                }
+            }
+        }
         int hx = f.x(spec.w() / 2, spec.d() / 2);
         int hz = f.z(spec.w() / 2, spec.d() / 2);
-        if (sites.formationNear(hx, hz, 100, 0) || sites.waterfallNear(hx, hz, 56)) {
+        boolean big = kind == TrailRuin.HOUSE || kind == TrailRuin.CHAPEL || kind == TrailRuin.WATCHTOWER || kind == TrailRuin.FIELD;
+        if (sites.formationNear(hx, hz, big ? 100 : 60, 0) || sites.waterfallNear(hx, hz, 56)) {
             sites.stats.incrementAndGet(ST_FEATURE);
             return null;
         }
         ColumnSample hs = new ColumnSample();
         hs.copyFrom(m.sample(hx & ~3, hz & ~3));
-        int houseBiome = sites.biome(hx, (int) hs.height, hz, hs);
-        if (!RuinBiomes.trailVisible(houseBiome)) {
+        int biome = sites.biome(hx, (int) hs.height, hz, hs);
+        if (!RuinBiomes.trailVisible(biome)) {
             sites.stats.incrementAndGet(ST_BIOME);
             return null;
         }
         // floor course: the median of the ground under the body
-        double[] hs9 = new double[9];
+        double[] h9 = new double[9];
         int k = 0;
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                hs9[k++] = m.interpolatedHeight(f.x(i * (spec.w() - 1) / 2, j * (spec.d() - 1) / 2), f.z(i * (spec.w() - 1) / 2, j * (spec.d() - 1) / 2));
+                int u = i * (spec.w() - 1) / 2;
+                int v = j * (spec.d() - 1) / 2;
+                h9[k++] = m.interpolatedHeight(f.x(u, v), f.z(u, v));
             }
         }
-        Arrays.sort(hs9);
-        int floorY = (int) Math.floor(hs9[4]);
-        long siteSeed = SeedMixer.hash2(seed, cx, cz);
-        RuinMaterials mat = RuinSites.houseMaterials(climate, houseBiome, hs, template, siteSeed);
+        Arrays.sort(h9);
+        int floorY = (int) Math.floor(h9[4]);
+        long siteSeed = SeedMixer.hash2(seed ^ kind * 0x9E37L, hx, hz);
+        return site(kind, variant, style, state, climate, biome, hs, spec, f, hx, hz, floorY, siteSeed, bx0, bz0, bx1, bz1, c, path);
+    }
+
+    /** Materials, decay, wetness, name and loot of a placed ruin. */
+    private TrailRuin site(int kind, int variant, int style, int state, int climate, int biome, ColumnSample hs, RuinSpec spec, Canvas.Frame f,
+                           int hx, int hz, int floorY, long siteSeed, int bx0, int bz0, int bx1, int bz1, int[] c, int path) {
+        RuinMaterials mat = RuinSites.materials(kind, variant, style, climate, biome, hs, siteSeed);
         double u = SeedMixer.unit(SeedMixer.mix(siteSeed ^ 0xDECA1L));
         double decay = Math.max(0.2, Math.min(0.92, 0.25 + 0.65 * u + 0.08 * hs.humidity));
         double wet = Math.max(0.0, Math.min(1.0, (hs.humidity + 0.6) / 1.2));
@@ -566,9 +843,278 @@ public final class TrailSurvey {
             wet = Math.min(wet, 0.25);
         }
         String name = RuinNames.name(siteSeed);
-        String loot = RuinSites.lootTable(climate, houseBiome, template, mat);
-        return new TrailRuin(hx, floorY + 1, hz, siteSeed, bx0, bz0, bx1, bz1, template, climate, mat, f, floorY, decay, wet, name,
-            c[0], c[1], loot, path);
+        String loot = RuinSites.lootTable(kind, variant, climate, biome, mat);
+        return new TrailRuin(hx, floorY + 1, hz, siteSeed, bx0, bz0, bx1, bz1, kind, variant, style, state, climate, mat, f, spec, floorY, decay,
+            wet, name, c[0], c[1], loot, path);
+    }
+
+    // =========================================================================================
+    // Bridges
+    // =========================================================================================
+
+    /** Whether a column holds the water of a stream, a river or a lake. */
+    private boolean water(int x, int z) {
+        return RuinSites.water(m, x, z, scratch);
+    }
+
+    /** What water a column holds (see {@link RuinSites#waterKind}). */
+    private int waterKind(int x, int z) {
+        return RuinSites.waterKind(m, x, z, scratch);
+    }
+
+    /**
+     * The abutments of lost bridges stand on both banks of a stream the trail crosses, in a lane
+     * beside the trail (walkers ford the stream where the bridge once stood). A crossing is found
+     * two ways: a piece of laid trail runs through a narrow run of water (trails are laid up to
+     * a stream on both banks and the survey follows them across it, so most streams are forded
+     * within a piece), or a piece of trail stops at the water and is laid again beyond it.
+     */
+    private void bridges(List<Piece> pieces, List<TrailRuin> ruins) {
+        for (Piece pc : pieces) {
+            fords(pc, ruins);
+            for (int end = 0; end < 2; end++) {
+                double[] q = end == 0 ? pc.pts.get(0) : pc.pts.get(pc.pts.size() - 1);
+                double tx = end == 0 ? -q[2] : q[2];
+                double tz = end == 0 ? -q[3] : q[3];
+                // the crossing runs close to an axis, so the abutments face each other squarely
+                int vdir = RuinCell.dirOf(tx, tz);
+                double dot = RuinCell.DX[vdir] * tx + RuinCell.DZ[vdir] * tz;
+                if (dot < Math.cos(Math.toRadians(35))) {
+                    continue;
+                }
+                int px = (int) Math.round(q[0]);
+                int pz = (int) Math.round(q[1]);
+                int wetAt = -1;
+                for (int k = 1; k <= 10; k++) {
+                    if (water(px + RuinCell.DX[vdir] * k, pz + RuinCell.DZ[vdir] * k)) {
+                        wetAt = k;
+                        break;
+                    }
+                }
+                if (wetAt < 0) {
+                    continue;
+                }
+                sites.stats.incrementAndGet(ST_BRIDGE_CROSSINGS);
+                TrailRuin b = bridge(px, pz, vdir, laneSide(vdir, tx, tz), ruins);
+                if (b != null) {
+                    ruins.add(b);
+                    sites.stats.incrementAndGet(ST_RUINS);
+                }
+            }
+        }
+    }
+
+    /**
+     * Streams forded by a laid piece of trail: the piece is walked a block at a time, and a run
+     * of at most {@value #SPAN_MAX} wet columns ({@value #SPAN_MAX_BROAD} where the water is not a
+     * stream) with dry trail on both sides is a ford.
+     */
+    private void fords(Piece pc, List<TrailRuin> ruins) {
+        int n = (int) pc.length() + 1;
+        if (n < 12) {
+            return;
+        }
+        // the piece resampled a block apart, and which of those columns hold water
+        double[][] at = new double[n][];
+        int[] kind = new int[n];
+        boolean[] wet = new boolean[n];
+        int seg = 0;
+        for (int i = 0; i < n; i++) {
+            while (seg + 2 < pc.at.length && pc.at[seg + 1] < i) {
+                seg++;
+            }
+            double[] a = pc.pts.get(seg);
+            double[] b = pc.pts.get(Math.min(seg + 1, pc.pts.size() - 1));
+            double len = pc.at[Math.min(seg + 1, pc.at.length - 1)] - pc.at[seg];
+            double f = len > 0 ? Math.max(0.0, Math.min(1.0, (i - pc.at[seg]) / len)) : 0.0;
+            at[i] = new double[]{a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f};
+            kind[i] = waterKind((int) Math.round(at[i][0]), (int) Math.round(at[i][1]));
+            wet[i] = kind[i] != RuinSites.DRY;
+        }
+        int i = 4;
+        while (i < n - 4) {
+            if (!wet[i] || wet[i - 1]) {
+                i++;
+                continue;
+            }
+            int j = i;
+            boolean broad = false;
+            while (j < n && wet[j]) {
+                broad |= kind[j] == RuinSites.BROAD_WATER;
+                j++;
+            }
+            // a narrow run of water with dry trail for four blocks on both sides
+            boolean ford = j - i <= (broad ? SPAN_MAX_BROAD : SPAN_MAX) && j + 4 <= n;
+            for (int k = 1; k <= 4 && ford; k++) {
+                ford = !wet[i - k] && !wet[j - 1 + k];
+            }
+            if (ford) {
+                // the direction of the crossing: the chord from bank to bank
+                double tx = at[j + 3][0] - at[i - 4][0];
+                double tz = at[j + 3][1] - at[i - 4][1];
+                double l = Math.hypot(tx, tz);
+                int vdir = RuinCell.dirOf(tx, tz);
+                if (l > 1.0 && (RuinCell.DX[vdir] * tx + RuinCell.DZ[vdir] * tz) / l >= Math.cos(Math.toRadians(35))) {
+                    sites.stats.incrementAndGet(ST_BRIDGE_CROSSINGS);
+                    // the last dry column of the trail before the water
+                    int px = (int) Math.round(at[i - 1][0]);
+                    int pz = (int) Math.round(at[i - 1][1]);
+                    TrailRuin b = bridge(px, pz, vdir, laneSide(vdir, tx / l, tz / l), ruins);
+                    if (b != null) {
+                        ruins.add(b);
+                        sites.stats.incrementAndGet(ST_RUINS);
+                    }
+                }
+            }
+            i = j;
+        }
+    }
+
+    /**
+     * The side of the trail (+1 or -1, as {@link #bridge} counts it) that the trail bends away
+     * from as it crosses: a trail that crosses at an angle to the axis drifts sideways along the
+     * lane, so the lane goes on the side it drifts away from. 0 where the trail runs straight
+     * along the axis and either side will do.
+     */
+    private static int laneSide(int vdir, double tx, double tz) {
+        // the lane of side +1 lies towards u = (-vz, vx)
+        double tu = -RuinCell.DZ[vdir] * tx + RuinCell.DX[vdir] * tz;
+        return Math.abs(tu) < 0.08 ? 0 : tu > 0 ? -1 : 1;
+    }
+
+    /**
+     * The abutments of a crossing whose near bank lies just ahead of the trail column (px, pz)
+     * in direction {@code vdir}, in a lane on side {@code prefer} of the trail (0: either), or
+     * {@code null}.
+     */
+    private TrailRuin bridge(int px, int pz, int vdir, int prefer, List<TrailRuin> ruins) {
+        int vx = RuinCell.DX[vdir];
+        int vz = RuinCell.DZ[vdir];
+        long bs = SeedMixer.hash2(seed ^ 0xB121D6EL, px >> 3, pz >> 3);
+        if (SeedMixer.unit(bs) >= P_BRIDGE) {
+            sites.stats.incrementAndGet(ST_BRIDGE_ROLL);
+            return null;
+        }
+        int side = prefer != 0 ? prefer : SeedMixer.unit(SeedMixer.mix(bs + 1)) < 0.5 ? 1 : -1;
+        int ux = -vz * side;
+        int uz = vx * side;
+        int lane = BRIDGE_LANE;
+        int w = LandmarkPlanner.BRIDGE_WIDTH;
+        int depth = LandmarkPlanner.ABUTMENT_DEPTH;
+        // rows across the lane, counted from the end of the laid trail: wet if any lane column is water
+        int maxK = 24;
+        boolean[] wetRow = new boolean[maxK + depth + 2];
+        boolean[] broadRow = new boolean[maxK + depth + 2];
+        for (int k = -depth; k <= maxK; k++) {
+            for (int u = 0; u < w; u++) {
+                int kind = waterKind(px + ux * (lane + u) + vx * k, pz + uz * (lane + u) + vz * k);
+                wetRow[k + depth] |= kind != RuinSites.DRY;
+                broadRow[k + depth] |= kind == RuinSites.BROAD_WATER;
+            }
+        }
+        int first = -1;
+        for (int k = 1; k <= maxK; k++) {
+            if (wetRow[k + depth]) {
+                first = k;
+                break;
+            }
+        }
+        if (first < 0) {
+            sites.stats.incrementAndGet(ST_BRIDGE_LANE);
+            return null;
+        }
+        int span = 0;
+        boolean broad = false;
+        while (first + span <= maxK && wetRow[first + span + depth]) {
+            broad |= broadRow[first + span + depth];
+            span++;
+        }
+        if (span < 1 || span > (broad ? SPAN_MAX_BROAD : SPAN_MAX) || first + span + depth - 1 > maxK) {
+            sites.stats.incrementAndGet(ST_BRIDGE_SPAN);
+            return null;
+        }
+        for (int k = first - depth; k < first; k++) {
+            if (k < -depth || wetRow[k + depth]) {
+                sites.stats.incrementAndGet(ST_BRIDGE_BANKS);
+                return null;
+            }
+        }
+        for (int k = first + span; k < first + span + depth; k++) {
+            if (wetRow[k + depth]) {
+                sites.stats.incrementAndGet(ST_BRIDGE_BANKS);
+                return null;
+            }
+        }
+        Canvas.Frame f = new Canvas.Frame(px + ux * lane + vx * first, pz + uz * lane + vz * first, ux, uz, vx, vz);
+        // every abutment column dry, off the path and on firm ground; the banks within a few blocks of each other
+        double lo = Double.MAX_VALUE;
+        double hi = -Double.MAX_VALUE;
+        for (int u = 0; u < w; u++) {
+            for (int v = -depth; v < span + depth; v++) {
+                if (v >= 0 && v < span) {
+                    continue;
+                }
+                int x = f.x(u, v);
+                int z = f.z(u, v);
+                m.sampleInto(x & ~3, z & ~3, scratch);
+                if (scratch.height < sl + 1.5 || scratch.cliff > 0.3 || scratch.river > 0.0 || m.trailDistance(x, z) < 2.6) {
+                    sites.stats.incrementAndGet(ST_BRIDGE_GROUND);
+                    return null;
+                }
+                double h = m.interpolatedHeight(x, z);
+                lo = Math.min(lo, h);
+                hi = Math.max(hi, h);
+            }
+        }
+        if (hi - lo > 4.0) {
+            sites.stats.incrementAndGet(ST_BRIDGE_GROUND);
+            return null;
+        }
+        int floorY = (int) Math.floor(hi) + 1;
+        // the deck stubs over the water stay above it
+        double[] info = new double[2];
+        for (int u = 0; u < w; u++) {
+            for (int v = 0; v < span; v++) {
+                int x = f.x(u, v);
+                int z = f.z(u, v);
+                m.streamInfo(x, z, info);
+                m.sampleInto(x & ~3, z & ~3, scratch);
+                double top = Math.max(scratch.waterLevel == ColumnSample.NO_WATER ? -1e9 : scratch.waterLevel, info[0] < 4.5 ? info[1] : -1e9);
+                if (top > floorY) {
+                    sites.stats.incrementAndGet(ST_BRIDGE_DECK);
+                    return null;
+                }
+            }
+        }
+        RuinSpec spec = LandmarkPlanner.bridgeSpec(span);
+        int bx0 = Math.min(f.x(-2, -depth - 4), f.x(w + 1, span + depth + 2));
+        int bx1 = Math.max(f.x(-2, -depth - 4), f.x(w + 1, span + depth + 2));
+        int bz0 = Math.min(f.z(-2, -depth - 4), f.z(w + 1, span + depth + 2));
+        int bz1 = Math.max(f.z(-2, -depth - 4), f.z(w + 1, span + depth + 2));
+        if (bx0 < x0 + 8 || bx1 >= x0 + CELL - 8 || bz0 < z0 + 8 || bz1 >= z0 + CELL - 8) {
+            sites.stats.incrementAndGet(ST_BRIDGE_ROOM);
+            return null;
+        }
+        for (TrailRuin o : ruins) {
+            if (o.overlaps(bx0 - 4, bz0 - 4, bx1 + 4, bz1 + 4)) {
+                sites.stats.incrementAndGet(ST_BRIDGE_ROOM);
+                return null;
+            }
+        }
+        int hx = f.x(1, span / 2);
+        int hz = f.z(1, span / 2);
+        ColumnSample hs = new ColumnSample();
+        hs.copyFrom(m.sample(f.x(1, -2) & ~3, f.z(1, -2) & ~3));
+        int biome = sites.biome(hx, floorY, hz, hs);
+        if (!RuinBiomes.trailVisible(biome)) {
+            return null;
+        }
+        int climate = RuinSites.climateClass(hs, biome, sl);
+        int variant = pick(climate == RuinSites.COLD || climate == RuinSites.HOT_WET ? new double[]{30, 50, 20} : new double[]{55, 25, 20},
+            SeedMixer.unit(SeedMixer.mix(bs + 2)));
+        long siteSeed = SeedMixer.hash2(seed ^ 0xB121D6E5L, hx, hz);
+        return site(TrailRuin.BRIDGE, variant, 0, 0, climate, biome, hs, spec, f, hx, hz, floorY, siteSeed, bx0, bz0, bx1, bz1, new int[]{px, pz},
+            span);
     }
 
     // =========================================================================================
@@ -584,227 +1130,473 @@ public final class TrailSurvey {
         return new int[]{x + dx, z + dz};
     }
 
-    private boolean nearBox(RuinSite s, int x, int z, int pad) {
+    private static boolean nearBox(RuinSite s, int x, int z, int pad) {
         return s != null && x >= s.minX - pad && x <= s.maxX + pad && z >= s.minZ - pad && z <= s.maxZ + pad;
     }
 
-    private Signpost signpost(Node n, TrailRuin ruin, List<Signpost> others) {
-        int px;
-        int pz;
+    private static boolean nearAny(List<TrailRuin> ruins, int x, int z, int pad) {
+        for (TrailRuin r : ruins) {
+            if (nearBox(r, x, z, pad)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether a post may stand at a column: beside the path, inside the cell, on level dry land, clear of ruins. */
+    private boolean postSpot(int x, int z, List<TrailRuin> ruins) {
+        double td = m.trailDistance(x, z);
+        return td >= 2.6 && inCell(x, z, 0) && TrailGeometry.slope(m, x, z) <= 2.0 && TrailGeometry.land(m.sample(x & ~3, z & ~3), sl)
+            && !nearAny(ruins, x, z, 4);
+    }
+
+    private Signpost signpost(Node n, List<TrailRuin> ruins, List<Signpost> others) {
+        List<int[]> spots = new ArrayList<>();
         if (n.junction) {
-            // stand in the widest gap between the branches, just off the junction
+            // stand in the widest gap between the branches, just off the junction; else in the next widest
             double[] arms = n.arms.clone();
             Arrays.sort(arms);
-            double bestGap = -1;
-            double bisector = 0;
+            List<double[]> gaps = new ArrayList<>();
             for (int i = 0; i < arms.length; i++) {
                 double a0 = arms[i];
                 double a1 = i + 1 < arms.length ? arms[i + 1] : arms[0] + Math.PI * 2.0;
-                if (a1 - a0 > bestGap) {
-                    bestGap = a1 - a0;
-                    bisector = (a0 + a1) * 0.5;
+                gaps.add(new double[]{a1 - a0, (a0 + a1) * 0.5});
+            }
+            gaps.sort((a, b) -> Double.compare(b[0], a[0]));
+            for (double[] g : gaps) {
+                for (int d = 3; d <= 20; d++) {
+                    int x = (int) Math.round(n.x + d * Math.cos(g[1]));
+                    int z = (int) Math.round(n.z + d * Math.sin(g[1]));
+                    if (m.trailDistance(x, z) >= 3.2) {
+                        spots.add(new int[]{x, z});
+                        break;
+                    }
                 }
             }
-            int[] q = null;
-            for (int d = 3; d <= 20; d++) {
-                int x = (int) Math.round(n.x + d * Math.cos(bisector));
-                int z = (int) Math.round(n.z + d * Math.sin(bisector));
-                if (m.trailDistance(x, z) >= 3.2) {
-                    q = new int[]{x, z};
-                    break;
-                }
-            }
-            if (q == null) {
-                return null;
-            }
-            px = q[0];
-            pz = q[1];
         } else {
-            // in line with the path, just past its end, facing walkers who arrive along it
+            // in line with the path, just past its end, facing walkers who arrive along it; else beside the end
             double ax = Math.cos(n.arms[0]);
             double az = Math.sin(n.arms[0]);
-            int[] q = null;
             for (int o = 2; o <= 6; o++) {
                 int x = (int) Math.round(n.x - ax * o);
                 int z = (int) Math.round(n.z - az * o);
                 if (m.trailDistance(x, z) >= 3.0) {
-                    q = new int[]{x, z};
+                    spots.add(new int[]{x, z});
                     break;
                 }
             }
-            if (q == null) {
-                return null;
-            }
-            px = q[0];
-            pz = q[1];
-        }
-        int[] o = own(px, pz, 2, 13);
-        px = o[0];
-        pz = o[1];
-        double td = m.trailDistance(px, pz);
-        if (td < 2.6 || !inCell(px, pz, 0) || TrailGeometry.slope(m, px, pz) > 2.0
-            || !TrailGeometry.land(m.sample(px & ~3, pz & ~3), sl) || nearBox(ruin, px, pz, 4)) {
-            return null;
-        }
-        for (Signpost s : others) {
-            if (Math.abs(s.x - px) < 24 && Math.abs(s.z - pz) < 24) {
-                return null;
+            for (int sd = -1; sd <= 1; sd += 2) {
+                for (int o = 3; o <= 6; o++) {
+                    int x = (int) Math.round(n.x + 2 * ax - az * o * sd);
+                    int z = (int) Math.round(n.z + 2 * az + ax * o * sd);
+                    if (m.trailDistance(x, z) >= 3.2) {
+                        spots.add(new int[]{x, z});
+                        break;
+                    }
+                }
             }
         }
-        ColumnSample s = new ColumnSample();
-        s.copyFrom(m.sample(px & ~3, pz & ~3));
-        int biome = sites.biome(px, (int) s.height, pz, s);
-        if (!RuinBiomes.trailVisible(biome)) {
-            return null;
+        for (int[] q : spots) {
+            int[] o = own(q[0], q[1], 2, 13);
+            int px = o[0];
+            int pz = o[1];
+            if (!postSpot(px, pz, ruins)) {
+                continue;
+            }
+            boolean crowded = false;
+            for (Signpost s : others) {
+                crowded |= Math.abs(s.x - px) < 24 && Math.abs(s.z - pz) < 24;
+            }
+            if (crowded) {
+                continue;
+            }
+            ColumnSample s = new ColumnSample();
+            s.copyFrom(m.sample(px & ~3, pz & ~3));
+            int biome = sites.biome(px, (int) s.height, pz, s);
+            if (!RuinBiomes.trailVisible(biome)) {
+                return null;
+            }
+            int climate = RuinSites.climateClass(s, biome, sl);
+            long sseed = SeedMixer.hash2(seed ^ 0x5165L, px, pz);
+            RuinMaterials mat = RuinSites.materials(TrailRuin.HOUSE, HousePlanner.COTTAGE, HousePlanner.TIMBER_FRAME, climate, biome, s, sseed);
+            double wet = Math.max(0.0, Math.min(1.0, (s.humidity + 0.6) / 1.2));
+            int y = (int) Math.floor(m.interpolatedHeight(px, pz)) + 2;
+            int style = postStyle(climate, SeedMixer.unit(SeedMixer.mix(sseed + 3)));
+            return new Signpost(px, y, pz, sseed, n.junction ? Signpost.JUNCTION : Signpost.END, style, n.x, n.z, n.arms, mat, wet,
+                RuinCell.dirOf(n.x - px, n.z - pz));
         }
-        int climate = RuinSites.climateClass(s, biome, sl);
-        long sseed = SeedMixer.hash2(seed ^ 0x5165L, px, pz);
-        RuinMaterials mat = RuinSites.houseMaterials(climate, biome, s, HousePlanner.COTTAGE, sseed);
-        double wet = Math.max(0.0, Math.min(1.0, (s.humidity + 0.6) / 1.2));
-        int y = (int) Math.floor(m.interpolatedHeight(px, pz)) + 2;
-        return new Signpost(px, y, pz, sseed, n.junction ? Signpost.JUNCTION : Signpost.END, n.x, n.z, n.arms, mat, wet);
+        return null;
+    }
+
+    /** Post style by climate: stone in the uplands, bamboo in the jungle, logs in the north. */
+    private static int postStyle(int climate, double r) {
+        return switch (climate) {
+            case RuinSites.UPLAND -> r < 0.6 ? Signpost.STONE_POST : Signpost.BARK_POST;
+            case RuinSites.COLD -> r < 0.65 ? Signpost.BARK_POST : Signpost.STRIPPED_POST;
+            case RuinSites.HOT_WET -> r < 0.75 ? Signpost.BAMBOO_POST : Signpost.STRIPPED_POST;
+            case RuinSites.HOT_DRY -> r < 0.5 ? Signpost.STONE_POST : Signpost.STRIPPED_POST;
+            default -> r < 0.6 ? Signpost.STRIPPED_POST : r < 0.85 ? Signpost.BARK_POST : Signpost.STONE_POST;
+        };
+    }
+
+    /**
+     * Markers along long trails: where a trail crosses one of the marker lines of the cell (x and
+     * z a quarter and three quarters of the way across), away from junctions, ends and other
+     * signs, a direction post with an arm each way or a milestone. The lines lie half a cell
+     * apart and a marker keeps {@value #MARKER_SPACING} blocks from other signs, so markers come
+     * every 150 to 250 blocks along a long trail.
+     */
+    private void markers(List<Node> nodes, List<TrailRuin> ruins, List<Signpost> signs) {
+        List<int[]> cands = new ArrayList<>();
+        for (int line : new int[]{CELL / 4, 3 * CELL / 4}) {
+            cands.addAll(crossings(true, x0 + line, z0 + 16, z0 + CELL - 16));
+            cands.addAll(crossings(false, z0 + line, x0 + 16, x0 + CELL - 16));
+        }
+        for (int[] cand : cands) {
+            sites.stats.incrementAndGet(ST_MARKER_CROSSINGS);
+            long ms = SeedMixer.hash2(seed ^ 0x3A11L, cand[0], cand[1]);
+            if (SeedMixer.unit(ms) >= P_MARKER || !TrailGeometry.laid(m, cand[0], cand[1])) {
+                continue;
+            }
+            double[] t = TrailGeometry.tangent(m, cand[0], cand[1]);
+            if (t == null) {
+                continue;
+            }
+            boolean clear = true;
+            for (Node n : nodes) {
+                clear &= Math.hypot(n.x - cand[0], n.z - cand[1]) > 90;
+            }
+            for (Signpost s : signs) {
+                clear &= Math.hypot(s.x - cand[0], s.z - cand[1]) > MARKER_SPACING;
+            }
+            if (!clear) {
+                continue;
+            }
+            int side = SeedMixer.unit(SeedMixer.mix(ms + 1)) < 0.5 ? 1 : -1;
+            double nx = -t[1] * side;
+            double nz = t[0] * side;
+            for (int o = 3; o <= 6; o++) {
+                int x = (int) Math.round(cand[0] + nx * o);
+                int z = (int) Math.round(cand[1] + nz * o);
+                if (m.trailDistance(x, z) < 3.0) {
+                    continue;
+                }
+                int[] own = own(x, z, 2, 13);
+                if (!postSpot(own[0], own[1], ruins)) {
+                    break;
+                }
+                int px = own[0];
+                int pz = own[1];
+                ColumnSample s = new ColumnSample();
+                s.copyFrom(m.sample(px & ~3, pz & ~3));
+                int biome = sites.biome(px, (int) s.height, pz, s);
+                if (!RuinBiomes.trailVisible(biome)) {
+                    break;
+                }
+                int climate = RuinSites.climateClass(s, biome, sl);
+                long sseed = SeedMixer.hash2(seed ^ 0x3A115L, px, pz);
+                double r = SeedMixer.unit(SeedMixer.mix(sseed + 1));
+                boolean stoneCountry = climate == RuinSites.UPLAND || climate == RuinSites.COLD || climate == RuinSites.HOT_DRY;
+                int kind = r < (stoneCountry ? 0.55 : 0.35) ? Signpost.MILESTONE : Signpost.WAYPOST;
+                RuinMaterials mat = RuinSites.materials(TrailRuin.HOUSE, HousePlanner.COTTAGE, HousePlanner.TIMBER_FRAME, climate, biome, s, sseed);
+                double wet = Math.max(0.0, Math.min(1.0, (s.humidity + 0.6) / 1.2));
+                int y = (int) Math.floor(m.interpolatedHeight(px, pz)) + 2;
+                double a = Math.atan2(t[1], t[0]);
+                signs.add(new Signpost(px, y, pz, sseed, kind, postStyle(climate, SeedMixer.unit(SeedMixer.mix(sseed + 3))), cand[0], cand[1],
+                    new double[]{a, a + Math.PI}, mat, wet, RuinCell.dirOf(cand[0] - px, cand[1] - pz)));
+                sites.stats.incrementAndGet(ST_SIGNS);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Where trails cross a line: {@code alongZ} scans the x = {@code line} line along z from
+     * {@code lo} to {@code hi} (else the z = {@code line} line along x), and returns the columns
+     * on the line nearest the trail's centre, {x, z}: the lowest trail distance (below 1.5) within
+     * three blocks either way. The test looks only at its own neighbourhood, so two cells scanning
+     * the same stretch of a line find the same crossings. Only stretches of the line that pass a
+     * lattice point near a trail are scanned.
+     */
+    private List<int[]> crossings(boolean alongZ, int line, int lo, int hi) {
+        List<int[]> out = new ArrayList<>();
+        int gi = Math.floorDiv(line - (alongZ ? x0 : z0) + MARGIN - LATTICE / 2, LATTICE);
+        if (gi < 0 || gi + 1 >= GRID) {
+            return out;
+        }
+        int w = 3;
+        int a = lo - w;
+        double[] d = new double[hi - lo + 2 * w];
+        for (int pos = a; pos < hi + w; pos++) {
+            int gj = Math.floorDiv(pos - (alongZ ? z0 : x0) + MARGIN, LATTICE);
+            double g = gj < 0 || gj >= GRID ? 0.0
+                : Math.min(alongZ ? grid[gi * GRID + gj] : grid[gj * GRID + gi], alongZ ? grid[(gi + 1) * GRID + gj] : grid[gj * GRID + gi + 1]);
+            d[pos - a] = g > 12.0 ? Double.MAX_VALUE : alongZ ? m.trailDistance(line, pos) : m.trailDistance(pos, line);
+        }
+        for (int pos = lo; pos < hi; pos++) {
+            double v = d[pos - a];
+            if (v >= 1.5) {
+                continue;
+            }
+            boolean min = true;
+            for (int q = pos - w; q <= pos + w && min; q++) {
+                double o = d[q - a];
+                min = q < pos ? v < o : q == pos || v <= o;
+            }
+            if (min) {
+                out.add(alongZ ? new int[]{line, pos} : new int[]{pos, line});
+            }
+        }
+        return out;
     }
 
     // =========================================================================================
     // Lamp posts
     // =========================================================================================
 
-    private LightStretch lights(List<int[]> points, TrailRuin ruin, List<Signpost> signs, List<Node> nodes) {
-        int[] start = null;
-        double[] t = null;
-        if (ruin != null) {
-            start = new int[]{ruin.trailX, ruin.trailZ};
-            t = TrailGeometry.tangent(m, start[0], start[1]);
-        }
-        for (int k = 0; k < 8 && t == null; k++) {
-            int[] p = points.get((int) (SeedMixer.cellUnit(seed, cx, cz, 60 + k) * points.size()));
-            if (p[2] > 300) {
-                continue;
-            }
-            int[] c = TrailGeometry.centre(m, p[0], p[1]);
-            if (c == null || !TrailGeometry.laid(m, c[0], c[1])) {
-                continue;
-            }
-            t = TrailGeometry.tangent(m, c[0], c[1]);
-            start = c;
-        }
-        if (t == null) {
-            return null;
-        }
-        List<double[]> fwd = TrailGeometry.march(m, start, t, 40, x0, z0, x0 + CELL - 1, z0 + CELL - 1);
-        List<double[]> back = TrailGeometry.march(m, start, new double[]{-t[0], -t[1]}, 40, x0, z0, x0 + CELL - 1, z0 + CELL - 1);
-        List<double[]> line = new ArrayList<>();
-        for (int i = back.size() - 1; i >= 1; i--) {
-            double[] q = back.get(i);
-            line.add(new double[]{q[0], q[1], -q[2], -q[3]});
-        }
-        line.addAll(fwd);
-        if (line.size() < 8) {
-            return null;
-        }
-        double spacing = 16 + Math.floor(17.0 * SeedMixer.cellUnit(seed, cx, cz, 70));
-        boolean alternate = SeedMixer.cellUnit(seed, cx, cz, 71) < 0.3;
-        int side = SeedMixer.cellUnit(seed, cx, cz, 72) < 0.5 ? 1 : -1;
-        List<int[]> posts = new ArrayList<>();
-        double travelled = 0;
-        double next = 0;
-        for (int i = 0; i < line.size() && posts.size() < 12; i++) {
-            double[] q = line.get(i);
-            if (i > 0) {
-                double[] p = line.get(i - 1);
-                travelled += Math.hypot(q[0] - p[0], q[1] - p[1]);
-            }
-            if (travelled < next) {
-                continue;
-            }
-            int[] post = lampPost(q, side, ruin, signs, nodes, posts);
-            if (post != null) {
-                posts.add(post);
-                double jitter = (SeedMixer.unit(SeedMixer.hash2(seed, post[0], post[1])) - 0.5) * 4.0;
-                next = travelled + spacing + jitter;
-                if (alternate) {
-                    side = -side;
-                }
-            }
-        }
-        if (posts.size() < 4) {
-            return null;
-        }
-        // style and decay from the climate where the stretch starts
-        ColumnSample s = new ColumnSample();
-        s.copyFrom(m.sample(start[0] & ~3, start[1] & ~3));
-        int biome = sites.biome(start[0], (int) s.height, start[1], s);
-        int climate = RuinSites.climateClass(s, biome, sl);
-        double r = SeedMixer.cellUnit(seed, cx, cz, 73);
-        int style = switch (climate) {
-            case RuinSites.COLD, RuinSites.UPLAND -> r < 0.6 ? LightStretch.CHAIN_LAMP : LightStretch.LAMP_ARM;
-            case RuinSites.HOT_DRY -> LightStretch.POST_TOP;
-            case RuinSites.HOT_WET -> LightStretch.BAMBOO;
-            default -> biome == RuinBiomes.CHERRY || biome == RuinBiomes.MEADOW ? (r < 0.6 ? LightStretch.STONE_LANTERN : LightStretch.LAMP_ARM)
-                : r < 0.55 ? LightStretch.LAMP_ARM : r < 0.75 ? LightStretch.STONE_LANTERN : LightStretch.POST_TOP;
-        };
-        double decay = 0.2 + 0.65 * SeedMixer.cellUnit(seed, cx, cz, 74);
-        double wet = Math.max(0.0, Math.min(1.0, (s.humidity + 0.6) / 1.2));
-        boolean soul = (biome == RuinBiomes.DARK_FOREST || biome == RuinBiomes.TAIGA || biome == RuinBiomes.SWAMP)
-            && SeedMixer.cellUnit(seed, cx, cz, 75) < 0.3;
-        long lseed = SeedMixer.hash2(seed ^ 0x11647L, cx, cz);
-        RuinMaterials mat = RuinSites.houseMaterials(climate, biome, s, HousePlanner.COTTAGE, lseed);
-        int minX = Integer.MAX_VALUE;
-        int minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int maxZ = Integer.MIN_VALUE;
-        for (int[] p : posts) {
-            minX = Math.min(minX, p[0] - 3);
-            minZ = Math.min(minZ, p[1] - 3);
-            maxX = Math.max(maxX, p[0] + 3);
-            maxZ = Math.max(maxZ, p[1] + 3);
-        }
-        int[] mid = posts.get(posts.size() / 2);
-        int y = (int) Math.floor(m.interpolatedHeight(mid[0], mid[1])) + 2;
-        sites.stats.incrementAndGet(ST_LIGHTS);
-        sites.stats.addAndGet(ST_POSTS, posts.size());
-        return new LightStretch(mid[0], y, mid[1], lseed, minX, minZ, maxX, maxZ, posts.toArray(new int[0][]), style, decay, wet, soul, mat);
+    /** A crossing of a lamp line: centre {x, z}, unit tangent, the line's index and family. */
+    private record LampCrossing(int x, int z, double tx, double tz, int line, boolean xFamily) {
     }
 
-    /** A lamp post beside the trail point {x, z, tx, tz}, or {@code null} if no good spot. */
-    private int[] lampPost(double[] q, int side, TrailRuin ruin, List<Signpost> signs, List<Node> nodes, List<int[]> posts) {
-        double nx = -q[3] * side;
-        double nz = q[2] * side;
-        for (int o = 3; o <= 7; o++) {
-            int x = (int) Math.round(q[0] + nx * o);
-            int z = (int) Math.round(q[1] + nz * o);
-            double td = m.trailDistance(x, z);
-            if (td < 3.5) {
+    /**
+     * Lamp posts on the lit sections of the cell's trails. Candidates are the crossings of the
+     * lamp lines; a trail running more east-west than north-south takes the x lines, the others
+     * the z lines, and where the two families meet near a diagonal a z-line post gives way to an
+     * x-line post close by. Every test reads only the terrain and fields around the candidate
+     * (and the cell's own ruins and signs, which never come near a border), so the posts of a lit
+     * section near a cell border are the same whichever cell computes them.
+     */
+    private List<LightStretch> lamps(List<Node> nodes, List<TrailRuin> ruins, List<Signpost> signs) {
+        // a post stands at most 7 blocks from its crossing, and a z-line crossing looks for x-line
+        // crossings within 14 blocks: scan a margin of 24 around the cell
+        int reach = 24;
+        int lineLo = Math.floorDiv(x0 - reach, LAMP_LINE);
+        int lineHi = Math.floorDiv(x0 + CELL + reach - 1, LAMP_LINE);
+        List<LampCrossing> xs = new ArrayList<>();
+        for (int k = lineLo; k <= lineHi; k++) {
+            for (int[] c : crossings(true, k * LAMP_LINE, z0 - reach, z0 + CELL + reach)) {
+                double[] t = lineTangent(true, c);
+                if (t != null && Math.abs(t[0]) >= Math.abs(t[1])) {
+                    xs.add(new LampCrossing(c[0], c[1], t[0], t[1], k, true));
+                }
+            }
+        }
+        List<LampCrossing> all = new ArrayList<>(xs);
+        lineLo = Math.floorDiv(z0 - reach, LAMP_LINE);
+        lineHi = Math.floorDiv(z0 + CELL + reach - 1, LAMP_LINE);
+        for (int k = lineLo; k <= lineHi; k++) {
+            for (int[] c : crossings(false, k * LAMP_LINE, x0 - reach, x0 + CELL + reach)) {
+                double[] t = lineTangent(false, c);
+                if (t == null || Math.abs(t[1]) <= Math.abs(t[0])) {
+                    continue;
+                }
+                boolean taken = false;
+                for (LampCrossing x : xs) {
+                    taken |= Math.hypot(x.x - c[0], x.z - c[1]) < LAMP_LINE * 0.6;
+                }
+                if (!taken) {
+                    all.add(new LampCrossing(c[0], c[1], t[0], t[1], k, false));
+                }
+            }
+        }
+        List<LightStretch.Post> posts = new ArrayList<>();
+        for (LampCrossing lc : all) {
+            sites.stats.incrementAndGet(ST_LAMP_CROSSINGS);
+            LightStretch.Post p = lampPost(lc, nodes, ruins, signs);
+            if (p != null) {
+                posts.add(p);
+            }
+        }
+        return stretches(posts);
+    }
+
+    /**
+     * Tangent of the trail where it crosses a lamp line, from its centre on the parallel lines
+     * three blocks either side, or {@code null} if the trail is lost there.
+     */
+    private double[] lineTangent(boolean alongZ, int[] c) {
+        int line = alongZ ? c[0] : c[1];
+        int pos = alongZ ? c[1] : c[0];
+        int[] at = new int[2];
+        for (int s = 0; s < 2; s++) {
+            int l = line + (s == 0 ? -3 : 3);
+            double best = Double.MAX_VALUE;
+            for (int p = pos - 6; p <= pos + 6; p++) {
+                double d = alongZ ? m.trailDistance(l, p) : m.trailDistance(p, l);
+                if (d < best) {
+                    best = d;
+                    at[s] = p;
+                }
+            }
+            if (best > 2.0) {
+                return null;
+            }
+        }
+        double da = 6.0;
+        double db = at[1] - at[0];
+        double len = Math.hypot(da, db);
+        return alongZ ? new double[]{da / len, db / len} : new double[]{db / len, da / len};
+    }
+
+    /**
+     * The post of a lamp-line crossing, or {@code null} where the trail is not lit or there is no
+     * good spot. The post stands 3 to 6 blocks from the centre of the trail on the side the
+     * section keeps to, in the first column off the path whose post and lantern fit inside one
+     * chunk (local x and z between 1 and 14: the arm and anything that fell reach one block, and
+     * the planner keeps a fallen post inside the chunk). Where the crossing itself has no such
+     * column, the post moves a block or two along the trail, which keeps the spacing even.
+     */
+    private LightStretch.Post lampPost(LampCrossing lc, List<Node> nodes, List<TrailRuin> ruins, List<Signpost> signs) {
+        if (!sites.lit(lc.x, lc.z) || !TrailGeometry.laid(m, lc.x, lc.z)) {
+            return null;
+        }
+        boolean counted = inCell(lc.x, lc.z, 0);
+        if (counted) {
+            sites.stats.incrementAndGet(ST_LAMP_LIT);
+        }
+        for (Node n : nodes) {
+            double d = Math.hypot(n.x - lc.x, n.z - lc.z);
+            if (n.junction ? d < 20 : d < 10) {
+                count(counted, ST_LAMP_NODE);
+                return null;
+            }
+        }
+        // posts keep to one side over long runs; in some sections they alternate sides
+        int side = sites.lampSide(lc.x, lc.z);
+        if (sites.alternating(lc.x, lc.z) && (lc.line & 1) == 1) {
+            side = -side;
+        }
+        // the side the section keeps to first; where a ruin, a slope or a bend leaves no room, the
+        // post stands across the path
+        int refused = ST_LAMP_NO_SPOT;
+        for (int pass = 0; pass < 2; pass++) {
+            int sd = pass == 0 ? side : -side;
+            double nx = -lc.tz * sd;
+            double nz = lc.tx * sd;
+            for (int slide : LAMP_SLIDES) {
+                double bx = lc.x + lc.tx * slide;
+                double bz = lc.z + lc.tz * slide;
+                int verdict = 0;
+                for (int o = 3; o <= 7 && verdict == 0; o++) {
+                    int x = (int) Math.round(bx + nx * o);
+                    int z = (int) Math.round(bz + nz * o);
+                    double td = m.trailDistance(x, z);
+                    if (td < 3.2) {
+                        continue;
+                    }
+                    if (td > 6.5) {
+                        break;
+                    }
+                    if (!lampColumn(x, z)) {
+                        refused = Math.max(refused, ST_LAMP_OWN);
+                        continue;
+                    }
+                    if (!inCell(x, z, 0)) {
+                        // the post belongs to the neighbouring cell, which places it
+                        return null;
+                    }
+                    if (TrailGeometry.slope(m, x, z) > 2.0 || !TrailGeometry.land(m.sample(x & ~3, z & ~3), sl)) {
+                        refused = Math.max(refused, ST_LAMP_GROUND);
+                        verdict = 1;
+                        continue;
+                    }
+                    if (nearAny(ruins, x, z, 4)) {
+                        refused = Math.max(refused, ST_LAMP_RUIN);
+                        verdict = 1;
+                        continue;
+                    }
+                    for (Signpost s : signs) {
+                        if (Math.abs(s.x - x) < 8 && Math.abs(s.z - z) < 8) {
+                            count(counted, ST_LAMP_SIGN);
+                            return null;
+                        }
+                    }
+                    ColumnSample s = new ColumnSample();
+                    s.copyFrom(m.sample(x & ~3, z & ~3));
+                    int biome = sites.biome(x, (int) s.height, z, s);
+                    if (!RuinBiomes.trailVisible(biome)) {
+                        count(counted, ST_LAMP_BIOME);
+                        return null;
+                    }
+                    int climate = RuinSites.climateClass(s, biome, sl);
+                    int toTrail = RuinCell.dirOf(-nx, -nz);
+                    return sites.lampPost(x, z, toTrail, climate, biome, s, (lc.line % 3 + 3) % 3 == 1);
+                }
+            }
+        }
+        count(counted, refused);
+        return null;
+    }
+
+    /** Offsets along the trail at which a lamp post is tried, nearest the crossing first. */
+    private static final int[] LAMP_SLIDES = {0, 1, -1, 2, -2, 3, -3};
+
+    /** Whether a lamp post at a column fits inside its chunk with a block to spare all round. */
+    static boolean lampColumn(int x, int z) {
+        int lx = x & 15;
+        int lz = z & 15;
+        return lx >= 1 && lx <= 14 && lz >= 1 && lz <= 14;
+    }
+
+    private void count(boolean counted, int slot) {
+        if (counted) {
+            sites.stats.incrementAndGet(slot);
+        }
+    }
+
+    /**
+     * Groups the cell's posts into stretches: posts within three line spacings of each other
+     * (one post may be missing beside a ruin or on a bank) light one stretch.
+     */
+    private List<LightStretch> stretches(List<LightStretch.Post> posts) {
+        int n = posts.size();
+        if (n == 0) {
+            return List.of();
+        }
+        posts.sort((a, b) -> a.x() != b.x() ? Integer.compare(a.x(), b.x()) : Integer.compare(a.z(), b.z()));
+        int[] parent = new int[n];
+        for (int i = 0; i < n; i++) {
+            parent[i] = i;
+        }
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                LightStretch.Post a = posts.get(i);
+                LightStretch.Post b = posts.get(j);
+                if (Math.hypot(a.x() - b.x(), a.z() - b.z()) <= LAMP_LINE * 3.0) {
+                    parent[find(parent, i)] = find(parent, j);
+                }
+            }
+        }
+        List<LightStretch> out = new ArrayList<>();
+        boolean[] done = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            if (done[i]) {
                 continue;
             }
-            int[] own = own(x, z, 3, 12);
-            x = own[0];
-            z = own[1];
-            td = m.trailDistance(x, z);
-            if (td < 3.2 || td > 7.0 || !inCell(x, z, 0)) {
-                return null;
-            }
-            if (TrailGeometry.slope(m, x, z) > 2.0 || !TrailGeometry.land(m.sample(x & ~3, z & ~3), sl) || nearBox(ruin, x, z, 4)) {
-                return null;
-            }
-            for (Signpost s : signs) {
-                if (Math.abs(s.x - x) < 8 && Math.abs(s.z - z) < 8) {
-                    return null;
+            int root = find(parent, i);
+            List<LightStretch.Post> group = new ArrayList<>();
+            for (int j = i; j < n; j++) {
+                if (!done[j] && find(parent, j) == root) {
+                    group.add(posts.get(j));
+                    done[j] = true;
                 }
             }
-            for (Node n : nodes) {
-                if (n.junction && Math.abs(n.x - x) < 20 && Math.abs(n.z - z) < 20) {
-                    return null;
-                }
+            int minX = Integer.MAX_VALUE;
+            int minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE;
+            int maxZ = Integer.MIN_VALUE;
+            for (LightStretch.Post p : group) {
+                minX = Math.min(minX, p.x() - 3);
+                minZ = Math.min(minZ, p.z() - 3);
+                maxX = Math.max(maxX, p.x() + 3);
+                maxZ = Math.max(maxZ, p.z() + 3);
             }
-            for (int[] p : posts) {
-                if ((p[0] >> 4) == (x >> 4) && (p[1] >> 4) == (z >> 4) || Math.abs(p[0] - x) + Math.abs(p[1] - z) < 10) {
-                    return null;
-                }
-            }
-            int toTrail = RuinCell.dirOf(-nx, -nz);
-            return new int[]{x, z, toTrail};
+            LightStretch.Post mid = group.get(group.size() / 2);
+            int y = (int) Math.floor(m.interpolatedHeight(mid.x(), mid.z())) + 2;
+            out.add(new LightStretch(mid.x(), y, mid.z(), mid.seed(), minX, minZ, maxX, maxZ, group.toArray(new LightStretch.Post[0])));
+            sites.stats.incrementAndGet(ST_LIGHTS);
+            sites.stats.addAndGet(ST_POSTS, group.size());
         }
-        return null;
+        return out;
     }
 }

@@ -158,7 +158,9 @@ public final class RuinPlan {
         ArrayDeque<int[]> queue = new ArrayDeque<>();
         for (int x = minX; x < minX + sizeX; x++) {
             for (int z = minZ; z < minZ + sizeZ; z++) {
-                for (int y = minY; y <= Math.min(baseY, maxY()); y++) {
+                // a grouped plan (a post) stands on the ground beside its anchor: its lowest
+                // course, one above the base, rests on the ground
+                for (int y = minY; y <= Math.min(baseY + (mode == GROUPED ? 1 : 0), maxY()); y++) {
                     if (structural(x, y, z)) {
                         reached[index(x, y, z)] = true;
                         queue.add(new int[]{x, y, z});
@@ -173,6 +175,13 @@ public final class RuinPlan {
         while (!queue.isEmpty()) {
             int[] p = queue.poll();
             boolean roof = roof(get(p[0], p[1], p[2]));
+            // a standing lantern carries what rests on it, like the cap of a stone lantern
+            int above = get(p[0], p[1] + 1, p[2]);
+            if (above != 0 && RuinCell.part(above) == RuinPart.LANTERN && !RuinCell.flag(above) && contains(p[0], p[1] + 2, p[2])
+                && structural(p[0], p[1] + 2, p[2]) && !reached[index(p[0], p[1] + 2, p[2])]) {
+                reached[index(p[0], p[1] + 2, p[2])] = true;
+                queue.add(new int[]{p[0], p[1] + 2, p[2]});
+            }
             for (int k = 0; k < faces.length; k++) {
                 int[] f = faces[k];
                 int x = p[0] + f[0];
@@ -248,7 +257,8 @@ public final class RuinPlan {
                 yield part == RuinPart.VINE && RuinCell.part(get(x, y + 1, z)) == RuinPart.VINE
                     || (faces & 16) != 0 && solidCube(x, y + 1, z) || (faces & 32) != 0 && solidCube(x, y - 1, z);
             }
-            case LADDER, CORAL_FAN -> solidCube(x - RuinCell.DX[dir], y, z - RuinCell.DZ[dir]);
+            case LADDER, CORAL_FAN, WALL_SIGN -> solidCube(x - RuinCell.DX[dir], y, z - RuinCell.DZ[dir]);
+            case BELL -> RuinCell.flag(c) ? hangsFrom(get(x, y + 1, z)) : structural(x, y - 1, z);
             case WALL_HANGING_SIGN -> {
                 int side = RuinCell.clockwise(dir);
                 yield solidCube(x + RuinCell.DX[side], y, z + RuinCell.DZ[side]) || solidCube(x - RuinCell.DX[side], y, z - RuinCell.DZ[side]);

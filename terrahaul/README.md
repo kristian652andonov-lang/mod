@@ -122,14 +122,21 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   as arches to swim through.
 
 ### Ruins and trailside structures
-- **Trail ruins** beside the trails: nine kinds of broken house (cottage, log cabin, stone bothy,
-  farmstead, adobe, stilt hut, burned cabin, watchtower, lean-to) in materials that follow the
-  climate and the rock. Walls, roofs and floors are damaged coherently and overgrown; they hold
-  furniture, chests and archaeology sites.
-- **Signposts** at trail junctions and ends whose signs name real destinations with distances
-  (lakes, volcanoes, waterfalls, formations, other ruins).
-- **Broken path lights:** stretches of lamp posts in five regional styles, many bent, fallen or
-  without their lantern.
+- **Broken houses** beside the trails, every few hundred blocks: a hut, a cottage, a two-room
+  house, a farmhouse with a barn or shed, a two-storey house whose upper floor fell in, or a stone
+  tower house; built as a timber frame in temperate land, a log cabin in the cold, of stone in the
+  uplands, of mud brick or sandstone in hot dry land and raised on stilts in the jungle; with the
+  roof fallen in, a wall collapsed into rubble, burned out, down to its foundations and chimney,
+  or overgrown. Inside lie a chest with village loot, barrels, a broken bed, a hearth, cobwebs;
+  outside the remains of a fence, a well, a garden patch.
+- **Other trailside ruins**, each in a few variants: collapsed watchtowers, abandoned wells, broken
+  wagons and carts with their spilled load, wayside shrines, old campsites, field walls with a
+  ruined gateway, the abutments of lost bridges where a trail fords a stream, ruined chapels.
+- **Signposts** at most trail junctions and ends, and direction posts and milestones along long
+  trails, whose signs name real destinations with distances (lakes, volcanoes, waterfalls,
+  formations, ruins).
+- **Broken path lights:** long lit sections of trail with lamp posts every 20-odd blocks, in five
+  regional styles, many bent, fallen or without their lantern.
 - **Sunken ruins** on the sea floor: a colonnaded temple, a city gate, a drowned street quarter and
   a tower stump, partly buried and overgrown, with chests and archaeology sites.
 
@@ -189,7 +196,7 @@ need to generate chunks. The result is a clickable teleport suggestion. Landform
 | Lowlands and uplands | `meadow`, `plateau`, `valley`, `hills`, `plains`, `windswept_hills`, `wetland` |
 | Canyons and formations | `canyon`, `waterfall`, `cascade`, `overhang`, `arch`, `spire`, `hoodoo` |
 | Underwater | `coral_reef`, `patch_reef`, `kelp_forest`, `seagrass_meadow`, `rocky_seabed`, `sea_grotto`, `sunken_ruin` |
-| Paths and ruins | `trail`, `trail_ruin`, `signpost`, `path_lights` |
+| Paths and ruins | `trail`, `path_ruin`, `broken_house` (also `ruined_house`, `trail_ruin`), `watchtower`, `abandoned_well`, `wagon`, `shrine`, `campsite`, `field_walls`, `old_bridge`, `ruined_chapel`, `signpost`, `path_lights` |
 
 The other commands are:
 - `/terrahaul find biome <biome or #tag> [radius]` finds the nearest biome.

@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.block.state.properties.BellAttachType;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -55,6 +56,13 @@ final class RuinPalette {
         Blocks.ACACIA_TRAPDOOR, Blocks.JUNGLE_TRAPDOOR, Blocks.MANGROVE_TRAPDOOR, Blocks.CHERRY_TRAPDOOR, Blocks.BAMBOO_TRAPDOOR};
     private static final Block[] SIGNS = {Blocks.OAK_SIGN, Blocks.SPRUCE_SIGN, Blocks.BIRCH_SIGN, Blocks.DARK_OAK_SIGN, Blocks.ACACIA_SIGN,
         Blocks.JUNGLE_SIGN, Blocks.MANGROVE_SIGN, Blocks.CHERRY_SIGN, Blocks.BAMBOO_SIGN};
+    private static final Block[] WALL_SIGNS = {Blocks.OAK_WALL_SIGN, Blocks.SPRUCE_WALL_SIGN, Blocks.BIRCH_WALL_SIGN, Blocks.DARK_OAK_WALL_SIGN,
+        Blocks.ACACIA_WALL_SIGN, Blocks.JUNGLE_WALL_SIGN, Blocks.MANGROVE_WALL_SIGN, Blocks.CHERRY_WALL_SIGN, Blocks.BAMBOO_WALL_SIGN};
+    private static final Block[] FENCE_GATES = {Blocks.OAK_FENCE_GATE, Blocks.SPRUCE_FENCE_GATE, Blocks.BIRCH_FENCE_GATE,
+        Blocks.DARK_OAK_FENCE_GATE, Blocks.ACACIA_FENCE_GATE, Blocks.JUNGLE_FENCE_GATE, Blocks.MANGROVE_FENCE_GATE, Blocks.CHERRY_FENCE_GATE,
+        Blocks.BAMBOO_FENCE_GATE};
+    /** Tent canvas: weathered white, grey, brown and green. */
+    private static final Block[] WOOL = {Blocks.WHITE_WOOL, Blocks.LIGHT_GRAY_WOOL, Blocks.BROWN_WOOL, Blocks.GREEN_WOOL};
     private static final Block[] HANGING_SIGNS = {Blocks.OAK_WALL_HANGING_SIGN, Blocks.SPRUCE_WALL_HANGING_SIGN, Blocks.BIRCH_WALL_HANGING_SIGN,
         Blocks.DARK_OAK_WALL_HANGING_SIGN, Blocks.ACACIA_WALL_HANGING_SIGN, Blocks.JUNGLE_WALL_HANGING_SIGN, Blocks.MANGROVE_WALL_HANGING_SIGN,
         Blocks.CHERRY_WALL_HANGING_SIGN, Blocks.BAMBOO_WALL_HANGING_SIGN};
@@ -169,7 +177,7 @@ final class RuinPalette {
     /** Whether a part's shape depends on its neighbours and should be fixed when the chunk completes. */
     static boolean shaped(RuinPart p) {
         return switch (p) {
-            case FENCE, MASONRY_WALL, GLASS_PANE, IRON_BARS, MASONRY_STAIR, PLANK_STAIR, ROOF_STAIR, TRIM_STAIR -> true;
+            case FENCE, FENCE_GATE, MASONRY_WALL, GLASS_PANE, IRON_BARS, MASONRY_STAIR, PLANK_STAIR, ROOF_STAIR, TRIM_STAIR -> true;
             default -> false;
         };
     }
@@ -223,6 +231,9 @@ final class RuinPalette {
             case LOG -> axis(charred ? Blocks.DARK_OAK_LOG : LOGS[wood], RuinCell.axis(cell));
             case STRIPPED_LOG -> axis(charred ? Blocks.STRIPPED_DARK_OAK_LOG : STRIPPED[wood], RuinCell.axis(cell));
             case FENCE -> FENCES[wood].defaultBlockState();
+            case FENCE_GATE -> FENCE_GATES[wood].defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, facing)
+                .setValue(BlockStateProperties.OPEN, flag);
+            case WOOL -> WOOL[aux % WOOL.length].defaultBlockState();
             case ROOF -> roofBlock(m, stone).defaultBlockState();
             case ROOF_STAIR -> stairs(roofStairs(m, stone), facing, top);
             case ROOF_SLAB -> slab(roofSlab(m, stone), top);
@@ -322,6 +333,13 @@ final class RuinPalette {
             case CHAIN -> Blocks.CHAIN.defaultBlockState().setValue(ChainBlock.AXIS, Direction.Axis.Y);
             case STANDING_SIGN -> SIGNS[wood].defaultBlockState().setValue(StandingSignBlock.ROTATION, flag ? aux & 15 : signRotation(facing));
             case WALL_HANGING_SIGN -> HANGING_SIGNS[wood].defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, facing);
+            case WALL_SIGN -> WALL_SIGNS[wood].defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, facing);
+            case CANDLE -> Blocks.CANDLE.defaultBlockState().setValue(BlockStateProperties.CANDLES, 1 + Math.min(3, aux))
+                .setValue(BlockStateProperties.LIT, flag);
+            case BELL -> Blocks.BELL.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, facing)
+                .setValue(BlockStateProperties.BELL_ATTACHMENT, flag ? BellAttachType.CEILING : BellAttachType.FLOOR);
+            case LECTERN -> Blocks.LECTERN.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, facing);
+            case CARVED_PUMPKIN -> Blocks.CARVED_PUMPKIN.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, facing);
             case SEAGRASS -> Blocks.SEAGRASS.defaultBlockState();
             case TALL_SEAGRASS -> Blocks.TALL_SEAGRASS.defaultBlockState()
                 .setValue(BlockStateProperties.DOUBLE_BLOCK_HALF, top ? DoubleBlockHalf.UPPER : DoubleBlockHalf.LOWER);
