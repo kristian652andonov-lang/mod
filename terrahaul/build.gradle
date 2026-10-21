@@ -77,6 +77,9 @@ neoForge {
                 if (project.hasProperty('biomeFeatures')) {
                     systemProperty 'terrahaul.autotest.biomeFeatures', project.property('biomeFeatures').toString()
                 }
+                if (project.hasProperty('survey')) {
+                    systemProperty 'terrahaul.autotest.survey', project.property('survey').toString()
+                }
                 if (project.hasProperty('noStructures')) {
                     systemProperty 'terrahaul.autotest.structures', 'false'
                 }

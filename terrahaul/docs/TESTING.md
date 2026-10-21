@@ -18,6 +18,78 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
+## Underground structures kept below deep sea floors (seed 12345, dedicated server and client)
+Reported in game: trial chambers hung in the middle of deep oceans as huge blobs of stone with the
+chambers inside. Vanilla starts them at a fixed height (Y −40 to −20; their corridors climb to
+about Y 30) and encapsulates them in rock, but Terrahaul's deep-sea floor lies at Y −60 to −160.
+The fix (`UndergroundStructures`, `StructureMixin`) moves every structure in the new tag
+`terrahaul:keep_underground` (trial chambers, ancient cities, strongholds, mineshafts) down until
+each piece lies at least 12 blocks under the terrain over and around it. It was checked with
+`AutoTest` (new: `structure:` areas, `-Psurvey`, the underground report of
+`UndergroundStructureCheck`; see BUILDING.md) on 98b91c0 (before) and with the fix (after), each
+in a fresh world.
+- **Survey** (structure starts generated as chunk generation does, measured against the
+  generator's own height without structures; no chunks generated):
+
+  | Structure | Starts | Before: top above the floor (all pieces in open water) | After | After: cover, min / median |
+  |---|---|---|---|---|
+  | Trial chambers (80 placement chunks nearest 768, 816) | 66 | 41 (41), up to 213 blocks above | 0 | 12 / 14 |
+  | Strongholds (within 6000 blocks of 0, 0) | 9 | 2 (2), 193 and 134 blocks above | 0 | 13 / 56 |
+  | Mineshafts (60 nearest 768, 816) | 60 | 47 (46) | 0 | 12 / 15 |
+  | Ancient cities (within 4000 blocks of 768, 816) | 1 | 0, 134 blocks under land | 0 | unchanged |
+
+  Starts that were already deep enough kept their vanilla height: the stronghold, mineshaft,
+  ancient city and trial chambers that `AutoTest` locates near spawn (all under land) have the
+  same boxes before and after. A second run on the saved world gave the same survey.
+- **Generated blocks** at the located structures (`structure:` areas, 7x7 to 9x9 chunks plus the
+  whole footprint):
+
+  | Structure | Before | After |
+  |---|---|---|
+  | Trial chambers at 64 ~ 2864 (deep cold ocean, floor Y −162..−156) | Y −34..19, 177 blocks above the floor; water under the pieces in 3829 of 4320 columns; the only rock over it is its own shell | moved 190 down to Y −224..−171; 13 blocks of rock over it, no water under it; 17 trial spawners and 18 vaults, all with their block entities |
+  | Trial chambers at 768 ~ 2368 (deep frozen ocean, floor Y −159..−150) | Y −43..26, 184 blocks above the floor; water under 3271 of 3785 columns | moved 197 down to Y −240..−171; 13 blocks of rock over it, no water under it; 16 trial spawners, 15 vaults |
+  | Stronghold at 4688 ~ 0 (deep frozen ocean, floor Y −158..−142) | Y 15..39, 193 blocks above the floor; 24% of the three blocks around its pieces is sea water | moved 206 down to Y −191..−167; 13 blocks of rock over it |
+
+  Around all three, before and after: 0 floating terrain fragments, 0 water walls, 0 water fins.
+  After the move each trial chamber's pieces hold 17 water blocks, the templates' own (19 in the
+  one near spawn); before, those at 768 ~ 2368 held 102, sea water come in through holes in the
+  blob.
+- **Caves:** the three blocks around the pieces are open (air, water or lava) for 0.1-0.4% of the
+  moved trial chambers and 1.9% of the moved stronghold, against 1.3% and 2.5% for the trial
+  chambers and stronghold that lie at their vanilla depth under land near spawn, so Terrahaul's
+  deep caves do not cut them open more. Under the sea those caves can be flooded: 1.6% of the
+  stronghold's surroundings is water, and 465 of its 4778 columns have water within 16 blocks
+  below the pieces (under land: none). The x-ray screenshot shows the deep caves around it.
+- **`/locate` and the start:** every structure in `AutoTest`'s list (villages, outpost, pyramid,
+  swamp hut, mansion, stronghold, mineshaft, ancient city, trial chambers, monument) and the
+  three deep-sea ones were located at the same positions before and after, and each start was
+  present in its chunk.
+- **Save and load:** the trial chambers at 768 ~ 2368 were started in a first server run that
+  generated only the 3x3 chunks around the start chunk. After a restart the rest of it was
+  generated from the start loaded from disk: its 220 piece boxes and junction heights equal those
+  of the same start generated afresh, and the finished structure lies 13 blocks under the floor
+  with no water in or under it, so the parts built before and after the restart line up.
+- **Cost:** the survey's generation times include the move. Over the deep sea, where every column
+  of the footprint is probed, a trial chamber took about 0.2 s longer (16.2 s before, 31.2 s and
+  29.8 s after for the 66 starts) and a mineshaft about 0.47 s (0.05 s before, 28.1 s after for
+  60), on a machine busy with two other Minecraft instances (load 10-15 on 4 cores). With one
+  mineshaft per ~250 chunks, that is about 2 ms per chunk over the deep sea, where a chunk took
+  140-250 ms. Columns whose terrain-model surface lies far above what the structure needs are not
+  probed: over 135,469 sampled columns the model surface lay more than 4 / 8 / 16 / 24 / 32 blocks
+  above the generator's height in 916 / 441 / 159 / 35 / 2 of them (at most 37.6), so the 32-block
+  margin used costs at most a few blocks of cover in very rare columns.
+- **Screenshots** (client, Mesa llvmpipe, render distance 10, night vision, from the same cameras
+  in the before and after worlds): from the water beside where the chambers at 768 ~ 2368 hung,
+  a blob of stone with holes before and open water after; from below the chambers at 64 ~ 2864,
+  the blob's underside before and open water up to the sea ice after; the sea floor over the
+  buried chambers is unchanged. Spectator x-ray views from inside the rock show the buried trial
+  chambers and the stronghold (with the flooded caves beside it), and a camera inside the buried
+  chambers shows a vault in its alcove at Y −217.
+- **Not checked:** badlands mineshafts (not in the tag: vanilla places them to break out of the
+  badlands surface); other seeds; trial chambers over the deepest trench floors, where a tall
+  one cannot get its full cover above the 16-block margin at the world bottom (none of the
+  surveyed structures came near it); `/place structure` (it goes through the same code).
+
 ## Third feedback round
 This round merged: no floating icebergs or monument rooms over deep oceans; ocean monuments only
 on flat sea floors; dry riverbeds with a gravel and sand wash; the water wall sealer; client

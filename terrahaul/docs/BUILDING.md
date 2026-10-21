@@ -33,20 +33,29 @@ Both use `run/` as the game directory.
 ./gradlew runServer -Pautotest=<output dir> -Pareas="0,0,8;find:mountain,6;biome:minecraft:plains,5"
 ```
 After the server starts, `com.terrahaul.dev.AutoTest` does the following, then halts the server:
-- generates each area (`x,z,radiusInChunks`, `find:<landform>,r` or `biome:<id>,r`) to full
-  status, measuring the time;
+- generates each area (`x,z,radiusInChunks`, `find:<landform>,r`, `biome:<id>,r` or
+  `structure:<id>@x/z,r`, the structure nearest to x, z as `/locate` finds it) to full status,
+  measuring the time; for a `structure:` area it also checks the structure's start as below and
+  compares the start the world holds (after a restart, the one loaded from disk) with the same
+  start generated afresh;
 - compares generated heights with the terrain model;
 - counts ores per depth band and cave volume;
 - renders a top-down map and a vertical section of each area to PNG;
 - locates and generates villages, outposts, temples, mansions, strongholds, mineshafts, ancient
-  cities, trial chambers and monuments;
+  cities, trial chambers and monuments; for those in `terrahaul:keep_underground` it reports how
+  far their top lies below the natural floor (the generator's height without structures), the
+  rock covering them, water inside and under their pieces, how open the rock around them is, and
+  their trial spawners and vaults (`UndergroundStructureCheck`);
 - writes `autotest-report.txt`.
 
 Two more reports can be added:
 - `-PheightAt="x,z;x,z"` compares, at each point, the generator's height estimate (what
   structure placement sees) with the generated ground and the terrain model;
 - `-PbiomeFeatures=<biome id>` lists the biome's features per generation step after all biome
-  modifiers.
+  modifiers;
+- `-Psurvey="<structure id>@x/z/radius[/limit];..."` generates (without placing them) the starts
+  of a structure within `radius` blocks of x, z, as chunk generation would, and reports how many
+  reach above the natural floor and by how much, without generating any chunk.
 
 Add `-Pjfr=<file.jfr>` to record a Java Flight Recorder profile. Without `-Pautotest` the server
 runs normally.

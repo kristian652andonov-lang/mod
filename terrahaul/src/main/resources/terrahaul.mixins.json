@@ -15,6 +15,7 @@
     "OceanMonumentStructureMixin",
     "RandomSpreadStructurePlacementMixin",
     "StrongholdStructureMixin",
+    "StructureMixin",
     "StructurePlacementAccessor",
     "SurfaceSystemMixin",
     "WorldCarverMixin",

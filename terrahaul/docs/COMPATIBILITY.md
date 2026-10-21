@@ -20,6 +20,7 @@ the limitations that are known today. Statements about testing are kept separate
 | Sea floor (coral reefs, rocks, kelp, seagrass, grottos) | Biome modifiers remove vanilla's coral, kelp, seagrass, sea pickle and sand/clay/gravel disk features from the ocean biomes, add Terrahaul's sea-floor features, and add each removed vanilla feature back wrapped in `terrahaul:vanilla_fallback`, which places it only outside Terrahaul worlds | Ocean biomes; other worlds keep vanilla oceans |
 | Icebergs | A biome modifier removes `minecraft:iceberg_packed` and `minecraft:iceberg_blue` from frozen and deep frozen oceans; they are added back wrapped in `terrahaul:vanilla_fallback` with the new optional field `terrahaul_max_depth: 22`: unchanged in other worlds, and in Terrahaul worlds placed only where the sea floor at the origin and 16 blocks around it is at most 22 blocks below sea level. `SurfaceSystemMixin` skips vanilla's frozen-ocean ice pillars (the surface pass's iceberg step) in Terrahaul worlds | Frozen ocean biomes |
 | Ocean monuments | `RandomSpreadStructurePlacementMixin` picks the flattest deep candidate chunk in each monument region (structure set salt 10387313); `OceanMonumentStructureMixin` drops sites whose floor still varies by more than 10 blocks and lowers the building and its rooms onto the floor | Terrahaul worlds (the choice of the flattest chunk: config `terrainAwareStructures`) |
+| Underground structures | `StructureMixin` moves every structure in the structure tag `terrahaul:keep_underground` (trial chambers, ancient cities, strongholds and ordinary mineshafts) down as a whole, when its structure start is created, until each piece lies at least 12 blocks under the terrain over and around it (the generator's `OCEAN_FLOOR_WG` height on an 8-block grid). Structures already that deep keep their vanilla height; none is moved lower than 16 blocks above the world bottom. The start's chunk does not change, so `/locate` and eyes of ender lead to it as before | Terrahaul worlds; data packs can add structures to the tag |
 | Extra ore layers | Biome modifiers with the `terrahaul:terrahaul_only` placement filter | Terrahaul worlds (config `oreDepthFix`) |
 | Sky effects | Dimension effects `terrahaul:overworld`: vanilla Overworld sky with a configurable cloud height | Terrahaul worlds, client |
 | Vegetation sway | Overrides the core shader `minecraft:shaders/core/rendertype_cutout` and wraps plant block models at model bake | Client |
@@ -38,6 +39,7 @@ otherwise leaves vanilla behaviour untouched.
 | `NoiseBasedAquiferMixin` | `computeSubstance` | Air far above the terrain; open air below sea level becomes water (fills river channels) |
 | `SurfaceSystemMixin` | `buildSurface` (the scan depth and the `frozenOceanExtension` call) | Surface rules only scan down to just below the surface instead of to Y −512 (performance). Frozen oceans get no ice pillars from the surface pass: their keels reach at most about 60 blocks below sea level, so over Terrahaul's deep oceans they hung about a hundred blocks above the floor. Sea ice and the iceberg features are kept (see Icebergs above) |
 | `StrongholdStructureMixin`, `MineshaftStructureMixin` | `getMinY` calls | Keep strongholds and mineshafts at vanilla depths |
+| `StructureMixin` | `Structure.generate` (wraps `StructurePiecesBuilder.build`) | In Terrahaul worlds, moves the pieces of a structure in `terrahaul:keep_underground` (and, for jigsaw pieces, their junctions, which the terrain adaptation reads) below the terrain before the structure start is made from them; see Underground structures above. `/locate` only asks for the generation point, which is unchanged |
 | `WorldDimensionsMixin` | `isStableOverworld` | Treat the Terrahaul preset as a stable (non-experimental) Overworld so no "experimental settings" warning is shown |
 | `HeightRangePlacementMixin` | `HeightRangePlacement.getPositions` | In Terrahaul worlds with `oreDepthFix`, resolve height anchors against the vanilla Y −64..319 frame |
 | `RandomSpreadStructurePlacementMixin`, `StructurePlacementAccessor` | `getPotentialStructureChunk` | Terrain-aware choice of the structure chunk in Terrahaul worlds for the vanilla surface structure sets (flat, dry ground) and the ocean monument set (the flattest deep sea floor under the 58x58 footprint), identified by salt |
@@ -84,7 +86,11 @@ and `CreateWorldScreen.recreated`.
   desert pyramids, jungle temples, swamp huts, igloos) and the ocean monuments get terrain-aware
   placement. A data pack that changes their salt turns this off for that set; the monuments'
   10-block flatness check and their lowering onto the floor apply in Terrahaul worlds whatever
-  the salt and the `terrainAwareStructures` option.
+  the salt and the `terrainAwareStructures` option. A structure meant to lie underground at a
+  fixed depth (as trial chambers are) can float in Terrahaul's deep oceans, whose floors lie far
+  below vanilla's; adding it to the structure tag `terrahaul:keep_underground` keeps it under
+  the terrain. Its pieces must move with `StructurePiece.move` (vanilla's and jigsaw pieces do)
+  and must not be rebuilt from scratch when the world loads them.
 - **Ocean feature mods / data packs:** in ocean biomes Terrahaul removes vanilla's coral, kelp,
   seagrass, sea pickle and disk features by id and re-adds them for non-Terrahaul worlds; in
   frozen oceans it does the same with the two iceberg features, which Terrahaul worlds keep over
@@ -191,6 +197,14 @@ and `CreateWorldScreen.recreated`.
   applies, so even fewer monuments remain. A monument still floods its footprint from the lowest
   of its floor samples up to sea level, so it can stand in a pit about 10 blocks deep (deeper
   where the floor rises between the samples).
+- **Underground structures** in `terrahaul:keep_underground` are never moved below 16 blocks
+  above the world bottom (Y −496). A trial chamber can be about 70 blocks tall, so over the
+  deepest trench floors (below about Y −410) one would keep less than its 12 blocks of cover or
+  reach into the trench; none of the structures surveyed came near this (see TESTING.md). Moved
+  under the sea, a structure can meet caves flooded by the sea's aquifers, as vanilla structures
+  under vanilla oceans do. Badlands mineshafts are not in the tag: vanilla places them to break
+  out of the badlands surface. Moving a structure probes the terrain over its footprint, which
+  made a mineshaft over the deep sea about half a second slower to generate.
 - **Snow, ice and frozen rivers:** these follow the vanilla biome temperature, including altitude
   cooling. Snow layers come from vanilla's freeze step and so stop where vanilla puts them,
   except on volcanoes, where `volcano_thaw` takes them off bare hot or ash-covered ground. On

@@ -84,6 +84,7 @@ public final class AutoTest {
             int cx;
             int cz;
             int radius;
+            net.minecraft.core.Holder<net.minecraft.world.level.levelgen.structure.Structure> located = null;
             if (p[0].startsWith("find:")) {
                 String name = p[0].substring(5);
                 radius = Integer.parseInt(p[1].trim());
@@ -99,6 +100,25 @@ public final class AutoTest {
                 report.add(String.format(Locale.ROOT, "area %d: found %s at %d %d %d in %.0f ms", areaIndex, name, found.x(), found.y(), found.z(), (System.nanoTime() - f0) / 1e6));
                 cx = found.x() >> 4;
                 cz = found.z() >> 4;
+            } else if (p[0].startsWith("structure:")) {
+                // structure:<id>@x/z,r: the structure nearest to x, z as /locate finds it
+                String id = p[0].substring(10, p[0].indexOf('@'));
+                String[] o = p[0].substring(p[0].indexOf('@') + 1).split("/");
+                radius = Integer.parseInt(p[1].trim());
+                var holder = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+                    .getHolder(net.minecraft.resources.ResourceLocation.parse(id));
+                long f0 = System.nanoTime();
+                var found = holder.isEmpty() ? null : level.getChunkSource().getGenerator().findNearestMapStructure(level,
+                    net.minecraft.core.HolderSet.direct(holder.get()), new BlockPos(Integer.parseInt(o[0].trim()), 0, Integer.parseInt(o[1].trim())), 64, false);
+                if (found == null) {
+                    report.add("area " + areaIndex + ": structure " + id + " not found");
+                    areaIndex++;
+                    continue;
+                }
+                report.add(String.format(Locale.ROOT, "area %d: located %s at %s in %.0f ms", areaIndex, id, found.getFirst().toShortString(), (System.nanoTime() - f0) / 1e6));
+                cx = found.getFirst().getX() >> 4;
+                cz = found.getFirst().getZ() >> 4;
+                located = found.getSecond();
             } else if (p[0].startsWith("biome:")) {
                 String id = p[0].substring(6);
                 radius = Integer.parseInt(p[1].trim());
@@ -137,6 +157,16 @@ public final class AutoTest {
             floatingFragments(level, cx, cz, radius, report);
             waterWalls(level, cx, cz, radius, report);
             TreeDump.audit(level, cx, cz, radius, report);
+            if (located != null) {
+                var chunk = level.getChunk(cx, cz);
+                var start = level.structureManager().getStartForStructure(net.minecraft.core.SectionPos.of(chunk.getPos(), 0), located.value(), chunk);
+                if (start != null && start.isValid()) {
+                    UndergroundStructureCheck.check(level, start, "start at chunk " + cx + " " + cz, report);
+                    UndergroundStructureCheck.compareWithFresh(level, located, start, report);
+                } else {
+                    report.add("    no start of the located structure in chunk " + cx + " " + cz);
+                }
+            }
             areaIndex++;
         }
         // -Dterrahaul.autotest.biomeFeatures=<biome id>: the features the biome holds after biome modifiers
@@ -179,9 +209,18 @@ public final class AutoTest {
                 section(level, Integer.parseInt(c[0].trim()), Integer.parseInt(c[1].trim()), Integer.parseInt(c[2].trim()), report);
             }
         }
+        // -Dterrahaul.autotest.survey=<structure id>@x/z/radius[/limit];... : how far below the
+        // natural floor the starts near x, z are generated (see UndergroundStructureCheck)
+        String survey = System.getProperty("terrahaul.autotest.survey", "");
+        if (!survey.isEmpty()) {
+            for (String one : survey.split(";")) {
+                UndergroundStructureCheck.survey(level, one.trim(), report);
+            }
+        }
         if (Boolean.parseBoolean(System.getProperty("terrahaul.autotest.structures", "true"))) {
             checkStructures(level, report);
         }
+        UndergroundStructureCheck.reportModelExcess(report);
         Files.write(dir.resolve("autotest-report.txt"), report);
         for (String line : report) {
             Terrahaul.LOGGER.info("[autotest] {}", line);
@@ -486,7 +525,11 @@ public final class AutoTest {
         counts.forEach((name, c) -> report.add(String.format(Locale.ROOT, "    %-14s %6d %6d %6d %6d %6d", name, c[0], c[1], c[2], c[3], c[4])));
     }
 
-    /** Locates surface structures and checks that they generate where located, on suitable ground. */
+    /**
+     * Locates structures and checks that they generate where located: surface structures on
+     * suitable ground, those in {@code terrahaul:keep_underground} below the terrain (see
+     * UndergroundStructureCheck).
+     */
     private static void checkStructures(ServerLevel level, List<String> report) {
         var registry = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
         String[][] checks = {
@@ -559,6 +602,9 @@ public final class AutoTest {
             }
             report.add(String.format(Locale.ROOT, "  %s near %s: %s at %d %d %d (%.0f ms), start present: %s%s", check[0], check[1],
                 found.getSecond().unwrapKey().map(k -> k.location().toString()).orElse("?"), pos.getX(), pos.getY(), pos.getZ(), ms, present, terrain));
+            if (present && found.getSecond().is(com.terrahaul.worldgen.structure.UndergroundStructures.KEEP_UNDERGROUND)) {
+                UndergroundStructureCheck.check(level, start, check[0], report);
+            }
         }
     }
 

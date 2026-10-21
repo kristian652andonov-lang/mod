@@ -165,7 +165,11 @@ running water throws up spray, mist and foam and can be heard.
   emerald in mountain biomes, springs).
 - **Structures:** villages, pillager outposts, mansions and temples are steered to flat, dry ground
   within their normal spacing regions, and ocean monuments to flat sea floors (see Deep oceans).
-  Strongholds and mineshafts stay within the vanilla depth range.
+  Strongholds and mineshafts stay within the vanilla depth range. Trial chambers, ancient cities,
+  strongholds and mineshafts always lie underground: where the sea floor (or a valley) lies lower
+  than vanilla's fixed depths, the whole structure is moved down until it is at least 12 blocks
+  under the terrain, instead of hanging in the deep sea inside a shell of rock. The list is the
+  structure tag `terrahaul:keep_underground`, which data packs can extend.
 
 ### Underwater
 - **Coral reefs** laid out like real fringing reefs: a sandy lagoon with coral heads and

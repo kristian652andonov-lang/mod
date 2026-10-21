@@ -608,6 +608,10 @@ def tags():
     tag('minecraft/tags/block/replaceable.json', litter)
     tag('minecraft/tags/block/enderman_holdable.json', [])
     tag('terrahaul/tags/block/ground_details.json', pebbles + branches + litter)
+    # structures moved below the terrain in Terrahaul worlds (UndergroundStructures); badlands
+    # mineshafts are meant to break out of the ground and are left out
+    tag('terrahaul/tags/worldgen/structure/keep_underground.json',
+        ["minecraft:trial_chambers", "minecraft:ancient_city", "minecraft:stronghold", "minecraft:mineshaft"])
 
 
 def recipes():
