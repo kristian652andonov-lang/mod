@@ -795,6 +795,155 @@ def volcano_vegetation():
     add_features('volcano/thaw', '#minecraft:is_overworld', 'terrahaul:volcano/thaw', 'top_layer_modification')
 
 
+def mountain_zone(zone, max_slope=0, threshold=0.0):
+    f = {"type": "terrahaul:mountain_flora", "zone": zone}
+    if max_slope:
+        f["max_slope"] = max_slope
+    if threshold:
+        f["threshold"] = threshold
+    return f
+
+
+# first modifier of every mountain flora feature: Terrahaul worlds only, and one cheap test per
+# chunk that skips all chunks away from mountains
+MOUNTAIN_GATE = [mountain_zone("any")]
+# steepest rise over three blocks under a tree on a mountain flank (about 59 degrees)
+MOUNTAIN_TREE_SLOPE = 5
+
+
+def mountain_tree_placement(count, zone, scale=220, variation=0.6, clearing=-2.0, slope=MOUNTAIN_TREE_SLOPE):
+    return MOUNTAIN_GATE + [
+        {"type": "terrahaul:density_count", "count": count, "density": "forest", "scale": scale,
+         "variation": variation, "clearing": clearing},
+        {"type": "minecraft:in_square"},
+        {"type": "minecraft:surface_water_depth_filter", "max_water_depth": 0},
+        {"type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR"},
+        mountain_zone(zone, max_slope=slope),
+        {"type": "minecraft:biome"},
+    ]
+
+
+def mountain_detail_placement(count, zone, density="vegetation", scale=160, variation=0.8, clearing=-2.0,
+                              heightmap="MOTION_BLOCKING_NO_LEAVES", slope=0):
+    return MOUNTAIN_GATE + [
+        {"type": "terrahaul:density_count", "count": count, "density": density, "scale": scale,
+         "variation": variation, "clearing": clearing},
+        {"type": "minecraft:in_square"},
+        {"type": "minecraft:heightmap", "heightmap": heightmap},
+        mountain_zone(zone, max_slope=slope),
+        {"type": "minecraft:biome"},
+    ]
+
+
+def mountain_feature(name, biomes, placement, conditions, feature=None):
+    placed('mountain/' + name, feature or 'terrahaul:mountain/' + name, placement)
+    add_features('mountain/' + name, biomes, 'terrahaul:mountain/' + name, 'vegetal_decoration')
+    with_conditions(f'terrahaul/neoforge/biome_modifier/mountain/{name}.json', conditions)
+
+
+# Mountain forests by the climate of the flank's biome (the biome source picks the biomes of the
+# cooled climate, so the flanks of one mountain usually run through several of them):
+#   group: (biomes, conifer selector entries, default conifer,
+#           montane selector entries, default montane tree)
+MOUNTAIN_FORESTS = {
+    'cold': (['minecraft:grove', 'minecraft:snowy_slopes', 'minecraft:jagged_peaks', 'minecraft:frozen_peaks', 'minecraft:snowy_taiga',
+              'minecraft:snowy_plains', 'minecraft:ice_spikes', 'minecraft:taiga', 'minecraft:old_growth_spruce_taiga',
+              'minecraft:old_growth_pine_taiga', 'minecraft:windswept_forest', 'minecraft:windswept_hills',
+              'minecraft:windswept_gravelly_hills', 'minecraft:frozen_river', 'minecraft:snowy_beach'],
+             [('mountain_spruce', 0.45), ('mountain_fir', 0.55)], 'mountain_pine', [], 'birch'),
+    'temperate': (['minecraft:stony_peaks', 'minecraft:meadow', 'minecraft:plains', 'minecraft:sunflower_plains', 'minecraft:forest',
+                   'minecraft:flower_forest', 'minecraft:birch_forest', 'minecraft:old_growth_birch_forest', 'minecraft:dark_forest',
+                   'minecraft:cherry_grove', 'minecraft:river', 'minecraft:swamp', 'minecraft:stony_shore', 'minecraft:beach'],
+                  [('mountain_spruce', 0.4), ('mountain_fir', 0.45)], 'mountain_pine', [('birch', 0.45)], 'oak'),
+    'dry': (['minecraft:savanna', 'minecraft:savanna_plateau', 'minecraft:windswept_savanna', 'minecraft:badlands',
+             'minecraft:wooded_badlands', 'minecraft:eroded_badlands', 'minecraft:desert'],
+            [('mountain_spruce', 0.2)], 'mountain_pine', [('oak_small_dry', 0.4)], 'acacia_small'),
+    'tropical': (['minecraft:jungle', 'minecraft:sparse_jungle', 'minecraft:bamboo_jungle', 'minecraft:mangrove_swamp'],
+                 [('mountain_spruce', 0.35), ('mountain_fir', 0.3)], 'mountain_pine', [('oak', 0.3)], 'jungle_medium'),
+}
+COLD_FORESTS = MOUNTAIN_FORESTS['cold'][0]
+
+
+def mountain_vegetation():
+    """Vegetation that climbs the mountains (see MountainFlora): conifer forest on the lower and
+    middle flanks (with the biome's broadleaf trees low down), scattered small trees along a ragged
+    tree line, krummholz above it and alpine meadows higher up, with shrubs, ferns, moss, berries,
+    flowers, boulders and fallen logs. Every feature passes terrahaul:mountain_flora, so it only
+    acts in Terrahaul worlds and on the soil the surface rule lays for it; the flanks' biomes
+    (snowy slopes, peaks, meadows, groves...) have few or no trees of their own."""
+    T = 'terrahaul:tree/'
+    M = 'terrahaul:mountain/'
+    # trees sized for steep ground: few giants, and the tree line shrinks them further
+    tree_config('tree/mountain_spruce', 'spruce', {"small": 4, "medium": 5, "large": 2, "giant": 0.2})
+    tree_config('tree/mountain_fir', 'fir', {"small": 4, "medium": 5, "large": 1.5})
+    tree_config('tree/mountain_pine', 'pine', {"small": 3, "medium": 5, "large": 2})
+    tree_config('tree/fir_young', 'fir', {"young": 3, "small": 3})
+    tree_config('tree/pine_young', 'pine', {"young": 2, "small": 3})
+    tree_config('tree/krummholz', 'krummholz', {"young": 4, "small": 4, "medium": 2})
+    all_forest_biomes = sorted({b for g in MOUNTAIN_FORESTS.values() for b in g[0]})
+
+    # ---- forests: conifers below the tree line, the biome's broadleaf trees low down ------------
+    for name, (biomes, entries, default, montane_entries, montane_default) in MOUNTAIN_FORESTS.items():
+        selector(f'mountain/forest_{name}', [(T + t, c) for t, c in entries], T + default)
+        mountain_feature(f'forest_{name}', biomes, mountain_tree_placement(6.5, "forest", clearing=-0.75), CONFIG_TREES)
+        montane = T + montane_default
+        if montane_entries:
+            selector(f'mountain/montane_{name}', [(T + t, c) for t, c in montane_entries], montane)
+            montane = M + f'montane_{name}'
+        mountain_feature(f'montane_{name}', biomes, mountain_tree_placement(2.5, "montane", clearing=-0.6), CONFIG_TREES,
+                         feature=montane)
+
+    # ---- the tree line: groups of small and young conifers, then krummholz -----------------------
+    selector('mountain/treeline', [(T + 'spruce_small', 0.4), (T + 'fir_young', 0.3)], T + 'pine_young')
+    mountain_feature('treeline', all_forest_biomes, mountain_tree_placement(4.0, "edge", scale=70, variation=1.5, clearing=-0.1),
+                     CONFIG_TREES)
+    mountain_feature('krummholz', all_forest_biomes, mountain_tree_placement(4.5, "krummholz", scale=55, variation=1.3, clearing=-0.3),
+                     CONFIG_TREES, feature=T + 'krummholz')
+
+    # ---- understory: shrubs, ferns, grass, moss, berries, flowers ---------------------------------
+    flank_soil = ["#minecraft:dirt"]
+    patch('mountain/shrubs', weighted([(state("terrahaul:alpine_shrub"), 4), (state("terrahaul:leafy_bush"), 2),
+                                       (state("terrahaul:dense_shrub"), 1)]), 8, 5, flank_soil)
+    mountain_feature('shrubs', all_forest_biomes, mountain_detail_placement(3.0, "understory", scale=120, variation=1.0), CONFIG_DETAILS)
+    patch('mountain/ferns', weighted([(state("minecraft:fern"), 5), (state("minecraft:large_fern"), 1), (state("minecraft:short_grass"), 3)]),
+          32, 5, flank_soil)
+    mountain_feature('ferns', all_forest_biomes, mountain_detail_placement(4.5, "forest", scale=140, variation=1.1), CONFIG_DETAILS)
+    moss = {"type": "minecraft:weighted_state_provider", "entries": [{"data": state("minecraft:moss_carpet"), "weight": 1}]}
+    patch('mountain/moss', moss, 24, 4, flank_soil, y_spread=1)
+    mountain_feature('moss', all_forest_biomes, mountain_detail_placement(0.8, "understory", scale=120, variation=1.2), CONFIG_DETAILS)
+    patch('mountain/berries', weighted([(state("minecraft:sweet_berry_bush", age=3), 2), (state("minecraft:sweet_berry_bush", age=2), 1)]),
+          8, 4, flank_soil)
+    mountain_feature('berries', COLD_FORESTS, mountain_detail_placement(0.5, "forest", scale=200, variation=1.2), CONFIG_DETAILS)
+    patch('mountain/forest_flowers', weighted([(state("minecraft:lily_of_the_valley"), 3), (state("minecraft:fern"), 2)]), 12, 4, flank_soil)
+    mountain_feature('forest_flowers', all_forest_biomes, mountain_detail_placement(0.4, "forest", scale=200, variation=1.2), CONFIG_DETAILS)
+
+    # ---- alpine meadows, avalanche tracks and the krummholz: turf and flowers in patches ----------
+    patch('mountain/alpine_grass', weighted([(state("minecraft:short_grass"), 6), (state("terrahaul:alpine_shrub"), 1)]), 48, 6, flank_soil)
+    mountain_feature('alpine_grass', all_forest_biomes, mountain_detail_placement(5.0, "alpine", scale=90, variation=0.9), CONFIG_DETAILS)
+    patch('mountain/alpine_flowers', weighted([(state("minecraft:cornflower"), 3), (state("minecraft:allium"), 2), (state("minecraft:azure_bluet"), 3),
+                                               (state("minecraft:oxeye_daisy"), 2), (state("minecraft:poppy"), 2), (state("minecraft:dandelion"), 2)]),
+          24, 5, flank_soil)
+    mountain_feature('alpine_flowers', all_forest_biomes, mountain_detail_placement(1.6, "alpine", scale=70, variation=1.4, clearing=-0.35),
+                     CONFIG_DETAILS)
+    patch('mountain/krummholz_ground', weighted([(state("minecraft:short_grass"), 4), (state("terrahaul:alpine_shrub"), 3),
+                                                 (state("minecraft:fern"), 1)]), 16, 4, flank_soil)
+    mountain_feature('krummholz_ground', all_forest_biomes, mountain_detail_placement(3.0, "krummholz", scale=90, variation=1.0), CONFIG_DETAILS)
+    # the grassy treads of faces too steep for trees: tufts, shrubs and ferns step by step
+    configured('mountain/ledges', 'minecraft:random_patch', {"tries": 28, "xz_spread": 5, "y_spread": 5, "feature": {
+        "feature": {"type": "minecraft:simple_block", "config": {"to_place": weighted(
+            [(state("minecraft:short_grass"), 5), (state("terrahaul:alpine_shrub"), 3), (state("terrahaul:leafy_bush"), 2),
+             (state("minecraft:fern"), 2), (state("terrahaul:dense_shrub"), 1)])}},
+        "placement": [{"type": "minecraft:block_predicate_filter", "predicate": ground_predicate(flank_soil)}]}})
+    mountain_feature('ledges', all_forest_biomes, mountain_detail_placement(6.0, "ledge", scale=100, variation=0.8), CONFIG_DETAILS)
+
+    # ---- boulders and fallen logs ------------------------------------------------------------------
+    mountain_feature('boulders', all_forest_biomes, mountain_detail_placement(0.22, "flank", density="rocks", scale=260, variation=1.3),
+                     CONFIG_DETAILS, feature='terrahaul:details/boulder_mossy')
+    mountain_feature('fallen_logs', all_forest_biomes, mountain_detail_placement(0.35, "forest", density="forest", scale=260, variation=1.0,
+                                                                               slope=3),
+                     CONFIG_DETAILS, feature='terrahaul:details/fallen_log_spruce')
+
+
 CONFIG_ORES = [{"type": "terrahaul:config", "key": "ore_depth_fix"}]
 
 
@@ -869,6 +1018,7 @@ def main():
     trees()
     details()
     volcano_vegetation()
+    mountain_vegetation()
     resources()
     ruins()
 

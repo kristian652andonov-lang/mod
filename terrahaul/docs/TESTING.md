@@ -18,6 +18,92 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
+## Mountain vegetation (branch `wf/mountain-flora`)
+Forest, a ragged tree line, krummholz and alpine meadows on the mountain flanks, with soil under
+them (see "Vegetation climbs the mountains" in the README). Tested in game on seed 12345, before
+(at 98b91c0) and after, in the same areas and from the same camera spots.
+- **AutoTest areas** `find:mountain,3;find:alpine_peaks,3;find:mountain_wall,2;
+  find:ancient_mountains,2;biome:minecraft:meadow,2;biome:minecraft:grove,2` (both finder
+  searches lead to the same massif). The report has a new census of the vegetated flanks (the
+  columns where the zone function gives a flank share above 0.5), by distance from the tree
+  line: the share of columns under trees, with a plant on the ground, and with soil, snow or rock
+  as their ground. It also checks every tree trunk on the flanks for the steepest rise of the
+  ground over three blocks around its foot and for snow under or around it. The "before" run is
+  98b91c0 with only the census and the zone function copied in, so both report the same bands.
+
+  | Area | Band | Trees before / after | Soil before / after | Rock before / after |
+  |---|---|---|---|---|
+  | `find:mountain` = `find:alpine_peaks` (ice spikes) | 50-150 above | 0.0% / 0.0% | 0.0% / 2.2% | 35.4% / 33.2% |
+  | `find:mountain_wall` (snowy slopes) | 0-50 below | 0.0% / 12.5% | 8.2% / 82.7% | 32.1% / 15.3% |
+  | `find:mountain_wall` | 0-50 above | 0.0% / 0.0% | 0.3% / 12.7% | 30.7% / 24.9% |
+  | `find:ancient_mountains` (grove) | 0-50 above | 0.0% / 6.4% | 16.4% / 96.3% | 54.4% / 3.7% |
+  | `find:ancient_mountains` | 50-150 above | 0.0% / 0.4% | 8.6% / 86.3% | 79.2% / 13.7% |
+  | meadow valley | >100 below | 0.0% / 9.2% | 0.7% / 89.9% | 99.3% / 10.1% |
+  | meadow valley | 50-100 below | 0.0% / 16.5% | 9.8% / 69.9% | 88.9% / 30.1% |
+  | meadow valley | 0-50 below | 0.0% / 28.3% | 36.0% / 95.7% | 47.9% / 4.3% |
+  | grove | 0-50 below (180 columns) | 16.7% / 8.3% | 29.4% / 100% | 0.0% / 0.0% |
+  | grove | 0-50 above | 4.9% / 3.6% | 20.1% / 63.8% | 25.2% / 0.7% |
+  | grove | 50-150 above | 1.3% / 0.6% | 28.0% / 74.0% | 29.3% / 2.9% |
+
+  The rest of the ground in each band is snow. In the grove the old snowy forest climbed above
+  the line on snow (two trunks stood in snowfields); it now thins out above the line into small
+  trees and krummholz on soil and meadow. The census counts the edge chunks of each area, whose features depend on the
+  order in which the server generated their neighbours, so two runs of the same code differ by a
+  few tenths of a percent (seen before and after alike); the floating terrain, water wall and tree
+  checks did not change between runs.
+
+  - The `find:mountain` massif (an ice-spikes massif at 390-620 blocks, seed 12345) stays bare
+    by design: it stands in a polar, dry climate, and all of its flanks lie above its tree line
+    (0 trees before and after, 2% soil).
+  - **Trunks on the flanks:** 57 after (9 before). None stands on snow or in a snowfield
+    (before: 2 in the grove area stood in snowfields). In the finished world 3 of them read a
+    rise of 6-7 blocks over three blocks around the foot, 63-67 degrees (before: 1 of 9, rise
+    6). The placement filters allow at most 5 against the generation heightmap; why these few
+    read steeper afterwards (likely boulders, fallen logs or root flares changing the ground
+    next to the foot) was not traced block by block.
+- **Chunk generation time** (AutoTest, "ms/chunk incl. neighbours", two runs each, interleaved
+  base, new, base, new so both saw the same machine load; the machine was shared with other
+  builds, load average 2-11 on 4 vCPUs), for the find:mountain, mountain_wall,
+  ancient_mountains, meadow and grove areas:
+
+  | Run | Base (ms/chunk) | New (ms/chunk) | Sum base / new |
+  |---|---|---|---|
+  | pair 1 (load 5-11) | 284, 289, 369, 369, 357 | 266, 281, 383, 397, 419 | 1667 / 1745 (+5%) |
+  | pair 2 (load 2-5) | 226, 219, 302, 390, 285 | 210, 205, 274, 347, 277 | 1422 / 1313 (-8%) |
+
+  No difference is measurable above the noise of the shared machine (about 8% either way).
+- **Client screenshots** (Mesa llvmpipe, render distance 10, cameras 60-150 blocks from the
+  flanks, nine spots: two views of the alpine-peaks massif, a mountain wall, two meadow valleys,
+  a steep north-west flank, a cold grove, a west-facing and a south-facing flank). Reviewed by eye
+  after five rounds of tuning, and once more with the final code in a fresh world (no exception
+  in the server or client log apart from the container's missing sound device; no floating
+  trees in the views or in the AutoTest tree check):
+  - **Looked right:** conifer forest on the lower and middle flanks thinning out into scattered
+    small trees and a ragged line, higher up gullies than on spurs; snowy grove forests climbing
+    towards the summit; soil, grass, shrubs and flowers on the treads of steep ground with rock
+    risers; sheer faces and summits keep their rock mosaic and snow patches.
+  - **Found and fixed from the screenshots:** dirt risers made stepped meadows look brown and
+    striped (the soil now covers only the treads there); forest soil showed through snowfields
+    above the line (snow comes first above the line now); bare soil reached far up faces where
+    the trees had already thinned out (the soil now follows the tree cover on steep ground).
+  - **By design:** a 60-75 degree face (the north-west flank) stays rock with trees only above
+    and below it; above the tree line in cold climates the meadow grass carries vanilla's snow
+    layer, which shows as white-topped grass blocks.
+- **Offline checks:** `treeStudy` krummholz (12 samples per size, flat and sloped ground): no
+  floating wood, nothing clipped by the reach limit, at most 0.2% of the leaves cut off from
+  wood; the sizes the krummholz feature uses (young, small, medium) are 2-6 blocks tall on
+  average, 7 at most. `floraStudy bench` (the zone function for every column of 8x8 chunks after
+  the model's columns are cached, valley levels included): 1.1 ms per chunk (4.2 us per column)
+  at the find:mountain massif and 1.5 ms per chunk (5.8 us per column) at the ancient mountains,
+  against 4.8 and 8.3 ms per chunk for the model's own heights. `floraStudy` survey, transects,
+  summits and maps were used to tune the zones. The data generator was re-run and produced
+  identical files.
+- **Not tested:** other seeds in game (the zones were only surveyed offline on seed 12345);
+  worlds of other world types (the mountain features do nothing outside Terrahaul worlds);
+  other mods' biomes on the flanks (they get no mountain forest unless they are in one of the
+  datagen's biome groups); the mountains as reshaped on the parallel `pointed` branch (the zones
+  and the tree line were tuned on the mountain shapes of 98b91c0 and need a look after a merge).
+
 ## Third feedback round
 This round merged: no floating icebergs or monument rooms over deep oceans; ocean monuments only
 on flat sea floors; dry riverbeds with a gravel and sand wash; the water wall sealer; client

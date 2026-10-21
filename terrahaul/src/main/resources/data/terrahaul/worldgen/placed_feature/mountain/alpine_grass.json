@@ -1,0 +1,31 @@
+{
+  "feature": "terrahaul:mountain/alpine_grass",
+  "placement": [
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 5.0,
+      "density": "vegetation",
+      "scale": 90,
+      "variation": 0.9,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "alpine"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

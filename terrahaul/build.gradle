@@ -248,7 +248,7 @@ tasks.register('ruinStudy', JavaExec) {
 // floating fragments of the 3D terrain density, a line transect, a perspective snapshot,
 // wetland statistics of the model and the shape of its mountains (slopes, ledges, crests)
 ['wallAudit': 'WallAudit', 'finderAudit': 'FinderAudit', 'fragmentAudit': 'FragmentAudit', 'transect': 'Transect', 'snapshot': 'Snapshot', 'wetlandStats': 'WetlandStats',
- 'mountainShapeStats': 'MountainShapeStats'].each { name, cls ->
+ 'mountainShapeStats': 'MountainShapeStats', 'floraStudy': 'FloraStudy'].each { name, cls ->
     tasks.register(name, JavaExec) {
         group = 'terrahaul'
         classpath = sourceSets.devtools.runtimeClasspath

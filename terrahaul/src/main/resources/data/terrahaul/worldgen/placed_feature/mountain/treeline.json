@@ -1,0 +1,36 @@
+{
+  "feature": "terrahaul:mountain/treeline",
+  "placement": [
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 4.0,
+      "density": "forest",
+      "scale": 70,
+      "variation": 1.5,
+      "clearing": -0.1
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "edge",
+      "max_slope": 5
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

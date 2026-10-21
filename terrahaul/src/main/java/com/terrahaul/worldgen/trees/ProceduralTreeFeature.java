@@ -87,7 +87,7 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
             return false;
         }
         TreeSize size = config.sizes().getRandomValue(random).orElse(TreeSize.MEDIUM);
-        size = adjustForAltitude(level, origin, size);
+        size = adjustForAltitude(level, origin, species, size);
         double sizeBias = TerrahaulConfig.treeSizeVariation();
         if (sizeBias < 1.0 && size.ordinal() > TreeSize.MEDIUM.ordinal() && random.nextDouble() > sizeBias) {
             size = TreeSize.MEDIUM;
@@ -153,16 +153,12 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
         return null;
     }
 
-    private static TreeSize adjustForAltitude(WorldGenLevel level, BlockPos pos, TreeSize size) {
-        int treeline = TreeLine.treelineY(level, pos);
-        int y = pos.getY();
-        if (y > treeline - 40) {
-            return TreeSize.YOUNG;
-        }
-        if (y > treeline - 110 && size.ordinal() > TreeSize.SMALL.ordinal()) {
-            return TreeSize.SMALL;
-        }
-        return size;
+    /**
+     * Trees shrink towards the tree line ({@link TreeLine#cap}); krummholz is the stunted form
+     * itself and keeps its size above it.
+     */
+    private static TreeSize adjustForAltitude(WorldGenLevel level, BlockPos pos, TreeSpecies species, TreeSize size) {
+        return species == TreeSpecies.KRUMMHOLZ ? size : TreeLine.cap(level, pos, size);
     }
 
     private static boolean isFree(BlockState state) {
@@ -336,7 +332,10 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
                 counts[1]++;
             }
         });
-        return ok[0] && (counts[0] == 0 || counts[1] <= counts[0] * 0.15);
+        // krummholz lies on the ground: on a slope its mat runs into the uphill ground, and the
+        // needles there are left out
+        double blocked = bp.species() == TreeSpecies.KRUMMHOLZ ? 0.45 : 0.15;
+        return ok[0] && (counts[0] == 0 || counts[1] <= counts[0] * blocked);
     }
 
     private static void placeBlueprint(WorldGenLevel level, BlockPos origin, TreeBlueprint bp, ProceduralTreeConfiguration config, RandomSource random,

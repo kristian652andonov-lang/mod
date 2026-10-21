@@ -403,6 +403,7 @@ public final class TerrainModel {
         mt.rangeS = 0.0;
         mt.massif = 0.0;
         mt.stand = 0.0;
+        mt.floor = 0.0;
         // colossal massifs: a huge summit pyramid whose arêtes reach out 3000-4800 blocks,
         // added on top of the range, so subsidiary peaks and ridges of the range stand on its
         // flanks and it rises from a base far wider than it is high
@@ -419,6 +420,7 @@ public final class TerrainModel {
             // on a massif the range gives way to the massif's own summit pyramid: peaks standing
             // on its steep upper slopes would add their faces to it, as walls of 80 degrees.
             double floorH = ampEff * (0.07 * Math.pow(mountain, 0.65) + MOUNTAIN_FLOOR * m13);
+            mt.floor = floorH;
             double reliefK = ampEff * (1.0 - MOUNTAIN_FLOOR) * (1.0 + WALL_BOOST * wallW) * (1.0 - 0.8 * smoothstep(0.15, 0.6, mt.massifRise));
             double massifK = MASSIF_RELIEF * settings.colossalHeight() * 4.0 * massif * (1.0 - mt.massifRise);
             double relief = reliefK * m13 + massifK * coastFade;
@@ -672,6 +674,8 @@ public final class TerrainModel {
         double rangeS;
         double massif;
         double stand;
+        /** Height of the range's valley floors above the base profile (see {@link #mountains}). */
+        double floor;
         /** Uneroded mountain relief at the three finite-difference neighbours of the column. */
         final double[] relief3 = new double[3];
         /** Gradient of the uneroded mountains, which the gullies follow (see {@link MountainRelief#gullies}). */
@@ -1174,6 +1178,17 @@ public final class TerrainModel {
         return cached;
     }
 
+    /**
+     * Height of the terrain at {@code (x, z)} without its lakes, computed afresh and leaving the
+     * column cache alone: a cheap probe of distant ground (the valley level from which the
+     * mountain vegetation measures its tree line).
+     */
+    public double probeHeight(int x, int z) {
+        Scratch sc = scratch.get();
+        computeColumn(x, z, sc.probe, false, sc);
+        return sc.probe.height;
+    }
+
     /** Samples into a caller-owned instance, bypassing the cache. */
     public void sampleInto(int x, int z, ColumnSample out) {
         computeColumn(x, z, out, true, scratch.get());
@@ -1372,6 +1387,8 @@ public final class TerrainModel {
         double wallW = mt.wall;
         double shape = mt.shape;
         double meadow = mt.meadow;
+        // (copied now: lake sites further down compute other columns with this scratch)
+        double mountainFloor = base + mt.floor;
 
         // ---- 6. hills, plateaus, windswept uplands, plains -----------------------------------
         // the island field lifts an island's ground to sea level within a few blocks of its shore;
@@ -1655,6 +1672,7 @@ public final class TerrainModel {
         out.peakness = mountain > 0.05 ? lerp(smoothstep(0.05, 0.4, mountain), hillShape * 0.6, shape) : hillShape * 0.6 * smoothstep(0.0, 0.5, hillW);
         out.alpine = alpineW * mountain;
         out.ancient = ancientW * mountain;
+        out.mountainFloor = mountainFloor;
         out.wall = wallW * mountain;
         out.plateau = plateau;
         out.meadow = meadow;
@@ -3687,6 +3705,8 @@ public final class TerrainModel {
         final double[] grad = new double[2];
         final MountainState mountains = new MountainState();
         final ColumnSample[] cache = new ColumnSample[CACHE_SIZE];
+        /** Column of {@link #probeHeight}. */
+        final ColumnSample probe = new ColumnSample();
         final long[] cacheKeys = new long[CACHE_SIZE];
         final boolean[] cacheValid = new boolean[CACHE_SIZE];
         double volcanoInfluence;

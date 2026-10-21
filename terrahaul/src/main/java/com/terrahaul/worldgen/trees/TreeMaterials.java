@@ -22,7 +22,7 @@ final class TreeMaterials {
         return switch (s) {
             case OAK, SWAMP_OAK, AZALEA, DEAD -> Blocks.OAK_LOG;
             case BIRCH -> Blocks.BIRCH_LOG;
-            case SPRUCE, PINE, FIR, DEAD_SPRUCE -> Blocks.SPRUCE_LOG;
+            case SPRUCE, PINE, FIR, DEAD_SPRUCE, KRUMMHOLZ -> Blocks.SPRUCE_LOG;
             case JUNGLE -> Blocks.JUNGLE_LOG;
             case ACACIA -> Blocks.ACACIA_LOG;
             // fire-killed trees: the darkest bark in the game reads as charred wood
@@ -36,7 +36,7 @@ final class TreeMaterials {
         return switch (s) {
             case OAK, SWAMP_OAK, AZALEA, DEAD -> Blocks.OAK_WOOD;
             case BIRCH -> Blocks.BIRCH_WOOD;
-            case SPRUCE, PINE, FIR, DEAD_SPRUCE -> Blocks.SPRUCE_WOOD;
+            case SPRUCE, PINE, FIR, DEAD_SPRUCE, KRUMMHOLZ -> Blocks.SPRUCE_WOOD;
             case JUNGLE -> Blocks.JUNGLE_WOOD;
             case ACACIA -> Blocks.ACACIA_WOOD;
             case DARK_OAK, BURNED -> Blocks.DARK_OAK_WOOD;
@@ -49,7 +49,7 @@ final class TreeMaterials {
         return switch (s) {
             case OAK, SWAMP_OAK, DEAD -> Blocks.OAK_LEAVES;
             case BIRCH -> Blocks.BIRCH_LEAVES;
-            case SPRUCE, PINE, FIR, DEAD_SPRUCE -> Blocks.SPRUCE_LEAVES;
+            case SPRUCE, PINE, FIR, DEAD_SPRUCE, KRUMMHOLZ -> Blocks.SPRUCE_LEAVES;
             case JUNGLE -> Blocks.JUNGLE_LEAVES;
             case ACACIA -> Blocks.ACACIA_LEAVES;
             case DARK_OAK, BURNED -> Blocks.DARK_OAK_LEAVES;

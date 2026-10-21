@@ -59,9 +59,13 @@ import net.minecraft.world.level.levelgen.SurfaceRules;
  * tilted blobs of the family, a second rock of the province, rubble and gravel instead, with
  * patchy snow that fills gullies, clings to high faces and leaves ridges bare, earth showing
  * through the snow, and grass, moss, dirt and gravel patches on ledges (see
- * {@link Fades#mountainBlock}). Foothills meet the strata in interlocking blobs; canyons,
- * badlands, sea cliffs and volcanoes keep their own bands, and so do cave roofs deep inside a
- * mountain. Trails run on across the mosaic.
+ * {@link Fades#mountainBlock}). Below the tree line the forests' soil (grass, podzol, moss and
+ * coarse dirt over dirt) takes the place of the rock and snow on all but the steepest ground and
+ * the crags between the trees keep only a quarter of their snow; above it the soil of the
+ * krummholz and the alpine meadows fills the gaps between the snow patches (see
+ * {@link MountainFlora}). Foothills meet the strata in interlocking blobs; canyons, badlands, sea
+ * cliffs and volcanoes keep their own bands, and so do cave roofs deep inside a mountain. Trails
+ * run on across the mosaic.
  * <p>
  * Fades never reach deeper than {@value #MAX_DEPTH} blocks below the nearest exposed surface.
  * That distance is measured both vertically and sideways, so cliff and mountain faces, trench
@@ -136,6 +140,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
         private static final BlockState TERRACOTTA = Blocks.TERRACOTTA.defaultBlockState();
         private static final BlockState MOSS_BLOCK = Blocks.MOSS_BLOCK.defaultBlockState();
         private static final BlockState GRASS_BLOCK = Blocks.GRASS_BLOCK.defaultBlockState();
+        private static final BlockState PODZOL = Blocks.PODZOL.defaultBlockState();
         private static final BlockState SNOW_BLOCK = Blocks.SNOW_BLOCK.defaultBlockState();
         private static final BlockState PACKED_ICE = Blocks.PACKED_ICE.defaultBlockState();
         private static final BlockState DIRT_PATH = Blocks.DIRT_PATH.defaultBlockState();
@@ -258,6 +263,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
             // (see Fades.mountainBlock); sandstone country keeps its beds, and volcanic rock its
             // own bands
             mountain.share = 0.0;
+            mountain.flora = 0.0;
             double share = family == GREY || family == DARK || family == PALE ? Fades.mountainShare(col, smoothSlope, top - seaLevel) : 0.0;
             if (share > 0.0) {
                 int ground = ground(topBiome);
@@ -268,7 +274,37 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                     outcrop = mountain.rock;
                     sandOutcrop = mountain.rock;
                 }
+                flora(x, z);
             }
+        }
+
+        /**
+         * The soil of the vegetation on the flanks ({@link MountainFlora}): where the zone has
+         * soil, and on steeper faces inside its patches: a ledge (a block slope of at most 2
+         * blocks over 2) gets the whole soil, the tread of a step only its top block, over rock.
+         * Both carry grass, moss and shrubs but are too narrow and steep for trees (the tree
+         * filters measure the slope at the tree). Faces of 6 blocks over 2 and more are sheer and
+         * keep their rock (see {@link #tryApply}).
+         */
+        private void flora(int x, int z) {
+            MountainFlora.Zone f = MountainFlora.at(model, x, z, top, smoothSlope);
+            double soil = f.soil;
+            // on stepped ground without a closed canopy (meadows, and forest soil where the slope
+            // thins the trees out) the soil covers the treads, not the risers: risers of dirt
+            // made whole slopes look brown
+            mountain.floraTopOnly = slope >= 2 && (!f.overSnow || smoothSlope > 1.4);
+            if (soil <= 0.0 && f.faceCover > 0.0 && smoothSlope < 2.6) {
+                soil = f.faceCover;
+                mountain.floraTopOnly |= slope > 2;
+            }
+            mountain.flora = soil;
+            if (f.thaw > 0.0 && mountain.snow > 0.0) {
+                Fades.setSnow(mountain, mountain.snow * (1.0 - 0.75 * f.thaw));
+            }
+            mountain.floraOverSnow = f.overSnow;
+            // no needle litter on the treads of a face
+            mountain.floraTop = mountain.floraTopOnly && f.top == Fades.PODZOL ? Fades.GRASS : f.top;
+            mountain.floraDepth = f.depth;
         }
 
         /** What covers the rock of a mountain column, by its biome. */
@@ -724,6 +760,7 @@ public final class TerrainSurfaceRule implements SurfaceRules.RuleSource {
                 case Fades.DIRT -> DIRT;
                 case Fades.MOSS -> MOSS_BLOCK;
                 case Fades.GRASS -> GRASS_BLOCK;
+                case Fades.PODZOL -> PODZOL;
                 case Fades.SAND -> supported(x, y, z) ? SAND : SANDSTONE;
                 case Fades.SANDSTONE -> SANDSTONE;
                 default -> d == 0 && smoothSlope < 1.05 && biome != null && biome.is(Biomes.FROZEN_PEAKS)

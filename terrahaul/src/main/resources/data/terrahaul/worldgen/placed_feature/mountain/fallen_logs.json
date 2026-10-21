@@ -1,0 +1,32 @@
+{
+  "feature": "terrahaul:details/fallen_log_spruce",
+  "placement": [
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 0.35,
+      "density": "forest",
+      "scale": 260,
+      "variation": 1.0,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "forest",
+      "max_slope": 3
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

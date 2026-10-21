@@ -1,0 +1,31 @@
+{
+  "feature": "terrahaul:mountain/ferns",
+  "placement": [
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 4.5,
+      "density": "vegetation",
+      "scale": 140,
+      "variation": 1.1,
+      "clearing": -2.0
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "forest"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -26,7 +26,12 @@ public enum TreeSpecies {
     DEAD("dead"),
     DEAD_SPRUCE("dead_spruce"),
     /** Fire-killed snags on volcano slopes: charred, leafless trunks with broken tops. */
-    BURNED("burned");
+    BURNED("burned"),
+    /**
+     * Spruce stunted and shaped by the wind above the mountain tree line: needle cushions,
+     * prostrate mats and flagged dwarf trees, built from the spruce blocks.
+     */
+    KRUMMHOLZ("krummholz");
 
     private final String name;
 

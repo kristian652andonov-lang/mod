@@ -1,0 +1,20 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "pine",
+    "sizes": [
+      {
+        "data": "small",
+        "weight": 300
+      },
+      {
+        "data": "medium",
+        "weight": 500
+      },
+      {
+        "data": "large",
+        "weight": 200
+      }
+    ]
+  }
+}
