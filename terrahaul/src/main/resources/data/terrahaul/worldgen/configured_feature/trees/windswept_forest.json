@@ -3,7 +3,7 @@
   "config": {
     "features": [
       {
-        "chance": 0.35,
+        "chance": 0.4,
         "feature": {
           "feature": "terrahaul:tree/oak",
           "placement": []

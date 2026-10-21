@@ -29,6 +29,8 @@ import javax.imageio.ImageIO;
  * being more than six blocks from wood, cells clipped by the reach limit and build time.
  * <p>
  * Run with {@code ./gradlew treeStudy -Pargs="<outDir> [species,...|all] [samples] [pxPerBlock] [seed] [sizes,...|all]"}.
+ * With {@code -Pargs="stand ..."} it plants whole stands of trees as the biomes' tree placements
+ * would instead, see {@link StandStudy}.
  * Log end faces (sawn rings) are drawn in a light tan so exposed rings stand out; ground-following
  * roots and rooted dirt are laid on the simulated ground the way the feature lays them.
  */
@@ -37,6 +39,10 @@ public final class TreeStudy {
     }
 
     public static void main(String[] args) throws IOException {
+        if (args.length > 0 && args[0].equals("stand")) {
+            StandStudy.main(java.util.Arrays.copyOfRange(args, 1, args.length));
+            return;
+        }
         Path out = Path.of(args.length > 0 ? args[0] : "build/trees");
         String speciesArg = args.length > 1 ? args[1] : "all";
         int samples = args.length > 2 ? Integer.parseInt(args[2]) : 3;

@@ -15,6 +15,7 @@
         "data": "large",
         "weight": 200
       }
-    ]
+    ],
+    "sapling": true
   }
 }

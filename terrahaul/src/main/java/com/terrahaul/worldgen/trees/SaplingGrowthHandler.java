@@ -12,7 +12,9 @@ import net.neoforged.neoforge.event.level.BlockGrowFeatureEvent;
  * Makes saplings grow into Terrahaul trees: the vanilla tree a sapling would grow is swapped for the
  * matching {@code terrahaul:sapling/*} configured feature. 2x2 sapling groups (dark oak, mega
  * spruce, mega jungle) map to large trees with 2x2 trunks, which vanilla then places from the
- * north-west sapling exactly as it would its own mega trees. Controlled by
+ * north-west sapling exactly as it would its own mega trees. Those features are marked
+ * {@code "sapling": true}, so like vanilla trees they replace only air, leaves, water and plants
+ * and never the blocks a player put around the sapling. Controlled by
  * {@code saplingsGrowTerrahaulTrees} in the common config.
  */
 public final class SaplingGrowthHandler {

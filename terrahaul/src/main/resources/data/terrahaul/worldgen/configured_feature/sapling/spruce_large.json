@@ -7,6 +7,7 @@
         "data": "large",
         "weight": 100
       }
-    ]
+    ],
+    "sapling": true
   }
 }

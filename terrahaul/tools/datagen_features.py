@@ -160,7 +160,7 @@ def with_conditions(path, conditions):
     write(path, obj)
 
 
-def tree_config(name, species, sizes, vines=0.0, cocoa=0.0, beehive=0.0, dry=0.0):
+def tree_config(name, species, sizes, vines=0.0, cocoa=0.0, beehive=0.0, dry=0.0, sapling=False):
     # weights are integers in vanilla weighted lists: scale by 100 so fractional weights survive
     cfg = {"species": species, "sizes": [{"data": k, "weight": max(1, int(round(w * 100)))} for k, w in sizes.items()]}
     if vines:
@@ -171,6 +171,8 @@ def tree_config(name, species, sizes, vines=0.0, cocoa=0.0, beehive=0.0, dry=0.0
         cfg["beehive"] = beehive
     if dry:
         cfg["dry_leaves"] = dry
+    if sapling:
+        cfg["sapling"] = True
     configured(name, 'terrahaul:procedural_tree', cfg)
 
 
@@ -270,21 +272,25 @@ def trees():
                                     dict(count=6.5, scale=240, variation=0.5, clearing=-0.85)),
         'dark_forest': (['minecraft:dark_forest'], [(T + 'oak', 0.12), (T + 'birch', 0.09), (T + 'dark_oak', 1.0)], T + 'dark_oak',
                         dict(count=7.5, scale=260, variation=0.45, clearing=-0.9)),
+        # conifer stands: an old-growth conifer's crown covers about twice the ground of a broadleaf of
+        # the same size class, so these stands plant fewer, bigger trees and keep a light floor
+        # (see the treeStudy "stand" mode)
         'taiga': (['minecraft:taiga'], [(T + 'pine', 0.25), (T + 'fir', 0.18), (T + 'dead_spruce', 0.04)], T + 'spruce',
-                  dict(count=6.5, scale=240, variation=0.6, clearing=-0.75)),
+                  dict(count=4.0, scale=240, variation=0.6, clearing=-0.75)),
         'taiga_understory': (['minecraft:taiga', 'minecraft:snowy_taiga', 'minecraft:old_growth_spruce_taiga', 'minecraft:old_growth_pine_taiga'],
-                             [], T + 'spruce_young', dict(count=2.5, scale=240, variation=0.6)),
-        'snowy_taiga': (['minecraft:snowy_taiga'], [(T + 'fir', 0.3)], T + 'spruce', dict(count=5.0, scale=240, variation=0.6, clearing=-0.75)),
+                             [], T + 'spruce_young', dict(count=2.0, scale=240, variation=0.6)),
+        'snowy_taiga': (['minecraft:snowy_taiga'], [(T + 'fir', 0.3)], T + 'spruce', dict(count=4.0, scale=240, variation=0.6, clearing=-0.75)),
         'old_growth_spruce_taiga': (['minecraft:old_growth_spruce_taiga'], [(T + 'spruce', 0.35)], T + 'spruce_old_growth',
-                                    dict(count=5.0, scale=280, variation=0.45, clearing=-0.9)),
+                                    dict(count=2.6, scale=280, variation=0.45, clearing=-0.9)),
         'old_growth_pine_taiga': (['minecraft:old_growth_pine_taiga'], [(T + 'spruce_old_growth', 0.35)], T + 'pine_old_growth',
-                                  dict(count=5.0, scale=280, variation=0.45, clearing=-0.9)),
+                                  dict(count=3.2, scale=280, variation=0.45, clearing=-0.9)),
         'grove': (['minecraft:grove'], [(T + 'spruce', 0.4)], T + 'fir', dict(count=4.0, scale=200, variation=0.7, clearing=-0.6, slope=9)),
         'snowy_plains': (['minecraft:snowy_plains', 'minecraft:ice_spikes'], [(T + 'dead_spruce', 0.1)], T + 'spruce_small',
                          dict(count=0.3, scale=600, variation=1.2)),
         'windswept_hills': (['minecraft:windswept_hills', 'minecraft:windswept_gravelly_hills'], [(T + 'oak_small_dry', 0.45)], T + 'spruce_small',
                             dict(count=0.8, scale=300, variation=1.0, slope=9)),
-        'windswept_forest': (['minecraft:windswept_forest'], [(T + 'oak', 0.35)], T + 'spruce', dict(count=5.0, scale=240, variation=0.6, slope=9)),
+        # fewer spruces than before the conifers grew (2.6 instead of 3.25 per chunk), as many oaks (1.75)
+        'windswept_forest': (['minecraft:windswept_forest'], [(T + 'oak', 0.4)], T + 'spruce', dict(count=4.35, scale=240, variation=0.6, slope=9)),
         'meadow': (['minecraft:meadow'], [(T + 'birch_meadow', 0.4)], T + 'oak_meadow', dict(count=0.12, scale=600, variation=1.2)),
         'cherry_grove': (['minecraft:cherry_grove'], [(T + 'cherry_young', 0.15)], T + 'cherry', dict(count=3.5, scale=180, variation=0.8, clearing=-0.7)),
         'jungle_giants': (['minecraft:jungle'], [(T + 'oak', 0.06)], T + 'jungle_giant', dict(count=2.0, scale=220, variation=0.6)),
@@ -338,18 +344,20 @@ def trees():
     add_features('trees/rooted_azalea', ['minecraft:lush_caves'], 'terrahaul:rooted_azalea_tree', 'vegetal_decoration')
     with_conditions('terrahaul/neoforge/biome_modifier/trees/rooted_azalea.json', CONFIG_TREES)
 
-    # saplings grown by players (see SaplingGrowthHandler)
-    tree_config('sapling/oak', 'oak', {"small": 3, "medium": 4, "large": 1})
-    tree_config('sapling/birch', 'birch', {"small": 3, "medium": 4, "large": 1})
-    tree_config('sapling/spruce', 'spruce', {"small": 4, "medium": 4})
-    tree_config('sapling/spruce_large', 'spruce', {"large": 1})
-    tree_config('sapling/jungle', 'jungle', {"small": 3, "medium": 3}, vines=0.15, cocoa=0.1)
-    tree_config('sapling/jungle_large', 'jungle', {"large": 1}, vines=0.2, cocoa=0.05)
-    tree_config('sapling/acacia', 'acacia', {"small": 3, "medium": 4, "large": 1})
-    tree_config('sapling/dark_oak', 'dark_oak', {"small": 3, "medium": 4, "large": 2})
-    tree_config('sapling/cherry', 'cherry', {"small": 3, "medium": 4, "large": 1}, beehive=0.05)
-    tree_config('sapling/mangrove', 'mangrove', {"small": 3, "medium": 4})
-    tree_config('sapling/azalea', 'azalea', {"small": 3, "medium": 3})
+    # saplings grown by players (see SaplingGrowthHandler): like vanilla trees they replace only air,
+    # leaves, water and plants, so the blocks around a sapling are never destroyed
+    sapling = dict(sapling=True)
+    tree_config('sapling/oak', 'oak', {"small": 3, "medium": 4, "large": 1}, **sapling)
+    tree_config('sapling/birch', 'birch', {"small": 3, "medium": 4, "large": 1}, **sapling)
+    tree_config('sapling/spruce', 'spruce', {"small": 4, "medium": 4}, **sapling)
+    tree_config('sapling/spruce_large', 'spruce', {"large": 1}, **sapling)
+    tree_config('sapling/jungle', 'jungle', {"small": 3, "medium": 3}, vines=0.15, cocoa=0.1, **sapling)
+    tree_config('sapling/jungle_large', 'jungle', {"large": 1}, vines=0.2, cocoa=0.05, **sapling)
+    tree_config('sapling/acacia', 'acacia', {"small": 3, "medium": 4, "large": 1}, **sapling)
+    tree_config('sapling/dark_oak', 'dark_oak', {"small": 3, "medium": 4, "large": 2}, **sapling)
+    tree_config('sapling/cherry', 'cherry', {"small": 3, "medium": 4, "large": 1}, beehive=0.05, **sapling)
+    tree_config('sapling/mangrove', 'mangrove', {"small": 3, "medium": 4}, **sapling)
+    tree_config('sapling/azalea', 'azalea', {"small": 3, "medium": 3}, **sapling)
 
 
 CONFIG_DETAILS = [{"type": "terrahaul:config", "key": "ground_details"}]
