@@ -138,6 +138,10 @@ and `CreateWorldScreen.recreated`.
   vertical range.
 
 ## Known limitations
+- **`/locate` for distant structures is slower** in Terrahaul worlds: about 20 s instead of 9-10 s
+  for a swamp hut 12,400 blocks away (it runs on the server thread). Each height probe also checks
+  the waterfall and cascade plans near it, so caves never open under their water. Chunk generation
+  is not affected; nearby structures are found as fast as before.
 - **Pale oak** does not exist in Minecraft 1.21.1 (it arrived in 1.21.4), so it cannot be
   redesigned.
 - **Existing worlds are not converted.** The terrain only appears in worlds created with the

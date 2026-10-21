@@ -18,7 +18,7 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
-## Third feedback round (merged build at a55aed0)
+## Third feedback round
 This round merged: no floating icebergs or monument rooms over deep oceans; ocean monuments only
 on flat sea floors; dry riverbeds with a gravel and sand wash; the water wall sealer; client
 water effects (spray, mist, foam, sound); hoodoos ending in jagged points; lake floors and
@@ -26,14 +26,48 @@ freshwater life; the mountain rock mosaic with patchy snow; winding cascades; ir
 bigger, detailed conifers; waterfalls laid on the slope; more trail ruins, signposts and lamp
 posts; steep, sharp mountains; and rough, lopsided volcanoes.
 
-**Status: the full in-game test of the merged build is still running and is not recorded here.
-Its results will be added as a separate section.** Until then, what is written below is what
-was checked while each piece was developed, before the merge: a few pieces were also run in
-game, most were checked only offline with the devtools (pure Java on the terrain model and the
-feature plans; no Minecraft, no generated chunks). None of the offline checks shows how a piece
-looks or performs in a generated world, and none was repeated on the merged build. The numbers
-are the ones recorded in the commit messages; where a commit names a check but records no
-result, that is said.
+The sections below record what was checked while each piece was developed, before the merge: a
+few pieces were also run in game, most were checked only offline with the devtools (pure Java on
+the terrain model and the feature plans). The merged build was then tested in game, which found
+two bugs that the offline checks could not see; both are fixed and the fixes were tested in game.
+
+### In-game test of the merged build (fresh world, seed 12345, dedicated server and client)
+`runServer` AutoTest in a fresh world, 17 areas found with `/terrahaul find` (waterfall, cascade,
+lake, crater lake, volcano, hoodoos, deep ocean, old-growth spruce and pine taiga, dry river,
+great river, mountain, alpine peaks, mountain wall, broken house, path lights, signpost; 3 to 7
+chunks around each), every vanilla structure located and checked, then 21 client screenshots
+(Mesa llvmpipe software rendering, render distance 10).
+- **Bug 1, found in the screenshots: a grid of one-block rock walls along the chunk borders of
+  every lake.** The water wall sealer sealed the still-empty lake columns of a neighbour that had
+  not been decorated yet; the neighbour's lake then formed around the rock. Fixed in 9d910a2: the
+  sealer only writes into its own chunk and into neighbours that have finished their features.
+  AutoTest now counts single blocks in open water at the surface ("water fins") and how many of
+  them sit on chunk borders.
+- **Bug 2, found by AutoTest and the screenshots: the first waterfall from spawn (-927 70 -817)
+  sat on a thin floating stone shelf with air below** (9 floating fragments, 28 blocks). Terrahaul's
+  own noise caves (the spaghetti tunnels of the cave router) ran under the pool, because the cave
+  guard only knew the terrain model's lakes and rivers, not the waterfall and cascade plans; the
+  devtools missed it because they did not evaluate the router's caves and used the seed directly
+  as the model seed. Fixed in 2d355b5 (merged as a2963de): caves and carvers keep below what the
+  plans build; FallStudy now evaluates the game's noise fill with the router's caves and fails on
+  the old code at this site and about a third of the falls and cascades, and passes after.
+- **Results on the final build** (a2963de, the same terrain as the shipped build): 0 water walls
+  in all 17 areas; water fins 0-5 per area, all natural (crust islands and single rocks), 1 on a
+  chunk border; floating terrain 0 everywhere except one cobblestone block at a broken house;
+  0 floating trees and 0 decaying leaves; no exceptions; 90-270 ms per chunk including neighbours;
+  every vanilla structure (villages, outpost, pyramid, swamp hut, mansion, stronghold, mineshaft,
+  ancient city, trial chambers, monument) generates where `/locate` reports it.
+- **Screenshots:** waterfall (now down a narrow cleft in its slope), lake with underwater plants
+  and no grid, the volcano crater lake with rock islands, hoodoo points, the dry riverbed wash,
+  old-growth pine and spruce taiga, a broken house, a lamp post and a signpost by trails, a
+  mountain face and peak, a great river. Four shots were badly placed (sky or leaves), so the
+  cascade, the alpine peaks and the wall from below were not seen in game.
+- **`/locate` cost:** the cave guard (2d355b5) made far structure searches slower, because each
+  height probe now checks the waterfall and cascade plans near it. `/locate structure
+  minecraft:swamp_hut` (12,400 blocks away, fresh world): 9-10 s before the guard, about 30 s
+  with it, about 20 s after the speed-up in 983942b. That speed-up was checked to leave the world
+  byte-identical (guard levels, plan lists and plan shapes over 8192x8192 blocks on six seeds,
+  shuffled and multi-threaded). Chunk generation itself is not slower.
 
 ### Checked in game before the merge
 Each before the pieces were merged together, in a fresh world with seed 12345 unless noted:
