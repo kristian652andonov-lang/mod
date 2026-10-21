@@ -3,7 +3,8 @@
 This page records what was actually tested, how, and with what result. It also lists what was
 **not** tested. Everything here was run in the development environment: a Linux container with
 4 vCPUs, no GPU, Java 21, NeoForge 21.1.262. The tools are described in
-[BUILDING.md](BUILDING.md).
+[BUILDING.md](BUILDING.md); the devtool studies and audits list their modes in the Javadoc of
+their classes.
 
 ## Build
 - `./gradlew build` produces `build/libs/terrahaul-1.0.0.jar`. The main and devtools source sets
@@ -35,7 +36,7 @@ are the ones recorded in the commit messages; where a commit names a check but r
 result, that is said.
 
 ### Checked in game before the merge
-Each before the pieces were merged together, in a fresh world with seed 12345:
+Each before the pieces were merged together, in a fresh world with seed 12345 unless noted:
 - **Icebergs and ocean monuments (no floating ones):** two deep frozen ocean areas and an island
   showed no icebergs over deep water and no floating terrain. The monument at 720, 816 stood on
   the floor (rooms at Y −62) instead of leaving a 42x15x48 group of rooms at Y 40-54. This was
@@ -45,8 +46,9 @@ Each before the pieces were merged together, in a fresh world with seed 12345:
 - **Dry riverbeds:** the dry riverbed found by `/terrahaul find dry_river` showed as a band of
   gravel and sand through the badlands' red sand, with no change outside the channel and its
   banks.
-- **Water wall sealer:** an `AutoTest` run of an earlier version over ten areas counted 0
-  water-wall faces in 8 areas and 3 faces below sea level in each of a great river and a river.
+- **Water wall sealer:** an `AutoTest` run of an earlier version over ten areas (seed and world
+  not recorded) counted 0 water-wall faces in 8 areas and 3 faces below sea level in each of a
+  great river and a river.
   The merged version also seals sideways near the bed and below every source block; it compiles
   but was not run in game before the merge.
 - **Water effects:** two runs of the development client; see the subsection below.
@@ -56,12 +58,14 @@ Each before the pieces were merged together, in a fresh world with seed 12345:
   many monuments the 10-block rule removes nor whether `/locate` and the built monument agree in
   game.
 - **Hoodoo points** (`formationStudy`):
-  - `formationStudy check` (60 sites of each type on seeds 12345, 42, 1 and -7777): 0 floating
-    blocks; about 91% of hoodoo tops are points (top layer 1-2 blocks, the next at most 6, the rest
-    are nubs on fin crests and ledges), and none of the old capped profile (a wide layer over a
-    narrow neck) is left: 4-5 flags per seed, all where two neighbouring tips touch or the ribs
-    narrow a slender pillar well below its point; no sea stack head sits over its wave notch.
-  - `formationStudy check_hoodoo` on the hoodoo points (60 fields on each of seeds 12345, 42, 1
+  - `formationStudy check` on the first version of the points, before the tip fix measured in
+    the next sub-bullet, and not re-run on the final shape (60 sites of each type on seeds
+    12345, 42, 1 and -7777): 0 floating blocks; about 91% of hoodoo tops are points (top layer
+    1-2 blocks, the next at most 6, the rest are nubs on fin crests and ledges), and none of the
+    old capped profile (a wide layer over a narrow neck) is left: 4-5 flags per seed, all where
+    two neighbouring tips touch or the ribs narrow a slender pillar well below its point; no sea
+    stack head sits over its wave notch.
+  - `formationStudy check_hoodoo` on the final points (60 fields on each of seeds 12345, 42, 1
     and -7777, 5 807 pillar tips, each measured from its own tip block): the single block of a tip
     stands on at most one more single block (before: 606 tips ended in a 1x1 post three layers
     tall and 6 in one four layers tall), no layer under a point is wider than the one under it
@@ -92,14 +96,15 @@ Each before the pieces were merged together, in a fresh world with seed 12345:
   most 3 blocks and its cut at most 4, and a plan that would leave more than two walls of 5 or
   more blocks is rejected. The commit records no measured values.
 - **Waterfalls on the slope** (`fallStudy`, new, with `FallRender`). The old planner cut about
-  9 500 blocks per fall, up to 48 deep. A site is now rejected if it needs more than 10 blocks cut
-  or 3 built anywhere, or more cut in all than 1400 + 30 per block of drop. The `fallStudy`
-  survey asserts the cut cap, no holes or gaps, the water invariants, no cut at the plan's bounds
-  or far from the water, no outflow stopping on a slope, fans with ribs, plunges with a leap and
-  no creek-like faces, and reports the share of outflows that join other water; its `order`
-  mode fails if a plan depends on the order plans are made in. `waterStudy falls` checks each
-  course from lip to pool, and `finderAudit` checks that the fall is in sight from the reported
-  spot. The commits do not record the survey's counts.
+  9 500 blocks per fall, up to 48 deep. A site is now rejected if any column needs more than 10
+  blocks cut (12 under water, 15 in the basin under a plunge's leap) or more than 3 built, or more
+  cut in all than 1400 + 30 per block of drop. The `fallStudy` survey asserts the cut cap, no
+  holes or gaps, the water invariants, no cut at the plan's bounds or far from the water, no
+  outflow stopping on a slope, fans with ribs, plunges with a leap and no creek-like faces, and
+  reports the share of outflows that join other water; its `order` mode fails if a plan depends
+  on the order plans are made in. `waterStudy falls` checks each course from lip to pool, and
+  `finderAudit` checks that the fall is in sight from the reported spot. The commits do not
+  record the survey's counts.
 - **Irregular craters** (`volcanoStudy craters` and `cratersurvey`, `waterStudy craters`), seeds
   12345 and 42, before -> after: variation of the crest radius (cv) 0.003-0.018 -> 0.065-0.127;
   standard deviation of the crest height 0.3-0.5 -> 2.8-23.7 blocks; shore radius cv
@@ -186,6 +191,10 @@ Each before the pieces were merged together, in a fresh world with seed 12345:
 - **Sounds:** the container has no audio device (OpenAL fails to open), so the loops were not
   heard and the sound controller did not run in game. The four Ogg files decode as mono 44.1 kHz
   with exact loop lengths (7.0, 5.8, 8.0 and 6.6 s).
+- **Old falls only:** both in-game runs were made before this round's waterfalls and cascades
+  were merged, on the old carved waterfall (the plunge pool and curtain above) and the old
+  straight cascade. The effects have not been seen on the slope-laid falls (notch lip, tiered,
+  horsetail, fan with ribs) or on the winding cascades.
 
 ## Second feedback round: fresh world, every new feature (seed 12345)
 A dedicated server created a fresh Terrahaul world and `AutoTest` located 25 landforms with
@@ -432,7 +441,8 @@ tested on a real GPU.
 - **Sign text, chest loot and archaeology in ruins** were not opened in game; the ruins were only
   checked for floating blocks and seen in screenshots. The third round's broken houses and other
   trailside ruins were not checked in game before the merge.
-- **The water effects with Fabulous graphics** (the mist depth pass) and with renderers that
-  draw water another way (Sodium, Embeddium).
+- **The water effects on this round's slope-laid waterfalls and winding cascades** (they were
+  only seen on the old carved waterfall and cascade), **with Fabulous graphics** (the mist depth
+  pass) and with renderers that draw water another way (Sodium, Embeddium).
 - **Water sounds on a real audio device**, and the water effects' cost per tick on a busy client
   (the scanner's budgets are fixed, but they were not profiled).

@@ -63,7 +63,7 @@ running water throws up spray, mist and foam and can be heard.
     of sand, gravel, clay, mud and moss, fields of rock ledges, boulders, erratics in glacial
     lakes, lava sheets and talus in crater lakes, rock islets, moraine shoals far out in great
     lakes, sunken logs of the surrounding forest and, now and then, a boat wreck, a drowned hut
-    or tower or an old pier;
+    or tower (some of them with a chest) or an old pier;
   - **waterfalls** laid on the natural slope instead of carved into it: the stream narrows to a
     notch at the lip and comes down the face as a plunge from a real cliff step, a tiered fall
     swinging across ledges, a horsetail widening over short steps or a fan of strands split by
@@ -78,8 +78,10 @@ running water throws up spray, mist and foam and can be heard.
     with U-shaped troughs and hanging valleys.
 
   All water is placed with containment checks, so there is no floating water and no flooding. A
-  last pass in every chunk seals still water wherever a cave or ravine cut beside or below it
-  after it was placed, so no wall of water stands over the opening.
+  last pass in every chunk seals still water (and still lava) where a cave or ravine cut beside
+  or below it after it was placed, so no wall of water stands over the opening. Below sea level
+  it seals the sides of deep water only near its bed and where the ground beside it is lower,
+  so a cave that opens into deep water well above its bed can still face a wall of water.
 - **Deep oceans:**
   - ocean floors lie around Y −24..30 and abyssal plains around Y −60..−160, with rolling relief,
     mid-ocean ridges and seamounts;
@@ -90,8 +92,9 @@ running water throws up spray, mist and foam and can be heard.
     sea floor ends in a wall;
   - ocean monuments stand on the sea floor, rooms and all, instead of floating at vanilla's
     height. Each monument region picks its flattest deep site, and where the floor under the
-    monument still varies by more than 10 blocks there is no monument, so none cuts a square pit
-    into a sloping sea floor (`/locate` agrees);
+    monument still varies by more than 10 blocks there is no monument (`/locate` agrees), so
+    monuments stand only on nearly flat floors and none cuts a deep pit into a sloping one (the
+    pit a monument floods around itself is at most about 10 blocks deep);
   - no icebergs float over deep water: vanilla's frozen-ocean ice pillars are not raised, and
     icebergs only form where the sea under them is at most 22 blocks deep. Frozen seas keep
     their sea ice.
@@ -295,8 +298,11 @@ All of these need permission level 2. Searches run off the server thread.
 
 ## Installing
 1. Install NeoForge for 1.21.1.
-2. Put `terrahaul-1.0.0.jar` (a prebuilt copy is in [`dist/`](dist/), or build it yourself, see
-   below) into the `mods` folder (client and server).
+2. Put `terrahaul-1.0.0.jar` into the `mods` folder (client and server). Build it yourself (see
+   below) or use the prebuilt copy in [`dist/`](dist/). That copy is the previous release and
+   lacks the newest features described here (lake floors and lake life, waterfalls laid on the
+   slope, winding cascades, the client water effects, rough volcanoes, the new trail ruins, the
+   ocean monument and iceberg fixes, among others) until it is rebuilt.
 3. **Singleplayer:** on the Create World screen, *World Type* defaults to **Terrahaul**. You can
    switch back to Default in the World tab; turn off `selectTerrahaulByDefault` in the client
    config to stop the pre-selection.
@@ -318,7 +324,7 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | `groundDetails` | `true` | Pebbles, rocks, branches, twigs, litter, bushes, fallen logs, boulders, and the beds, rocks, logs and wrecks of lake floors (restart) |
 | `geologicalFormations` | `true` | Arches, spires, hoodoos, sea stacks (restart) |
 | `oreDepthFix` | `true` | Keep vanilla ores at vanilla depths and add deep/high resource layers (layers need a restart) |
-| `terrainAwareStructures` | `true` | Steer surface structures to flat, dry ground (set before creating a world) |
+| `terrainAwareStructures` | `true` | Steer surface structures to flat, dry ground and ocean monuments to flat sea floors (set before creating a world) |
 | `saplingsGrowTerrahaulTrees` | `true` | Player-grown saplings produce Terrahaul trees |
 | `trails` | `true` | Lay dirt trails across gentle ground, with trail ruins, signposts and path lights |
 | `oceanVents` | `true` | Hydrothermal vent chimneys in trenches and on mid-ocean ridges (restart) |

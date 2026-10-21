@@ -13,13 +13,13 @@ the limitations that are known today. Statements about testing are kept separate
 | Trees | Biome modifiers remove the vanilla tree features and add `terrahaul:procedural_tree` features; sapling growth event. The `terrahaul:sapling/*` configured features set the optional `procedural_tree` field `"sapling": true` (default `false`), so a tree grown from a sapling replaces only air, leaves, water and plants, as vanilla trees do | All Overworld biomes, all worlds (config `replaceVanillaTrees`) |
 | Ground detail | Biome modifiers add features | All Overworld biomes, all worlds (config `groundDetails`) |
 | Water, waterfalls, formations, ocean vents, volcano vegetation, ruins | Features that read the terrain model; they do nothing elsewhere. Volcano vegetation uses the placement filter `terrahaul:volcano_zone` | Terrahaul worlds |
-| Lake floors | Features `terrahaul:lake_floor` (`local_modifications` step; its biome modifier is skipped when `groundDetails` is off) and `terrahaul:lake_life` (`vegetal_decoration`) in every Overworld biome. They are planned from the terrain model's lakes; the floor replaces only lake water (and the air just above it where a rock, a tower stump or a pier post rises out of the water) and the bed's sediment, and the life places vanilla blocks in the water and on the shore (seagrass, tall seagrass, kelp, lily pads, small dripleaf, sugar cane, moss carpets) | Terrahaul worlds |
-| Water wall sealer | Feature `terrahaul:water_wall_sealer` in the `top_layer_modification` step of every Overworld biome. It looks at the still water above the ground of the chunk's columns and the ring around them, and fills any air (or plant water would wash away) beside or below a source block with rock like the water's bed | Terrahaul worlds |
+| Lake floors | Features `terrahaul:lake_floor` (`local_modifications` step; its biome modifier is skipped when `groundDetails` is off) and `terrahaul:lake_life` (`vegetal_decoration`) in every Overworld biome. They are planned from the terrain model's lakes; the floor replaces only lake water (and the air just above it where a rock, a tower stump or a pier post rises out of the water) and the bed's sediment, and the life places vanilla blocks in and on the water and on the shore (seagrass, tall seagrass, kelp, lily pads, small dripleaf, big dripleaf with its stem in the water and its leaf just above it, sugar cane, moss carpets). Chests in lake wrecks and drowned buildings use vanilla loot tables (`minecraft:chests/shipwreck_supply`, `minecraft:chests/underwater_ruin_small`) | Terrahaul worlds |
+| Water wall sealer | Feature `terrahaul:water_wall_sealer` in the `top_layer_modification` step of every Overworld biome. It looks at the still water (and still lava) above the ground of the chunk's columns and the ring around them, and fills any air (or plant water would wash away) below a source block with rock like the bed. Beside a source block it does the same only at or above sea level, within 12 blocks of the bed, and where the ground of the neighbouring column is lower than the source | Terrahaul worlds |
 | Snow on volcanoes | Feature `terrahaul:volcano_thaw` (`top_layer_modification`, after vanilla's `freeze_top_layer`; placement filters `terrahaul:terrahaul_only` and `terrahaul:volcano_zone`) takes vanilla's snow layers off bare volcanic ground where no snow may lie (hot craters, active lava flows, ash and scoria patches) | Terrahaul worlds |
 | Floating terrain cleanup | Features `terrahaul:terrain_cleanup` (the `raw_generation` step) and `terrahaul:terrain_cleanup_late` (`fluid_springs`) in every Overworld biome. They remove small groups of natural rock, soil and sand that touch only air or water, in the chunk and its neighbours, and do nothing outside Terrahaul worlds or in chunks under a shipwreck or ocean ruin | Terrahaul worlds |
 | Sea floor (coral reefs, rocks, kelp, seagrass, grottos) | Biome modifiers remove vanilla's coral, kelp, seagrass, sea pickle and sand/clay/gravel disk features from the ocean biomes, add Terrahaul's sea-floor features, and add each removed vanilla feature back wrapped in `terrahaul:vanilla_fallback`, which places it only outside Terrahaul worlds | Ocean biomes; other worlds keep vanilla oceans |
 | Icebergs | A biome modifier removes `minecraft:iceberg_packed` and `minecraft:iceberg_blue` from frozen and deep frozen oceans; they are added back wrapped in `terrahaul:vanilla_fallback` with the new optional field `terrahaul_max_depth: 22`: unchanged in other worlds, and in Terrahaul worlds placed only where the sea floor at the origin and 16 blocks around it is at most 22 blocks below sea level. `SurfaceSystemMixin` skips vanilla's frozen-ocean ice pillars (the surface pass's iceberg step) in Terrahaul worlds | Frozen ocean biomes |
-| Ocean monuments | `RandomSpreadStructurePlacementMixin` picks the flattest deep candidate chunk in each monument region (structure set salt 10387313); `OceanMonumentStructureMixin` drops sites whose floor still varies by more than 10 blocks and lowers the building and its rooms onto the floor | Terrahaul worlds |
+| Ocean monuments | `RandomSpreadStructurePlacementMixin` picks the flattest deep candidate chunk in each monument region (structure set salt 10387313); `OceanMonumentStructureMixin` drops sites whose floor still varies by more than 10 blocks and lowers the building and its rooms onto the floor | Terrahaul worlds (the choice of the flattest chunk: config `terrainAwareStructures`) |
 | Extra ore layers | Biome modifiers with the `terrahaul:terrahaul_only` placement filter | Terrahaul worlds (config `oreDepthFix`) |
 | Sky effects | Dimension effects `terrahaul:overworld`: vanilla Overworld sky with a configurable cloud height | Terrahaul worlds, client |
 | Vegetation sway | Overrides the core shader `minecraft:shaders/core/rendertype_cutout` and wraps plant block models at model bake | Client |
@@ -92,9 +92,10 @@ and `CreateWorldScreen.recreated`.
   other worlds (and Terrahaul's shallow-water icebergs); in Terrahaul worlds the Terrahaul sea
   floor is used instead. Ocean features of other mods under other ids generate in both.
 - **Features that leave water beside air:** in Terrahaul worlds the water wall sealer runs last
-  (`top_layer_modification`) and fills air beside or below still water above the ground with
-  rock. A mod feature that leaves an open pocket beside still water on purpose, before that
-  step, gets it filled; flowing water and blocks placed after world generation are not touched.
+  (`top_layer_modification`) and fills air below still water (or lava) above the ground with
+  rock, and air beside it within the limits given under Known limitations. A mod feature that
+  leaves an open pocket beside still water on purpose, before that step, gets it filled; flowing
+  water and blocks placed after world generation are not touched.
 - **Lake and aquatic plant mods:** Terrahaul's lake floors only replace lake water and bed
   sediment in Terrahaul lakes (and air just above the water for a few rocks and posts), and its
   lake plants are vanilla blocks; plants of other mods added under their own ids still generate.
@@ -181,7 +182,11 @@ and `CreateWorldScreen.recreated`.
   own biome rules always apply, so a region may also end up without the structure, as in vanilla.
 - **Ocean monuments** are skipped where even the flattest candidate has a floor that varies by
   more than 10 blocks under the footprint, so a Terrahaul world has fewer monuments than a
-  vanilla one (how many fewer was not measured).
+  vanilla one (how many fewer was not measured). With `terrainAwareStructures` off, each monument
+  region keeps vanilla's random chunk instead of its flattest one while the 10-block check still
+  applies, so even fewer monuments remain. A monument still floods its footprint from the lowest
+  of its floor samples up to sea level, so it can stand in a pit about 10 blocks deep (deeper
+  where the floor rises between the samples).
 - **Snow, ice and frozen rivers:** these follow the vanilla biome temperature, including altitude
   cooling. Snow layers come from vanilla's freeze step and so stop where vanilla puts them,
   except on volcanoes, where `volcano_thaw` takes them off bare hot or ash-covered ground. On
@@ -196,7 +201,12 @@ and `CreateWorldScreen.recreated`.
   next to the water are filled with rock like the water's bed (sandstone under sand, the bed's
   own rock, otherwise stone), so a cave can end in a rock plug under a lake or the sea. It only
   looks at source blocks above the ground of each column; still water deeper inside a cave
-  system is not checked.
+  system is not checked. Openings below the water are always sealed, but openings at its side
+  only at or above sea level, within 12 blocks of the water's bed, and where the ground of the
+  neighbouring column is lower than the water: a cave that opens into the side of deep water
+  below sea level, more than 12 blocks above the bed and behind higher ground (in an underwater
+  cliff or the deep wall of a lake, for example), is not sealed. Still lava is sealed the same
+  way, so crater lava lakes get rock plugs too.
 - **Trails** are laid by the surface rule on the top block. They are not connected to villages
   and do not cross rivers (they end at the banks). Trees and plants do not grow on the path
   blocks; a fallen log or boulder can occasionally lie across a trail.
