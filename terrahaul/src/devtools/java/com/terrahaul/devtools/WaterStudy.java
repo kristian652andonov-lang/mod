@@ -4,7 +4,6 @@ import com.terrahaul.worldgen.noise.SeedMixer;
 import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.TerrainFinder;
 import com.terrahaul.worldgen.terrain.TerrainModel;
-import com.terrahaul.worldgen.terrain.TerrainSettings;
 import com.terrahaul.worldgen.terrain.WaterBody;
 import com.terrahaul.worldgen.water.FallPlan;
 import com.terrahaul.worldgen.water.FallPlanner;
@@ -21,7 +20,8 @@ import javax.imageio.ImageIO;
  * Development tool for surface water: runs the game's {@link WaterSolver} on model ground, chunk by
  * chunk exactly as the feature does, and checks what the player would see.
  * <p>
- * Modes (run with {@code ./gradlew waterStudy -Pargs="<mode> <seed> ..."}):
+ * Modes (run with {@code ./gradlew waterStudy -Pargs="<mode> <seed> ..."}); a seed {@code N} is
+ * the world seed a player types, {@code model:N} a terrain model seed (see {@link GameWorld}):
  * <ul>
  *   <li>{@code solve <seed> <regionsPerKind> <outDir>}: finds regions of each kind (elevated
  *       river, great river, lake, stream, crater, canyon river, dry river), solves 8x8 chunks
@@ -33,7 +33,9 @@ import javax.imageio.ImageIO;
  *   <li>{@code falls <seed> <half> <outDir> [renders] [all|curtain|gorge|sea|cascade]}:
  *       waterfalls and cascades per km2 by climate, their sizes, and every plan built and checked
  *       (a fall's lip holds the channel's water and its water runs on, falling down the face, to
- *       the pool); side, first-person, overview and top views.</li>
+ *       the pool; no plan's water, built rock or cut floor stands over open air or on less than
+ *       {@value FallStudy#MIN_ROOF} blocks of ground over a cave in the world's noise fill with the
+ *       router's caves, which fails the run); side, first-person, overview and top views.</li>
  *   <li>{@code rivers <seed> <half>}: great-river widths, perched channels, dry beds near
  *       water.</li>
  *   <li>{@code walls <seed> <half>}: steep steps the water carving cuts into gentle ground (abrupt
@@ -60,8 +62,10 @@ public final class WaterStudy {
 
     public static void main(String[] args) throws Exception {
         String mode = args[0];
-        long seed = Long.parseLong(args[1]);
-        TerrainModel model = new TerrainModel(seed, TerrainSettings.DEFAULT);
+        GameWorld world = GameWorld.of(args[1]);
+        FallStudy.world = world;
+        TerrainModel model = world.model;
+        System.out.println(world);
         switch (mode) {
             case "solve" -> solve(model, Integer.parseInt(args[2]), new File(args[3]));
             case "map" -> waterMap(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]),
@@ -247,6 +251,8 @@ public final class WaterStudy {
         final byte[] role;
         final byte[] style;
         final boolean[] planned;
+        /** Whether the plan or the solver shaped the ground (carved it down or filled it up to {@link #ground}). */
+        final boolean[] shaped;
 
         Area(int ax, int az, int w, int h) {
             this.ax = ax;
@@ -265,6 +271,7 @@ public final class WaterStudy {
             role = new byte[n];
             style = new byte[n];
             planned = new boolean[n];
+            shaped = new boolean[n];
         }
 
         boolean contains(int x, int z) {
@@ -349,6 +356,7 @@ public final class WaterStudy {
                         area.role[t] = ws.role[k];
                         area.style[t] = ws.style[k];
                         area.planned[t] = ws.planned[k];
+                        area.shaped[t] = ws.shaped[k];
                     }
                 }
             }
@@ -613,6 +621,9 @@ public final class WaterStudy {
         Stats fallTotal = new Stats();
         Stats cascadeTotal = new Stats();
         CascadeStats cs = new CascadeStats();
+        // water and rock over open air or a cave in the world's noise fill: falls, cascades
+        FallStudy.OverAir[] overAir = {new FallStudy.OverAir(), new FallStudy.OverAir()};
+        int[] overAirPlans = new int[2];
         for (FallPlan p : plans) {
             Stats st = new Stats();
             int ccx = Math.floorDiv(p.minX(), 16) - 1;
@@ -621,6 +632,14 @@ public final class WaterStudy {
             int nz = Math.floorDiv(p.maxZ(), 16) + 2 - ccz;
             Area area = solveArea(model, ccx, ccz, nx, nz, st);
             accumulate(total, st);
+            FallStudy.OverAir gaps = FallStudy.overAir(FallStudy.field(model, p), area, p);
+            int kindIndex = p.type == FallPlan.CASCADE ? 1 : 0;
+            overAir[kindIndex].add(gaps);
+            if (gaps.total() > 0) {
+                overAirPlans[kindIndex]++;
+                double[] at = p.type == FallPlan.CASCADE ? p.course()[0] : new double[]{p.lipX, p.lipZ};
+                System.out.printf(Locale.ROOT, "  %s at %.0f,%.0f over open air or a cave: %s%n", p.typeName(), at[0], at[1], gaps);
+            }
             accumulate(p.type == FallPlan.CASCADE ? cascadeTotal : fallTotal, st);
             if (p.type == FallPlan.CASCADE) {
                 for (int t = 0; t < area.w * area.h; t++) {
@@ -693,7 +712,22 @@ public final class WaterStudy {
                 hist(t.bankHist), hist(t.stepHist));
         }
         cs.print();
-        sheet(tiles, new File(dir, "falls_" + model.seed() + ".png"));
+        sheet(tiles, new File(dir, "falls_" + world().label() + ".png"));
+        long over = 0;
+        for (int c = 0; c < 2; c++) {
+            System.out.printf(Locale.ROOT, "  %-10s over open air or on less than %d blocks of ground over a cave (noise fill with the router's caves): %d plans, %s%n",
+                c == 0 ? "waterfalls" : "cascades", FallStudy.MIN_ROOF, overAirPlans[c], overAir[c]);
+            over += overAir[c].total();
+        }
+        if (over > 0) {
+            System.out.println("FAILED: " + over + " columns of plans over open air or a cave");
+            System.exit(1);
+        }
+        System.out.println("OK: no plan's water or rock over open air or a cave");
+    }
+
+    private static GameWorld world() {
+        return FallStudy.world;
     }
 
     /** Side view along the fall's axis (top) and top view (bottom) of a solved plan. */

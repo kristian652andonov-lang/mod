@@ -1644,6 +1644,7 @@ public final class TerrainModel {
         out.bodyLevel = bodyLevel;
         out.bodyLevelCont = bodyCont;
         out.nearbyWater = Double.NaN;
+        out.planGuard = Double.NaN;
 
         // ---- 13. classification and climate ---------------------------------------------------
         out.height = h;

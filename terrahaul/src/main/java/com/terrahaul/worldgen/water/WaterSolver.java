@@ -34,6 +34,12 @@ public final class WaterSolver {
     public static final int MARGIN = 5;
     public static final int SIZE = 16 + 2 * MARGIN;
     public static final int NONE = Integer.MIN_VALUE;
+    /**
+     * Deepest gap right under what a waterfall or cascade builds (its bed, shaped ground or built
+     * rock) that the water feature closes with rock down to the ground below it; a deeper one it
+     * leaves alone, since a pillar hanging into a cave is no better than a shelf.
+     */
+    public static final int SUPPORT_REACH = 4;
 
     // column kinds
     public static final byte DRY = 0;

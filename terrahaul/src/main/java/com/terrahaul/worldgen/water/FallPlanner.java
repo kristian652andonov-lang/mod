@@ -107,6 +107,62 @@ public final class FallPlanner {
         }
     }
 
+    /**
+     * Furthest from a column, in four-block grid cells beyond the cells the column's grid corner
+     * touches, that what a plan builds keeps caves and carvers away (see {@link #guardLevel}).
+     */
+    private static final int GUARD_CELLS = 2;
+
+    /**
+     * The lowest top of what a waterfall or cascade makes of the ground within about
+     * {@value #GUARD_CELLS} grid cells (eight to eleven blocks) of the grid corner at or below-left
+     * of {@code (x, z)}: the surface of its water, or the ground it shapes or builds on, plus one;
+     * {@link ColumnSample#NO_WATER} if no plan shapes anything there. The noise router's caves and
+     * the vanilla carvers keep {@link TerrainModel#WATER_GUARD} blocks and more below it, as they do
+     * below a lake, so a plan's pool, channel, outflow and rock never stand on a thin shelf over a
+     * tunnel: the plans are made from the model and the 3D terrain alone and cannot see the caves.
+     * The lowest top, not the highest: beside a waterfall's face the caves keep below its pool, and
+     * so below everything higher up the fall too.
+     * <p>
+     * A pure function of the model like the plans, so every chunk sees the same; memoised in the
+     * sample of the grid corner, because the cave guard asks for every block of a column. Looking
+     * it up may plan the cells around, which uses the model's per-thread cache: callers must not
+     * hold a sample from {@link TerrainModel#sample} across the call.
+     */
+    public static double guardLevel(TerrainModel model, int x, int z) {
+        int bx = x & ~3;
+        int bz = z & ~3;
+        double memo = model.sample(bx, bz).planGuard;
+        if (!Double.isNaN(memo)) {
+            return memo;
+        }
+        int cx = bx >> 2;
+        int cz = bz >> 2;
+        // the corner is shared by the cells (cx - 1, cz - 1) to (cx, cz); a margin around them
+        int x0 = (cx - 1 - GUARD_CELLS) << 2;
+        int z0 = (cz - 1 - GUARD_CELLS) << 2;
+        int x1 = ((cx + GUARD_CELLS) << 2) + 3;
+        int z1 = ((cz + GUARD_CELLS) << 2) + 3;
+        List<WaterPlan> plans = new ArrayList<>();
+        plansNear(model, x0, z0, x1, z1, plans);
+        int lowest = Integer.MAX_VALUE;
+        for (WaterPlan wp : plans) {
+            FallPlan p = (FallPlan) wp;
+            for (int i = cx - 1 - GUARD_CELLS; i <= cx + GUARD_CELLS; i++) {
+                for (int j = cz - 1 - GUARD_CELLS; j <= cz + GUARD_CELLS; j++) {
+                    int top = p.guardTop(i, j);
+                    if (top != WaterSolver.NONE) {
+                        lowest = Math.min(lowest, top);
+                    }
+                }
+            }
+        }
+        double level = lowest == Integer.MAX_VALUE ? ColumnSample.NO_WATER : lowest;
+        // (planning may have evicted the corner's sample: sample it again to keep the memo)
+        model.sample(bx, bz).planGuard = level;
+        return level;
+    }
+
     /** Collision-free key of a cell, spread by an odd multiplier so the maps' hashes do not cluster. */
     private static long key(int cx, int cz) {
         return (((long) cx << 32) ^ (cz & 0xFFFFFFFFL)) * 0x9E3779B97F4A7C15L;
@@ -933,6 +989,7 @@ public final class FallPlanner {
         int lastOut = c.outN > 0 ? c.outLevel[c.outN - 1] : WaterSolver.NONE;
         long cut = 0;
         int cap = cutCap(p);
+        p.beginGuard();
         for (int z = p.minZ; z <= p.maxZ; z++) {
             for (int x = p.minX; x <= p.maxX; x++) {
                 int k = (z - p.minZ) * w + (x - p.minX);
@@ -951,6 +1008,7 @@ public final class FallPlanner {
                 if (!shaped) {
                     continue;
                 }
+                p.markGuard(x, z, shape.level, shape.ground, g);
                 if (shape.ground < g && (x == p.minX || x == p.maxX || z == p.minZ || z == p.maxZ)) {
                     // a cut reaching the plan's bounds would stop there in a straight step
                     return MISFIT;
@@ -1819,6 +1877,7 @@ public final class FallPlanner {
         boolean[] shaped = new boolean[w * h];
         WaterPlan.Shape shape = new WaterPlan.Shape();
         double[] buf = new double[2];
+        p.beginGuard();
         for (int x = p.minX; x <= p.maxX; x++) {
             for (int z = p.minZ; z <= p.maxZ; z++) {
                 int k = (z - p.minZ) * w + (x - p.minX);
@@ -1829,6 +1888,7 @@ public final class FallPlanner {
                 if (!p.shape(x, z, g, shape)) {
                     continue;
                 }
+                p.markGuard(x, z, shape.level, shape.ground, g);
                 if (ps.bodyWater(x, z) || ps.nearest(x, z).trailDistance < 4.0 || shape.ground - g > 4 || g - shape.ground > 9 || streamNear(ps, x, z, buf)) {
                     return false;
                 }

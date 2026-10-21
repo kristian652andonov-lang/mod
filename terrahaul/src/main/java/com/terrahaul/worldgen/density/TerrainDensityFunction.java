@@ -70,6 +70,13 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
             x &= ~3;
             z &= ~3;
         }
+        if (output == Output.CAVE_ALLOWANCE) {
+            return CaveGuards.caveAllowance(model, x, y, z);
+        }
+        if (output == Output.CAVERN_ALLOWANCE) {
+            // (each samples the column itself: the cave guard may plan waterfalls first)
+            return Math.min(CaveGuards.caveAllowance(model, x, y, z), CaveGuards.cavernAllowance(model, x, y, z));
+        }
         ColumnSample s = model.sample(x, z);
         return switch (output) {
             case DENSITY -> TerrainDetail.density(model, s, x, y, z);
@@ -79,81 +86,10 @@ public final class TerrainDensityFunction implements DensityFunction.SimpleFunct
             case WEIRDNESS -> s.weirdness;
             case TEMPERATURE -> s.temperature;
             case HUMIDITY -> s.humidity;
-            case DEPTH -> (depthSurface(s, x, z) - y) / 128.0;
+            case DEPTH -> (CaveGuards.depthSurface(model, s, x, z) - y) / 128.0;
             case SURFACE_HEIGHT -> s.height;
-            case CAVE_ALLOWANCE -> caveAllowance(s, x, y, z);
-            case CAVERN_ALLOWANCE -> Math.min(caveAllowance(s, x, y, z), cavernAllowance(s, x, y, z));
+            case CAVE_ALLOWANCE, CAVERN_ALLOWANCE -> throw new IllegalStateException();
         };
-    }
-
-    /**
-     * The surface used for the biome depth parameter: the lowest model surface within 20 blocks.
-     * Biome lookups are jittered by a few blocks, so on cliffs and mountain walls the plain column
-     * height would put the sample point tens of blocks "underground" and pick cave biomes
-     * (dripstone caves, deep dark) for exposed rock faces.
-     */
-    private double depthSurface(ColumnSample s, int x, int z) {
-        if (Double.isNaN(s.depthSurface)) {
-            double h = s.height;
-            for (int r = 8; r <= 20; r += 12) {
-                h = Math.min(h, model.sample(x + r, z).height);
-                h = Math.min(h, model.sample(x - r, z).height);
-                h = Math.min(h, model.sample(x, z + r).height);
-                h = Math.min(h, model.sample(x, z - r).height);
-            }
-            // only cache for the column the sample belongs to (density is sampled on its corners)
-            if (s.x == x && s.z == z) {
-                s.depthSurface = h;
-            }
-            return h;
-        }
-        return s.depthSurface;
-    }
-
-    /**
-     * 1 where caves may form, fading to 0 under lake and river beds and near the sea floor, so cave
-     * systems do not drain water bodies into the ground. Caves also stay out of everything above
-     * the 2D surface (ledges and overhangs, which they could cut off their cliff) and out of the
-     * top 32 blocks of cliff rims, which ledges and overhangs hang from.
-     */
-    private double caveAllowance(ColumnSample s, int x, int y, int z) {
-        double depthBelow = s.height - y;
-        if (depthBelow < 0.0 || depthBelow < 32.0 && TerrainDetail.rimDrop(model, s, x, z) >= TerrainDetail.RIM_DROP) {
-            return 0.0;
-        }
-        double guard = 1.0;
-        if (s.lake > 0.0 || s.river > 0.0 || s.waterLevel != ColumnSample.NO_WATER) {
-            guard = Math.min(1.0, Math.max(0.0, (depthBelow - 6.0) / 10.0));
-        } else if (y > settings.seaLevel() - 2 && y < s.height + 8.0) {
-            // next to a lake or elevated river, caves stay well below its surface so they cannot
-            // breach the shore and leave the water standing as a wall
-            double water = model.nearbyWaterLevel(x, z);
-            if (water != ColumnSample.NO_WATER) {
-                guard = Math.min(1.0, Math.max(0.0, (water - TerrainModel.WATER_GUARD - y) / 10.0));
-            }
-        }
-        if (s.height < settings.seaLevel() && s.waterLevel == ColumnSample.NO_WATER && s.lake <= 0.0 && s.river <= 0.0) {
-            // under the sea, caves stay at least 40 blocks below the lowest nearby sea floor, so
-            // they never undercut the floor into slabs or open sideways into trench walls
-            double below = depthSurface(s, x, z) - y;
-            guard = Math.min(guard, Math.max(0.0, (below - 40.0) / 24.0));
-        }
-        return guard;
-    }
-
-    /**
-     * 1 where large caverns (vanilla "cheese" caves) may open, fading to 0 within 40 blocks of the
-     * surface. Depth is measured from the lowest surface within 20 blocks, not just straight up, so
-     * on steep slopes and cliffs caverns keep away from the face too. Near the surface they would
-     * hollow out the ground into thin shells and leave slabs of terrain floating in the air; small
-     * tunnels (cave entrances, spaghetti and noodle caves) still reach the surface.
-     */
-    private double cavernAllowance(ColumnSample s, int x, int y, int z) {
-        if (s.height - y > 120.0) {
-            return 1.0;
-        }
-        double below = depthSurface(s, x, z) - y;
-        return Math.min(1.0, Math.max(0.0, (below - 40.0) / 20.0));
     }
 
     @Override

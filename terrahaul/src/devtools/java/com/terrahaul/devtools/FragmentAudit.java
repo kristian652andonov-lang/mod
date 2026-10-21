@@ -301,7 +301,11 @@ public final class FragmentAudit {
         g.fillPolygon(xs, ys, n);
     }
 
-    /** Corner densities of an area and their trilinear interpolation, as in the noise chunk. */
+    /**
+     * Corner densities of an area and their trilinear interpolation, as in the noise chunk: the 3D
+     * terrain alone, or with {@link #build(GameWorld, int, int, int)} the whole noise fill of a
+     * world, the router's caves included.
+     */
     static final class Field {
         int x0;
         int z0;
@@ -309,8 +313,38 @@ public final class FragmentAudit {
         int nx;
         int ny;
         double[] d;
+        /** The noise fill with caves, or {@code null} for the 3D terrain alone. */
+        RouterTerrain router;
 
+        /** The 3D terrain ({@link TerrainDetail}) of an area, without caves. */
         static Field build(TerrainModel model, int cx, int cz, int size) {
+            Field f = extent(model, cx, cz, size);
+            f.d = new double[f.nx * f.nx * f.ny];
+            IntStream.range(0, f.nx).parallel().forEach(i -> {
+                for (int k = 0; k < f.nx; k++) {
+                    int x = f.x0 + i * 4;
+                    int z = f.z0 + k * 4;
+                    for (int j = 0; j < f.ny; j++) {
+                        ColumnSample c = model.sample(x, z);
+                        f.d[(i * f.nx + k) * f.ny + j] = TerrainDetail.density(model, c, x, f.y0 + j * 8, z);
+                    }
+                }
+            });
+            return f;
+        }
+
+        /**
+         * The noise fill of an area of a world as the game generates it: the 3D terrain with the
+         * noise router's caves (see {@link RouterTerrain}), before carvers and features.
+         */
+        static Field build(GameWorld world, int cx, int cz, int size) {
+            Field f = extent(world.model, cx, cz, size);
+            f.router = world.router();
+            return f;
+        }
+
+        /** The area's corners and the height range it covers: 80 blocks below its lowest surface to 64 above its highest. */
+        private static Field extent(TerrainModel model, int cx, int cz, int size) {
             Field f = new Field();
             f.x0 = (cx - size / 2) & ~3;
             f.z0 = (cz - size / 2) & ~3;
@@ -328,17 +362,6 @@ public final class FragmentAudit {
             f.y0 = (int) Math.floor((lo - 80) / 8.0) * 8;
             int yTop = (int) Math.ceil((hi + 64) / 8.0) * 8;
             f.ny = (yTop - f.y0) / 8 + 1;
-            f.d = new double[f.nx * f.nx * f.ny];
-            IntStream.range(0, f.nx).parallel().forEach(i -> {
-                for (int k = 0; k < f.nx; k++) {
-                    int x = f.x0 + i * 4;
-                    int z = f.z0 + k * 4;
-                    for (int j = 0; j < f.ny; j++) {
-                        ColumnSample c = model.sample(x, z);
-                        f.d[(i * f.nx + k) * f.ny + j] = TerrainDetail.density(model, c, x, f.y0 + j * 8, z);
-                    }
-                }
-            });
             return f;
         }
 
@@ -349,6 +372,9 @@ public final class FragmentAudit {
             int j = (y - y0) >> 3;
             if (i < 0 || k < 0 || j < 0 || i + 1 >= nx || k + 1 >= nx || j + 1 >= ny) {
                 return j < 0;
+            }
+            if (router != null) {
+                return router.solid(x0 + dx, y, z0 + dz);
             }
             double fx = (dx & 3) / 4.0;
             double fz = (dz & 3) / 4.0;

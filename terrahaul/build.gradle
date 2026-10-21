@@ -136,11 +136,14 @@ tasks.withType(JavaCompile).configureEach {
 // terrain model without launching Minecraft. Run with:
 //   ./gradlew renderMap -Pargs="<seed> <centerX> <centerZ> <sizeBlocks> <blocksPerPixel> <out.png> [mode]"
 // ---------------------------------------------------------------------------------------------
+// The terrain model and the feature plans are pure Java; the devtools also see Minecraft (its noise
+// classes and the vanilla data), so they can derive a world's terrain model from its world seed as
+// the game does and evaluate the noise router's caves (see GameWorld and RouterTerrain).
 sourceSets {
     devtools {
         java.srcDir 'src/devtools/java'
-        compileClasspath += sourceSets.main.output
-        runtimeClasspath += sourceSets.main.output
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
     }
 }
 

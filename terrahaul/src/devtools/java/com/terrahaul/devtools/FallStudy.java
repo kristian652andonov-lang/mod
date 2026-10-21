@@ -23,22 +23,28 @@ import javax.imageio.ImageIO;
  * surface and in what shape, whether what it builds keeps the water invariants, and how it looks
  * in lit views of the real 3D terrain (see {@link FallRender}).
  * <p>
- * Modes ({@code java ... FallStudy <mode> <seed> ...}):
+ * Modes ({@code java ... FallStudy <mode> <seed> ...}); a seed {@code N} is the world seed a player
+ * types (the terrain model's seed is derived from it as in the game), {@code model:N} a terrain
+ * model seed (see {@link GameWorld}). The terrain the checks and views see is the world's noise
+ * fill with the router's caves ({@link RouterTerrain}); carvers and structures are not included.
  * <ul>
  *   <li>{@code survey <seed> <half> <sitesOut>}: every waterfall in {@code [-half, half]^2} built on
  *       the solved world: cut volume (blocks removed below the model surface), fill, deepest cut,
  *       how far around the foot of the fall cut walls stand (an amphitheatre stands all around),
- *       rock built up over open air in the 3D terrain, the water invariants, planning cost; writes
- *       one site per line for {@code render}; whether each outflow joins a river, lake, the sea or a
- *       stream. Exits with status 1 if any plan cuts more than the planner's cap (the 3D rock over
- *       the model surface that the carve removes included), digs a hole, cuts at its bounds or far
- *       from its water, builds over a gap, breaks a water invariant, has an outflow that stops on a
- *       slope, a fan without ribs, a plunge without a tall drop or a face of one- and two-block
- *       steps.</li>
+ *       water, built rock or cut ground standing over open air or on less than {@value #MIN_ROOF}
+ *       blocks of ground over a cave, the water invariants, planning cost; writes one site per
+ *       line for {@code render}; whether each outflow joins a river, lake, the sea or a stream.
+ *       Exits with status 1 if any plan cuts more than the planner's cap (the 3D rock over the
+ *       model surface that the carve removes included), digs a hole, cuts at its bounds or far
+ *       from its water, puts water or rock over a gap or a cave, breaks a water invariant, has an
+ *       outflow that stops on a slope, a fan without ribs, a plunge without a tall drop or a face
+ *       of one- and two-block steps.</li>
  *   <li>{@code order <seed> <half>}: every waterfall cell in {@code [-half, half]^2} planned in
  *       sweep order on one model, in a shuffled order on a fresh one, and each cell with a fall
- *       alone on a fresh model; exits with status 1 if any plan depends on what the model computed
- *       before (a chunk generated in another order would build a different fall).</li>
+ *       alone on a fresh model, and the guard the plans set for caves and carvers at every grid
+ *       corner around the falls, asked in sweep and in shuffled order on fresh models; exits with
+ *       status 1 if any plan or guard depends on what the model computed before (a chunk generated
+ *       in another order would build a different fall, or open caves under it).</li>
  *   <li>{@code render <seed> <sites> <outDir> <prefix> [max]}: for each site, views from the front,
  *       from the side, from high up and from the finder's viewpoint, and a top view, with the same
  *       cameras every run (they depend on the site line only), so a site can be compared before and
@@ -96,10 +102,18 @@ public final class FallStudy {
     /** Least share of a fall's drop that must come in drops of four blocks or more (less is a creek). */
     private static final double MIN_FALLING_SHARE = 0.25;
 
+    /**
+     * The world studied (see {@link GameWorld}): its noise fill, caves included, is the terrain the
+     * checks and views use; {@code null} only when a caller uses the methods without {@link #main}.
+     */
+    static GameWorld world;
+
     public static void main(String[] args) throws Exception {
         String mode = args[0];
-        long seed = Long.parseLong(args[1]);
-        TerrainModel model = new TerrainModel(seed, TerrainSettings.DEFAULT);
+        world = GameWorld.of(args[1]);
+        TerrainModel model = world.model;
+        long seed = world.modelSeed;
+        System.out.println(world);
         switch (mode) {
             case "survey" -> survey(model, Integer.parseInt(args[2]), new File(args[3]));
             case "render" -> render(model, new File(args[2]), new File(args[3]), args[4], args.length > 5 ? Integer.parseInt(args[5]) : 99);
@@ -181,6 +195,10 @@ public final class FallStudy {
                         r.role[t] = ws.role[k];
                         r.shaped[t] = ws.shaped[k];
                         r.planned[t] = ws.planned[k];
+                        a.planned[t] = ws.planned[k];
+                        a.shaped[t] = ws.shaped[k];
+                        a.role[t] = ws.role[k];
+                        a.style[t] = ws.style[k];
                     }
                 }
             }
@@ -269,7 +287,7 @@ public final class FallStudy {
                 }
             }
             this.plan = decorated;
-            field = FragmentAudit.Field.build(model, cx, cz, size);
+            field = FallStudy.world != null ? FragmentAudit.Field.build(FallStudy.world, cx, cz, size) : FragmentAudit.Field.build(model, cx, cz, size);
             fx0 = field.x0;
             fz0 = field.z0;
             fn = (field.nx - 1) * 4;
@@ -634,19 +652,12 @@ public final class FallStudy {
         return c;
     }
 
-    /**
-     * Columns a plan builds up (crags, rock lips, banks) where the real 3D terrain is open below
-     * the model surface the building starts from, so what is built would stand over a gap:
-     * {@code {count, deepest gap}}.
-     */
-    static int[] fillGaps(TerrainModel model, Region r, FallPlan p) {
-        return fillGaps(field(model, p), r, p);
-    }
-
-    /** The 3D terrain over a plan's bounds and a little around. */
+    /** The terrain over a plan's bounds and a little around: the world's noise fill, caves included. */
     static FragmentAudit.Field field(TerrainModel model, FallPlan p) {
         int size = Math.max(p.maxX() - p.minX(), p.maxZ() - p.minZ()) + 16;
-        return FragmentAudit.Field.build(model, (p.minX() + p.maxX()) / 2, (p.minZ() + p.maxZ()) / 2, size);
+        int cx = (p.minX() + p.maxX()) / 2;
+        int cz = (p.minZ() + p.maxZ()) / 2;
+        return world != null ? FragmentAudit.Field.build(world, cx, cz, size) : FragmentAudit.Field.build(model, cx, cz, size);
     }
 
     /** Chamfer distance (1 along an axis, 1.41 diagonally) to the nearest zero, in place. */
@@ -677,29 +688,102 @@ public final class FallStudy {
         }
     }
 
-    static int[] fillGaps(FragmentAudit.Field f, Region r, FallPlan p) {
-        WaterStudy.Area a = r.area;
-        int count = 0;
-        int deepest = 0;
-        for (int x = Math.max(p.minX(), r.ax); x <= Math.min(p.maxX(), r.ax + r.w - 1); x++) {
-            for (int z = Math.max(p.minZ(), r.az); z <= Math.min(p.maxZ(), r.az + r.h - 1); z++) {
+    /** Least ground under what a plan builds: less is a shelf over a cave. */
+    static final int MIN_ROOF = 5;
+    /** Deepest a gap is followed down. */
+    private static final int GAP_SCAN = 24;
+
+    /** What stands over open air: plan columns by what the plan made of them, the deepest gap below them, and an example. */
+    static final class OverAir {
+        /** Water whose bed has open air within {@link #MIN_ROOF} blocks below it. */
+        int water;
+        /** Rock built up from a model surface with open air within {@link #MIN_ROOF} blocks below it. */
+        int built;
+        /** Ground cut down to a floor with open air within {@link #MIN_ROOF} blocks below it. */
+        int cut;
+        int deepest;
+        String example;
+
+        int total() {
+            return water + built + cut;
+        }
+
+        void add(OverAir o) {
+            water += o.water;
+            built += o.built;
+            cut += o.cut;
+            deepest = Math.max(deepest, o.deepest);
+            if (example == null) {
+                example = o.example;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return String.format(Locale.ROOT, "water %d, built rock %d, cut floors %d (deepest gap %d%s)", water, built, cut, deepest,
+                example == null ? "" : ", e.g. " + example);
+        }
+    }
+
+    /**
+     * The columns of a plan whose water or rock would stand over open air in the world's noise
+     * fill (the terrain {@code f}: 3D terrain and, from a {@link GameWorld}, the router's caves),
+     * from the solved area. The water feature makes solid what the plan rests on (the shaped
+     * ground down to the lower of it and the model ground, the bed of water, the model ground
+     * under a built bank or sill) and closes a gap of up to {@link WaterSolver#SUPPORT_REACH}
+     * blocks right under it; below that, every column of the plan's water (its pool, channel,
+     * ledges and outflow), built up (crags, rock lips, banks, sills) or cut down needs
+     * {@value #MIN_ROOF} blocks of ground. Less leaves a shelf over a cave, which the game's
+     * cleanup keeps (it touches water) and the water feature seals only where water is open.
+     */
+    static OverAir overAir(FragmentAudit.Field f, WaterStudy.Area a, FallPlan p) {
+        OverAir o = new OverAir();
+        for (int x = Math.max(p.minX(), a.ax); x <= Math.min(p.maxX(), a.ax + a.w - 1); x++) {
+            for (int z = Math.max(p.minZ(), a.az); z <= Math.min(p.maxZ(), a.az + a.h - 1); z++) {
                 int k = a.at(x, z);
-                if (!r.planned[k] || a.solidTop[k] <= a.natural[k]) {
+                if (!a.planned[k]) {
                     continue;
                 }
-                // the fill starts at the model surface block itself, so only open air below it is a gap
-                int y = a.natural[k] - 1;
+                boolean wet = a.level[k] != WaterSolver.NONE && a.step[k] != WaterSolver.SILL;
+                boolean built = a.solidTop[k] > a.natural[k];
+                boolean cut = a.solidTop[k] < a.natural[k];
+                if (!wet && !built && !cut && !a.shaped[k]) {
+                    continue;
+                }
+                // the first block below what the feature makes solid (SurfaceWaterFeature.column)
+                int top = a.shaped[k] || wet ? Math.min(a.ground[k], a.natural[k]) - 1 : a.natural[k];
+                int dx = x - f.x0;
+                int dz = z - f.z0;
+                // a short gap down to solid ground the feature closes
+                int open = 0;
+                while (open < WaterSolver.SUPPORT_REACH && !f.solid(dx, top - open, dz)) {
+                    open++;
+                }
+                int ground = open > 0 && f.solid(dx, top - open, dz) ? open : 0;
+                while (ground < MIN_ROOF && f.solid(dx, top - ground, dz)) {
+                    ground++;
+                }
+                if (ground >= MIN_ROOF) {
+                    continue;
+                }
                 int gap = 0;
-                while (gap < 12 && !f.solid(x - f.x0, y - gap, z - f.z0)) {
+                while (gap < GAP_SCAN && !f.solid(dx, top - ground - gap, dz)) {
                     gap++;
                 }
-                if (gap > 0) {
-                    count++;
-                    deepest = Math.max(deepest, gap);
+                if (wet) {
+                    o.water++;
+                } else if (built) {
+                    o.built++;
+                } else {
+                    o.cut++;
+                }
+                if (gap > o.deepest) {
+                    o.deepest = gap;
+                    o.example = String.format(Locale.ROOT, "%s at %d %d %d: %d of ground, then %d open", wet ? "water" : "rock", x, top + 1, z, ground, gap);
                 }
             }
         }
-        return new int[]{count, deepest};
+        return o;
     }
 
     // =========================================================================================
@@ -729,7 +813,8 @@ public final class FallStudy {
         StringBuilder sites = new StringBuilder();
         int overCap = 0;
         int holes = 0;
-        int totalGaps = 0;
+        OverAir overAir = new OverAir();
+        int overAirPlans = 0;
         int edges = 0;
         int quarries = 0;
         int strandedEnds = 0;
@@ -742,8 +827,11 @@ public final class FallStudy {
             WaterStudy.accumulate(total, st);
             FragmentAudit.Field field = field(model, p);
             Cut c = cut(r, p, field);
-            int[] gaps = fillGaps(field, r, p);
-            totalGaps += gaps[0];
+            OverAir gaps = overAir(field, r.area, p);
+            overAir.add(gaps);
+            if (gaps.total() > 0) {
+                overAirPlans++;
+            }
             removed.add(c.removed);
             walls.add(c.wallDegrees);
             depths.add(c.maxDepth);
@@ -810,8 +898,8 @@ public final class FallStudy {
                 flags += "  CREEK";
             }
             flags = String.format(Locale.ROOT, "  tallest drop %d, %s%s", tallest, end == null ? "into the water" : p.joinsWater() ? "joins water" : "ends in a pond", flags);
-            if (gaps[0] > 0) {
-                flags += "  GAPS " + gaps[0] + " (deepest " + gaps[1] + ")";
+            if (gaps.total() > 0) {
+                flags += "  OVER AIR " + gaps;
             }
             if (st.sourceFacingAir + st.mismatches + st.waterAboveAir > 0) {
                 flags += "  BROKEN (source-air " + st.sourceFacingAir + ", mismatches " + st.mismatches + ", water over air " + st.waterAboveAir + ")";
@@ -838,24 +926,26 @@ public final class FallStudy {
             + "cuts at the bounds: %d plans; cuts more than %d blocks from the water: %d plans%n", overCap, MAX_DEPTH, MAX_WALL_DEGREES, holes, edges, QUARRY_REACH, quarries);
         System.out.printf(Locale.ROOT, "outflows joining a river, lake, the sea or a stream: %d of %d (%.0f%%); outflows stopping on a slope: %d; fans without ribs, "
             + "plunges without a leap, creeks: %d%n", joined, withPool, 100.0 * joined / Math.max(1, withPool), strandedEnds, badStyles);
-        System.out.printf(Locale.ROOT, "invariants over %d chunks: mismatches %d, source-air %d, water-above-air %d, banks %s; built-up columns over open air "
-                + "in the 3D terrain %d%n", total.chunks, total.mismatches, total.sourceFacingAir, total.waterAboveAir, WaterStudy.hist(total.bankHist), totalGaps);
+        System.out.printf(Locale.ROOT, "invariants over %d chunks: mismatches %d, source-air %d, water-above-air %d, banks %s%n", total.chunks, total.mismatches,
+            total.sourceFacingAir, total.waterAboveAir, WaterStudy.hist(total.bankHist));
+        System.out.printf(Locale.ROOT, "columns over open air or on less than %d blocks of ground over a cave, in the noise fill with the router's caves: %d plans, %s%n",
+            MIN_ROOF, overAirPlans, overAir);
         for (String e : total.examples) {
             System.out.println("    " + e);
         }
         if (sitesOut != null) {
             Files.writeString(sitesOut.toPath(), sites.toString());
         }
-        // the limits are asserted, not just reported: a plan over the cut cap, a hole, rock built
-        // over a gap or a broken water invariant fails the run
-        long broken = overCap + holes + totalGaps + total.mismatches + total.sourceFacingAir + total.waterAboveAir + edges + quarries + strandedEnds
+        // the limits are asserted, not just reported: a plan over the cut cap, a hole, water or rock
+        // over a gap or a cave or a broken water invariant fails the run
+        long broken = overCap + holes + overAir.total() + total.mismatches + total.sourceFacingAir + total.waterAboveAir + edges + quarries + strandedEnds
             + badStyles;
         if (broken > 0) {
             System.out.println("FAILED: " + broken + " violations");
             System.exit(1);
         }
-        System.out.println("OK: every plan within the cut cap, no holes, no cut at the bounds or far from the water, nothing built over a gap, every outflow "
-            + "joins water or ends on flat ground, every fan has ribs and every plunge a tall drop, water invariants hold");
+        System.out.println("OK: every plan within the cut cap, no holes, no cut at the bounds or far from the water, no water or rock over a gap or a cave, "
+            + "every outflow joins water or ends on flat ground, every fan has ribs and every plunge a tall drop, water invariants hold");
     }
 
     // =========================================================================================
@@ -908,11 +998,44 @@ public final class FallStudy {
         }
         System.out.printf(Locale.ROOT, "%d cells in sweep and shuffled order, %d cells with a fall alone on a fresh model: %d plans differ%n", cells.size(), alone,
             diffs);
-        if (diffs > 0) {
-            System.out.println("FAILED: plans depend on what the model computed before");
+        // what caves and carvers keep away from: the same at every grid corner around the falls,
+        // whichever corner (and so whichever chunk) asks first
+        List<long[]> corners = new ArrayList<>();
+        TerrainModel ma = new TerrainModel(seed, TerrainSettings.DEFAULT);
+        for (int cx = -n; cx < n; cx++) {
+            for (int cz = -n; cz < n; cz++) {
+                FallPlan p = a.fall(cx, cz);
+                if (p == null) {
+                    continue;
+                }
+                for (int x = (p.minX() - 12) & ~3; x <= p.maxX() + 12; x += 4) {
+                    for (int z = (p.minZ() - 12) & ~3; z <= p.maxZ() + 12; z += 4) {
+                        corners.add(new long[]{x, z, Double.doubleToLongBits(FallPlanner.guardLevel(ma, x, z))});
+                    }
+                }
+            }
+        }
+        java.util.Collections.shuffle(corners, new java.util.Random(seed + 1));
+        TerrainModel mb = new TerrainModel(seed, TerrainSettings.DEFAULT);
+        int guardDiffs = 0;
+        int guarded = 0;
+        for (long[] c : corners) {
+            double g = FallPlanner.guardLevel(mb, (int) c[0], (int) c[1]);
+            guarded += g != ColumnSample.NO_WATER ? 1 : 0;
+            if (Double.doubleToLongBits(g) != c[2]) {
+                guardDiffs++;
+                if (guardDiffs <= 10) {
+                    System.out.printf(Locale.ROOT, "guard at %d,%d: shuffled %s, sweep %s%n", c[0], c[1], g, Double.longBitsToDouble(c[2]));
+                }
+            }
+        }
+        System.out.printf(Locale.ROOT, "%d grid corners around the falls (%d under a plan's guard), asked in sweep and shuffled order on fresh models: %d differ%n",
+            corners.size(), guarded, guardDiffs);
+        if (diffs + guardDiffs > 0) {
+            System.out.println("FAILED: plans or their cave guard depend on what the model computed before");
             System.exit(1);
         }
-        System.out.println("OK: every plan is the same whatever the order");
+        System.out.println("OK: every plan and its cave guard are the same whatever the order");
     }
 
     // =========================================================================================
@@ -992,7 +1115,7 @@ public final class FallStudy {
             int top = v[4];
             int pool = v[5];
             int drop = top - pool;
-            String name = prefix + "_" + model.seed() + "_" + index;
+            String name = prefix + "_" + (world != null ? world.label() : Long.toString(model.seed())) + "_" + index;
             FallPlan p = planNear(model, lipX, lipZ);
             int reach = (int) Math.max(110, 1.6 * drop + 70);
             int minX = lipX - reach;
@@ -1109,8 +1232,8 @@ public final class FallStudy {
         World world = new World(model, r, (p.minX() + p.maxX()) / 2, (p.minZ() + p.maxZ()) / 2, size, p);
         Cut c = cut(r, p);
         String info = String.format(Locale.ROOT, "%s lip %d,%d drop %d width %d | %s", p.typeName(), p.lipX, p.lipZ, p.drop(), p.width(), c);
-        System.out.println(info + String.format(Locale.ROOT, "; source-air %d mismatches %d water-over-air %d; view %d %d %d", st.sourceFacingAir,
-            st.mismatches, st.waterAboveAir, p.viewX, p.viewY, p.viewZ));
+        System.out.println(info + String.format(Locale.ROOT, "; source-air %d mismatches %d water-over-air %d; over open air or a cave: %s; view %d %d %d",
+            st.sourceFacingAir, st.mismatches, st.waterAboveAir, overAir(world.field, r.area, p), p.viewX, p.viewY, p.viewZ));
         int w = 800;
         int h = 520;
         double tx = p.lookX + 0.5;
