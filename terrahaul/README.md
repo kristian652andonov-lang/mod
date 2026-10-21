@@ -86,8 +86,8 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   nearest exposed surface, measured sideways too, so cliff and mountain faces get them as well.
 - **Volcanoes** are rough, lopsided cones: one flank concave and long, the other full, cut by
   V-shaped barrancos with sharp ridges between them, with tongues of blocky lava rock running
-  down from notches of the rim and one or two small cinder cones of red and brown scoria on the
-  flanks. They have ecological zones: a bare cone of ash, tuff and scoria in radial streaks;
+  down from notches of the rim and one or two small cinder cones of dark scoria and ash, red and
+  brown around their summit craters, on the flanks. They have ecological zones: a bare cone of ash, tuff and scoria in radial streaks;
   lava flows that end in lobes in the forest; a pioneer belt of grass, shrubs and young trees;
   forested flanks where animals spawn; and **burn scars** of scorched soil and ash with burned
   snags, charred logs and regrowth. Their **craters** are irregular: lobed and scalloped rims

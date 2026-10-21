@@ -19,14 +19,17 @@ import com.terrahaul.worldgen.noise.SimplexNoise;
  *   <li><b>barrancos</b>, V-shaped gullies, run down the flanks along the zero lines of a noise
  *       read on circles around the centre and stretched along the radius, so they run roughly
  *       downhill, wander, join and split, with sharp ridges between neighbours; finer rills
- *       groove the upper flanks between them. Their depth grows down the flank as far as their
- *       sides stay gentler than about 40 degrees;</li>
+ *       groove the upper flanks between them. Each V is as deep as the noise's own slope at the
+ *       column allows: a barranco's sides stay gentler than 35 degrees and a rill's than 20, so
+ *       even where a rill runs down the side of a barranco the gully stays an open V, never a
+ *       slot;</li>
  *   <li><b>lava flows</b> leave the crater at a notch of its rim, the lowest point of the crest
  *       first, and run down the flank as tongues of rock a few blocks thick, draped over the
  *       ground they cross, meandering, widening downhill and ending in a lobed front, with margins
  *       of blocky rock. The same flows lay their rock in {@link VolcanoZones};</li>
- *   <li><b>side cones</b>, one or two small cinder cones on the flanks with a summit crater
- *       (dry: open downhill where the flank is steeper than the bowl is deep);</li>
+ *   <li><b>side cones</b>, one or two small cinder cones on the flanks, rising about half their
+ *       radius, with a summit crater (dry: open downhill where the flank is steeper than the bowl
+ *       is deep);</li>
  *   <li>a <b>rough</b> surface of broad shoulders and hummocks down to bumps a dozen blocks
  *       across, so no slope of the cone ever steps down in even rings.</li>
  * </ul>
@@ -41,16 +44,24 @@ final class ConeShape {
     static final int MAX_FLOWS = 5;
     static final int MAX_CONES = 3;
     /** Length of the array {@link #zones} writes its results to. */
-    static final int OUT = 4;
+    static final int OUT = 5;
     /** Half-width of a barranco's V in noise units: the share of the flank the barrancos take. */
     private static final double GULLY_WIDTH = 0.4;
     /**
-     * Steepest side of a barranco, in blocks per block, for the typical slope of the noise (its
-     * steepest few percent are about three times steeper over a few blocks).
+     * Steepest side of a barranco's V and of a rill's, in blocks per block (35 and 20 degrees):
+     * the V's depth is held to these over the slope of its noise at the column itself, so a V
+     * stays open wherever the noise crosses zero steeply.
      */
-    private static final double GULLY_SIDE = 0.8;
-    /** Typical steepness of the simplex noise per unit of its input (about the 90th percentile). */
+    private static final double GULLY_SIDE = 0.7;
+    private static final double RILL_SIDE = 0.35;
+    /**
+     * Typical steepness of the simplex noise per unit of its input (about the 90th percentile): a
+     * V is never deeper than its sides allow at this slope, even where the noise is flatter, so
+     * its depth changes slowly across it and only the V itself shapes its sides.
+     */
     private static final double NOISE_GRADIENT = 2.2;
+    /** Half the baseline, in noise units, over which a gully's noise slope is measured. */
+    private static final double SLOPE_STEP = 0.05;
     /** Steepness of a lava flow's margin, in blocks per block at its steepest. */
     private static final double FLOW_MARGIN = 1.1;
     /**
@@ -95,15 +106,20 @@ final class ConeShape {
         }
 
         // ---- barrancos and the roughness of the flanks -------------------------------------------
-        k.gullyDepth = clamp(0.05 * v.height, 6.0, 30.0) * (0.7 + 0.6 * SeedMixer.cellUnit(seed, cx, cz, channel++));
+        // at least some nine blocks even on the smallest cones, so their flanks never read as an
+        // even dome; the V's sides are held to their slope wherever the noise allows less
+        k.gullyDepth = clamp(0.05 * v.height, 9.0, 30.0) * (0.7 + 0.6 * SeedMixer.cellUnit(seed, cx, cz, channel++));
         // some five to eight barrancos around the cone, many more rills
         k.ring = 3.2 + 2.0 * SeedMixer.cellUnit(seed, cx, cz, channel++);
         k.rillRing = k.ring * (2.4 + 0.6 * SeedMixer.cellUnit(seed, cx, cz, channel++));
         // long along the radius, so they run downhill; shorter for the rills, which wander more
         k.gullyLength = 0.32 * radius;
         k.rillLength = 0.14 * radius;
-        k.rough = Math.min(6.0, 3.0 + 0.006 * v.height);
-        k.hummock = clamp(0.03 * v.height, 6.0, 18.0);
+        // as rough on small cones as on large ones, whose gentle flanks would otherwise step down
+        // in even contour terraces; capped, so it never adds up with the steep upper cone of a
+        // large volcano to steps of over three blocks around the rim
+        k.rough = 6.0;
+        k.hummock = clamp(0.03 * v.height, 9.0, 18.0);
         k.hummockScale = clamp(0.12 * radius, 70.0, 220.0);
 
         // ---- lava flows: tongues of rock from notches of the rim ------------------------------------
@@ -171,7 +187,8 @@ final class ConeShape {
             k.coneX[i] = Math.cos(angle) * dist;
             k.coneZ[i] = Math.sin(angle) * dist;
             k.coneRadius[i] = rp;
-            k.coneHeight[i] = rp * (0.32 + 0.18 * SeedMixer.cellUnit(seed, cx, cz, c + 3));
+            // steep enough for the shape to read as a cinder cone: flanks of up to about 35 degrees
+            k.coneHeight[i] = rp * (0.4 + 0.18 * SeedMixer.cellUnit(seed, cx, cz, c + 3));
             k.coneCrater[i] = 0.28 + 0.12 * SeedMixer.cellUnit(seed, cx, cz, c + 4);
             // the bowl's sides stay gentler than about 40 degrees
             k.coneDepth[i] = Math.min(0.3 * k.coneHeight[i], 0.4 * k.coneCrater[i] * rp);
@@ -223,16 +240,11 @@ final class ConeShape {
         if (env > 0.0) {
             double c = dx / r;
             double s = dz / r;
-            double n = noise.noise3(c * k.ring + k.noiseX + 41.0, s * k.ring + k.noiseZ - 17.0, r / k.gullyLength);
-            double vee = Math.max(0.0, 1.0 - Math.abs(n) / GULLY_WIDTH);
-            // as deep as the sides allow: their slope is the depth over the V's half-width in blocks
-            double depth = Math.min(k.gullyDepth, GULLY_SIDE * GULLY_WIDTH * r / (k.ring * NOISE_GRADIENT));
-            gully = depth * vee;
+            gully = vee(c * k.ring + k.noiseX + 41.0, s * k.ring + k.noiseZ - 17.0, k.ring, k.gullyLength, c, s, r, k.gullyDepth, GULLY_SIDE);
             double upper = 1.0 - smoothstep(0.35 * radius, 0.65 * radius, r);
             if (upper > 0.0) {
-                double m = noise.noise3(c * k.rillRing + k.noiseZ - 230.0, s * k.rillRing + k.noiseX + 190.0, r / k.rillLength);
-                double rill = Math.max(0.0, 1.0 - Math.abs(m) / GULLY_WIDTH);
-                gully += upper * Math.min(0.35 * k.gullyDepth, GULLY_SIDE * GULLY_WIDTH * r / (k.rillRing * NOISE_GRADIENT)) * rill;
+                gully += upper * vee(c * k.rillRing + k.noiseZ - 230.0, s * k.rillRing + k.noiseX + 190.0, k.rillRing, k.rillLength, c, s, r,
+                    0.35 * k.gullyDepth, RILL_SIDE);
             }
             gully *= env;
         }
@@ -277,12 +289,41 @@ final class ConeShape {
     }
 
     /**
+     * Depth of a V-shaped gully along the zero line of noise read at {@code (x, y)} on a circle of
+     * radius {@code ring} around the centre and stretched to {@code length} blocks along the radius,
+     * at the column in direction {@code (c, s)} at distance {@code r}: at most {@code deepest}, and
+     * no deeper than lets its sides, the depth times the noise's slope at the column over the V's
+     * half-width, stay at {@code side} blocks per block. The slope is the actual one, measured
+     * around the circle and down the radius at the column, so where the noise crosses zero
+     * steeply the V is shallower instead of narrower and steeper; where the noise is flatter than
+     * typical, the V is as deep as at the typical slope, not deeper, because a depth following
+     * the noise's slope there (near a low crest of the noise that does not cross zero) would
+     * change faster than the V itself and steepen its sides.
+     */
+    private double vee(double x, double y, double ring, double length, double c, double s, double r, double deepest, double side) {
+        double z = r / length;
+        double n = noise.noise3(x, y, z);
+        double off = Math.abs(n);
+        if (off >= GULLY_WIDTH) {
+            return 0.0;
+        }
+        // central differences a twentieth of a noise unit either way: wide enough that the tiny
+        // jumps of the 3D noise between its cells do not show in the slope, narrow enough to
+        // follow it; around the circle a block is ring / r of a unit, down the radius 1 / length
+        double h = SLOPE_STEP;
+        double across = (noise.noise3(x - s * h, y + c * h, z) - noise.noise3(x + s * h, y - c * h, z)) * ring / r;
+        double down = (noise.noise3(x, y, z + h) - noise.noise3(x, y, z - h)) / length;
+        double slope = Math.max(Math.sqrt(across * across + down * down) / (2.0 * h), NOISE_GRADIENT * ring / r);
+        return Math.min(deepest, side * GULLY_WIDTH / slope) * (1.0 - off / GULLY_WIDTH);
+    }
+
+    /**
      * Per-column values for {@link VolcanoZones} at offset {@code (dx, dz)} from the centre, into
      * {@code out} (length {@link #OUT}): {@code out[0]} inside a lava flow, from just above 0 at its
      * margin to 1 in its core (0 outside); {@code out[1]} the scorched halo of the flows, 1 at a
      * flow's margin fading to 0 in the forest; {@code out[2]} the barrancos, -1 on a gully floor
      * to 1 on the ridges between them; {@code out[3]} on a side cone, 1 on its cone fading to 0 at
-     * its foot.
+     * its foot; {@code out[4]} how near a side cone's summit, 1 at its centre to 0 at its foot.
      */
     void zones(TerrainModel.VolcanoSite v, double dx, double dz, double[] out) {
         Cone k = v.cone;
@@ -317,10 +358,14 @@ final class ConeShape {
         }
         out[2] = gully;
         double cone = 0.0;
+        double summit = 0.0;
         for (int i = 0; i < k.cones; i++) {
-            cone = Math.max(cone, smoothstep(1.1, 0.8, coneDistance(k, i, dx, dz)));
+            double d = coneDistance(k, i, dx, dz);
+            cone = Math.max(cone, smoothstep(1.1, 0.8, d));
+            summit = Math.max(summit, clamp01(1.0 - d));
         }
         out[3] = cone;
+        out[4] = summit;
     }
 
     /**

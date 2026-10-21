@@ -1229,7 +1229,9 @@ public final class TerrainModel {
                 // ring along the outline; it only ever raises the crater, which still holds its lake
                 h = lerp(volcano, h, Math.max(volcanoHeight, h - CRATER_INFILL_SLOPE * sc.craterInside));
             } else {
-                h = Math.max(h, volcanoHeight);
+                // where the cone leans against a mountain, its concave side and barrancos do not
+                // cut below the plain cone, so they never bare more of the mountain's faces
+                h = Math.max(h, volcanoHeight + smoothstep(0.3, 0.8, mountain) * Math.max(0.0, sc.volcanoPlain - volcanoHeight));
             }
         }
 
@@ -2270,6 +2272,7 @@ public final class TerrainModel {
         sc.craterLavaLevel = ColumnSample.NO_WATER;
         sc.volcanoCraterMode = false;
         sc.craterLip = 1.0;
+        sc.volcanoPlain = -Double.MAX_VALUE;
         double cell = 4200.0 * hs;
         int cx = (int) Math.floor(x / cell);
         int cz = (int) Math.floor(z / cell);
@@ -2289,6 +2292,9 @@ public final class TerrainModel {
                 double t = r / v.radius;
                 // the cone with its gullies, and the crater (see CraterShape)
                 double profile = v.baseHeight + craterShape.surface(v, ddx, ddz, sc.craterOut);
+                // the plain cone, without its lean and relief (the crater as it is), of the
+                // highest of the cones here, which is continuous where two cones overlap
+                sc.volcanoPlain = Math.max(sc.volcanoPlain, r < v.craterReach ? profile : v.baseHeight + CraterShape.cone(v, r));
                 double craterT = 0.0;
                 double craterWater = ColumnSample.NO_WATER;
                 double craterLava = ColumnSample.NO_WATER;
@@ -2370,7 +2376,7 @@ public final class TerrainModel {
         // the crater's outline, rim and floor, and the level of its lake or lava below the rim
         craterShape.shape(v, volcanoSeed, cx, cz, lakeRoll < 0.45);
         // lava in the crater: active; a crater lake: long dormant; a dry crater in between
-        double activity = SeedMixer.cellUnit(volcanoSeed, cx, cz, 11);
+        double activity = VolcanoZones.activityRoll(siteSeed, v.x, v.z);
         v.activity = v.lava ? 0.75 + 0.25 * activity : v.waterLevel != ColumnSample.NO_WATER ? 0.1 + 0.3 * activity : 0.35 + 0.4 * activity;
         // the cone around it: its lean, barrancos, lava flows and side cones
         craterShape.cone.shape(v, volcanoSeed, cx, cz);
@@ -2396,11 +2402,12 @@ public final class TerrainModel {
 
     /**
      * The lava flows, barrancos and side cones of a volcano's cone at {@code (x, z)}, as the
-     * terrain shapes them, into {@code out} of length 4 at least: {@code out[0]} inside a lava
+     * terrain shapes them, into {@code out} of length 5 at least: {@code out[0]} inside a lava
      * flow (just above 0 at its margin, 1 in its core, 0 outside), {@code out[1]} the scorched
      * halo around the flows (1 at a flow's margin, fading to 0), {@code out[2]} the barrancos (-1
      * on a gully floor, 1 on the ridges between), {@code out[3]} on a side cone (1 on its cone,
-     * fading to 0 at its foot).
+     * fading to 0 at its foot), {@code out[4]} how near a side cone's summit (1 at its centre, 0
+     * at its foot).
      */
     public void volcanoCone(VolcanoSite v, int x, int z, double[] out) {
         craterShape.cone.zones(v, x - v.x, z - v.z, out);
@@ -3397,6 +3404,8 @@ public final class TerrainModel {
         double craterInside;
         /** How far a stream may run here: 0 inside the crater, rising to 1 across the rim's lip outside it. */
         double craterLip;
+        /** Height of the plain cone (without its lean and relief) of the highest volcano here. */
+        double volcanoPlain;
         final double[] craterOut = new double[CraterShape.OUT];
         double plateau;
         double plateauTop;

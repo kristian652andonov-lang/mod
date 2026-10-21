@@ -27,8 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *       bare cone is lobed, reaches further down the barrancos (ash and scree wash down them) than
  *       along the ridges between them, and frays into patches of ash and grass over a band some
  *       fifty blocks wide. Active volcanoes (lava in the crater) have a large bare cone, long
- *       dormant ones (crater lakes) only a bare rim. Side cones are bare cinder cones of red and
- *       brown scoria;</li>
+ *       dormant ones (crater lakes) only a bare rim. Side cones are bare cinder cones of dark
+ *       scoria and ash, oxidised red and brown around their summit craters;</li>
  *   <li><b>lava flows:</b> the tongues of rock the terrain raises on the cone ({@link ConeShape}),
  *       leaving the crater at a notch of its rim, meandering, widening downslope and ending in a
  *       lobed front, often deep inside the forest. Active volcanoes have several, dormant ones
@@ -183,6 +183,8 @@ public final class VolcanoZones {
         public double rim;
         /** On a side cone: 1 on its cone, fading to 0 at its foot. */
         public double sideCone;
+        /** How near a side cone's summit: 1 at its centre, 0 at its foot and beyond. */
+        public double coneTop;
         /** Inside the crater: 0 at the rim's crest, rising to 1 at the centre; 0 outside. */
         public double depth;
         /**
@@ -210,6 +212,7 @@ public final class VolcanoZones {
             streak = 0.0;
             rim = 0.0;
             sideCone = 0.0;
+            coneTop = 0.0;
             depth = 0.0;
             vents = 0.0;
             crater = false;
@@ -278,7 +281,8 @@ public final class VolcanoZones {
      *       gentler floor, red and brown oxidised scoria and pale altered rock in places; beside a
      *       lava lake magma crust, and on the lake plates of blackstone and basalt cracked with
      *       magma;</li>
-     *   <li>side cones: red and brown oxidised scoria with dark cinders;</li>
+     *   <li>side cones: dark scoria, cinders and ash in broad patches, red and brown oxidised
+     *       scoria around their summit craters;</li>
      *   <li>the bare cone: radial streaks following its barrancos, light ash (gravel) and tuff down
      *       the gully floors, dark scoria and lava rock along the ridges, pale tuff around the rim,
      *       and scattered patches of oxidised scoria;</li>
@@ -320,9 +324,14 @@ public final class VolcanoZones {
             return craterGround(noise, zone, x, y, z, wobble);
         }
         if (zone.sideCone > 0.45 + 0.25 * noise.noise2(x / 15.0 + 40.0, z / 15.0 - 90.0)) {
-            // a cinder cone of red and brown scoria with dark cinders and ash
-            double p = noise.noise2(x / 24.0 - 140.0, z / 24.0 + 60.0) + wobble;
-            return p > 0.3 ? Ground.RED_SCORIA : p > -0.05 ? Ground.BROWN_SCORIA : p > -0.45 ? Ground.SCORIA : Ground.ASH;
+            // a cinder cone of dark scoria, cinders and ash in broad patches, oxidised red and
+            // brown only around its summit crater and on its upper flank, where the hot gases rose
+            if (zone.coneTop + 0.12 * noise.noise2(x / 18.0 + 70.0, z / 18.0 - 15.0) + wobble > 0.52) {
+                double p = noise.noise2(x / 40.0 - 140.0, z / 40.0 + 60.0);
+                return p > 0.0 ? Ground.RED_SCORIA : p > -0.45 ? Ground.BROWN_SCORIA : Ground.SCORIA;
+            }
+            double p = noise.noise2(x / 45.0 + 260.0, z / 45.0 - 75.0) + wobble;
+            return p > 0.4 ? Ground.LAVA_ROCK : p > -0.3 ? Ground.SCORIA : Ground.ASH;
         }
         if (zone.bare * zone.presence > 0.5 + 0.3 * noise.noise2(x / 20.0 - 70.0, z / 20.0 + 23.0)) {
             // scattered patches of oxidised scoria, more of them towards the rim
@@ -445,6 +454,7 @@ public final class VolcanoZones {
             * smoothstep(v.craterRadius, v.craterRadius * 1.5, r);
         o.activity = s.activity;
         o.sideCone = shape[3];
+        o.coneTop = shape[4];
         // measured from the rim's own crest, which wanders in and out around the crater
         if (o.crater) {
             o.rim = 1.0;
@@ -456,7 +466,10 @@ public final class VolcanoZones {
             double ring = Math.max(3.0, v.craterRadius / 18.0);
             o.streak = noise.noise2(c * ring + 50.0 + 0.8 * crater[0], sn * ring - 80.0 + 0.5 * crater[0])
                 * (1.0 - smoothstep(0.3, 0.6, crater[0]));
-            o.vents = noise.noise2(c * 1.3 + s.lobeX + 17.0, sn * 1.3 + s.lobeZ - 23.0);
+            // read on a small circle, so only one or two sectors of the wall rise above the
+            // threshold, and drifting sideways with the depth, so a sector is a patch that bends
+            // down the wall rather than a wedge converging on the floor
+            o.vents = noise.noise2(c * 0.5 + s.lobeX + 17.0 + 0.9 * crater[0], sn * 0.5 + s.lobeZ - 23.0 - 0.6 * crater[0]);
         } else if (r < v.craterReach) {
             o.rim = smoothstep(crater[2] + 0.1 * v.radius, crater[2], crater[1]);
         } else if (r < v.craterReach + 0.1 * v.radius) {
@@ -536,6 +549,14 @@ public final class VolcanoZones {
         private static double unit(long hash, int channel) {
             return SeedMixer.unit(SeedMixer.mix(hash + channel * 0xD1B54A32D192ED03L));
         }
+    }
+
+    /**
+     * The roll (0..1) a volcano's activity is drawn from, from the site seed and the volcano's
+     * centre: the roll its ecology was always drawn from, so each volcano keeps its character.
+     */
+    static double activityRoll(long siteSeed, double x, double z) {
+        return Site.unit(SeedMixer.hash2(siteSeed ^ SALT, (int) Math.floor(x), (int) Math.floor(z)), 0);
     }
 
     /** Per-thread state: the last column's zones, the last volcano's parameters and the noise. */
