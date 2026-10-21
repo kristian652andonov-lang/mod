@@ -8,12 +8,13 @@ continental-scale terrain built on a custom density-function model:
 
 - vast plains, plateaus and valleys;
 - five styles of mountains, from pointed alpine horns to rare colossal massifs;
-- great rivers, lakes, fjords, coastlines, waterfalls and cascades;
-- canyons, rock formations, living volcanoes and geological layers;
-- coral reefs, sea grottos and ruins along trails and on the sea floor.
+- great rivers, lakes with living floors, fjords, coastlines, waterfalls and cascades;
+- canyons, rock formations, rough living volcanoes and geological layers;
+- coral reefs, sea grottos, and ruins along trails and on the sea floor.
 
 Vanilla trees are replaced by procedural trees in every species, with ground detail added. On the
-client, the wind animates falling leaves, petals and dust and sways vegetation.
+client, the wind animates falling leaves, petals and dust and sways vegetation, and falling and
+running water throws up spray, mist and foam and can be heard.
 
 > Terrahaul changes **new worlds created with the Terrahaul world type**. Existing worlds and
 > worlds of other types keep their terrain. Tree replacement, ground details and saplings apply
@@ -50,16 +51,35 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   - meandering rivers graded smoothly from source to mouth (no stepped water), in valleys that
     fade out instead of ending in walls;
   - **great rivers** 100–200 blocks wide that stay at sea level far inland;
-  - dry riverbeds where a river runs into an arid climate;
+  - dry riverbeds where a river runs into an arid climate: the old channel and its banks show as
+    a wash of gravel bars and pale sand with a few cobbles, in the badlands too;
   - lakes of seven kinds: forest, mountain, great, marsh, crater, plateau and glacial, each
     enclosed by its rim (crater lakes sit inside the crater, not above its flank);
-  - **waterfalls**: curtain falls over cliff lips into wide plunge pools in natural bowls, with
-    gorges that widen downstream, mossy rock and mist; and **cascades**, chains of small falls
-    and pools down forested slopes. Every fall is fed by a stream or a spring pool;
+  - **lake floors** with freshwater life that suits each lake's type, climate and depth:
+    seagrass meadows, weed beds (tall beds reaching up towards the light on the deep floor of
+    great lakes), aquatic moss in crater and clear mountain lakes, mats of lily pads on calm
+    water, reeds and moss on the shores, dripleaf in warm, humid shallows, and no coral or sea
+    pickles. The floors have shelves ending in drop-offs, gravel bars along the shore, patches
+    of sand, gravel, clay, mud and moss, fields of rock ledges, boulders, erratics in glacial
+    lakes, lava sheets and talus in crater lakes, rock islets, moraine shoals far out in great
+    lakes, sunken logs of the surrounding forest and, now and then, a boat wreck, a drowned hut
+    or tower or an old pier;
+  - **waterfalls** laid on the natural slope instead of carved into it: the stream narrows to a
+    notch at the lip and comes down the face as a plunge from a real cliff step, a tiered fall
+    swinging across ledges, a horsetail widening over short steps or a fan of strands split by
+    ribs of rock, over rock scoured bare (mossy where it is humid), with crags of broken rock
+    beside it and a modest, irregular plunge pool with boulders. Every fall is fed by a stream or
+    a spring pool, and its outflow runs on in small rapids to the river, lake or sea it joins (or
+    ends in a small pond on flat ground);
+  - **cascades** that wind down forested slopes in bends: a chain of irregular pools (round, wide,
+    long and narrow, or small) that each spill one to four blocks over a lip into the next, some
+    lips split by a rock, with natural banks of rock, soil and mossy boulders;
   - coastlines with beaches and sea cliffs (a wave-cut face, a bench and a slope), and fjords
     with U-shaped troughs and hanging valleys.
 
-  All water is placed with containment checks, so there is no floating water and no flooding.
+  All water is placed with containment checks, so there is no floating water and no flooding. A
+  last pass in every chunk seals still water wherever a cave or ravine cut beside or below it
+  after it was placed, so no wall of water stands over the opening.
 - **Deep oceans:**
   - ocean floors lie around Y −24..30 and abyssal plains around Y −60..−160, with rolling relief,
     mid-ocean ridges and seamounts;
@@ -68,7 +88,13 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
     **hydrothermal vent chimneys**;
   - islands and submerged banks stand on shelves that slope into the sea floor, so no slab of
     sea floor ends in a wall;
-  - ocean monuments are lowered onto the sea floor instead of floating.
+  - ocean monuments stand on the sea floor, rooms and all, instead of floating at vanilla's
+    height. Each monument region picks its flattest deep site, and where the floor under the
+    monument still varies by more than 10 blocks there is no monument, so none cuts a square pit
+    into a sloping sea floor (`/locate` agrees);
+  - no icebergs float over deep water: vanilla's frozen-ocean ice pillars are not raised, and
+    icebergs only form where the sea under them is at most 22 blocks deep. Frozen seas keep
+    their sea ice.
 - **Cliff overhangs:** rock ledges jut out just below the rims of cliffs, canyon walls and sea
   cliffs, and alcoves are carved into cliff faces. Some cliff tops carry **big curved
   overhangs** (a flat top, a quarter-circle underside and a lip) that run along the cliff.
@@ -78,36 +104,51 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
 - **Canyons** with walls stepped into world-wide strata (cliff bands over talus benches) and
   buttes; most are dry, some carry a stream.
 - **Rock formations:** natural **arches** with lopsided, sagging, eroded openings; **hoodoo
-  fields** of 14–45 beaded pillars, each worn to a jagged point; **rock spires** and **sea stacks**.
+  fields** of 14–45 beaded pillars, each tapering to a jagged point with the rock's bands running
+  to the tip (no caps); **rock spires** and **sea stacks**.
 - **Material fades:** surface materials change in coherent single-colour patches and bands
   instead of speckle:
-  - soil, then weathered rock, then one continuous strata field of level beds, so cliff and
-    canyon walls show beds without vertical seams;
+  - soil, then weathered rock, then one continuous strata field of level beds, so canyon walls,
+    sea cliffs and other cliffs show beds without vertical seams;
+  - **mountains** have no level beds (they drew contour lines round every mountain): their rock,
+    and that of high plateau massifs, windswept peaks and steep high hills, is a mosaic of tilted
+    blobs of the province's rock, a second rock of the province (granite, basalt, andesite,
+    terracotta or diorite), rubble and gravel, with grass, moss, dirt and gravel patches on
+    ledges. Foothills meet the strata in interlocking blobs;
+  - snow on mountains lies in patches that fill gullies, cling to high faces and leave ridges
+    bare, with a ragged snow line that runs on across biome edges; earth shows at the edges and
+    holes of the patches. On soil biomes the snow follows the biome: none in jungles and
+    savannas, patches growing with the cold elsewhere;
   - sand over sandstone in deserts and on beaches; one sediment per lake and per stretch of river;
   - a smooth, wavy deepslate boundary between Y 0 and 8.
 
-  At the surface, grass gives way to rock as slopes steepen, snow patches thicken towards the
-  snow line, and sand creeps inland behind beaches. Fades reach at most 15 blocks below the
-  nearest exposed surface, measured sideways too, so cliff and mountain faces get them as well.
-- **Volcanoes** are rough, lopsided cones: one flank concave and long, the other full, cut by
-  V-shaped barrancos with sharp ridges between them, with tongues of blocky lava rock running
-  down from notches of the rim and one or two small cinder cones of dark scoria and ash, red and
-  brown around their summit craters, on the flanks. They have ecological zones: a bare cone of ash, tuff and scoria in radial streaks;
-  lava flows that end in lobes in the forest; a pioneer belt of grass, shrubs and young trees;
-  forested flanks where animals spawn; and **burn scars** of scorched soil and ash with burned
-  snags, charred logs and regrowth. Their **craters** are irregular: lobed and scalloped rims
-  with notches, breaches and higher shoulders, bays where the wall slumped, walls of changing
-  steepness with ledges, uneven floors with island cones and sometimes a ridge cutting off a
-  second pool, all in dark volcanic rock with oxidised patches. Lava lakes carry plates of
-  crust and a shore of magma. Crater lakes and lava pools always lie below the lowest point of
-  the rim. Snow lies on the cones in patches broken up by ash and scoria, never in a hot crater.
+  At the surface, grass gives way to rock as slopes steepen and sand creeps inland behind
+  beaches. Fades reach at most 15 blocks below the nearest exposed surface, measured sideways
+  too, so cliff and mountain faces get them as well.
+- **Volcanoes** are rough, lopsided cones: one flank concave and long, the other full with high
+  shoulders, cut by open V-shaped barrancos with sharp ridges between them and finer rills
+  higher up, and rough all over, so no slope steps down in even rings. Tongues of blocky lava
+  rock leave the crater at notches of its rim, meander, widen and end in lobed fronts, and most
+  volcanoes have one or two small cinder cones on their flanks (up to three on the largest), of
+  dark scoria and ash, red and brown around their summit craters. They have ecological zones: a
+  bare cone of ash, tuff and scoria in radial streaks; lava flows that end in lobes in the
+  forest; a pioneer belt of grass, shrubs and young trees; forested flanks where animals spawn;
+  and **burn scars** of scorched soil and ash with burned snags, charred logs and regrowth.
+  Their **craters** are irregular: lobed and scalloped rims with notches, breaches and higher
+  shoulders, bays where the wall slumped, walls of changing steepness with ledges, uneven floors
+  with island cones and sometimes a ridge cutting off a second pool, all in dark volcanic rock
+  with one or two oxidised red and brown patches running down the wall. Lava lakes carry plates
+  of crust and a shore of magma. Crater lakes and lava pools always lie below the lowest point
+  of the rim. Snow lies on the cones in patches broken up by ash and scoria, never in a hot
+  crater or on an active volcano's lava flows.
 - **Wetlands** only in temperate and warm climates, with shallow pools between hummocks and mud
   flats.
 - **Trails:** winding dirt paths with frayed coarse-dirt and gravel edges cross plains, forests
   and hills, meet at junctions and end in the open. They avoid water, cliffs, steep mountains and
   deserts.
 - **Geological provinces** (granite, dark/andesite, limestone, sedimentary, volcanic, temperate)
-  decide the exposed rock. They show as strata bands on cliffs, scree, gravel coasts and river beds.
+  decide the exposed rock. They show as strata bands on canyon walls and cliffs, as the rock
+  mosaic of mountains, and in scree, gravel coasts and river beds.
 - **Coherent vanilla biomes:** the terrain model outputs the climate parameters (continentalness,
   erosion, weirdness, temperature, humidity, depth) that the vanilla multi-noise biome source
   expects. All biomes are vanilla, so biome-based mods and data packs keep working.
@@ -120,8 +161,8 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   geodes, lava springs, glow lichen) and the mountain cores above Y 320 (coal, iron, copper, gold,
   emerald in mountain biomes, springs).
 - **Structures:** villages, pillager outposts, mansions and temples are steered to flat, dry ground
-  within their normal spacing regions. Strongholds and mineshafts stay within the vanilla depth
-  range.
+  within their normal spacing regions, and ocean monuments to flat sea floors (see Deep oceans).
+  Strongholds and mineshafts stay within the vanilla depth range.
 
 ### Underwater
 - **Coral reefs** laid out like real fringing reefs: a sandy lagoon with coral heads and
@@ -140,8 +181,8 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   tower house; built as a timber frame in temperate land, a log cabin in the cold, of stone in the
   uplands, of mud brick or sandstone in hot dry land and raised on stilts in the jungle; with the
   roof fallen in, a wall collapsed into rubble, burned out, down to its foundations and chimney,
-  or overgrown. Inside lie a chest with village loot, barrels, a bed or its rotten frame, a hearth, cobwebs;
-  outside the remains of a fence, a well, a garden patch.
+  or overgrown. Inside lie a chest with village loot, barrels, a bed or its rotten frame, a
+  hearth, cobwebs; outside the remains of a fence, a well, a garden patch.
 - **Other trailside ruins**, each in a few variants: collapsed watchtowers, abandoned wells, broken
   wagons and carts with their spilled load, wayside shrines, old campsites, field walls with a
   ruined gateway, the abutments of lost bridges where a trail fords a stream, ruined chapels.
@@ -173,7 +214,9 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   - every piece of wood is connected to the trunk, and leaf distances are computed so leaves
     never decay;
   - vines, cocoa, bee nests and mangrove propagules.
-- Saplings grown by players produce the same trees.
+- Saplings grown by players produce the same trees. Like vanilla trees, a tree grown from a
+  sapling replaces only air, leaves, water and plants, so it never breaks the blocks a player
+  put around it.
 - **Forests have layers and clearings:** tree density follows noise, giving clearings and
   thickets. Trees thin out towards an altitude- and climate-dependent tree line and avoid cliffs.
 - **Fallen logs and dead trees** appear in forests.
@@ -233,6 +276,10 @@ a wall or down a well). Landforms:
 | Underwater | `coral_reef`, `patch_reef`, `kelp_forest`, `seagrass_meadow`, `rocky_seabed`, `sea_grotto`, `sunken_ruin` |
 | Paths and ruins | `trail`, `path_ruin`, `broken_house` (also `ruined_house`, `trail_ruin`), `watchtower`, `abandoned_well`, `wagon`, `shrine`, `campsite`, `field_walls`, `old_bridge`, `ruined_chapel`, `signpost`, `path_lights` |
 
+`path_ruin` finds the nearest ruin of any kind beside a trail; the targets after it find one kind
+each (`ruined_house` and `trail_ruin` are other names for `broken_house`). `signpost` also finds
+direction posts and milestones along trails.
+
 The other commands are:
 - `/terrahaul find biome <biome or #tag> [radius]` finds the nearest biome.
 - `/terrahaul info` describes the terrain at your position (height, landform, geology, climate).
@@ -268,7 +315,7 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | Key | Default | Meaning |
 |---|---|---|
 | `replaceVanillaTrees` | `true` | Use Terrahaul's procedural trees instead of vanilla trees (restart) |
-| `groundDetails` | `true` | Pebbles, rocks, branches, twigs, litter, bushes, fallen logs, boulders (restart) |
+| `groundDetails` | `true` | Pebbles, rocks, branches, twigs, litter, bushes, fallen logs, boulders, and the beds, rocks, logs and wrecks of lake floors (restart) |
 | `geologicalFormations` | `true` | Arches, spires, hoodoos, sea stacks (restart) |
 | `oreDepthFix` | `true` | Keep vanilla ores at vanilla depths and add deep/high resource layers (layers need a restart) |
 | `terrainAwareStructures` | `true` | Steer surface structures to flat, dry ground (set before creating a world) |
@@ -278,8 +325,8 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | `treeSizeVariation` | `1.0` | Chance that large/giant tree sizes are kept (0 = uniform small trees) |
 | `forestDensity` | `1.0` | Multiplier for tree counts (0.1–3) |
 | `vegetationDensity` | `1.0` | Multiplier for bushes and low vegetation (0–3) |
-| `groundDetailDensity` | `1.0` | Multiplier for pebbles, branches, twigs, cones, litter (0–3) |
-| `rockDensity` | `1.0` | Multiplier for rocks and boulders (0–3) |
+| `groundDetailDensity` | `1.0` | Multiplier for pebbles, branches, twigs, cones, litter, and the pebbles and small rocks of lake floors (0–3) |
+| `rockDensity` | `1.0` | Multiplier for rocks and boulders, on land and on lake floors (boulders, rock islets) (0–3) |
 
 **`terrahaul-client.toml` (visuals only):**
 
@@ -295,6 +342,15 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | `animations.autumnLeafFall` | `false` | Heavy, autumn-coloured leaf fall in oak, birch and dark oak forests |
 | `animations.vegetationSway` | `true` | Plants sway in the wind (resource reload/restart to fully apply) |
 | `animations.windStrength` | `1.0` | Wind strength multiplier for all animations (0–3) |
+| `water.waterfallSpray` | `true` | Spray off falling water, drops from the lip, splashes where it lands |
+| `water.waterfallMist` | `true` | Mist at the foot of falls; a large, billowing cloud under tall falls |
+| `water.waterFoam` | `true` | Foam on the water below falls and on rapids, drifting downstream |
+| `water.waterSounds` | `true` | Roar of tall falls, rush of cascades and rapids (Ambient/Environment volume) |
+| `water.waterEffectDensity` | `1.0` | Multiplier for the number of water particles (0–3) |
+| `water.waterSoundVolume` | `1.0` | Multiplier for the volume of the water sounds (0–2) |
+
+The water effects apply in every world, to any falling or running water. Their particles follow
+`animations.quality` and Minecraft's Particles option (half at Decreased, none at Minimal).
 
 ## Building from source
 ```
@@ -310,7 +366,8 @@ terrahaul/
   build.gradle, settings.gradle, gradle.properties   ModDevGradle build
   src/main/java/com/terrahaul/
     Terrahaul.java                 mod entry point (common)
-    client/                        client entry point, wind, particles, sway, sky effects, colours
+    client/                        client entry point, wind, particles, sway, sky effects, colours,
+                                   water effects (client/water: spray, mist, foam, sounds)
     command/                       /terrahaul find and info
     config/                        config spec and data pack condition
     blocks/, registry/             decorative blocks, registries
@@ -320,12 +377,14 @@ terrahaul/
     worldgen/surface/, water/      surface rule, rivers/lakes, waterfalls and cascades
     worldgen/trees/, features/     procedural trees, ground detail, boulders, formations
     worldgen/features/marine/      coral reefs, sea-floor rocks, kelp and seagrass, grottos
+    worldgen/features/lake/        lake floors and freshwater life
     worldgen/ruins/                trail ruins, signposts, path lights, sunken ruins
     worldgen/placement/, structure/ placement modifiers, terrain-aware structures
     dev/, client/dev/              automated server test and client screenshot harness
   src/main/resources/              assets (models, textures, shaders), data (worldgen, biome modifiers)
   src/devtools/                    offline map renderer and probes (not shipped)
-  tools/                           Python generators for worldgen JSON, features and assets
+  tools/                           Python generators for worldgen JSON, features, assets and the
+                                   water effect sprites and sounds
   docs/                            building, compatibility/limitations, testing
 ```
 
