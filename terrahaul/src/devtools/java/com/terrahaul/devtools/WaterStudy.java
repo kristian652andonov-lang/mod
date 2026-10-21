@@ -40,6 +40,8 @@ import javax.imageio.ImageIO;
  *       valley ends and shore walls).</li>
  *   <li>{@code lakes <seed> <half>}, {@code lakecheck <seed> <half>}: lake sites and their
  *       rejections; every elevated lake and crater lake solved and checked for enclosure.</li>
+ *   <li>{@code craters <seed> <half>}: the same check for every crater lake and lava pool in
+ *       {@code [-half, half]^2}, crater by crater.</li>
  *   <li>{@code finder <seed> <n>}: {@code /terrahaul find} for the water targets from {@code n}
  *       origins, each result checked on the solved world around it.</li>
  *   <li>{@code cascadeviews <seed> <x> <z> <outDir>}: the cascade nearest to a point, built and
@@ -137,7 +139,8 @@ public final class WaterStudy {
                     System.out.println(name + ": " + (r == null ? "none" : r.x() + " " + r.y() + " " + r.z() + " (" + r.label() + ")"));
                 }
             }
-            case "lakecheck" -> lakeCheck(model, Integer.parseInt(args[2]));
+            case "lakecheck" -> lakeCheck(model, Integer.parseInt(args[2]), false);
+            case "craters" -> lakeCheck(model, Integer.parseInt(args[2]), true);
             case "corners" -> {
                 int x0 = Integer.parseInt(args[2]) & ~3;
                 int z0 = Integer.parseInt(args[3]) & ~3;
@@ -1479,14 +1482,16 @@ public final class WaterStudy {
      * below its surface, and how many blocks of bank had to be built where natural ground was
      * lower than the water.
      */
-    private static void lakeCheck(TerrainModel model, int half) {
+    private static void lakeCheck(TerrainModel model, int half, boolean cratersOnly) {
         int sl = model.seaLevel();
         Stats total = new Stats();
         int lakes = 0;
+        int craters = 0;
+        int skipped = 0;
         long gaps = 0;
         List<String> bad = new ArrayList<>();
         List<double[]> sites = new ArrayList<>();
-        for (boolean great : new boolean[]{false, true}) {
+        for (boolean great : cratersOnly ? new boolean[0] : new boolean[]{false, true}) {
             double cell = great ? 6000.0 : 700.0;
             int n = (int) Math.ceil(half / cell);
             for (int cx = -n; cx < n; cx++) {
@@ -1498,19 +1503,21 @@ public final class WaterStudy {
                 }
             }
         }
-        // crater lakes
+        // crater lakes (and, checking craters only, lava pools)
         for (int x = -half; x < half; x += 2000) {
             for (int z = -half; z < half; z += 2000) {
                 TerrainModel.VolcanoSite v = model.nearestVolcano(x, z, 2000);
-                if (v == null || v.waterLevel == ColumnSample.NO_WATER) {
+                if (v == null || v.waterLevel == ColumnSample.NO_WATER && !(cratersOnly && v.lava)) {
                     continue;
                 }
                 boolean dup = false;
                 for (double[] s : sites) {
                     dup |= s[0] == v.x && s[1] == v.z;
                 }
-                if (!dup) {
-                    sites.add(new double[]{v.x, v.z, v.craterRadius + 12, v.waterLevel, 1});
+                double level = v.waterLevel != ColumnSample.NO_WATER ? v.waterLevel : craterLiquidLevel(model, v);
+                if (!dup && level != ColumnSample.NO_WATER) {
+                    // the whole crater and its rim, wherever the outline bulges out
+                    sites.add(new double[]{v.x, v.z, 1.75 * v.craterRadius + 30.0, level, v.waterLevel != ColumnSample.NO_WATER ? 1 : 2});
                 }
             }
         }
@@ -1520,12 +1527,17 @@ public final class WaterStudy {
             int ccz = Math.floorDiv((int) site[1] - r, 16);
             int nx = Math.floorDiv((int) site[0] + r, 16) - ccx + 1;
             int nz = Math.floorDiv((int) site[1] + r, 16) - ccz + 1;
-            if (nx * nz > 900) {
+            // craters are few, so even the largest are solved whole; anything too large to solve
+            // is named and counted rather than passed over in silence
+            if (nx * nz > (site[4] > 0 ? 12000 : 900)) {
+                skipped++;
+                System.out.printf(Locale.ROOT, "  skipped %s at %.0f,%.0f: %d chunks%n", site[4] > 0 ? "crater" : "lake", site[0], site[1], nx * nz);
                 continue;
             }
             Stats st = new Stats();
             Area area = solveArea(model, ccx, ccz, nx, nz, st);
             lakes++;
+            craters += site[4] > 0 ? 1 : 0;
             long g = 0;
             ColumnSample s = new ColumnSample();
             for (int z = area.az + 1; z < area.az + area.h - 1; z++) {
@@ -1544,6 +1556,24 @@ public final class WaterStudy {
                 }
             }
             gaps += g;
+            // banks the crater's own water needs, apart from those of streams running down its walls
+            long[] craterBanks = new long[8];
+            for (int z = area.az + 1; z < area.az + area.h - 1; z++) {
+                for (int x = area.ax + 1; x < area.ax + area.w - 1; x++) {
+                    int k = area.at(x, z);
+                    int raise = area.solidTop[k] - area.ground[k];
+                    if (area.level[k] != WaterSolver.NONE || raise <= 0) {
+                        continue;
+                    }
+                    boolean crater = false;
+                    for (int n : new int[]{k - 1, k + 1, k - area.w, k + area.w}) {
+                        crater |= area.level[n] != WaterSolver.NONE && (area.kind[n] == WaterSolver.CRATER || area.kind[n] == WaterSolver.LAVA);
+                    }
+                    if (crater) {
+                        craterBanks[Math.min(7, raise)]++;
+                    }
+                }
+            }
             int shown = 0;
             for (int t = 0; t < area.w * area.h && shown < 3; t++) {
                 int raise = area.solidTop[t] - area.ground[t];
@@ -1553,16 +1583,37 @@ public final class WaterStudy {
                 }
             }
             accumulate(total, st);
+            if (site[4] > 0) {
+                System.out.printf(Locale.ROOT, "  crater %s at %.0f,%.0f level %.0f (%d chunks): source-air %d, water-above-air %d, mismatches %d, "
+                    + "dry gaps %d, banks %s, of them beside the crater's water %s%n", site[4] > 1 ? "lava" : "lake", site[0], site[1], site[3], st.chunks,
+                    st.sourceFacingAir, st.waterAboveAir, st.mismatches, g, hist(st.bankHist), hist(craterBanks));
+            }
             if (st.sourceFacingAir > 0 || g > 0 || st.bankHist[3] + st.bankHist[4] + st.bankHist[5] + st.bankHist[6] + st.bankHist[7] > 0) {
                 bad.add(String.format(Locale.ROOT, "%s at %.0f,%.0f level %.0f: source-air %d, dry gaps %d, banks %s", site[4] > 0 ? "crater" : "lake",
                     site[0], site[1], site[3], st.sourceFacingAir, g, hist(st.bankHist)));
             }
         }
-        System.out.printf(Locale.ROOT, "%d elevated lakes and crater lakes solved (%d chunks): source-air %d, water-above-air %d, mismatches %d, dry gaps %d, "
-            + "banks %s%n", lakes, total.chunks, total.sourceFacingAir, total.waterAboveAir, total.mismatches, gaps, hist(total.bankHist));
+        System.out.printf(Locale.ROOT, "%d elevated lakes and crater lakes (%d craters) solved (%d chunks), %d too large and skipped: source-air %d, water-above-air %d, "
+            + "mismatches %d, dry gaps %d, banks %s%n", lakes, craters, total.chunks, skipped, total.sourceFacingAir, total.waterAboveAir, total.mismatches, gaps,
+            hist(total.bankHist));
         for (String b : bad) {
             System.out.println("  " + b);
         }
+    }
+
+    /** Level of the liquid in a volcano's crater, read from the model, or {@link ColumnSample#NO_WATER}. */
+    private static double craterLiquidLevel(TerrainModel model, TerrainModel.VolcanoSite v) {
+        ColumnSample s = new ColumnSample();
+        int step = Math.max(4, (int) (v.craterRadius / 12.0)) & ~3;
+        for (int dz = -(int) v.craterRadius; dz <= v.craterRadius; dz += step) {
+            for (int dx = -(int) v.craterRadius; dx <= v.craterRadius; dx += step) {
+                model.sampleInto(((int) v.x + dx) & ~3, ((int) v.z + dz) & ~3, s);
+                if (s.bodyInside && (s.bodyKind == WaterBody.LAVA || s.bodyKind == WaterBody.CRATER)) {
+                    return s.bodyLevel;
+                }
+            }
+        }
+        return ColumnSample.NO_WATER;
     }
 
     // =========================================================================================

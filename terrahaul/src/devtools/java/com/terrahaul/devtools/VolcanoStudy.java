@@ -33,6 +33,17 @@ import javax.imageio.ImageIO;
  * simulated trees: light green the biome's own trees, dark green the extra volcano forest, black
  * burned snags.
  * Usage: {@code VolcanoStudy <seed> <outDir> [count=4] [minHeight=0]}
+ * <p>
+ * {@code VolcanoStudy craters <seed> <outDir> [count=6]} studies the craters instead: for each
+ * volcano a contoured top view of the crater (water and lava filled from the model corners as the
+ * water solver fills them), a view looking down into it from the south, and the crest of the rim
+ * around the crater against the lake level, with numbers for how irregular the rim and the shore
+ * are and whether the lake stays below the lowest point of the rim.
+ * <p>
+ * {@code VolcanoStudy cratersurvey <seed>[,<seed>...] [half=65536]} surveys every crater within
+ * {@code half} blocks of the origin on the crater's own surface: the steepest step between
+ * neighbouring blocks, and for lakes and lava pools their depth, freeboard, pools, islands and
+ * shore irregularity, with a summary per seed (see {@code CraterStudy#survey}).
  */
 public final class VolcanoStudy {
     /**
@@ -49,10 +60,21 @@ public final class VolcanoStudy {
     }
 
     public static void main(String[] args) throws Exception {
+        if (args[0].equals("cratersurvey")) {
+            for (String seed : args[1].split(",")) {
+                CraterStudy.survey(new TerrainModel(Long.parseLong(seed), TerrainSettings.DEFAULT), Long.parseLong(seed),
+                    args.length > 2 ? Integer.parseInt(args[2]) : 65536);
+            }
+            return;
+        }
+        boolean craters = args[0].equals("craters");
+        if (craters) {
+            args = Arrays.copyOfRange(args, 1, args.length);
+        }
         long seed = Long.parseLong(args[0]);
         File dir = new File(args[1]);
         dir.mkdirs();
-        int count = args.length > 2 ? Integer.parseInt(args[2]) : 4;
+        int count = args.length > 2 ? Integer.parseInt(args[2]) : craters ? 6 : 4;
         double minHeight = args.length > 3 ? Double.parseDouble(args[3]) : 0.0;
         TerrainModel model = new TerrainModel(seed, TerrainSettings.DEFAULT);
         TerrainFinder.Target target = TerrainFinder.targets().get("volcano");
@@ -75,6 +97,12 @@ public final class VolcanoStudy {
                 }
             }
             ring++;
+        }
+        if (craters) {
+            for (int i = 0; i < found.size(); i++) {
+                CraterStudy.study(model, found.get(i), new File(dir, "crater_" + seed + "_" + i + ".png"));
+            }
+            return;
         }
         timing(model, found);
         for (int i = 0; i < found.size(); i++) {
@@ -399,7 +427,7 @@ public final class VolcanoStudy {
         return n == 0 ? 0.0 : 100.0 * k / n;
     }
 
-    private static int baseColor(TerrainModel model, ColumnSample s, VolcanoZones.Zone zone, int x, int y, int z, double h, int sl) {
+    static int baseColor(TerrainModel model, ColumnSample s, VolcanoZones.Zone zone, int x, int y, int z, double h, int sl) {
         if (s.lavaLevel != ColumnSample.NO_WATER && s.lavaLevel > h) {
             return rgb(235, 95, 20);
         }
@@ -486,11 +514,11 @@ public final class VolcanoStudy {
         return img;
     }
 
-    private static int scale(int c, double k) {
+    static int scale(int c, double k) {
         return rgb(((c >> 16) & 255) * k, ((c >> 8) & 255) * k, (c & 255) * k);
     }
 
-    private static int rgb(double r, double g, double b) {
+    static int rgb(double r, double g, double b) {
         int ri = (int) Math.max(0, Math.min(255, r));
         int gi = (int) Math.max(0, Math.min(255, g));
         int bi = (int) Math.max(0, Math.min(255, b));

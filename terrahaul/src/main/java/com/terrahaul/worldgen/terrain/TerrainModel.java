@@ -105,6 +105,7 @@ public final class TerrainModel {
     private final SimplexNoise lakeShape;
     private final SimplexNoise[] detail3d = new SimplexNoise[8];
     private final long volcanoSeed;
+    private final CraterShape craterShape;
     private final long lakeSeed;
     private final long greatLakeSeed;
     private final long pillarSeed;
@@ -183,6 +184,7 @@ public final class TerrainModel {
             this.detail3d[i] = new SimplexNoise(SeedMixer.derive(seed, 1000 + i));
         }
         this.volcanoSeed = SeedMixer.derive(seed, ++salt);
+        this.craterShape = new CraterShape(volcanoSeed);
         this.lakeSeed = SeedMixer.derive(seed, ++salt);
         this.greatLakeSeed = SeedMixer.derive(seed, ++salt);
         this.pillarSeed = SeedMixer.derive(seed, ++salt);
@@ -1216,11 +1218,16 @@ public final class TerrainModel {
         double volcano = 0.0;
         double crater = 0.0;
         double volcanoHeight = sampleVolcano(x, z, base, sc);
+        // kept here: the lake sites sampled further down reuse the scratch
+        double craterLip = sc.craterLip;
         if (sc.volcanoInfluence > 0.0) {
             volcano = sc.volcanoInfluence;
             crater = sc.craterInfluence;
             if (sc.volcanoCraterMode) {
-                h = lerp(volcano, h, volcanoHeight);
+                // where higher ground (a mountain the volcano leans against) stands over the rim,
+                // it falls into the crater at a slope of scree instead of being cut off by a sheer
+                // ring along the outline; it only ever raises the crater, which still holds its lake
+                h = lerp(volcano, h, Math.max(volcanoHeight, h - CRATER_INFILL_SLOPE * sc.craterInside));
             } else {
                 h = Math.max(h, volcanoHeight);
             }
@@ -1384,7 +1391,9 @@ public final class TerrainModel {
         out.bigOverhangRim = Double.NaN;
         out.detailTop = Integer.MIN_VALUE;
         out.beach = (1.0 - coastCliff) * bump(h, sl - 3.0, sl + 1.0, sl + 5.0) * smoothstep(0.0, -0.16, cEff);
-        out.stream = dry || aridity > 0.6 ? 0.0 : streamFactor(vRaw, mountain, hillW, erosion, x, z);
+        // no streams down the steep walls inside a crater, where they would need dams; one that
+        // comes from higher ground fades out over the rim's lip instead of ending at its crest
+        out.stream = dry || aridity > 0.6 || craterLip <= 0.0 ? 0.0 : streamFactor(vRaw, mountain, hillW, erosion, x, z) * craterLip;
         out.cliff = clamp01(Math.max(Math.max(plateauEdge * 1.2, canyonWall), Math.max(coastCliff * smoothstep(sl, sl + 20.0, h),
             mountain * alpineW * smoothstep(0.5, 0.92, shape) * 0.7)));
         out.steepness = clamp01(Math.max(out.cliff, mountain * (0.3 + 0.7 * alpineW) * smoothstep(0.25, 0.8, shape)));
@@ -2248,12 +2257,19 @@ public final class TerrainModel {
     // Volcanoes
     // =========================================================================================
 
+    /**
+     * Steepest slope, in blocks per block, at which higher ground around a crater (a mountain the
+     * volcano leans against) falls into it.
+     */
+    private static final double CRATER_INFILL_SLOPE = 1.5;
+
     private double sampleVolcano(int x, int z, double base, Scratch sc) {
         sc.volcanoInfluence = 0.0;
         sc.craterInfluence = 0.0;
         sc.craterWaterLevel = ColumnSample.NO_WATER;
         sc.craterLavaLevel = ColumnSample.NO_WATER;
         sc.volcanoCraterMode = false;
+        sc.craterLip = 1.0;
         double cell = 4200.0 * hs;
         int cx = (int) Math.floor(x / cell);
         int cz = (int) Math.floor(z / cell);
@@ -2270,30 +2286,26 @@ public final class TerrainModel {
                 if (r >= v.radius) {
                     continue;
                 }
-                double angle = Math.atan2(ddz, ddx);
-                double gullies = 1.0 + 0.07 * Math.sin(angle * v.ridges + v.phase) * smoothstep(v.craterRadius, v.radius * 0.6, r);
                 double t = r / v.radius;
-                double cone = v.height * Math.pow(1.0 - t, 1.65) * gullies;
-                double rimHeight = v.height * Math.pow(1.0 - v.craterRadius / v.radius, 1.65);
-                double profile = v.baseHeight + cone;
+                // the cone with its gullies, and the crater (see CraterShape)
+                double profile = v.baseHeight + craterShape.surface(v, ddx, ddz, sc.craterOut);
                 double craterT = 0.0;
                 double craterWater = ColumnSample.NO_WATER;
                 double craterLava = ColumnSample.NO_WATER;
-                if (r < v.craterRadius) {
-                    double u = r / v.craterRadius;
-                    profile = v.baseHeight + rimHeight - v.craterDepth * (1.0 - u * u);
-                    craterT = 1.0 - u;
+                if (sc.craterOut[0] >= 0.0) {
+                    craterT = sc.craterOut[0];
                     sc.volcanoCraterMode = true;
-                    if (v.waterLevel != ColumnSample.NO_WATER) {
-                        craterWater = v.waterLevel;
-                    } else if (v.lava) {
-                        craterLava = Math.floor(v.baseHeight + rimHeight - v.craterDepth * 0.82);
-                    }
+                    craterWater = v.waterLevel;
+                    craterLava = v.lavaLevel;
                 }
                 if (profile > best) {
                     best = profile;
                     sc.volcanoInfluence = smoothstep(1.0, 0.55, t);
                     sc.craterInfluence = craterT;
+                    sc.craterInside = craterT > 0.0 ? sc.craterOut[2] - sc.craterOut[1] : 0.0;
+                    // 0 inside the crater, rising to 1 across the lip outside it
+                    sc.craterLip = craterT > 0.0 || sc.craterOut[0] >= 0.0 ? 0.0
+                        : r < v.craterReach ? smoothstep(0.0, 1.0, (sc.craterOut[1] - sc.craterOut[2]) / v.crater.lipWidth) : 1.0;
                     // only the crater of the volcano that shapes this column may flood it; where
                     // a neighbouring cone overlaps a crater, its flank is not under the crater lake
                     sc.craterWaterLevel = craterWater;
@@ -2356,10 +2368,27 @@ public final class TerrainModel {
         v.ridges = 9 + (int) (SeedMixer.cellUnit(volcanoSeed, cx, cz, 8) * 8);
         v.phase = SeedMixer.cellUnit(volcanoSeed, cx, cz, 9) * Math.PI * 2.0;
         double lakeRoll = SeedMixer.cellUnit(volcanoSeed, cx, cz, 10);
-        double rim = v.baseHeight + v.height * Math.pow(1.0 - v.craterRadius / v.radius, 1.65);
-        v.waterLevel = lakeRoll < 0.45 ? Math.floor(rim - v.craterDepth * 0.35) : ColumnSample.NO_WATER;
         v.lava = lakeRoll > 0.7;
+        // the crater's outline, rim and floor, and the level of its lake or lava below the rim
+        craterShape.shape(v, volcanoSeed, cx, cz, lakeRoll < 0.45);
         return v;
+    }
+
+    /**
+     * Height of a volcano's surface at {@code (x, z)}, crater included, as the terrain shapes it
+     * where this volcano owns the column. {@code out[0]} receives the crater influence (1 at the
+     * centre, 0 at the rim, -1 outside the crater). Within {@link VolcanoSite#craterReach} of the
+     * centre, {@code out[1]} receives the distance from the centre and {@code out[2]} the radius of
+     * the rim's crest at that bearing, both measured in the crater's slightly warped frame, so they
+     * compare with each other exactly; further out, see {@link #craterRimRadius}.
+     */
+    public double volcanoSurface(VolcanoSite v, int x, int z, double[] out) {
+        return v.baseHeight + craterShape.surface(v, x - v.x, z - v.z, out);
+    }
+
+    /** Radius of a volcano's rim crest in the direction of {@code (x, z)}, which lies beyond the crater's reach. */
+    public double craterRimRadius(VolcanoSite v, int x, int z) {
+        return craterShape.rimRadius(v, x - v.x, z - v.z);
     }
 
     /** Volcano information for the find command and decoration features. */
@@ -3261,13 +3290,30 @@ public final class TerrainModel {
         public double z;
         public double height;
         public double radius;
+        /** Mean radius of the crater's rim; the outline varies around it (see {@link CraterShape}). */
         public double craterRadius;
+        /**
+         * Depth of the crater's floor below the cone's height at {@link #craterRadius}; a crater
+         * too narrow for it gets a higher floor (see {@link CraterShape}).
+         */
         public double craterDepth;
         public double baseHeight;
+        /** Exclusive top of the crater lake, or {@link ColumnSample#NO_WATER}. */
         public double waterLevel;
+        /** Exclusive top of the crater's lava pool, or {@link ColumnSample#NO_WATER}. */
+        public double lavaLevel;
         public boolean lava;
+        /** Distance from the centre beyond which the crater no longer shapes the cone. */
+        public double craterReach;
         int ridges;
         double phase;
+        /** The crater's outline, rim, wall and floor (see {@link CraterShape}). */
+        CraterShape.Crater crater;
+
+        /** A one-line account of the crater's shape, for the development tools. */
+        public String describeCrater() {
+            return CraterShape.describe(this);
+        }
     }
 
     /** Whether the ground 18 blocks around a point stays within 14 blocks of its height. */
@@ -3330,6 +3376,11 @@ public final class TerrainModel {
         double craterWaterLevel;
         double craterLavaLevel;
         boolean volcanoCraterMode;
+        /** How far inside the crater's outline the column lies, in blocks (0 outside). */
+        double craterInside;
+        /** How far a stream may run here: 0 inside the crater, rising to 1 across the rim's lip outside it. */
+        double craterLip;
+        final double[] craterOut = new double[CraterShape.OUT];
         double plateau;
         double plateauTop;
         double plateauEdge;
