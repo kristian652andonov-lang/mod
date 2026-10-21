@@ -330,6 +330,40 @@ public final class AutoTest {
             }
         }
         report.add("  water walls: " + faces + " faces of still water facing air" + (examples.isEmpty() ? "" : ", e.g. " + String.join("; ", examples)));
+        // fins: a single solid block at the water's surface with open water on both sides of it
+        // along x or z; a chunk-border share near 100% means something sealed a neighbour too early
+        int fins = 0;
+        int borderFins = 0;
+        List<String> finExamples = new ArrayList<>();
+        BlockPos.MutableBlockPos q = new BlockPos.MutableBlockPos();
+        for (int x = (cx - radius) << 4; x < (cx + radius + 1) << 4; x++) {
+            for (int z = (cz - radius) << 4; z < (cz + radius + 1) << 4; z++) {
+                int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+                if (!level.getFluidState(pos.set(x, y, z)).isSource()) {
+                    continue;
+                }
+                for (int axis = 0; axis < 2; axis++) {
+                    int ax = axis == 0 ? 1 : 0;
+                    int az = axis == 0 ? 0 : 1;
+                    BlockState mid = level.getBlockState(q.set(x + ax, y, z + az));
+                    if (mid.getFluidState().isEmpty() && mid.isSolid() && level.getBlockState(q.set(x + ax, y + 1, z + az)).isAir()
+                        && level.getFluidState(q.set(x + 2 * ax, y, z + 2 * az)).isSource()
+                        && level.getBlockState(q.set(x + 2 * ax, y + 1, z + 2 * az)).isAir()) {
+                        fins++;
+                        int bx = x + ax;
+                        int bz = z + az;
+                        if (axis == 0 ? ((bx & 15) == 0 || (bx & 15) == 15) : ((bz & 15) == 0 || (bz & 15) == 15)) {
+                            borderFins++;
+                        }
+                        if (finExamples.size() < 4) {
+                            finExamples.add(bx + " " + y + " " + bz);
+                        }
+                    }
+                }
+            }
+        }
+        report.add("  water fins: " + fins + " single blocks in open water at the surface (" + borderFins + " on chunk-border columns)"
+            + (finExamples.isEmpty() ? "" : ", e.g. " + String.join("; ", finExamples)));
     }
 
     /** The block types of a floating fragment and what lies around it, found from its seed block. */

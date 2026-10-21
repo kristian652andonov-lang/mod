@@ -8,6 +8,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
@@ -31,6 +32,12 @@ import net.minecraft.world.level.material.FluidState;
  * shore instead of in mid-air. Deep water is checked below every block (a cave cut under a bed) but
  * sideways only near its bed and where the ground of a neighbouring column lies lower than it,
  * which keeps the cost in the open sea low. Does nothing outside Terrahaul worlds.
+ * <p>
+ * Only cells in this chunk and in neighbouring chunks that have finished their own features are
+ * sealed. A neighbour that is not decorated yet may still be about to fill a lake, a river or a
+ * pool in its columns: sealing its air beside this chunk's water would leave a wall of rock in
+ * the middle of that water once it is placed (a grid of walls along the chunk borders of every
+ * lake). Its own sealer looks at this chunk's water when its turn comes.
  */
 public final class WaterWallSealer extends Feature<NoneFeatureConfiguration> {
     private static final Direction[] OPEN_SIDES = {Direction.DOWN, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
@@ -49,6 +56,13 @@ public final class WaterWallSealer extends Feature<NoneFeatureConfiguration> {
         }
         ChunkPos chunk = new ChunkPos(context.origin());
         int seaLevel = context.chunkGenerator().getSeaLevel();
+        // which chunks of the 3x3 area may be sealed: this one, and neighbours already decorated
+        boolean[] sealable = new boolean[9];
+        for (int i = 0; i < 9; i++) {
+            int ncx = chunk.x + i % 3 - 1;
+            int ncz = chunk.z + i / 3 - 1;
+            sealable[i] = i == 4 || level.getChunk(ncx, ncz).getPersistedStatus().isOrAfter(ChunkStatus.FEATURES);
+        }
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos side = new BlockPos.MutableBlockPos();
         boolean changed = false;
@@ -56,13 +70,14 @@ public final class WaterWallSealer extends Feature<NoneFeatureConfiguration> {
         // opening in this chunk (all cells touched lie within the 3x3 chunk area)
         for (int dx = -1; dx <= 16; dx++) {
             for (int dz = -1; dz <= 16; dz++) {
-                changed |= column(level, chunk.getMinBlockX() + dx, chunk.getMinBlockZ() + dz, seaLevel, pos, side);
+                changed |= column(level, chunk, sealable, chunk.getMinBlockX() + dx, chunk.getMinBlockZ() + dz, seaLevel, pos, side);
             }
         }
         return changed;
     }
 
-    private static boolean column(WorldGenLevel level, int x, int z, int seaLevel, BlockPos.MutableBlockPos pos, BlockPos.MutableBlockPos side) {
+    private static boolean column(WorldGenLevel level, ChunkPos chunk, boolean[] sealable, int x, int z, int seaLevel,
+                                  BlockPos.MutableBlockPos pos, BlockPos.MutableBlockPos side) {
         int surface = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
         int floor = level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z) - 1;
         if (surface <= floor) {
@@ -88,6 +103,10 @@ public final class WaterWallSealer extends Feature<NoneFeatureConfiguration> {
                     continue;
                 }
                 side.setWithOffset(pos, d);
+                int i = ((side.getX() >> 4) - chunk.x + 1) + 3 * ((side.getZ() >> 4) - chunk.z + 1);
+                if (i < 0 || i >= 9 || !sealable[i]) {
+                    continue;
+                }
                 BlockState there = level.getBlockState(side);
                 if (isOpen(there)) {
                     level.setBlock(side, sealFor(bed), 2);
