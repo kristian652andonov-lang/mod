@@ -83,7 +83,9 @@ The `devtools` source set renders the terrain model without launching Minecraft:
 The other tasks of the `terrahaul` Gradle group run the same way, with their arguments in
 `-Pargs="..."`: `volcanoStudy`, `waterStudy`, `fallStudy`, `peakStudy`, `formationStudy`,
 `fadeStudy`, `treeStudy`, `seaFloorStudy`, `ruinStudy`, `wallAudit`, `finderAudit`,
-`fragmentAudit`, `transect`, `snapshot`, `wetlandStats` and `mountainShapeStats`. Each class in
+`fragmentAudit`, `transect`, `snapshot`, `wetlandStats`, `mountainShapeStats` and `domeSurvey`
+(how rounded the mountains are at random mountain places, with the camera of an in-game view of
+each; it takes world seeds). Each class in
 `src/devtools/java/com/terrahaul/devtools/` lists its modes and arguments in its Javadoc (for
 example `fallStudy survey`, `treeStudy stand`, `seaFloorStudy lakesurvey`, `volcanoStudy
 cratersurvey`, `formationStudy check_hoodoo`).

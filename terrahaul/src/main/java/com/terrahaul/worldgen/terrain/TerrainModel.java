@@ -397,6 +397,15 @@ public final class TerrainModel {
         double mountainHeight = 0.0;
         mt.uneroded = 0.0;
         mt.gully = 0.0;
+        mt.coastFade = coastFade;
+        mt.scale = 0.0;
+        mt.prevail = 0.0;
+        mt.crestW = 0.0;
+        mt.coherence = 1.0;
+        mt.hornV = 0.0;
+        mt.crestV = 0.0;
+        mt.preTrough = 0.0;
+        mt.troughT = 1.0;
         mt.ledge = 0.0;
         mt.gullyDepth = 0.0;
         mt.relief = 0.0;
@@ -428,6 +437,7 @@ public final class TerrainModel {
             // quickly (towards a steep coast), and the change itself stood as a wall hundreds of
             // blocks high.
             double scale = reliefK * Math.pow(Math.min(1.0, Math.max(mountainE, wallMask)), 1.3) + massifK;
+            mt.scale = scale;
             // the main valleys follow the zero lines of the valley field, as the streams do (see
             // lineScale for the distance to them). Gradients are kept for the samples of the
             // neighbouring columns.
@@ -496,6 +506,9 @@ public final class TerrainModel {
                 towardGradient(d, gx, gz, smoothstep(0.2, 0.8, 1.0 - coherence));
                 // crests and summits: convex ground, where the fall line turns
                 double crestW = here > mean3 ? smoothstep(0.15, 0.7, 1.0 - coherence) : 0.0;
+                mt.prevail = prevail;
+                mt.crestW = crestW;
+                mt.coherence = coherence;
                 // (on a crest the gullies cut half as deep: its fall line swings round with the
                 // crest's curve, and so do the stripes, which crowd into narrow slots and needles)
                 gullyDepth *= (here > mean3 ? 1.0 - 0.5 * crestW : smoothstep(0.05, 0.95, coherence)) * prevail;
@@ -672,6 +685,23 @@ public final class TerrainModel {
         double rangeS;
         double massif;
         double stand;
+        /**
+         * Development tools only (see {@link #mountainTerms}; nothing reads them in the model): the
+         * fade towards the coast, the unfaded relief that shapes crests and peaks, how far one fall
+         * line prevails, how much of a crest the column is and how even its flank is (see
+         * {@link #mountains}); and from {@link #rangeShape} at the column itself the horns and the
+         * crest network (shares of the relief), the range shape before the main valleys' troughs
+         * and the position across a trough (0 on its floor, 1 at the top of its sides or beyond).
+         */
+        double coastFade;
+        double scale;
+        double prevail;
+        double crestW;
+        double coherence;
+        double hornV;
+        double crestV;
+        double preTrough;
+        double troughT;
         /** Uneroded mountain relief at the three finite-difference neighbours of the column. */
         final double[] relief3 = new double[3];
         /** Gradient of the uneroded mountains, which the gullies follow (see {@link MountainRelief#gullies}). */
@@ -769,6 +799,10 @@ public final class TerrainModel {
             // junctions into domed shoulders
             peaks = Math.max(crest, horns);
             s = alpineW * peaks;
+            if (collect) {
+                mt.hornV = horns;
+                mt.crestV = crest;
+            }
         }
         if (ancientW > 0.01) {
             // old ranges: lower, more evenly spread and broken up than alpine ones, but still sharp
@@ -828,6 +862,10 @@ public final class TerrainModel {
         // and peaks beside a valley are lowered rather than cut off: cut to the trough's smooth
         // surface, they left table-like tops and shelves high in tall ranges.
         double t = troughT(valley, scale);
+        if (collect) {
+            mt.preTrough = s;
+            mt.troughT = t;
+        }
         if (t < 1.0) {
             double trough = 1.0 - 0.96 * TROUGH_WIDTH / Math.max(TROUGH_WIDTH, 80.0 + 1.3 * scale) * Math.pow(1.0 - t, 1.5);
             if (s > trough) {
@@ -1186,7 +1224,10 @@ public final class TerrainModel {
      * base profile, 1 the gullies and crest teeth, 2 the ledges, 3 the depth the gullies were
      * given, 4 the relief, 5 the range shape (0..1), 6 the blurred mountain mask (0..1), 7 the
      * mountain weight (0..1), 8 the height the range stands at above the base profile, which the
-     * weight follows (see {@link #mountains}), 9 the colossal massif (0..1). The column is
+     * weight follows (see {@link #mountains}), 9 the colossal massif (0..1); if {@code out} is
+     * longer, 10-21 the diagnostics of {@link MountainState#coastFade} and after it, then the
+     * alpine and ancient weights and the meadow (an alpine column far from any horn has 0 for the
+     * horns, and a column without gullies 0 for prevail and crest and 1 for coherence). The column is
      * computed without its lakes, which would compute other columns with the same scratch.
      */
     public void mountainTerms(int x, int z, double[] out) {
@@ -1203,6 +1244,20 @@ public final class TerrainModel {
         out[7] = mt.weight;
         out[8] = mt.stand;
         out[9] = mt.massif;
+        if (out.length > 10) {
+            out[10] = mt.coastFade;
+            out[11] = mt.scale;
+            out[12] = mt.prevail;
+            out[13] = mt.crestW;
+            out[14] = mt.coherence;
+            out[15] = mt.hornV;
+            out[16] = mt.crestV;
+            out[17] = mt.preTrough;
+            out[18] = mt.troughT;
+            out[19] = mt.alpine;
+            out[20] = mt.ancient;
+            out[21] = mt.meadow;
+        }
     }
 
     /** Caves and carvers keep at least this many blocks below the surface of nearby surface water. */

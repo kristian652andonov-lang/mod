@@ -54,7 +54,8 @@ neoForge {
             if (project.hasProperty('createWorldCheck')) {
                 systemProperty 'terrahaul.screenshots.createWorld', 'true'
             }
-            jvmArguments.addAll('-Xmx6G')
+            // (-PmcXmx=<size> lowers the heap where other games share the machine's memory)
+            jvmArguments.addAll("-Xmx${project.findProperty('mcXmx') ?: '6G'}".toString())
         }
 
         server {
@@ -81,7 +82,7 @@ neoForge {
                     systemProperty 'terrahaul.autotest.structures', 'false'
                 }
             }
-            jvmArguments.addAll('-Xmx6G')
+            jvmArguments.addAll("-Xmx${project.findProperty('mcXmx') ?: '6G'}".toString())
             if (project.hasProperty('jfr')) {
                 jvmArguments.add("-XX:StartFlightRecording=filename=${project.property('jfr')},settings=profile")
             }
@@ -246,9 +247,10 @@ tasks.register('ruinStudy', JavaExec) {
 
 // terrain audits (development only): sheer walls and slots per landform, finder target checks,
 // floating fragments of the 3D terrain density, a line transect, a perspective snapshot,
-// wetland statistics of the model and the shape of its mountains (slopes, ledges, crests)
+// wetland statistics of the model and the shape of its mountains (slopes, ledges, crests), and how
+// rounded the mountains are at random mountain places (domed summits and shoulders, smooth faces)
 ['wallAudit': 'WallAudit', 'finderAudit': 'FinderAudit', 'fragmentAudit': 'FragmentAudit', 'transect': 'Transect', 'snapshot': 'Snapshot', 'wetlandStats': 'WetlandStats',
- 'mountainShapeStats': 'MountainShapeStats'].each { name, cls ->
+ 'mountainShapeStats': 'MountainShapeStats', 'domeSurvey': 'DomeSurvey'].each { name, cls ->
     tasks.register(name, JavaExec) {
         group = 'terrahaul'
         classpath = sourceSets.devtools.runtimeClasspath
