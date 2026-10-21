@@ -702,10 +702,12 @@ public final class TerrainModel {
      *       whatever the relief: the crests grow further apart in tall ranges, and horns are at
      *       most {@link #HORN_HEIGHT} high (a second, twice as coarse grid of horns stands on tall
      *       ranges);</li>
-     *   <li>ancient ranges: a lower, more even and closer network of sharp crests;</li>
+     *   <li>ancient ranges: a lower, more even and closer network of sharp crests with cusped
+     *       summits and notches along them;</li>
      *   <li>mountain walls: a continuous crest along the belt line with a face of about 50 degrees
      *       on one side and a back slope on the other (see {@link #wallProfile}). The crest rises
-     *       into the summits of the range and sags well down into cols between them;</li>
+     *       into the summits of the range, and into cusped summits of its own every 600-900
+     *       blocks, and sags well down into cols between them;</li>
      *   <li>main valleys: troughs along the valley lines whose sides widen with the relief, so a
      *       tall range is cut by broad valleys rather than slots. Their sides lower the crests and
      *       peaks beside them rather than cutting them off;</li>
