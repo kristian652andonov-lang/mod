@@ -279,6 +279,8 @@ public final class TerrainModel {
      * climbs to pointed summits and drops into cols rather than running level for kilometres.
      */
     private static final double WALL_CREST_LOW = 0.45;
+    /** Scale of the noise whose zero lines raise the summits along a mountain wall's crest (see {@link #rangeShape}). */
+    private static final double WALL_TOOTH = 640.0;
     /**
      * Share of the relief of an ancient range, compared with an alpine one: lower, but still steep
      * enough that its crests are sharp.
@@ -389,6 +391,14 @@ public final class TerrainModel {
         double shape = 0.0;
         double meadow = 0.0;
         double mountainHeight = 0.0;
+        mt.uneroded = 0.0;
+        mt.gully = 0.0;
+        mt.ledge = 0.0;
+        mt.gullyDepth = 0.0;
+        mt.relief = 0.0;
+        mt.rangeS = 0.0;
+        mt.massif = 0.0;
+        mt.stand = 0.0;
         // colossal massifs: a huge summit pyramid whose arêtes reach out 3000-4800 blocks,
         // added on top of the range, so subsidiary peaks and ridges of the range stand on its
         // flanks and it rises from a base far wider than it is high
@@ -502,13 +512,25 @@ public final class TerrainModel {
                 }
             }
             mountainHeight = uneroded + gully + ledge;
+            mt.uneroded = uneroded;
+            mt.gully = gully;
+            mt.ledge = ledge;
+            mt.gullyDepth = gullyDepth;
+            mt.relief = relief;
+            mt.rangeS = s0;
+            mt.massif = massif;
             shape = clamp01(Math.max(s0, massif) + (gully + ledge) / Math.max(relief + massifScale * massif, 1.0));
-            // ground that stands high above its valley floors counts as mountain whatever the
+            // a range that stands high above the base profile counts as mountain whatever the
             // mask says (a massif reaches far beyond it), so rivers, canyons, plateaus and hills
-            // keep off tall flanks instead of cutting slots hundreds of blocks deep into them.
-            // (Judged before the gullies: weighed with them, the weight fell in every deep gully,
-            // and rivers ran into the gullies and cut them down to the valley floor.)
-            mountain = Math.max(mountain, smoothstep(40.0, 300.0, uneroded));
+            // keep off its flanks instead of cutting slots hundreds of blocks deep into them. It is
+            // judged on the height the range stands at (its valley floors, half its crests and
+            // the massif), which changes only over the range's own extent, not on the ground
+            // itself: weighed by the ground, the weight rose and fell with every crest and valley
+            // of the range, a river crossing it was cut to its full depth beside a crest and not
+            // at all on the crest, and the difference stood as a wall 150-300 blocks high.
+            double stand = floorH + 0.5 * relief + massifScale * massif;
+            mt.stand = stand;
+            mountain = Math.max(mountain, smoothstep(40.0, 300.0, stand));
         }
         mt.mask = mountainE;
         mt.weight = mountain;
@@ -629,6 +651,20 @@ public final class TerrainModel {
         double massifRise;
         /** How far the broad swell of an ancient range lifts its crests at the column (see {@link #rangeShape}). */
         double swell;
+        /**
+         * The terms of the column's mountain height, for development tools (see
+         * {@link #mountainTerms}): the uneroded range and massif above the base profile, the
+         * gullies with the crest teeth, the ledges, the depth the gullies were given, the relief,
+         * the range shape and the height the range stands at (see {@link #mountains}).
+         */
+        double uneroded;
+        double gully;
+        double ledge;
+        double gullyDepth;
+        double relief;
+        double rangeS;
+        double massif;
+        double stand;
         /** Uneroded mountain relief at the three finite-difference neighbours of the column. */
         final double[] relief3 = new double[3];
         /** Gradient of the uneroded mountains, which the gullies follow (see {@link MountainRelief#gullies}). */
@@ -744,8 +780,18 @@ public final class TerrainModel {
             // one continuous crest along the belt line, which carries the summits of the range and
             // sags into cols between them; in front of the face the range drops to a foreland, so
             // the face stands above it as one long escarpment. (With the crest kept above 0.62 of
-            // the relief, it ran level for kilometres: a table with teeth on it.)
-            double crestH = WALL_CREST_LOW + (1.0 - WALL_CREST_LOW) * peaks;
+            // the relief, it ran level for kilometres: a table with teeth on it.) Besides the
+            // range's own crests and horns, the crest climbs to summits of its own wherever the
+            // zero lines of a noise field cross it, every 600-900 blocks: each is a cusp that
+            // falls away along the crest at about 45 degrees whatever the wall's height (so the
+            // notches between the summits of a tall wall are shallower, relative to its height,
+            // than those of a low one: cut as deep, they were slots with sides of 70-75 degrees).
+            // (Following the range alone, the crest stayed at its lowest share for kilometres
+            // wherever no crest or horn of the range met it, as a level ridge that read as a dome
+            // or a loaf.)
+            double tooth = 1.0 - Math.abs(crestTeethNoise.fbm(x / (WALL_TOOTH * hs) - 17.0, z / (WALL_TOOTH * hs) + 41.0, 1))
+                * Math.min(1.6, 560.0 / Math.max(scale, 1.0));
+            double crestH = WALL_CREST_LOW + (1.0 - WALL_CREST_LOW) * Math.max(peaks, tooth);
             double front = WALL_FACE * crestH * scale + 80.0;
             double back = 160.0 + 1.4 * scale;
             double wall = lerp(wallSide, wallProfile(wallU, front, back), wallProfile(-wallU, front, back)) * crestH;
@@ -1112,6 +1158,32 @@ public final class TerrainModel {
     /** Samples into a caller-owned instance, bypassing the cache. */
     public void sampleInto(int x, int z, ColumnSample out) {
         computeColumn(x, z, out, true, scratch.get());
+    }
+
+    /**
+     * Development tools: the terms of the mountain height at {@code (x, z)} (see
+     * {@link #mountains}), so the gullies, ledges and the range's shape can be measured on their
+     * own. {@code out} receives, in blocks unless noted: 0 the uneroded range and massif above the
+     * base profile, 1 the gullies and crest teeth, 2 the ledges, 3 the depth the gullies were
+     * given, 4 the relief, 5 the range shape (0..1), 6 the blurred mountain mask (0..1), 7 the
+     * mountain weight (0..1), 8 the height the range stands at above the base profile, which the
+     * weight follows (see {@link #mountains}), 9 the colossal massif (0..1). The column is
+     * computed without its lakes, which would compute other columns with the same scratch.
+     */
+    public void mountainTerms(int x, int z, double[] out) {
+        Scratch sc = scratch.get();
+        computeColumn(x, z, new ColumnSample(), false, sc);
+        MountainState mt = sc.mountains;
+        out[0] = mt.uneroded;
+        out[1] = mt.gully;
+        out[2] = mt.ledge;
+        out[3] = mt.gullyDepth;
+        out[4] = mt.relief;
+        out[5] = mt.rangeS;
+        out[6] = mt.mask;
+        out[7] = mt.weight;
+        out[8] = mt.stand;
+        out[9] = mt.massif;
     }
 
     /** Caves and carvers keep at least this many blocks below the surface of nearby surface water. */
