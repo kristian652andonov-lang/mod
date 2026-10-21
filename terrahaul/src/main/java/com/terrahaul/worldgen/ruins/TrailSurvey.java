@@ -26,18 +26,20 @@ import java.util.Set;
  *       a campsite, field walls, a chapel) in the rest, chosen by climate. A ruin is tried at its
  *       slot and a few blocks either way, on either side of the trail, beside a straight stretch
  *       on dry, level ground away from water, cliffs, rock formations and waterfalls; a house
- *       that finds no room is tried as a hut and is owed to the next slot, and a slot whose ruin
- *       found none may get a small one instead. Where the trail fords a stream, or a piece runs
+ *       that finds no room is tried a size smaller, down to a hut, and is owed to the next slot
+ *       if even that fails, and a slot whose ruin found none may get a small one instead. Where the trail fords a stream, or a piece runs
  *       into one and the trail goes on beyond it, the abutments of a lost bridge stand on the
  *       banks.</li>
  *   <li>Junctions and trail ends get signposts; long trails get a direction post or milestone
- *       where they cross the marker lines of the cell, away from junctions and other signs.</li>
+ *       where they cross the marker lines, away from junctions and ends and from each other.</li>
  *   <li>Lamp posts follow lit sections of trail. Whether a stretch of trail is lit is a smooth
  *       field over the world, and posts stand where the trail crosses a fixed grid of lines
  *       {@value #LAMP_LINE} blocks apart (the lines running across it, x lines for trails that
  *       run east and west, z lines for the others). Both are pure functions of position, so a lit
  *       section runs on across cell borders with even spacing, its posts seen identically from
- *       either side; each cell keeps the posts that stand inside it.</li>
+ *       either side; each cell keeps the posts that stand inside it. A trail that crosses a line
+ *       twice close together gets one post, no two posts stand closer than
+ *       {@value #LAMP_MIN_GAP} blocks, and scraps of fewer than three posts stay dark.</li>
  * </ol>
  * Every site lies inside its cell; each signpost and lamp post stands in a column chosen so that
  * it lies wholly inside one chunk.
@@ -60,8 +62,8 @@ public final class TrailSurvey {
     static final double P_END_SIGN = 0.9;
     /** Chance that a crossing of a marker line gets a direction post or milestone. */
     static final double P_MARKER = 0.9;
-    /** Least distance from a direction post or milestone to any other sign. */
-    static final int MARKER_SPACING = 150;
+    /** Least distance between two direction posts or milestones. */
+    public static final int MARKER_SPACING = 100;
     static final double P_BRIDGE = 0.8;
     /**
      * Widest run of stream water, along a trail or across the lane of an old bridge, that a
@@ -118,6 +120,10 @@ public final class TrailSurvey {
     static final int ST_BRIDGE_GROUND = 42;
     static final int ST_BRIDGE_DECK = 43;
     static final int ST_BRIDGE_ROOM = 44;
+    /** House layouts as first drawn for their slots, before any falls back to a smaller one (6 slots). */
+    static final int ST_LAYOUT_CHOSEN = 48;
+    /** Lattice points on laid trail in biomes where the trail is drawn (deserts and beaches show none). */
+    static final int ST_SHOWN_POINTS = 54;
 
     /** What a trail cell holds. */
     public record Cell(List<TrailRuin> ruins, List<Signpost> signposts, List<LightStretch> lights) {
@@ -188,6 +194,9 @@ public final class TrailSurvey {
         for (int[] p : points) {
             if (p[2] < 200 && TrailGeometry.laid(m, p[0], p[1])) {
                 sites.stats.incrementAndGet(ST_LAID_POINTS);
+                if (sites.trailShown(p[0], p[1])) {
+                    sites.stats.incrementAndGet(ST_SHOWN_POINTS);
+                }
             }
         }
         // 2. junctions and trail ends
@@ -570,7 +579,9 @@ public final class TrailSurvey {
     /**
      * Tries a ruin of one kind at a slot: its variant, style and state are fixed for the slot,
      * then it is tried at the slot point and 8, 16 and 24 blocks either way along the trail (a
-     * house up to 32), on both sides. A house that does not fit is tried once more as a hut.
+     * house up to 32), on both sides. A house that does not fit is tried again a size smaller
+     * ({@link #smaller}), down to a hut, so the big houses that find no room give cottages
+     * rather than all falling to huts.
      */
     private TrailRuin slot(Piece pc, double s, int kind, int climate, long ss, List<TrailRuin> ruins) {
         long vs = SeedMixer.mix(ss ^ 0x7A21A7L);
@@ -581,14 +592,24 @@ public final class TrailSurvey {
             style = houseStyle(climate, SeedMixer.unit(vs));
             variant = houseLayout(style, SeedMixer.unit(SeedMixer.mix(vs + 1)));
             state = houseState(style, climate, SeedMixer.unit(SeedMixer.mix(vs + 2)));
+            sites.stats.incrementAndGet(ST_LAYOUT_CHOSEN + variant);
         } else {
             variant = variant(kind, climate, SeedMixer.unit(vs));
         }
         TrailRuin r = trySlot(pc, s, kind, variant, style, state, climate, ss, ruins);
-        if (r == null && kind == TrailRuin.HOUSE && variant != HousePlanner.HUT) {
-            r = trySlot(pc, s, kind, HousePlanner.HUT, style, state, climate, ss + 7, ruins);
+        for (int v = smaller(variant); r == null && kind == TrailRuin.HOUSE && v >= 0; v = smaller(v)) {
+            r = trySlot(pc, s, kind, v, style, state, climate, ss + 7 + v, ruins);
         }
         return r;
+    }
+
+    /** The next smaller house layout to try where one does not fit, or -1 after a hut. */
+    private static int smaller(int layout) {
+        return switch (layout) {
+            case HousePlanner.FARMHOUSE, HousePlanner.TWO_ROOM, HousePlanner.TWO_STOREY -> HousePlanner.COTTAGE;
+            case HousePlanner.COTTAGE, HousePlanner.TOWER_HOUSE -> HousePlanner.HUT;
+            default -> -1;
+        };
     }
 
     /** Offsets along the trail at which a ruin is tried, nearest the slot first. */
@@ -645,11 +666,14 @@ public final class TrailSurvey {
     }
 
     /**
-     * House layout: huts and cottages most often, then two-room houses, farmhouses, two storeys;
-     * stone country has its tower houses.
+     * House layout as first drawn for a slot. The big layouts find room less often (a third of
+     * the time) and fall back a size when they do not, so they are drawn far more often than they
+     * should stand: what stands beside the trails is then about a fifth huts, a quarter cottages,
+     * and two-room houses, farmhouses and two-storey houses a sixth or so each; a fifth of the
+     * stone houses are tower houses.
      */
     private static int houseLayout(int style, double r) {
-        double[] w = style == HousePlanner.STONE ? new double[]{18, 24, 14, 10, 14, 20} : new double[]{22, 28, 16, 14, 12, 8};
+        double[] w = style == HousePlanner.STONE ? new double[]{8, 12, 22, 18, 20, 30} : new double[]{10, 14, 30, 28, 18, 10};
         for (int layout = 0; layout < w.length; layout++) {
             if (!HousePlanner.fits(layout, style)) {
                 w[layout] = 0;
@@ -845,7 +869,7 @@ public final class TrailSurvey {
         String name = RuinNames.name(siteSeed);
         String loot = RuinSites.lootTable(kind, variant, climate, biome, mat);
         return new TrailRuin(hx, floorY + 1, hz, siteSeed, bx0, bz0, bx1, bz1, kind, variant, style, state, climate, mat, f, spec, floorY, decay,
-            wet, name, c[0], c[1], loot, path);
+            wet, name, c[0], c[1], loot, path, m);
     }
 
     // =========================================================================================
@@ -854,12 +878,12 @@ public final class TrailSurvey {
 
     /** Whether a column holds the water of a stream, a river or a lake. */
     private boolean water(int x, int z) {
-        return RuinSites.water(m, x, z, scratch);
+        return RuinSites.water(m, x, z);
     }
 
     /** What water a column holds (see {@link RuinSites#waterKind}). */
     private int waterKind(int x, int z) {
-        return RuinSites.waterKind(m, x, z, scratch);
+        return RuinSites.waterKind(m, x, z);
     }
 
     /**
@@ -1143,11 +1167,23 @@ public final class TrailSurvey {
         return false;
     }
 
-    /** Whether a post may stand at a column: beside the path, inside the cell, on level dry land, clear of ruins. */
+    /**
+     * Whether a post may stand at a column: beside the path, inside the cell, on level dry land,
+     * clear of ruins, with no water under it or under its arms, plate or board (a block out on
+     * every side; the water solver digs even weak streams, which the coarse land test misses).
+     */
     private boolean postSpot(int x, int z, List<TrailRuin> ruins) {
         double td = m.trailDistance(x, z);
-        return td >= 2.6 && inCell(x, z, 0) && TrailGeometry.slope(m, x, z) <= 2.0 && TrailGeometry.land(m.sample(x & ~3, z & ~3), sl)
-            && !nearAny(ruins, x, z, 4);
+        if (td < 2.6 || !inCell(x, z, 0) || TrailGeometry.slope(m, x, z) > 2.0 || !TrailGeometry.land(m.sample(x & ~3, z & ~3), sl)
+            || nearAny(ruins, x, z, 4)) {
+            return false;
+        }
+        for (int d = -1; d < 4; d++) {
+            if (water(x + (d < 0 ? 0 : RuinCell.DX[d]), z + (d < 0 ? 0 : RuinCell.DZ[d]))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Signpost signpost(Node n, List<TrailRuin> ruins, List<Signpost> others) {
@@ -1240,53 +1276,54 @@ public final class TrailSurvey {
     }
 
     /**
-     * Markers along long trails: where a trail crosses one of the marker lines of the cell (x and
-     * z a quarter and three quarters of the way across), away from junctions, ends and other
-     * signs, a direction post with an arm each way or a milestone. The lines lie half a cell
-     * apart and a marker keeps {@value #MARKER_SPACING} blocks from other signs, so markers come
-     * every 150 to 250 blocks along a long trail.
+     * Markers along long trails: where a trail crosses one of the marker lines (x and z a quarter
+     * and three quarters of the way across every cell, so 128 blocks apart), at least
+     * {@value #MARKER_NODE_GAP} blocks from junctions and trail ends, a direction post with an arm
+     * each way or a milestone. Markers keep {@value #MARKER_SPACING} blocks from each other: of
+     * two candidate crossings that could put their posts closer, the one with the lower roll
+     * stands. Candidates are pure functions of position, so the rule reads the same on both sides
+     * of a cell border; a long trail gets a marker every 130 to 250 blocks or so.
      */
     private void markers(List<Node> nodes, List<TrailRuin> ruins, List<Signpost> signs) {
-        List<int[]> cands = new ArrayList<>();
-        for (int line : new int[]{CELL / 4, 3 * CELL / 4}) {
-            cands.addAll(crossings(true, x0 + line, z0 + 16, z0 + CELL - 16));
-            cands.addAll(crossings(false, z0 + line, x0 + 16, x0 + CELL - 16));
+        List<long[]> own = markerCandidates(x0, z0, x0 + CELL - 1, z0 + CELL - 1);
+        if (own.isEmpty()) {
+            return;
         }
-        for (int[] cand : cands) {
+        int rival = MARKER_SPACING + 2 * MARKER_REACH;
+        List<long[]> rivals = markerCandidates(x0 - rival, z0 - rival, x0 + CELL - 1 + rival, z0 + CELL - 1 + rival);
+        for (long[] cand : own) {
+            int cxp = (int) cand[0];
+            int czp = (int) cand[1];
             sites.stats.incrementAndGet(ST_MARKER_CROSSINGS);
-            long ms = SeedMixer.hash2(seed ^ 0x3A11L, cand[0], cand[1]);
-            if (SeedMixer.unit(ms) >= P_MARKER || !TrailGeometry.laid(m, cand[0], cand[1])) {
-                continue;
-            }
-            double[] t = TrailGeometry.tangent(m, cand[0], cand[1]);
-            if (t == null) {
-                continue;
-            }
             boolean clear = true;
             for (Node n : nodes) {
-                clear &= Math.hypot(n.x - cand[0], n.z - cand[1]) > 90;
+                clear &= Math.hypot(n.x - cxp, n.z - czp) >= MARKER_NODE_GAP;
             }
-            for (Signpost s : signs) {
-                clear &= Math.hypot(s.x - cand[0], s.z - cand[1]) > MARKER_SPACING;
+            for (long[] r : rivals) {
+                if (r != cand && Math.hypot(r[0] - cxp, r[1] - czp) < rival && precedes(r, cand)) {
+                    clear = false;
+                }
             }
             if (!clear) {
                 continue;
             }
+            double[] t = TrailGeometry.tangent(m, cxp, czp);
+            long ms = cand[2];
             int side = SeedMixer.unit(SeedMixer.mix(ms + 1)) < 0.5 ? 1 : -1;
             double nx = -t[1] * side;
             double nz = t[0] * side;
             for (int o = 3; o <= 6; o++) {
-                int x = (int) Math.round(cand[0] + nx * o);
-                int z = (int) Math.round(cand[1] + nz * o);
+                int x = (int) Math.round(cxp + nx * o);
+                int z = (int) Math.round(czp + nz * o);
                 if (m.trailDistance(x, z) < 3.0) {
                     continue;
                 }
-                int[] own = own(x, z, 2, 13);
-                if (!postSpot(own[0], own[1], ruins)) {
+                int[] at = own(x, z, 2, 13);
+                if (!postSpot(at[0], at[1], ruins)) {
                     break;
                 }
-                int px = own[0];
-                int pz = own[1];
+                int px = at[0];
+                int pz = at[1];
                 ColumnSample s = new ColumnSample();
                 s.copyFrom(m.sample(px & ~3, pz & ~3));
                 int biome = sites.biome(px, (int) s.height, pz, s);
@@ -1302,52 +1339,135 @@ public final class TrailSurvey {
                 double wet = Math.max(0.0, Math.min(1.0, (s.humidity + 0.6) / 1.2));
                 int y = (int) Math.floor(m.interpolatedHeight(px, pz)) + 2;
                 double a = Math.atan2(t[1], t[0]);
-                signs.add(new Signpost(px, y, pz, sseed, kind, postStyle(climate, SeedMixer.unit(SeedMixer.mix(sseed + 3))), cand[0], cand[1],
-                    new double[]{a, a + Math.PI}, mat, wet, RuinCell.dirOf(cand[0] - px, cand[1] - pz)));
+                signs.add(new Signpost(px, y, pz, sseed, kind, postStyle(climate, SeedMixer.unit(SeedMixer.mix(sseed + 3))), cxp, czp,
+                    new double[]{a, a + Math.PI}, mat, wet, RuinCell.dirOf(cxp - px, czp - pz)));
                 sites.stats.incrementAndGet(ST_SIGNS);
                 break;
             }
         }
     }
 
+    /** Edge strip of each cell where a marker line's crossings are not candidates. */
+    private static final int MARKER_EDGE = 32;
+    /** Least distance from a marker's crossing to a junction or a trail end. */
+    static final int MARKER_NODE_GAP = 80;
+    /** Farthest a marker post stands from its crossing: 6 blocks off the trail, 2 more to fit its chunk. */
+    private static final int MARKER_REACH = 9;
+
+    /**
+     * The marker candidates on the lines within a box: crossings of a marker line at least
+     * {@value #MARKER_EDGE} blocks inside their own cell (so the nodes a candidate keeps away from,
+     * found up to {@value #MARGIN} blocks beyond the cell, are all known to it) that win the
+     * marker roll on a laid, straight stretch of trail. Each is {x, z, roll seed}. They depend on
+     * position alone, whichever cell asks.
+     */
+    private List<long[]> markerCandidates(int bx0, int bz0, int bx1, int bz1) {
+        List<long[]> out = new ArrayList<>();
+        int quarter = CELL / 4;
+        for (int family = 0; family < 2; family++) {
+            boolean alongZ = family == 0;
+            int lo = alongZ ? bx0 : bz0;
+            int hi = alongZ ? bx1 : bz1;
+            // marker lines lie at a quarter and three quarters of each cell: quarter mod 2 * quarter
+            for (int k = Math.floorDiv(lo - quarter + 2 * quarter - 1, 2 * quarter); k * 2 * quarter + quarter <= hi; k++) {
+                int line = k * 2 * quarter + quarter;
+                int p0 = alongZ ? bz0 : bx0;
+                int p1 = alongZ ? bz1 : bx1;
+                for (int[] c : crossings(alongZ, line, p0, p1 + 1)) {
+                    int pos = alongZ ? c[1] : c[0];
+                    int local = Math.floorMod(pos, CELL);
+                    if (local < MARKER_EDGE || local >= CELL - MARKER_EDGE) {
+                        continue;
+                    }
+                    long ms = SeedMixer.hash2(seed ^ 0x3A11L, c[0], c[1]);
+                    if (SeedMixer.unit(ms) >= P_MARKER || !TrailGeometry.laid(m, c[0], c[1]) || TrailGeometry.tangent(m, c[0], c[1]) == null) {
+                        continue;
+                    }
+                    out.add(new long[]{c[0], c[1], ms});
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Whether marker candidate a takes precedence over b: the lower roll, then the lower column. */
+    private static boolean precedes(long[] a, long[] b) {
+        double ua = SeedMixer.unit(a[2]);
+        double ub = SeedMixer.unit(b[2]);
+        return ua != ub ? ua < ub : a[0] != b[0] ? a[0] < b[0] : a[1] < b[1];
+    }
+
+    /** A crossing is the lowest trail distance within this many blocks either way along its line. */
+    private static final int CROSS_WINDOW = 3;
+    /**
+     * Crossings of one line closer than this are one crossing: a trail that bends back over a line
+     * (a hairpin) or splits into a braided loop crosses it twice a few blocks apart, and would
+     * get two posts side by side.
+     */
+    private static final int CROSS_MERGE = LAMP_LINE / 2;
+
     /**
      * Where trails cross a line: {@code alongZ} scans the x = {@code line} line along z from
      * {@code lo} to {@code hi} (else the z = {@code line} line along x), and returns the columns
      * on the line nearest the trail's centre, {x, z}: the lowest trail distance (below 1.5) within
-     * three blocks either way. The test looks only at its own neighbourhood, so two cells scanning
-     * the same stretch of a line find the same crossings. Only stretches of the line that pass a
-     * lattice point near a trail are scanned.
+     * {@value #CROSS_WINDOW} blocks either way, and of crossings within {@link #CROSS_MERGE} blocks
+     * of each other only the one nearest the centre. The tests look only at their own
+     * neighbourhood, so two cells scanning the same stretch of a line find the same crossings.
+     * Stretches of the line far from every lattice point near a trail are skipped.
      */
     private List<int[]> crossings(boolean alongZ, int line, int lo, int hi) {
         List<int[]> out = new ArrayList<>();
-        int gi = Math.floorDiv(line - (alongZ ? x0 : z0) + MARGIN - LATTICE / 2, LATTICE);
-        if (gi < 0 || gi + 1 >= GRID) {
-            return out;
+        int reach = CROSS_MERGE + CROSS_WINDOW;
+        int a = lo - reach;
+        double[] d = new double[hi - lo + 2 * reach];
+        for (int pos = a; pos < hi + reach; pos++) {
+            d[pos - a] = latticeDistance(alongZ, line, pos) > 12.0 ? Double.MAX_VALUE
+                : alongZ ? m.trailDistance(line, pos) : m.trailDistance(pos, line);
         }
-        int w = 3;
-        int a = lo - w;
-        double[] d = new double[hi - lo + 2 * w];
-        for (int pos = a; pos < hi + w; pos++) {
-            int gj = Math.floorDiv(pos - (alongZ ? z0 : x0) + MARGIN, LATTICE);
-            double g = gj < 0 || gj >= GRID ? 0.0
-                : Math.min(alongZ ? grid[gi * GRID + gj] : grid[gj * GRID + gi], alongZ ? grid[(gi + 1) * GRID + gj] : grid[gj * GRID + gi + 1]);
-            d[pos - a] = g > 12.0 ? Double.MAX_VALUE : alongZ ? m.trailDistance(line, pos) : m.trailDistance(pos, line);
-        }
-        for (int pos = lo; pos < hi; pos++) {
+        List<Integer> minima = new ArrayList<>();
+        for (int pos = lo - CROSS_MERGE; pos < hi + CROSS_MERGE; pos++) {
             double v = d[pos - a];
             if (v >= 1.5) {
                 continue;
             }
             boolean min = true;
-            for (int q = pos - w; q <= pos + w && min; q++) {
+            for (int q = pos - CROSS_WINDOW; q <= pos + CROSS_WINDOW && min; q++) {
                 double o = d[q - a];
                 min = q < pos ? v < o : q == pos || v <= o;
             }
             if (min) {
+                minima.add(pos);
+            }
+        }
+        for (int pos : minima) {
+            if (pos < lo || pos >= hi) {
+                continue;
+            }
+            boolean keep = true;
+            for (int q : minima) {
+                if (q != pos && Math.abs(q - pos) <= CROSS_MERGE && (d[q - a] < d[pos - a] || d[q - a] == d[pos - a] && q < pos)) {
+                    keep = false;
+                    break;
+                }
+            }
+            if (keep) {
                 out.add(alongZ ? new int[]{line, pos} : new int[]{pos, line});
             }
         }
         return out;
+    }
+
+    /**
+     * Least trail distance at the two lattice points beside a position on a line, or 0 outside
+     * the scanned lattice (which leaves the position to be measured).
+     */
+    private double latticeDistance(boolean alongZ, int line, int pos) {
+        int gi = Math.floorDiv(line - (alongZ ? x0 : z0) + MARGIN - LATTICE / 2, LATTICE);
+        int gj = Math.floorDiv(pos - (alongZ ? z0 : x0) + MARGIN, LATTICE);
+        if (gi < 0 || gi + 1 >= GRID || gj < 0 || gj >= GRID) {
+            return 0.0;
+        }
+        return Math.min(alongZ ? grid[gi * GRID + gj] : grid[gj * GRID + gi], alongZ ? grid[(gi + 1) * GRID + gj] : grid[gj * GRID + gi + 1]);
     }
 
     // =========================================================================================
@@ -1363,28 +1483,35 @@ public final class TrailSurvey {
      * lamp lines; a trail running more east-west than north-south takes the x lines, the others
      * the z lines, and where the two families meet near a diagonal a z-line post gives way to an
      * x-line post close by. Every test reads only the terrain and fields around the candidate
-     * (and the cell's own ruins and signs, which never come near a border), so the posts of a lit
+     * (and, for posts inside the cell, the cell's own ruins and signs), so the posts of a lit
      * section near a cell border are the same whichever cell computes them.
+     * <p>
+     * Posts just outside the cell are worked out too, though the neighbouring cell places them:
+     * of two posts closer than {@value #LAMP_MIN_GAP} blocks only one stays, and a lit run of
+     * fewer than {@value RuinSites#MIN_FOUND_POSTS} posts is dropped as a scrap of a lit patch
+     * unless it carries on across the border.
      */
     private List<LightStretch> lamps(List<Node> nodes, List<TrailRuin> ruins, List<Signpost> signs) {
-        // a post stands at most 7 blocks from its crossing, and a z-line crossing looks for x-line
-        // crossings within 14 blocks: scan a margin of 24 around the cell
-        int reach = 24;
-        int lineLo = Math.floorDiv(x0 - reach, LAMP_LINE);
-        int lineHi = Math.floorDiv(x0 + CELL + reach - 1, LAMP_LINE);
+        // a post stands at most 10 blocks from its crossing, and a z-line crossing looks for
+        // x-line crossings within 14 blocks: x lines are scanned 14 blocks further out
+        int reach = LAMP_REACH;
+        int xReach = reach + 14;
         List<LampCrossing> xs = new ArrayList<>();
-        for (int k = lineLo; k <= lineHi; k++) {
-            for (int[] c : crossings(true, k * LAMP_LINE, z0 - reach, z0 + CELL + reach)) {
+        for (int k = Math.floorDiv(x0 - xReach, LAMP_LINE); k <= Math.floorDiv(x0 + CELL + xReach - 1, LAMP_LINE); k++) {
+            for (int[] c : crossings(true, k * LAMP_LINE, z0 - xReach, z0 + CELL + xReach)) {
                 double[] t = lineTangent(true, c);
                 if (t != null && Math.abs(t[0]) >= Math.abs(t[1])) {
                     xs.add(new LampCrossing(c[0], c[1], t[0], t[1], k, true));
                 }
             }
         }
-        List<LampCrossing> all = new ArrayList<>(xs);
-        lineLo = Math.floorDiv(z0 - reach, LAMP_LINE);
-        lineHi = Math.floorDiv(z0 + CELL + reach - 1, LAMP_LINE);
-        for (int k = lineLo; k <= lineHi; k++) {
+        List<LampCrossing> all = new ArrayList<>();
+        for (LampCrossing x : xs) {
+            if (inCell(x.x, x.z, -reach)) {
+                all.add(x);
+            }
+        }
+        for (int k = Math.floorDiv(z0 - reach, LAMP_LINE); k <= Math.floorDiv(z0 + CELL + reach - 1, LAMP_LINE); k++) {
             for (int[] c : crossings(false, k * LAMP_LINE, x0 - reach, x0 + CELL + reach)) {
                 double[] t = lineTangent(false, c);
                 if (t == null || Math.abs(t[1]) <= Math.abs(t[0])) {
@@ -1399,15 +1526,53 @@ public final class TrailSurvey {
                 }
             }
         }
-        List<LightStretch.Post> posts = new ArrayList<>();
+        List<LightStretch.Post> own = new ArrayList<>();
+        List<LightStretch.Post> foreign = new ArrayList<>();
         for (LampCrossing lc : all) {
-            sites.stats.incrementAndGet(ST_LAMP_CROSSINGS);
+            if (inCell(lc.x, lc.z, 0)) {
+                sites.stats.incrementAndGet(ST_LAMP_CROSSINGS);
+            }
             LightStretch.Post p = lampPost(lc, nodes, ruins, signs);
             if (p != null) {
-                posts.add(p);
+                (inCell(p.x(), p.z(), 0) ? own : foreign).add(p);
             }
         }
-        return stretches(posts);
+        return stretches(spaced(own, foreign), foreign);
+    }
+
+    /** How far beyond the cell lamp-line crossings are worked out. */
+    private static final int LAMP_REACH = 32;
+    /** Fewest blocks between two lamp posts. */
+    public static final int LAMP_MIN_GAP = 8;
+
+    /**
+     * The cell's posts without those that stand too close to another: of two posts closer than
+     * {@value #LAMP_MIN_GAP} blocks the one with the lower seed stays. Posts just outside the cell
+     * take part, so the neighbouring cell, which sees the same two posts, makes the same choice.
+     */
+    private static List<LightStretch.Post> spaced(List<LightStretch.Post> own, List<LightStretch.Post> foreign) {
+        List<LightStretch.Post> out = new ArrayList<>();
+        for (LightStretch.Post p : own) {
+            boolean yields = false;
+            for (List<LightStretch.Post> list : List.of(own, foreign)) {
+                for (LightStretch.Post q : list) {
+                    if (q != p && Math.hypot(q.x() - p.x(), q.z() - p.z()) < LAMP_MIN_GAP && before(q, p)) {
+                        yields = true;
+                    }
+                }
+            }
+            if (!yields) {
+                out.add(p);
+            }
+        }
+        return out;
+    }
+
+    /** Whether post a takes precedence over post b: the lower seed, then the lower column. */
+    private static boolean before(LightStretch.Post a, LightStretch.Post b) {
+        double ua = SeedMixer.unit(a.seed());
+        double ub = SeedMixer.unit(b.seed());
+        return ua != ub ? ua < ub : a.x() != b.x() ? a.x() < b.x() : a.z() < b.z();
     }
 
     /**
@@ -1473,6 +1638,7 @@ public final class TrailSurvey {
             int sd = pass == 0 ? side : -side;
             double nx = -lc.tz * sd;
             double nz = lc.tx * sd;
+            int toTrail = RuinCell.dirOf(-nx, -nz);
             for (int slide : LAMP_SLIDES) {
                 double bx = lc.x + lc.tx * slide;
                 double bz = lc.z + lc.tz * slide;
@@ -1491,24 +1657,24 @@ public final class TrailSurvey {
                         refused = Math.max(refused, ST_LAMP_OWN);
                         continue;
                     }
-                    if (!inCell(x, z, 0)) {
-                        // the post belongs to the neighbouring cell, which places it
-                        return null;
-                    }
-                    if (TrailGeometry.slope(m, x, z) > 2.0 || !TrailGeometry.land(m.sample(x & ~3, z & ~3), sl)) {
+                    if (TrailGeometry.slope(m, x, z) > 2.0 || !TrailGeometry.land(m.sample(x & ~3, z & ~3), sl) || lampWater(x, z, toTrail)) {
                         refused = Math.max(refused, ST_LAMP_GROUND);
                         verdict = 1;
                         continue;
                     }
-                    if (nearAny(ruins, x, z, 4)) {
+                    // a post outside the cell is the neighbouring cell's, which tests it against its own ruins and signs
+                    boolean own = inCell(x, z, 0);
+                    if (own && nearAny(ruins, x, z, 4)) {
                         refused = Math.max(refused, ST_LAMP_RUIN);
                         verdict = 1;
                         continue;
                     }
-                    for (Signpost s : signs) {
-                        if (Math.abs(s.x - x) < 8 && Math.abs(s.z - z) < 8) {
-                            count(counted, ST_LAMP_SIGN);
-                            return null;
+                    if (own) {
+                        for (Signpost s : signs) {
+                            if (Math.abs(s.x - x) < 8 && Math.abs(s.z - z) < 8) {
+                                count(counted, ST_LAMP_SIGN);
+                                return null;
+                            }
                         }
                     }
                     ColumnSample s = new ColumnSample();
@@ -1519,13 +1685,31 @@ public final class TrailSurvey {
                         return null;
                     }
                     int climate = RuinSites.climateClass(s, biome, sl);
-                    int toTrail = RuinCell.dirOf(-nx, -nz);
                     return sites.lampPost(x, z, toTrail, climate, biome, s, (lc.line % 3 + 3) % 3 == 1);
                 }
             }
         }
         count(counted, refused);
         return null;
+    }
+
+    /**
+     * Whether water lies where a lamp post or its parts would stand: the post, the lantern over
+     * the path edge, the ground beside it, and the line a fallen post lies along (away from the
+     * trail). The water solver digs even weak streams, which the coarse land test misses.
+     */
+    private boolean lampWater(int x, int z, int toTrail) {
+        int dx = RuinCell.DX[toTrail];
+        int dz = RuinCell.DZ[toTrail];
+        if (water(x, z) || water(x + dx, z + dz) || water(x + dz, z + dx) || water(x - dz, z - dx)) {
+            return true;
+        }
+        for (int k = 1; k <= 4; k++) {
+            if (water(x - dx * k, z - dz * k)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Offsets along the trail at which a lamp post is tried, nearest the crossing first. */
@@ -1546,14 +1730,80 @@ public final class TrailSurvey {
 
     /**
      * Groups the cell's posts into stretches: posts within three line spacings of each other
-     * (one post may be missing beside a ruin or on a bank) light one stretch.
+     * (one post may be missing beside a ruin or on a bank) light one stretch. A run of fewer than
+     * {@value RuinSites#MIN_FOUND_POSTS} posts, counting those just across the border, is a scrap
+     * where a trail grazes a lit patch and is left dark, unless it carries on into the next cell.
      */
-    private List<LightStretch> stretches(List<LightStretch.Post> posts) {
-        int n = posts.size();
-        if (n == 0) {
+    private List<LightStretch> stretches(List<LightStretch.Post> own, List<LightStretch.Post> foreign) {
+        if (own.isEmpty()) {
             return List.of();
         }
-        posts.sort((a, b) -> a.x() != b.x() ? Integer.compare(a.x(), b.x()) : Integer.compare(a.z(), b.z()));
+        own.sort((a, b) -> a.x() != b.x() ? Integer.compare(a.x(), b.x()) : Integer.compare(a.z(), b.z()));
+        // runs over the cell's posts and those just outside it
+        List<LightStretch.Post> both = new ArrayList<>(own);
+        both.addAll(foreign);
+        int[] runOf = runs(both);
+        int[] size = new int[both.size()];
+        boolean[] open = new boolean[both.size()];
+        for (int i = 0; i < both.size(); i++) {
+            size[runOf[i]]++;
+            open[runOf[i]] |= i >= own.size();
+        }
+        List<LightStretch.Post> kept = new ArrayList<>();
+        for (int i = 0; i < own.size(); i++) {
+            if (size[runOf[i]] >= RuinSites.MIN_FOUND_POSTS || open[runOf[i]]) {
+                kept.add(own.get(i));
+            }
+        }
+        int n = kept.size();
+        int[] group = runs(kept);
+        List<LightStretch> out = new ArrayList<>();
+        boolean[] done = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            if (done[i]) {
+                continue;
+            }
+            List<LightStretch.Post> posts = new ArrayList<>();
+            for (int j = i; j < n; j++) {
+                if (!done[j] && group[j] == group[i]) {
+                    posts.add(kept.get(j));
+                    done[j] = true;
+                }
+            }
+            int minX = Integer.MAX_VALUE;
+            int minZ = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE;
+            int maxZ = Integer.MIN_VALUE;
+            for (LightStretch.Post p : posts) {
+                minX = Math.min(minX, p.x() - 3);
+                minZ = Math.min(minZ, p.z() - 3);
+                maxX = Math.max(maxX, p.x() + 3);
+                maxZ = Math.max(maxZ, p.z() + 3);
+            }
+            // the stretch is found at its middle post: the one nearest the mean of them all
+            double mx = 0;
+            double mz = 0;
+            for (LightStretch.Post p : posts) {
+                mx += p.x() / (double) posts.size();
+                mz += p.z() / (double) posts.size();
+            }
+            LightStretch.Post mid = posts.get(0);
+            for (LightStretch.Post p : posts) {
+                if (Math.hypot(p.x() - mx, p.z() - mz) < Math.hypot(mid.x() - mx, mid.z() - mz)) {
+                    mid = p;
+                }
+            }
+            int y = (int) Math.floor(m.interpolatedHeight(mid.x(), mid.z())) + 2;
+            out.add(new LightStretch(mid.x(), y, mid.z(), mid.seed(), minX, minZ, maxX, maxZ, posts.toArray(new LightStretch.Post[0])));
+            sites.stats.incrementAndGet(ST_LIGHTS);
+            sites.stats.addAndGet(ST_POSTS, posts.size());
+        }
+        return out;
+    }
+
+    /** The run each post belongs to (the index of a representative): posts within three line spacings chain. */
+    private static int[] runs(List<LightStretch.Post> posts) {
+        int n = posts.size();
         int[] parent = new int[n];
         for (int i = 0; i < n; i++) {
             parent[i] = i;
@@ -1567,36 +1817,9 @@ public final class TrailSurvey {
                 }
             }
         }
-        List<LightStretch> out = new ArrayList<>();
-        boolean[] done = new boolean[n];
         for (int i = 0; i < n; i++) {
-            if (done[i]) {
-                continue;
-            }
-            int root = find(parent, i);
-            List<LightStretch.Post> group = new ArrayList<>();
-            for (int j = i; j < n; j++) {
-                if (!done[j] && find(parent, j) == root) {
-                    group.add(posts.get(j));
-                    done[j] = true;
-                }
-            }
-            int minX = Integer.MAX_VALUE;
-            int minZ = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE;
-            int maxZ = Integer.MIN_VALUE;
-            for (LightStretch.Post p : group) {
-                minX = Math.min(minX, p.x() - 3);
-                minZ = Math.min(minZ, p.z() - 3);
-                maxX = Math.max(maxX, p.x() + 3);
-                maxZ = Math.max(maxZ, p.z() + 3);
-            }
-            LightStretch.Post mid = group.get(group.size() / 2);
-            int y = (int) Math.floor(m.interpolatedHeight(mid.x(), mid.z())) + 2;
-            out.add(new LightStretch(mid.x(), y, mid.z(), mid.seed(), minX, minZ, maxX, maxZ, group.toArray(new LightStretch.Post[0])));
-            sites.stats.incrementAndGet(ST_LIGHTS);
-            sites.stats.addAndGet(ST_POSTS, group.size());
+            parent[i] = find(parent, i);
         }
-        return out;
+        return parent;
     }
 }

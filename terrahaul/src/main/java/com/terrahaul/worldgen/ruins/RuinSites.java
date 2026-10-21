@@ -44,9 +44,10 @@ public final class RuinSites {
 
     /**
      * Threshold of the lit field: about a fifth of the laid trail is lit, in sections a few
-     * hundred blocks long (some 7 to 9 lamp posts per 1000 blocks of trail).
+     * hundred blocks long (some 8 to 9 lamp posts per 1000 blocks of trail, once the scraps where
+     * a trail only grazes a lit patch are left dark).
      */
-    static final double LIT_THRESHOLD = 0.45;
+    static final double LIT_THRESHOLD = 0.42;
 
     public static final int TRAIL_CELL = 256;
     public static final int SUNKEN_CELL = 384;
@@ -104,7 +105,7 @@ public final class RuinSites {
     private final ConcurrentHashMap<RuinSite, RuinPlan> plans = new ConcurrentHashMap<>();
     private static final Object NO_SITE = new Object();
     /** Survey statistics for the devtools: see {@link TrailSurvey} for the slots. */
-    public final AtomicLongArray stats = new AtomicLongArray(48);
+    public final AtomicLongArray stats = new AtomicLongArray(64);
 
     /** Smooth fields over the trail network: which stretches are lit, on which side, in what style. */
     private final SimplexNoise litNoise;
@@ -286,6 +287,19 @@ public final class RuinSites {
     // =========================================================================================
     // Climate, biome and materials
     // =========================================================================================
+
+    /**
+     * Whether a trail is drawn at a column: laid there ({@link TrailGeometry#laid}) in a biome that
+     * shows trails (the surface rule draws none in deserts or on beaches, so nothing stands
+     * beside them). The devtools measure trail length with it.
+     */
+    public boolean trailShown(int x, int z) {
+        if (!TrailGeometry.laid(model, x, z)) {
+            return false;
+        }
+        ColumnSample s = model.sample(x & ~3, z & ~3);
+        return RuinBiomes.trailVisible(biome(x, (int) s.height, z, s));
+    }
 
     /** Biome category at a column: from the world when a filter is installed, else estimated. */
     int biome(int x, int y, int z, ColumnSample s) {
@@ -571,18 +585,20 @@ public final class RuinSites {
      * water solver digs within about one and a half blocks of its centre line, wider where it is
      * stronger; half a block more is counted to be safe).
      */
-    public static boolean water(TerrainModel m, int x, int z, ColumnSample scratch) {
-        return waterKind(m, x, z, scratch) != DRY;
+    public static boolean water(TerrainModel m, int x, int z) {
+        return waterKind(m, x, z) != DRY;
     }
 
     /** What water a column holds: {@link #DRY}, a {@link #STREAM} or {@link #BROAD_WATER}. */
-    public static int waterKind(TerrainModel m, int x, int z, ColumnSample scratch) {
-        m.sampleInto(x & ~3, z & ~3, scratch);
-        if (scratch.waterLevel != ColumnSample.NO_WATER && scratch.waterLevel > scratch.height || scratch.river > 0.0 || scratch.lake > 0.0
-            || scratch.height < m.seaLevel()) {
+    public static int waterKind(TerrainModel m, int x, int z) {
+        ColumnSample s = m.sample(x & ~3, z & ~3);
+        if (s.waterLevel != ColumnSample.NO_WATER && s.waterLevel > s.height || s.river > 0.0 || s.lake > 0.0 || s.height < m.seaLevel()) {
             return BROAD_WATER;
         }
-        return scratch.stream > 0.0 && m.streamDistance(x, z) < 1.25 + 1.5 * scratch.stream + 0.5 ? STREAM : DRY;
+        // the water solver takes a stream's strength from the nearest grid corner, this test from
+        // the one below: either may be the only one that knows a weak stream is there
+        double strength = Math.max(s.stream, m.sample((x + 2) & ~3, (z + 2) & ~3).stream);
+        return strength > 0.0 && m.streamDistance(x, z) < 1.25 + 1.5 * strength + 0.5 ? STREAM : DRY;
     }
 
     /** Whether a rock formation of the given type (0: any) stands within {@code dist} blocks. */
@@ -674,7 +690,10 @@ public final class RuinSites {
     /**
      * Nearest built site matching a {@link #selector}, searching outward in square rings of cells,
      * like the finder's other site searches. Sites refused by the world filter are skipped, the
-     * same test the feature applies before building, so what is found is always there.
+     * same test the feature applies before building, so what is found is always there. A site in
+     * ring r can be farther than one in ring r + 1, so the search goes on until a ring's nearest
+     * possible site is farther than the best one found. The result is the site's {@link #visit}
+     * point, a place to stand and look at it from.
      */
     public static TerrainFinder.Result find(TerrainModel model, int selector, String label, int x, int z, int radius, BooleanSupplier cancelled) {
         RuinSites sites = of(model);
@@ -683,12 +702,17 @@ public final class RuinSites {
         int cx = Math.floorDiv(x, cell);
         int cz = Math.floorDiv(z, cell);
         int rings = radius / cell + 1;
+        RuinSite best = null;
+        double bestD = Double.MAX_VALUE;
         for (int r = 0; r <= rings; r++) {
             if (cancelled.getAsBoolean()) {
                 return null;
             }
-            RuinSite best = null;
-            double bestD = Double.MAX_VALUE;
+            // every site of ring r lies at least (r - 1) cells from the origin
+            double inner = Math.max(0, r - 1) * (double) cell;
+            if (best != null && inner * inner > bestD) {
+                break;
+            }
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != r) {
@@ -703,10 +727,58 @@ public final class RuinSites {
                     }
                 }
             }
-            if (best != null) {
-                return new TerrainFinder.Result(best.x, best.y, best.z, label);
-            }
         }
-        return null;
+        if (best == null) {
+            return null;
+        }
+        int[] v = sites.visit(best);
+        return new TerrainFinder.Result(v[0], v[1], v[2], label);
+    }
+
+    /**
+     * Where the finder sends a player to look at a site from ({@link Standpoint}): the trail in
+     * front of a trail ruin, the path side of a signpost or of the middle post of a lit stretch,
+     * the floor of a sunken ruin. Never inside a block, down a shaft or in water. Worked out from
+     * the site's plans when first asked, then kept in the site.
+     */
+    public int[] visit(RuinSite s) {
+        int[] v = s.visit;
+        if (v != null) {
+            return v;
+        }
+        List<RuinPlan> plans = new ArrayList<>();
+        int x0;
+        int z0;
+        if (s instanceof TrailRuin t) {
+            plans.add(plan(t));
+            x0 = t.trailX;
+            z0 = t.trailZ;
+        } else if (s instanceof Signpost p) {
+            plans.add(SignpostPlanner.plan(this, p));
+            x0 = p.x + 2 * RuinCell.DX[p.toTrail];
+            z0 = p.z + 2 * RuinCell.DZ[p.toTrail];
+        } else if (s instanceof LightStretch l) {
+            // the middle post, at which the stretch is found
+            LightStretch.Post mid = l.posts[0];
+            for (LightStretch.Post p : l.posts) {
+                if (p.x() == l.x && p.z() == l.z) {
+                    mid = p;
+                }
+            }
+            for (LightStretch.Post p : l.posts) {
+                if (Math.abs(p.x() - mid.x()) <= 16 && Math.abs(p.z() - mid.z()) <= 16) {
+                    plans.add(LampPostPlanner.plan(p));
+                }
+            }
+            x0 = mid.x() + 2 * RuinCell.DX[mid.toTrail()];
+            z0 = mid.z() + 2 * RuinCell.DZ[mid.toTrail()];
+        } else {
+            plans.add(plan(s));
+            x0 = s.x;
+            z0 = s.z;
+        }
+        v = Standpoint.find(model, plans, x0, z0, s instanceof SunkenRuin);
+        s.visit = v;
+        return v;
     }
 }

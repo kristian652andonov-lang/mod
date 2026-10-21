@@ -50,7 +50,8 @@ import net.minecraft.world.level.storage.loot.LootTable;
  * Building a plan column: the ground is found below any trees, plants and snow; foundation
  * columns are filled from it up to the floor course (at most {@link RuinPlan#MAX_FILL} blocks);
  * then the cells are written, leaving tree trunks, block entities and bedrock alone; finally
- * decals are laid on the ground, each only where something solid carries it. Containers get
+ * decals are laid on the ground, each only where something solid carries it (never leaves, except
+ * under the second course of a hedge). Containers get
  * vanilla loot tables, brushable blocks archaeology loot, and signs their text.
  */
 public final class RuinsFeature extends Feature<NoneFeatureConfiguration> {
@@ -265,7 +266,8 @@ public final class RuinsFeature extends Feature<NoneFeatureConfiguration> {
             return;
         }
         BlockState below = level.getBlockState(pos.set(x, y - 1, z));
-        if (!below.isSolid() || below.is(BlockTags.LEAVES)) {
+        // nothing sits on a tree's leaves, but a hedge grows a second course on its first
+        if (!below.isSolid() || below.is(BlockTags.LEAVES) && part != RuinPart.LEAVES) {
             return;
         }
         BlockState existing = level.getBlockState(pos.set(x, y, z));

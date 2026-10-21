@@ -26,7 +26,7 @@ public final class RuinDemos {
         int path = kind == TrailRuin.BRIDGE ? BRIDGE_SPAN : spec.footpath() ? 7 : 0;
         String loot = RuinSites.lootTable(kind, variant, climate, RuinBiomes.PLAINS, materials);
         TrailRuin site = new TrailRuin(spec.w() / 2, 65, spec.d() / 2, seed, -40, -40, 50, 50, kind, variant, style, state, climate, materials, f,
-            spec, kind == TrailRuin.BRIDGE ? 65 : 64, decay, wetness, RuinNames.name(seed), spec.doorU(), -7, loot, path);
+            spec, kind == TrailRuin.BRIDGE ? 65 : 64, decay, wetness, RuinNames.name(seed), spec.doorU(), -7, loot, path, null);
         return RuinSites.planOf(site);
     }
 

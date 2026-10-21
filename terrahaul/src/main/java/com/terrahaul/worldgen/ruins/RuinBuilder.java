@@ -92,14 +92,29 @@ abstract class RuinBuilder {
         this.c = new Canvas(spec.minU() - 1, Math.min(spec.minV(), pathV) - 1, spec.maxU() + 1, spec.maxV() + 1, -6, spec.hw() + 12);
     }
 
-    /** Draws the footpath, converts the canvas into a world plan and prunes everything that would float. */
+    /**
+     * Draws the footpath, keeps what lies on the ground off the trail, converts the canvas into a
+     * world plan and prunes everything that would float.
+     */
     RuinPlan finish() {
         if (spec.footpath() && drawFootpath) {
             footpath();
         }
+        // spilled loads, rubble and wheels stop at the path edge; plants may grow up to it
+        c.decals.removeIf(d -> d.dy() > 0 && !plant(RuinCell.part(d.cell())) && site.trailDistance(d.x(), d.z()) < PATH_CLEAR);
         RuinPlan plan = c.toPlan(site.frame, RuinPlan.ABSOLUTE, site.floorY, site.materials, false);
         plan.prune();
         return plan;
+    }
+
+    /** Least distance from the centre of the trail to anything standing on the ground beside it (the path's frayed edge). */
+    static final double PATH_CLEAR = 2.6;
+
+    private static boolean plant(RuinPart p) {
+        return switch (p) {
+            case SHORT_GRASS, FERN, TALL_GRASS, FLOWER, DEAD_BUSH, MUSHROOM, MOSS_CARPET, LITTER -> true;
+            default -> false;
+        };
     }
 
     // =========================================================================================
@@ -1525,8 +1540,18 @@ abstract class RuinBuilder {
             c.decal(u, v, 0, RuinCell.of(n > 0.2 || n < -0.6 ? RuinPart.COARSE_DIRT : RuinPart.DIRT_PATH));
         }
         if (chance(nameBoard) && site.pathLength >= 4) {
-            int v = -site.pathLength + 2;
-            int u = door + 2;
+            // beside the footpath near the trail, but never on the trail where it bends close
+            int[] at = null;
+            for (int[] o : new int[][]{{2, 2}, {-2, 2}, {2, 3}, {-2, 3}}) {
+                if (at == null && site.trailDistance(door + o[0], -site.pathLength + o[1]) >= PATH_CLEAR) {
+                    at = new int[]{door + o[0], -site.pathLength + o[1]};
+                }
+            }
+            if (at == null) {
+                return;
+            }
+            int u = at[0];
+            int v = at[1];
             c.decal(u, v, 1, RuinCell.of(RuinPart.FENCE));
             c.decal(u, v, 2, RuinCell.of(RuinPart.STANDING_SIGN, RuinCell.NORTH));
             boolean blank = chance(0.35);

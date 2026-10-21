@@ -127,7 +127,7 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
   tower house; built as a timber frame in temperate land, a log cabin in the cold, of stone in the
   uplands, of mud brick or sandstone in hot dry land and raised on stilts in the jungle; with the
   roof fallen in, a wall collapsed into rubble, burned out, down to its foundations and chimney,
-  or overgrown. Inside lie a chest with village loot, barrels, a broken bed, a hearth, cobwebs;
+  or overgrown. Inside lie a chest with village loot, barrels, a bed or its rotten frame, a hearth, cobwebs;
   outside the remains of a fence, a well, a garden patch.
 - **Other trailside ruins**, each in a few variants: collapsed watchtowers, abandoned wells, broken
   wagons and carts with their spilled load, wayside shrines, old campsites, field walls with a
@@ -185,7 +185,9 @@ client, the wind animates falling leaves, petals and dust and sways vegetation.
 
 ### Finder command
 `/terrahaul find <landform> [radius]` locates landforms using the terrain model, so it does not
-need to generate chunks. The result is a clickable teleport suggestion. Landforms:
+need to generate chunks. The result is a clickable teleport suggestion; for ruins, signposts and
+path lights it is a safe spot to stand beside them (on the trail in front of a ruin, never inside
+a wall or down a well). Landforms:
 
 | Group | Landforms |
 |---|---|

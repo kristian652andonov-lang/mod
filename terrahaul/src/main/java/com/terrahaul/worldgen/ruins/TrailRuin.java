@@ -1,5 +1,7 @@
 package com.terrahaul.worldgen.ruins;
 
+import com.terrahaul.worldgen.terrain.TerrainModel;
+
 /**
  * A ruin beside a trail: a broken house, or one of the other things that are left along old roads
  * (a watchtower, a well, a wagon, a shrine, a campsite, field walls with a gateway, the abutments
@@ -43,10 +45,12 @@ public final class TrailRuin extends RuinSite {
     public final String lootTable;
     /** Length of the footpath from the front to the trail, in blocks. */
     public final int pathLength;
+    /** The terrain the ruin stands in, which the planner asks where the trail runs; {@code null} for the devtools' demos. */
+    final TerrainModel model;
 
     TrailRuin(int x, int y, int z, long seed, int minX, int minZ, int maxX, int maxZ, int kind, int variant, int style, int state, int climate,
               RuinMaterials materials, Canvas.Frame frame, RuinSpec spec, int floorY, double decay, double wetness, String name, int trailX,
-              int trailZ, String lootTable, int pathLength) {
+              int trailZ, String lootTable, int pathLength, TerrainModel model) {
         super(RuinSites.TRAIL_RUIN, x, y, z, seed, minX, minZ, maxX, maxZ);
         this.kind = kind;
         this.variant = variant;
@@ -64,6 +68,15 @@ public final class TrailRuin extends RuinSite {
         this.trailZ = trailZ;
         this.lootTable = lootTable;
         this.pathLength = pathLength;
+        this.model = model;
+    }
+
+    /**
+     * Distance from a column of the canvas to the centre of the trail, so the planner keeps what
+     * stands on the ground off the path; without a model (a demo on open ground) there is no trail.
+     */
+    double trailDistance(int u, int v) {
+        return model == null ? Double.MAX_VALUE : model.trailDistance(frame.x(u, v), frame.z(u, v));
     }
 
     /** A short description for the devtools: kind and variant, style and state of a house. */

@@ -20,7 +20,7 @@ import com.terrahaul.worldgen.noise.SeedMixer;
  *       chimney standing, or {@link #OVERGROWN} with moss, vines, leaves and grass.</li>
  * </ul>
  * Inside lie the remains of the household: a chest with a vanilla village loot table, barrels,
- * a bed or its rotten frame, a table and chairs, a crafting table, flower pots, the hearth,
+ * a bed (or the rotten frame of one), a table and chairs, a crafting table, flower pots, the hearth,
  * cobwebs under what is left of the roof. Outside: what is left of the yard fence, a woodpile,
  * a fire ring, sometimes a well or a garden patch, and something buried to dig up.
  */
@@ -565,6 +565,10 @@ public final class HousePlanner extends RuinBuilder {
             ashes(b);
             return;
         }
+        // the bed first: it needs two cells against the back wall, which the other things crowd
+        if (b.partition < 0) {
+            bed(b, u0, u1);
+        }
         int[] cell;
         // the chest: every lived-in house had one
         if ((cell = propCellIn(b, u0, u1)) != null) {
@@ -603,9 +607,6 @@ public final class HousePlanner extends RuinBuilder {
             c.set(cell[0], y, cell[1], RuinCell.of(RuinPart.LANTERN));
         }
         table(b, u0, u1);
-        if (b.partition < 0) {
-            bed(b, u0, u1);
-        }
         floorPlants(b);
         overgrowth(b);
     }
@@ -649,9 +650,14 @@ public final class HousePlanner extends RuinBuilder {
         return null;
     }
 
-    /** A bed against the back wall: a real one in the better kept houses, else a rotten frame. */
+    /**
+     * A bed against the back wall. Most lived-in houses keep a real one (vanilla beds cannot be
+     * broken in half), webbed over where the house has gone far; the others keep the rotten frame
+     * of one: a plank stair whose back stands against the wall for the headboard and a slab for
+     * the foot. Roof debris is cleared from under and beside it so the frame reads as a bed.
+     */
     private void bed(Body b, int u0, int u1) {
-        if (!chance(0.75)) {
+        if (!chance(0.8) || b.burned || b.foundationsOnly) {
             return;
         }
         int y = b.y0 + 1;
@@ -660,27 +666,51 @@ public final class HousePlanner extends RuinBuilder {
         if (hi < lo) {
             return;
         }
-        int u = b.ou + lo + rnd.nextInt(hi - lo + 1);
         int head = b.ov + b.d - 2;
         int foot = head - 1;
-        if (reservedCell(u, head) || reservedCell(u, foot) || !c.empty(u, y, head) || !c.empty(u, y, foot)
-            || !c.part(u, b.y0, head).structural || !c.part(u, b.y0, foot).structural) {
+        // the first column of the room, from a random one on, with room for it
+        int start = rnd.nextInt(hi - lo + 1);
+        int u = Integer.MIN_VALUE;
+        for (int k = 0; k <= hi - lo && u == Integer.MIN_VALUE; k++) {
+            int cu = b.ou + lo + (start + k) % (hi - lo + 1);
+            if (cu - b.ou != b.partition && bedCell(b, cu, head) && bedCell(b, cu, foot)) {
+                u = cu;
+            }
+        }
+        if (u == Integer.MIN_VALUE) {
             return;
         }
         reserve(u, head);
         reserve(u, foot);
-        if (decay < 0.5 && site.state != OVERGROWN && chance(0.4)) {
+        if (chance(0.6)) {
             int colour = rnd.nextInt(3);
             c.set(u, y, head, RuinCell.withAux(RuinCell.of(RuinPart.BED, RuinCell.SOUTH) | RuinCell.TOP, colour));
             c.set(u, y, foot, RuinCell.withAux(RuinCell.of(RuinPart.BED, RuinCell.SOUTH), colour));
+            if (decay > 0.55 && chance(0.7) && c.empty(u, y + 1, head)) {
+                // a web strung from the wall over the pillow
+                c.set(u, y + 1, head, RuinCell.of(RuinPart.COBWEB) | RuinCell.SOFT);
+            }
         } else {
-            // the broken bed: a rotten frame of slabs, the blanket still on it
-            c.set(u, y, head, RuinCell.of(RuinPart.PLANK_SLAB));
-            c.set(u, y, foot, chance(0.3) ? RuinCell.of(RuinPart.PLANK_STAIR, RuinCell.SOUTH) : RuinCell.of(RuinPart.PLANK_SLAB));
-            if (RuinCell.part(c.get(u, y, foot)) == RuinPart.PLANK_SLAB && chance(0.6)) {
-                c.set(u, y + 1, foot, RuinCell.withAux(RuinCell.of(RuinPart.CARPET), rnd.nextInt(3)));
+            c.set(u, y, head, RuinCell.of(RuinPart.PLANK_STAIR, RuinCell.SOUTH));
+            c.set(u, y, foot, RuinCell.of(RuinPart.PLANK_SLAB));
+        }
+        // no roof slabs or stairs lying against it, which would hide its shape
+        for (int[] n : new int[][]{{u - 1, head}, {u + 1, head}, {u - 1, foot}, {u + 1, foot}, {u, foot - 1}}) {
+            if (debris(c.part(n[0], y, n[1]))) {
+                c.set(n[0], y, n[1], 0);
             }
         }
+    }
+
+    /** Whether a cell of the floor can take half a bed: on a floor, free, or holding only roof debris. */
+    private boolean bedCell(Body b, int u, int v) {
+        int y = b.y0 + 1;
+        return !reservedCell(u, v) && c.part(u, b.y0, v).structural && (c.empty(u, y, v) || debris(c.part(u, y, v)));
+    }
+
+    /** What fell from the roof onto the floor. */
+    private static boolean debris(RuinPart p) {
+        return p == RuinPart.ROOF_SLAB || p == RuinPart.ROOF_STAIR || p == RuinPart.LITTER;
     }
 
     /** A table (a post with a cloth on it) and a chair or two, somewhere in the middle of the room. */
