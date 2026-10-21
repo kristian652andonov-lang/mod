@@ -285,7 +285,9 @@ public final class TerrainModel {
      * Share of the relief of an ancient range, compared with an alpine one: lower, but still steep
      * enough that its crests are sharp.
      */
-    private static final double ANCIENT_RELIEF = 0.75;
+    private static final double ANCIENT_RELIEF = 0.85;
+    /** Scale of the noise whose zero lines raise the summits along an ancient range's crests (see {@link #rangeShape}). */
+    private static final double ANCIENT_TOOTH = 420.0;
     /**
      * How much of the range rising above a main valley's trough its sides keep (see
      * {@link #rangeShape}).
@@ -519,7 +521,10 @@ public final class TerrainModel {
             mt.relief = relief;
             mt.rangeS = s0;
             mt.massif = massif;
-            shape = clamp01(Math.max(s0, massif) + (gully + ledge) / Math.max(relief + massifScale * massif, 1.0));
+            // (raised to a power below 1: the concave flanks and narrow crests leave less ground
+            // high in the relief than the rounder ranges the biome source, crags, scree, ruins and
+            // mountain lakes were tuned on, and their thresholds are kept on that scale)
+            shape = Math.pow(clamp01(Math.max(s0, massif) + (gully + ledge) / Math.max(relief + massifScale * massif, 1.0)), 0.9);
             // a range that stands high above the base profile counts as mountain whatever the
             // mask says (a massif reaches far beyond it), so rivers, canyons, plateaus and hills
             // keep off its flanks instead of cutting slots hundreds of blocks deep into them. It is
@@ -764,17 +769,21 @@ public final class TerrainModel {
         if (ancientW > 0.01) {
             // old ranges: lower, more evenly spread and broken up than alpine ones, but still sharp
             // crests between steep flanks (worn-down domes looked like a field of dunes). The
-            // crests lie close together, some 600 blocks apart, so the flanks between them are
+            // crests lie close together, some 500 blocks apart, so the flanks between them are
             // steep although the relief is lower (twice as far apart, they were gentle slopes of
             // 25-30 degrees). A broad swell of the field lifts some groups of crests above the
-            // others.
+            // others. Along each crest the height climbs to cusped summits and drops into notches
+            // where the zero lines of a second field cross it (as on a mountain wall's crest):
+            // following the ridged field alone, a crest rose and fell smoothly along its length,
+            // and its summits were rounded knobs.
             // (the swell changes little over kilometres: the column's finite-difference neighbours
             // reuse the column's own)
-            double ridge = ancientRidges.ridged(x / (ms * 0.55), z / (ms * 0.55), 1.0, 3);
+            double ridge = ancientRidges.ridged(x / (ms * 0.45), z / (ms * 0.45), 1.0, 3);
             if (collect) {
                 mt.swell = 0.55 + 0.45 * smoothstep(0.2, 0.8, 0.5 + 0.5 * ancientRidges.fbm(x / (ms * 2.6) + 40.0, z / (ms * 2.6) - 70.0, 2));
             }
-            s += ancientW * Math.pow(clamp01((ridge - 0.1) / 0.8), 1.5) * mt.swell * 0.95;
+            double tooth = clamp01(1.0 - 1.4 * Math.abs(crestTeethNoise.fbm(x / (ANCIENT_TOOTH * hs) + 63.0, z / (ANCIENT_TOOTH * hs) - 7.0, 1)));
+            s += ancientW * Math.pow(clamp01((ridge - 0.1) / 0.8), 1.5) * mt.swell * (0.72 + 0.33 * tooth);
         }
         if (wallW > 0.01) {
             // one continuous crest along the belt line, which carries the summits of the range and

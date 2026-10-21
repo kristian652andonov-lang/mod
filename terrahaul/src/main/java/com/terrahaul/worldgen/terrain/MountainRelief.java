@@ -47,10 +47,12 @@ final class MountainRelief {
      */
     private static final double MAX_SLOPE = 2.8;
     private static final double MIN_CROSS = 0.5;
-    /** Size of the patches of ledgy rock (noise scale, blocks): ledges some 20-80 blocks long. */
-    private static final double LEDGE_PATCH = 85.0;
-    /** Height between the ledges of a patch (blocks), varied by 30% either way. */
-    private static final double LEDGE_STEP = 30.0;
+    /** Size of the patches of ledgy rock (noise scale, blocks): ledges some 30-100 blocks long. */
+    private static final double LEDGE_PATCH = 110.0;
+    /** Mean height between the ledges of a patch (blocks; see {@link #ledges}). */
+    private static final double LEDGE_STEP = 36.0;
+    /** Greatest shift of the ledges' levels across a mountain (blocks). */
+    private static final double LEDGE_SHIFT = 60.0;
 
     private final long gullySeed;
     /** Patches of ledgy rock and the levels of their ledges (see {@link #ledges}). */
@@ -419,19 +421,22 @@ final class MountainRelief {
     }
 
     /**
-     * Small ledges and shoulders on steep mountain ground: the slope climbs, levels out for a few
+     * Small ledges and shoulders on steep mountain ground: the slope climbs, eases off for a few
      * blocks (up to about 15) and climbs again. Each ledge is a bench cut into the slope: within
-     * a step of height the lowest part is flattened and the rest steepened, so ground is only ever
-     * lowered, by at most two fifths of a step, and never stands out of the slope as a wall.
+     * a step of height the lowest part keeps a fifth of the slope and the rest is steepened, so
+     * ground is only ever lowered, by at most two fifths of a step, never stands out of the slope
+     * as a wall, and every bench falls outwards (a bench that rose towards its edge read as a rice
+     * terrace).
      * <p>
      * Ledges are patchy: they form only in scattered patches of rock (about a fifth of the steep
      * ground) and fade out along the slope at the patch edges, so no ledge runs around a mountain
-     * as a contour ring. Each patch has its own step and its own levels, and they tilt a little
-     * across the slope, so the ledges of neighbouring patches never line up into terraces. A patch
-     * holds one to three ledges, not a staircase; the steepest faces get none (their ledges would
-     * crowd together and their risers would be sheer walls). The caller cuts them into the slope
-     * before its gullies, which then break them up: a ledge shows as a shoulder on a spur and as
-     * a step in the floor of a gully.
+     * as a contour ring. The levels are the height warped so that successive ledges lie 20-90
+     * blocks of height apart rather than at an even step, and shifted by an amount that changes
+     * slowly across the mountain, so a patch holds one to three ledges at irregular heights, not a
+     * staircase, and patches far apart have different levels. The steepest faces get none (their
+     * ledges would crowd together and their risers would be sheer walls). The caller cuts them
+     * into the slope before its gullies, which then break them up: a ledge shows as a shoulder on a
+     * spur and as a step in the floor of a gully.
      *
      * @param h      height of the ground being shaped, in blocks
      * @param slope  its gradient, smoothed over a few dozen blocks, in blocks per block
@@ -444,24 +449,27 @@ final class MountainRelief {
         if (w <= 0.0) {
             return 0.0;
         }
-        double patch = smoothstep(0.22, 0.45, ledgeNoise.noise2(x / LEDGE_PATCH, z / LEDGE_PATCH));
+        double patch = smoothstep(0.15, 0.55, ledgeNoise.noise2(x / LEDGE_PATCH, z / LEDGE_PATCH));
         w *= patch;
         if (w <= 0.0) {
             return 0.0;
         }
-        double vary = ledgeNoise.noise2(x / 610.0 + 37.1, z / 610.0 - 11.3);
-        // (the step must not follow anything that changes quickly: the levels are the height
-        // divided by it, and a step changing by a few blocks over a few blocks would sweep the
-        // levels of a high mountain through many ledges, as a zebra of stripes)
-        double step = LEDGE_STEP * (1.0 + 0.3 * vary);
-        // a shift of the levels by up to a step that changes slowly across the mountain, plus a
-        // gentle tilt along the patch, so no two patches share their levels
-        double shift = 40.0 * vary + 9.0 * ledgeNoise.noise2(x / 190.0 - 23.7, z / 190.0 + 51.9);
-        double t = (h + shift) / step;
+        // the levels follow nothing that changes quickly across the ground: a bench is level
+        // along a level of the warped height, and tilts as the shift and warp change. (With a step
+        // that changed over a few hundred blocks, the levels of ground 600 blocks high, some twenty
+        // steps up, swept by over a block per block: the ledges crowded into stripes every 15
+        // blocks, and their benches rose towards their edges.)
+        double shift = LEDGE_SHIFT * ledgeNoise.noise2(x / 1500.0 + 37.1, z / 1500.0 - 11.3);
+        double hs = h + shift;
+        // the warp: its slope swings between 0.4 and 1.6, so the ledges are spaced unevenly
+        double phase = hs * (TAU / (2.3 * LEDGE_STEP));
+        double t = (hs + 0.6 * LEDGE_STEP * 2.3 / TAU * Math.sin(phase)) / LEDGE_STEP;
+        double rate = 1.0 + 0.6 * Math.cos(phase);
         double f = t - Math.floor(t);
-        // flat share of a step: narrow ledges at the patch edges, wider inside
+        // share of a step the bench takes: narrow ledges at the patch edges, wider inside. The
+        // bench keeps a fifth of the slope, the riser above it takes the rest.
         double k = 0.1 + 0.28 * patch;
-        double g = f < k ? 0.0 : (f - k) / (1.0 - k);
-        return w * step * (g - f);
+        double g = f < k ? 0.2 * f : 0.2 * k + (f - k) * (1.0 - 0.2 * k) / (1.0 - k);
+        return w * LEDGE_STEP * (g - f) / rate;
     }
 }
