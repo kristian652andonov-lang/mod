@@ -55,6 +55,14 @@ import javax.imageio.ImageIO;
  *   <li>{@code cost <seed> <half>}: planning time per cell on a fresh planner.</li>
  *   <li>{@code dump <seed> <x> <z> <radius>}: the solved columns around a point, with the plans
  *       applied: water level, falling water, banks the solver raised and the shaped ground.</li>
+ *   <li>{@code guards <seed> <half> <out> [shuffle]}: the guard the plans set for caves and
+ *       carvers ({@link FallPlanner#guardLevel}) at every grid corner of {@code [-half, half)^2},
+ *       asked tile by tile (64 blocks) in sweep order, or in an order shuffled with the given seed;
+ *       written as one big-endian short per corner, row by row ({@code Short.MIN_VALUE} where no
+ *       plan guards), so two builds, or two orders, can be compared byte for byte.</li>
+ *   <li>{@code probes <seed> <count>}: the cost of the guard where nothing has been planned yet,
+ *       as structure placement, {@code /locate} and explorer maps ask for it: one lookup each at
+ *       points thousands of blocks apart, timed (mean, slowest).</li>
  * </ul>
  * Only the parts of {@link FallPlan} that every version of it has are used, so the tool can be
  * run against older builds for comparisons.
@@ -121,6 +129,8 @@ public final class FallStudy {
             case "shot" -> shot(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), new File(args[4]));
             case "dump" -> dump(model, Integer.parseInt(args[2]), Integer.parseInt(args[3]), Integer.parseInt(args[4]));
             case "order" -> order(seed, Integer.parseInt(args[2]));
+            case "guards" -> guards(model, Integer.parseInt(args[2]), new File(args[3]), args.length > 4 ? Long.parseLong(args[4]) : 0L);
+            case "probes" -> probes(model, Integer.parseInt(args[2]));
             default -> throw new IllegalArgumentException("unknown mode " + mode);
         }
     }
@@ -1036,6 +1046,69 @@ public final class FallStudy {
             System.exit(1);
         }
         System.out.println("OK: every plan and its cave guard are the same whatever the order");
+    }
+
+    // =========================================================================================
+    // guards
+    // =========================================================================================
+
+    /** The cave guard at every grid corner of an area, tile by tile in sweep or shuffled order, to a file. */
+    private static void guards(TerrainModel model, int half, File out, long shuffle) throws Exception {
+        List<int[]> tiles = new ArrayList<>();
+        for (int tz = -half; tz < half; tz += 64) {
+            for (int tx = -half; tx < half; tx += 64) {
+                tiles.add(new int[]{tx, tz});
+            }
+        }
+        if (shuffle != 0L) {
+            java.util.Collections.shuffle(tiles, new java.util.Random(shuffle));
+        }
+        int n = half / 2;
+        short[] level = new short[n * n];
+        int guarded = 0;
+        long t0 = System.nanoTime();
+        for (int[] t : tiles) {
+            for (int z = t[1]; z < Math.min(half, t[1] + 64); z += 4) {
+                for (int x = t[0]; x < Math.min(half, t[0] + 64); x += 4) {
+                    double g = FallPlanner.guardLevel(model, x, z);
+                    if (g != ColumnSample.NO_WATER) {
+                        guarded++;
+                    }
+                    level[((z + half) >> 2) * n + ((x + half) >> 2)] = g == ColumnSample.NO_WATER ? Short.MIN_VALUE : (short) g;
+                }
+            }
+        }
+        try (java.io.DataOutputStream o = new java.io.DataOutputStream(new java.io.BufferedOutputStream(new java.io.FileOutputStream(out)))) {
+            for (short v : level) {
+                o.writeShort(v);
+            }
+        }
+        System.out.printf(Locale.ROOT, "%d grid corners in %.1f s, %d under a plan's guard; written to %s%n", level.length, (System.nanoTime() - t0) / 1e9, guarded, out);
+    }
+
+    /**
+     * The cost of the cave guard where nothing has been planned: one lookup each at points
+     * thousands of blocks apart (the column itself sampled first, as the noise column would).
+     */
+    private static void probes(TerrainModel model, int count) {
+        java.util.Random r = new java.util.Random(7);
+        // warm up the JIT far away
+        FallPlanner.guardLevel(model, 100000, 100000);
+        long total = 0;
+        long slowest = 0;
+        int guarded = 0;
+        for (int i = 0; i < count; i++) {
+            int x = (r.nextInt(40) - 20) * 3000 + r.nextInt(1000);
+            int z = (r.nextInt(40) - 20) * 3000 + r.nextInt(1000);
+            model.sample(x & ~3, z & ~3);
+            long t0 = System.nanoTime();
+            double g = FallPlanner.guardLevel(model, x, z);
+            long t = System.nanoTime() - t0;
+            total += t;
+            slowest = Math.max(slowest, t);
+            guarded += g != ColumnSample.NO_WATER ? 1 : 0;
+        }
+        System.out.printf(Locale.ROOT, "%d cold guard lookups: mean %.1f ms, slowest %.1f ms, %d under a plan's guard%n", count, total / 1e6 / count, slowest / 1e6, guarded);
     }
 
     // =========================================================================================
