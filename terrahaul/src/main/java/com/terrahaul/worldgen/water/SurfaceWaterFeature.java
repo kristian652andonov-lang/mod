@@ -230,7 +230,43 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
                 }
             }
         }
+
+        // ---- what a waterfall or cascade builds rests on ground -------------------------------
+        // (caves keep well below the plans, see FallPlanner.guardLevel; a small hollow of the 3D
+        // terrain left right under a bed or a built rock is closed)
+        boolean wet = lv != WaterSolver.NONE && step != WaterSolver.SILL;
+        if (ws.planned[k] && (wet || ws.shaped[k] || solidTop > ground)) {
+            int rest = ws.shaped[k] || wet ? Math.min(ground, natural) - 1 : natural;
+            placed |= support(level, pos, palette, x, rest, z, lava);
+        }
         return placed;
+    }
+
+    /**
+     * Closes open blocks from {@code top} down to the first solid block with rock, when that block
+     * is at most {@link WaterSolver#SUPPORT_REACH} below: what a plan built there then stands on
+     * ground. A deeper gap is left alone, since a pillar hanging into a cave is no better than a
+     * shelf; so is one holding fluid.
+     */
+    private static boolean support(WorldGenLevel level, BlockPos.MutableBlockPos pos, WaterPalette palette, int x, int top, int z, boolean lava) {
+        int y = top;
+        while (y > top - WaterSolver.SUPPORT_REACH) {
+            BlockState s = level.getBlockState(pos.set(x, y, z));
+            if (s.blocksMotion()) {
+                break;
+            }
+            if (!s.getFluidState().isEmpty()) {
+                return false;
+            }
+            y--;
+        }
+        if (y == top || !level.getBlockState(pos.set(x, y, z)).blocksMotion()) {
+            return false;
+        }
+        for (int f = y + 1; f <= top; f++) {
+            level.setBlock(pos.set(x, f, z), palette.seal(lava), 2);
+        }
+        return true;
     }
 
     /**

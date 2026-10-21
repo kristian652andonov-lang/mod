@@ -87,6 +87,8 @@ public final class ColumnSample {
     public double riverAridity;
     /** Memo of {@code TerrainModel.nearbyWaterLevel} for this corner ({@code NaN}: not computed). */
     public double nearbyWater;
+    /** Memo of {@code FallPlanner.guardLevel} for this corner ({@code NaN}: not computed). */
+    public double planGuard = Double.NaN;
     public double lake;
     public int lakeType;
     public double lakeLevel;
@@ -199,6 +201,7 @@ public final class ColumnSample {
         riverGreat = o.riverGreat;
         riverAridity = o.riverAridity;
         nearbyWater = Double.NaN;
+        planGuard = Double.NaN;
         lake = o.lake;
         lakeType = o.lakeType;
         lakeLevel = o.lakeLevel;

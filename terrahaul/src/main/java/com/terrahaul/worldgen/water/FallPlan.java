@@ -60,6 +60,19 @@ public final class FallPlan implements WaterPlan {
     /** The course, pools and rocks of a cascade and the ground they shape ({@code null} for waterfalls). */
     CascadeLayout layout;
 
+    // ---- what caves and carvers keep away from (see FallPlanner.guardLevel) ---------------------
+    /** Grid cell (four blocks across, {@code x >> 2}) of {@link #guard}'s first entry, and its size. */
+    private int guardX0;
+    private int guardZ0;
+    private int guardW;
+    private int guardH;
+    /**
+     * Per four-block cell of the bounds, the lowest top of what the plan makes of a column there
+     * (the surface of its water, or the lower of its shaped ground and the model ground the column
+     * is built on, plus one), or {@link Short#MAX_VALUE} where it shapes nothing.
+     */
+    private short[] guard;
+
     // ---- what the finder reports ----------------------------------------------------------------
     public int viewX;
     public int viewY;
@@ -95,6 +108,43 @@ public final class FallPlan implements WaterPlan {
     @Override
     public int maxZ() {
         return maxZ;
+    }
+
+    /** Starts the guard raster over the plan's bounds afresh (see {@link #markGuard}). */
+    void beginGuard() {
+        guardX0 = minX >> 2;
+        guardZ0 = minZ >> 2;
+        guardW = (maxX >> 2) - guardX0 + 1;
+        guardH = (maxZ >> 2) - guardZ0 + 1;
+        guard = new short[guardW * guardH];
+        java.util.Arrays.fill(guard, Short.MAX_VALUE);
+    }
+
+    /**
+     * Records what the plan makes of the column at {@code (x, z)}: water up to (exclusive)
+     * {@code level} ({@link WaterSolver#NONE} if dry) over shaped ground {@code ground}, where the
+     * model ground is {@code natural}.
+     */
+    void markGuard(int x, int z, int level, int ground, int natural) {
+        int top = level != WaterSolver.NONE ? Math.max(level, ground + 1) : Math.min(ground, natural) + 1;
+        int k = ((z >> 2) - guardZ0) * guardW + ((x >> 2) - guardX0);
+        guard[k] = (short) Math.min(guard[k], top);
+    }
+
+    /**
+     * The lowest top of what the plan makes of the columns of the four-block grid cell
+     * {@code (cellX, cellZ)} (blocks {@code 4 cellX} to {@code 4 cellX + 3}): the surface of its
+     * water, or the ground it shapes or builds on, plus one; {@link WaterSolver#NONE} if it shapes
+     * none of them.
+     */
+    public int guardTop(int cellX, int cellZ) {
+        int i = cellX - guardX0;
+        int j = cellZ - guardZ0;
+        if (guard == null || i < 0 || j < 0 || i >= guardW || j >= guardH) {
+            return WaterSolver.NONE;
+        }
+        short v = guard[j * guardW + i];
+        return v == Short.MAX_VALUE ? WaterSolver.NONE : v;
     }
 
     /** Height of the fall from the lip's water to the pool's surface. */
