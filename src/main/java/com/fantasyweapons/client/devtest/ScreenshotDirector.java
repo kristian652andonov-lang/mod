@@ -175,6 +175,11 @@ public final class ScreenshotDirector {
             return run(mc -> net.minecraft.client.KeyMapping.click(mc.options.keyAttack.getKey()));
         }
 
+        /** A real press of the use key, through the game's own item use (and any mod hooked into it). */
+        public Builder use() {
+            return run(mc -> net.minecraft.client.KeyMapping.click(mc.options.keyUse.getKey()));
+        }
+
         public Builder menu(String selectedNode) {
             return run(mc -> {
                 ProgressionScreen screen = new ProgressionScreen(mc.player.getInventory().selected);

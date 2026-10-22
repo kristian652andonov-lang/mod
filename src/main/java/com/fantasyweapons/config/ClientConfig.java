@@ -44,6 +44,8 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue DAMAGE_NUMBERS;
     public static final ModConfigSpec.BooleanValue CONFIRM_UPGRADES;
 
+    public static final ModConfigSpec.BooleanValue PUNCHY_KEEP_OWN_ANIMATIONS;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -69,6 +71,12 @@ public final class ClientConfig {
         EXP_POPUPS = B.comment("Show small +EXP popups").define("exp_popups", true);
         DAMAGE_NUMBERS = B.comment("Show floating damage numbers for your hits").define("damage_numbers", true);
         CONFIRM_UPGRADES = B.comment("Ask for confirmation before spending mastery points").define("confirm_upgrades", true);
+        B.pop();
+
+        B.push("compat");
+        PUNCHY_KEEP_OWN_ANIMATIONS = B.comment("With Punchy installed: keep this mod's own first-person animations (the Wayfarer's Codex, the weapons, the tools)",
+                        "by putting its items on Punchy's item blacklist. Turn off to let Punchy animate them (the Codex then cannot be read).")
+                .define("punchy_keep_own_animations", true);
         B.pop();
 
         SPEC = B.build();

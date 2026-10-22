@@ -43,3 +43,12 @@ type = "optional"
 versionRange = "[2.4,)"
 ordering = "AFTER"
 side = "BOTH"
+
+# optional: with Punchy installed this mod's items are put on its item blacklist, so they keep their own first-person
+# animations (compat/punchy); any version
+[[dependencies.${mod_id}]]
+modId = "punchy"
+type = "optional"
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "CLIENT"

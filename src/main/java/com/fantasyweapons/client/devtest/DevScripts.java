@@ -121,6 +121,7 @@ final class DevScripts {
                 else if (name.startsWith("fpafter:")) fpAfter(b, name.substring(8));
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.equals("bettercombat")) betterCombat(b, null);
+                else if (name.equals("punchy")) punchy(b);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
                 else if (name.startsWith("bcframes:")) betterCombatFrames(b, name.substring(9).split(","));
                 else if (name.equals("magehud")) mageHud(b);
@@ -2830,6 +2831,48 @@ final class DevScripts {
         b.screenshot("bc_thrown").wait(100);
         logCombatFlags(b, "back in hand");
         b.camera(CameraType.FIRST_PERSON).playerView();
+    }
+
+    /**
+     * Punchy (its jar in run/mods): the Wayfarer's Codex opened with the real use key and read, then a blade swung and a
+     * tool held, all in first person; logs whether Punchy leaves each item to this mod ({@code [punchytest]}).
+     */
+    private static void punchy(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
+                .cmd("/clear @s").cmd("/give @s fantasyweapons:wayfarers_codex").wait(12).slot(0).camera(CameraType.FIRST_PERSON).look(0, 10).hud(true).wait(30);
+        logPunchy(b, "codex held");
+        b.screenshot("punchy_codex_held").use();
+        for (int s = 1; s <= 6; s++) {
+            int sec = s;
+            b.wait(20).screenshot("punchy_codex_" + s + "s").run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info("[punchytest] codex at {}s: phase {}, screen {}",
+                    sec, com.fantasyweapons.client.guide.Codex.phase(), mc.screen == null ? "none" : mc.screen.getClass().getSimpleName()));
+        }
+        b.closeScreen().wait(30).screenshot("punchy_codex_closed");
+        for (String w : new String[]{"voidfang", "solaris"}) {
+            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).wait(40);
+            logPunchy(b, w + " held");
+            b.screenshot("punchy_" + w + "_held").swing();
+            for (int f = 0; f < 4; f++) b.wait(3).screenshot("punchy_" + w + "_swing" + f);
+            b.wait(30);
+        }
+        b.cmd("/clear @s").cmd("/give @s fantasyweapons:void_crystal_pickaxe").wait(12).slot(0).wait(30).screenshot("punchy_pickaxe_held");
+        logPunchy(b, "pickaxe held");
+    }
+
+    /** What Punchy makes of the held items: whether each hand is left to this mod (on Punchy's blacklist). */
+    private static void logPunchy(ScreenshotDirector.Builder b, String tag) {
+        b.run(mc -> {
+            String state;
+            try {
+                Class<?> config = Class.forName("punchy.config.PunchyConfig");
+                var check = config.getMethod("isHandBlacklisted", net.minecraft.world.entity.player.Player.class, net.minecraft.world.InteractionHand.class);
+                state = "main left to us=" + check.invoke(null, mc.player, net.minecraft.world.InteractionHand.MAIN_HAND)
+                        + ", off left to us=" + check.invoke(null, mc.player, net.minecraft.world.InteractionHand.OFF_HAND);
+            } catch (ReflectiveOperationException e) {
+                state = "Punchy not installed";
+            }
+            com.fantasyweapons.FantasyWeapons.LOGGER.info("[punchytest] {}: {}", tag, state);
+        });
     }
 
     /** One weapon's Better Combat combo frame by frame (every 3 ticks), from behind and from the side. */

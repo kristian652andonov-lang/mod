@@ -66,6 +66,11 @@ public final class ClientSetup {
             e.register(com.fantasyweapons.registry.ModMenus.UPGRADING.get(), com.fantasyweapons.client.gui.UpgradingScreen::new);
         });
         modBus.addListener(ClientSetup::registerExtensions);
+        // Punchy would draw over the Codex and the weapons' own first-person animations: leave this mod's items to us
+        modBus.addListener((net.neoforged.fml.event.lifecycle.FMLClientSetupEvent e) -> e.enqueueWork(com.fantasyweapons.compat.punchy.PunchyCompat::sync));
+        modBus.addListener((net.neoforged.fml.event.config.ModConfigEvent.Reloading e) -> {
+            if (e.getConfig().getSpec() == com.fantasyweapons.config.ClientConfig.SPEC) com.fantasyweapons.compat.punchy.PunchyCompat.sync();
+        });
         modBus.addListener(com.fantasyweapons.client.particle.ForgeParticles::register);
         modBus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent e) -> {
             e.registerReloadListener(new com.fantasyweapons.client.render.FrameStripTextures());
