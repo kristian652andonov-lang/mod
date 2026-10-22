@@ -2,6 +2,7 @@ package com.terrahaul.dev;
 
 import com.terrahaul.Terrahaul;
 import com.terrahaul.worldgen.TerrahaulGeneration;
+import com.terrahaul.worldgen.surface.MountainFlora;
 import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.TerrainModel;
 import java.awt.image.BufferedImage;
@@ -15,12 +16,17 @@ import java.util.List;
 import java.util.Locale;
 import javax.imageio.ImageIO;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -167,6 +173,7 @@ public final class AutoTest {
                     report.add("    no start of the located structure in chunk " + cx + " " + cz);
                 }
             }
+            mountainFlora(level, model, cx, cz, radius, report);
             areaIndex++;
         }
         // -Dterrahaul.autotest.biomeFeatures=<biome id>: the features the biome holds after biome modifiers
@@ -702,6 +709,156 @@ public final class AutoTest {
                 }
             }
         }
+    }
+
+    /** Distance bands from the tree line of {@link MountainFlora} (blocks below it; negative above), for {@link #mountainFlora}. */
+    private static final int[] FLORA_BANDS = {100, 50, 0, -50, -150, Integer.MIN_VALUE};
+    private static final String[] FLORA_BAND_NAMES = {">100 below", "50-100 below", "0-50 below", "0-50 above", "50-150 above", ">150 above"};
+
+    /**
+     * Census of the vegetation on mountain flanks (columns where {@link MountainFlora} gives a
+     * share above 0.5), independent of how it was placed: per distance band from the tree line,
+     * the share of columns under a tree canopy (leaves or wood above the ground), with a plant on
+     * the ground, and with soil, snow or bare rock as their ground. It also counts tree trunks by
+     * the ground they stand on: the steepest rise over three blocks around the foot (more than 5
+     * is about 60 degrees or steeper) and snow (the ground under the foot, or most of the 5x5
+     * ground around it, snow or ice).
+     */
+    private static void mountainFlora(ServerLevel level, TerrainModel model, int cx, int cz, int radius, List<String> report) {
+        if (model == null) {
+            return;
+        }
+        int bands = FLORA_BANDS.length;
+        int[] columns = new int[bands];
+        int[] canopy = new int[bands];
+        int[] plants = new int[bands];
+        int[] soil = new int[bands];
+        int[] snow = new int[bands];
+        int[] rock = new int[bands];
+        int x0 = (cx - radius) << 4;
+        int z0 = (cz - radius) << 4;
+        int size = (2 * radius + 1) << 4;
+        int[] ground = new int[size * size];
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                int x = x0 + i;
+                int z = z0 + j;
+                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
+                int top = y;
+                while (y > level.getMinBuildHeight() && !floraGround(level.getBlockState(pos.set(x, y, z)))) {
+                    y--;
+                }
+                ground[i * size + j] = y;
+                MountainFlora.Zone f = MountainFlora.at(model, x, z, y);
+                if (f.share <= 0.5) {
+                    ground[i * size + j] = Integer.MIN_VALUE;
+                    continue;
+                }
+                int b = 0;
+                while (f.margin < FLORA_BANDS[b]) {
+                    b++;
+                }
+                columns[b]++;
+                BlockState g = level.getBlockState(pos.set(x, y, z));
+                BlockState above = level.getBlockState(pos.set(x, y + 1, z));
+                if (top > y + 1 || above.is(BlockTags.LOGS)) {
+                    canopy[b]++;
+                } else if (!above.isAir() && !above.is(Blocks.SNOW) && above.getFluidState().isEmpty()) {
+                    plants[b]++;
+                }
+                if (snowy(g)) {
+                    snow[b]++;
+                } else if (g.is(BlockTags.DIRT)) {
+                    soil[b]++;
+                } else {
+                    rock[b]++;
+                }
+            }
+        }
+        report.add("  mountain flanks (flora share > 0.5) by distance from the tree line: columns, under trees, plants, soil, snow, rock ground");
+        for (int b = 0; b < bands; b++) {
+            if (columns[b] == 0) {
+                continue;
+            }
+            double n = columns[b];
+            report.add(String.format(Locale.ROOT, "    %-13s %6d: trees %5.1f%%, plants %5.1f%%, soil %5.1f%%, snow %5.1f%%, rock %5.1f%%",
+                FLORA_BAND_NAMES[b], columns[b], 100.0 * canopy[b] / n, 100.0 * plants[b] / n, 100.0 * soil[b] / n, 100.0 * snow[b] / n,
+                100.0 * rock[b] / n));
+        }
+        // trunk feet: an upright log standing on the ground of its column
+        int feet = 0;
+        int steep = 0;
+        int onSnow = 0;
+        int inSnowfield = 0;
+        List<String> examples = new ArrayList<>();
+        for (int i = 3; i < size - 3; i++) {
+            for (int j = 3; j < size - 3; j++) {
+                int y = ground[i * size + j];
+                if (y == Integer.MIN_VALUE) {
+                    continue;
+                }
+                int x = x0 + i;
+                int z = z0 + j;
+                if (!uprightLog(level.getBlockState(pos.set(x, y + 1, z)))) {
+                    continue;
+                }
+                feet++;
+                int rise = 0;
+                for (int[] d : new int[][]{{3, 0}, {-3, 0}, {0, 3}, {0, -3}}) {
+                    int n = ground[(i + d[0]) * size + j + d[1]];
+                    if (n != Integer.MIN_VALUE) {
+                        rise = Math.max(rise, Math.abs(n - y));
+                    }
+                }
+                if (rise > 5) {
+                    steep++;
+                    if (examples.size() < 4) {
+                        examples.add(x + " " + (y + 1) + " " + z + " rise " + rise);
+                    }
+                }
+                if (snowy(level.getBlockState(pos.set(x, y, z)))) {
+                    onSnow++;
+                }
+                int snowCols = 0;
+                for (int dx = -2; dx <= 2; dx++) {
+                    for (int dz = -2; dz <= 2; dz++) {
+                        int n = ground[(i + dx) * size + j + dz];
+                        if (n != Integer.MIN_VALUE && snowy(level.getBlockState(pos.set(x + dx, n, z + dz)))) {
+                            snowCols++;
+                        }
+                    }
+                }
+                if (snowCols > 12) {
+                    inSnowfield++;
+                }
+            }
+        }
+        report.add(String.format(Locale.ROOT, "  mountain trunks: %d, on ground steeper than 5 over 3 blocks (60+ degrees): %d %s, on snow: %d, in snowfields: %d",
+            feet, steep, examples, onSnow, inSnowfield));
+    }
+
+    /**
+     * Ground under vegetation: a solid block that is not wood, leaves or a plant. (Roots laid into
+     * the ground are wood too, so beside a root flare the ground can read a block lower than it
+     * was.)
+     */
+    private static boolean floraGround(BlockState state) {
+        return state.blocksMotion() && !state.is(BlockTags.LOGS) && !state.is(BlockTags.LEAVES)
+            || !state.getFluidState().isEmpty();
+    }
+
+    /** An upright log (not a bark block): a tree trunk. */
+    private static boolean uprightLog(BlockState state) {
+        return state.is(BlockTags.LOGS) && state.hasProperty(BlockStateProperties.AXIS)
+            && state.getValue(BlockStateProperties.AXIS) == Direction.Axis.Y
+            && !BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath().endsWith("_wood");
+    }
+
+    private static boolean snowy(BlockState state) {
+        return state.is(Blocks.SNOW_BLOCK) || state.is(Blocks.POWDER_SNOW)
+            || state.is(Blocks.PACKED_ICE) || state.is(Blocks.ICE)
+            || state.is(Blocks.BLUE_ICE);
     }
 
     private static void renderArea(ServerLevel level, int cx, int cz, int radius, File file) throws IOException {

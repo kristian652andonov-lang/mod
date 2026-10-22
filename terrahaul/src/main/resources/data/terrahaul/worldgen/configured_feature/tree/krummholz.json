@@ -1,0 +1,20 @@
+{
+  "type": "terrahaul:procedural_tree",
+  "config": {
+    "species": "krummholz",
+    "sizes": [
+      {
+        "data": "young",
+        "weight": 400
+      },
+      {
+        "data": "small",
+        "weight": 400
+      },
+      {
+        "data": "medium",
+        "weight": 200
+      }
+    ]
+  }
+}

@@ -80,6 +80,7 @@ public final class TreeShapes {
             case DEAD -> dead(bp, size);
             case DEAD_SPRUCE -> deadSpruce(bp, size);
             case BURNED -> burned(bp, size);
+            case KRUMMHOLZ -> krummholz(bp, size);
         }
     }
 
@@ -1939,6 +1940,111 @@ public final class TreeShapes {
         Style st = new Style(0.3, 0.05, 0.3, 0.5, 0.45, range(r, 2, 3));
         decurrent(bp, top, t.topDirection(), ends, r0 >= 0.95 ? 0.7 : 0.0, 0, st, bareTwigs(1.5 + 0.3 * size.ordinal()));
         roots(bp, c, size.smaller(), r0, 0.9);
+    }
+
+    // =========================================================================================
+    // Krummholz: spruce stunted and shaped by the wind above the tree line
+    // =========================================================================================
+
+    /** Direction (radians from +x) the prevailing wind blows towards: it comes from the west. */
+    private static final double LEE = 0.0;
+
+    /**
+     * Krummholz: a spruce stunted and trained by the wind above the tree line. The prevailing wind
+     * blows from the west, so every krummholz streams its needles towards the east (give or take
+     * half a radian), and neighbours agree.
+     * <ul>
+     *   <li>young: a low needle bush about two blocks high and three wide on a stub of a stem,
+     *       the form of the most exposed ground;</li>
+     *   <li>small: a prostrate mat two to three blocks high and four to six long, carried by
+     *       crooked limbs that creep downwind, often with a short flag stem rising out of it;</li>
+     *   <li>medium and larger: a flagged dwarf tree four to seven blocks high, a dense skirt of
+     *       needles hugging the ground and above it a stem whose short branches all point
+     *       downwind (the buds on the windward side are killed by blown ice), often with a bare,
+     *       dead tip.</li>
+     * </ul>
+     */
+    private static void krummholz(TreeBlueprint bp, TreeSize size) {
+        RandomGenerator r = bp.random();
+        V lee = horizontal(LEE + range(r, -0.5, 0.5), 1.0);
+        V side = new V(-lee.z, 0, lee.x);
+        if (size == TreeSize.YOUNG) {
+            bp.column(0, 0, 0, r.nextFloat() < 0.5f ? 0 : 1);
+            mat(bp, lee, side, -0.5, range(r, 1.2, 2.2), range(r, 1.3, 1.7), 0.9, 0.9);
+            return;
+        }
+        if (size == TreeSize.SMALL) {
+            bp.column(0, 0, 0, 1);
+            double len = range(r, 3.5, 5.5);
+            int limbs = 2 + r.nextInt(2);
+            for (int i = 0; i < limbs; i++) {
+                V e = lee.mul(len * range(r, 0.65, 0.95)).add(side.mul(range(r, -1.3, 1.3))).add(new V(0, range(r, 0.4, 1.2), 0));
+                bp.path(0, 1, 0, e.x, e.y, e.z, (byte) 0);
+            }
+            mat(bp, lee, side, -0.8, len, range(r, 1.7, 2.2), 1.1, 0.85);
+            if (r.nextFloat() < 0.6f) {
+                flag(bp, lee, 2, range(r, 3, 4), 1.5);
+            }
+            return;
+        }
+        int h = range(r, 4, size == TreeSize.MEDIUM ? 6 : 7);
+        double len = range(r, 3.0, 5.0);
+        for (int i = 0; i < 2; i++) {
+            V e = lee.mul(len * range(r, 0.6, 0.9)).add(side.mul(range(r, -1.4, 1.4))).add(new V(0, range(r, 0.2, 0.8), 0));
+            bp.path(0, 1, 0, e.x, e.y, e.z, (byte) 0);
+        }
+        mat(bp, lee, side, -1.0, len, range(r, 1.9, 2.4), 1.2, 0.85);
+        boolean deadTip = r.nextFloat() < 0.4f;
+        flag(bp, lee, 2, h, 2.4);
+        if (deadTip) {
+            // the leader died back: its top two layers stand bare above the flag
+            for (int y = h - 2; y < h; y++) {
+                for (int dx = -2; dx <= 3; dx++) {
+                    for (int dz = -2; dz <= 2; dz++) {
+                        if (TreeBlueprint.isLeaf(bp.get(dx, y, dz))) {
+                            bp.clear(dx, y, dz);
+                        }
+                    }
+                }
+            }
+        } else {
+            bp.leaf(0, h, 0);
+        }
+    }
+
+    /**
+     * A low mat of needles streaming downwind: overlapping blobs along {@code lee} from
+     * {@code from} to {@code to} blocks from the stem, {@code width} wide at the stem and
+     * narrowing towards the tip, {@code height} high, lying on the ground.
+     */
+    private static void mat(TreeBlueprint bp, V lee, V side, double from, double to, double width, double height, double density) {
+        RandomGenerator r = bp.random();
+        for (double t = from; t <= to + 1e-9; t += 0.9) {
+            double s = (t - from) / Math.max(0.5, to - from);
+            double w = width * (1.0 - 0.5 * s);
+            double hh = height * (1.0 - 0.35 * s);
+            V c = lee.mul(t).add(side.mul(range(r, -0.35, 0.35)));
+            bp.ellipsoid(c.x, hh * 0.5, c.z, w, hh, w, density);
+        }
+    }
+
+    /**
+     * The flag of a krummholz: a stem up to below layer {@code top}, from layer {@code from} up
+     * with short branches only on its lee side, shorter towards the top, each in a tuft of
+     * needles.
+     */
+    private static void flag(TreeBlueprint bp, V lee, int from, int top, double maxLen) {
+        RandomGenerator r = bp.random();
+        bp.column(0, 0, 0, top - 1);
+        double a0 = Math.atan2(lee.z, lee.x);
+        for (int y = from; y < top; y++) {
+            double s = (double) (y - from) / Math.max(1, top - from);
+            double len = Math.max(0.8, maxLen * (1.0 - 0.55 * s) * range(r, 0.75, 1.1));
+            V e = horizontal(a0 + range(r, -0.7, 0.7), len).add(new V(0, y + range(r, -0.4, 0.2), 0));
+            bp.path(0, y, 0, e.x, e.y, e.z, (byte) 0);
+            double rr = 0.9 + 0.3 * len;
+            bp.ellipsoid(e.x * 0.75, y + 0.2, e.z * 0.75, rr, 0.75, rr, 0.85);
+        }
     }
 
     /** A dead conifer: short bare whorl stubs, more of them low down, and a broken top. */

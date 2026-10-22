@@ -39,6 +39,12 @@ public final class ColumnSample {
     public double peakness;
     public double alpine;
     public double ancient;
+    /**
+     * Level of the valley floors of the mountain range around the column (the base profile where
+     * there is no range). It changes only over the range's own extent, so neighbouring mountains
+     * share it; the vegetation of the flanks measures its tree line from it.
+     */
+    public double mountainFloor;
     public double wall;
     public double plateau;
     public double meadow;
@@ -178,6 +184,7 @@ public final class ColumnSample {
         peakness = o.peakness;
         alpine = o.alpine;
         ancient = o.ancient;
+        mountainFloor = o.mountainFloor;
         wall = o.wall;
         plateau = o.plateau;
         meadow = o.meadow;

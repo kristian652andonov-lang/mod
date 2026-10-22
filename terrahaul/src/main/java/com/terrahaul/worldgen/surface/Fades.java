@@ -147,6 +147,8 @@ public final class Fades {
     public static final int SAND = 13;
     /** Sandstone lenses of desert mountains. */
     public static final int SANDSTONE = 14;
+    /** Needle litter of the mountain forests (see {@link MountainFlora}). */
+    public static final int PODZOL = 15;
 
     /**
      * Per-column values of the mountain mosaic, computed once per column by {@link #mountain} and
@@ -196,6 +198,25 @@ public final class Fades {
         public double rubble;
         /** Boundary noise between the mosaic and the strata of the foothills. */
         public double edge;
+        /**
+         * Positive where the vegetation of the flanks has soil ({@link MountainFlora.Zone#soil},
+         * set by the surface rule after {@link Fades#mountain}; 0 or less: none).
+         */
+        public double flora;
+        /**
+         * Whether that soil takes the place of the snow patches (below the tree line) or only fills
+         * the gaps between them (krummholz and meadows).
+         */
+        public boolean floraOverSnow;
+        /** Top block of the flora soil, a material code. */
+        public int floraTop;
+        /** Depth of the flora soil in blocks. */
+        public double floraDepth;
+        /**
+         * Whether only the topmost block (the tread of a step) is soil and the risers below it
+         * stay rock: on steep faces, and on stepped ground without a closed canopy.
+         */
+        public boolean floraTopOnly;
     }
 
     /** Height field that {@link #mountain} reads gullies and ridges from (the model's, or a test scene's). */
@@ -268,13 +289,7 @@ public final class Fades {
             cover += (0.3 * Math.max(-1.0, Math.min(1.0, out.hollow / 2.5)) + 0.15 * broad) * drift;
         }
         // even the snowiest ground keeps a few blotches of rock and earth
-        out.snow = Math.max(0.0, Math.min(0.9, cover));
-        for (int d = 0; d < out.snowCut.length; d++) {
-            // snow lenses thin out at their edges: deeper blocks need a lower field value
-            out.snowCut[d] = snowCut(out.snow - 0.09 * d);
-        }
-        // earth shows in the holes and along the thawed edges of the snow patches
-        out.earthCut = out.snowCut[0] + EARTH_MARGIN;
+        setSnow(out, Math.max(0.0, Math.min(0.9, cover)));
 
         out.moss = col.humidity - 0.05 + 0.45 * plane(model, 7, x, z, 26.0, 2450.0);
         // two octaves each, so patches come in clusters and in every size; the broad octave is
@@ -294,6 +309,20 @@ public final class Fades {
         } else {
             out.rock = 1.0;
         }
+    }
+
+    /**
+     * Sets the share of snowy ground of a column and the cuts that follow from it: snow lenses
+     * per depth (see {@link #snowAt}) and the thawed earth around them.
+     */
+    public static void setSnow(Mountain out, double snow) {
+        out.snow = snow;
+        for (int d = 0; d < out.snowCut.length; d++) {
+            // snow lenses thin out at their edges: deeper blocks need a lower field value
+            out.snowCut[d] = snowCut(out.snow - 0.09 * d);
+        }
+        // earth shows in the holes and along the thawed edges of the snow patches
+        out.earthCut = out.snowCut[0] + EARTH_MARGIN;
     }
 
     /**
@@ -369,8 +398,12 @@ public final class Fades {
      * {@code top} marks the topmost block of the column under open sky and {@code face} an
      * exposed face (see the surface rule).
      * <ol>
+     *   <li>The soil of the mountain forests ({@link Mountain#flora}, see {@link MountainFlora})
+     *       comes first: its top block, then dirt down to its depth, in place of rock and snow
+     *       patches; faces keep their rock.</li>
      *   <li>Snow lies in patches of the snow field, as lenses up to 3 blocks thick (thinner at
-     *       their edges), on gentle ground and faces alike.</li>
+     *       their edges), on gentle ground and faces alike. The soil of the krummholz and alpine
+     *       meadows fills the ground between the patches.</li>
      *   <li>Gentle soil and sand ground that is not an outcrop returns {@link #SOIL}: the
      *       ordinary soil profile applies.</li>
      *   <li>On rock, ledges carry patches of grass or moss below the snow, gentle rock patches of
@@ -379,6 +412,12 @@ public final class Fades {
      * </ol>
      */
     public static int mountainBlock(TerrainModel model, Mountain m, int x, int y, int z, int d, boolean top, boolean face) {
+        boolean flora = m.flora > 0.0 && !face;
+        if (flora && m.floraOverSnow) {
+            // forests: soil where the mosaic would lay rock and snow patches, and
+            // the rock mosaic under it
+            return d < m.floraDepth && (top || !m.floraTopOnly) ? floraBlock(m, d, top) : rock(model, m, x, y, z, d);
+        }
         // the snow field is read once and serves the earth at the snow's edges too
         double snowField = Double.NaN;
         if (d <= 3 && m.snowCut[0] != Double.NEGATIVE_INFINITY) {
@@ -386,6 +425,10 @@ public final class Fades {
             if (snowAt(model, m, x, y, z, d, snowField)) {
                 return SNOW;
             }
+        }
+        if (flora) {
+            // krummholz and alpine meadows: soil between the snow patches
+            return d < m.floraDepth && (top || !m.floraTopOnly) ? floraBlock(m, d, top) : rock(model, m, x, y, z, d, snowField);
         }
         if ((m.ground == GROUND_SOIL || m.ground == GROUND_SAND) && !face && m.rock <= 0.0) {
             return SOIL;
@@ -405,6 +448,21 @@ public final class Fades {
             return m.plants > 0.25 && m.green > 0.3 ? DIRT : m.moss > 0.2 ? COARSE_DIRT : GRAVEL;
         }
         return rock(model, m, x, y, z, d, snowField);
+    }
+
+    /**
+     * A block of the flora soil ({@link Mountain#flora}): its top material on the topmost block,
+     * dirt below and on the risers of small steps; under a coarse top the risers are coarse dirt,
+     * and moss drapes over the edges of the steps it covers.
+     */
+    private static int floraBlock(Mountain m, int d, boolean top) {
+        if (top) {
+            return m.floraTop;
+        }
+        if (d == 0 && (m.floraTop == COARSE_DIRT || m.floraTop == MOSS)) {
+            return m.floraTop;
+        }
+        return DIRT;
     }
 
     /**

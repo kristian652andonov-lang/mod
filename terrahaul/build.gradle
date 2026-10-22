@@ -253,7 +253,7 @@ tasks.register('ruinStudy', JavaExec) {
 // wetland statistics of the model and the shape of its mountains (slopes, ledges, crests), and how
 // rounded the mountains are at random mountain places (domed summits and shoulders, smooth faces)
 ['wallAudit': 'WallAudit', 'finderAudit': 'FinderAudit', 'fragmentAudit': 'FragmentAudit', 'transect': 'Transect', 'snapshot': 'Snapshot', 'wetlandStats': 'WetlandStats',
- 'mountainShapeStats': 'MountainShapeStats', 'domeSurvey': 'DomeSurvey'].each { name, cls ->
+ 'mountainShapeStats': 'MountainShapeStats', 'domeSurvey': 'DomeSurvey', 'floraStudy': 'FloraStudy'].each { name, cls ->
     tasks.register(name, JavaExec) {
         group = 'terrahaul'
         classpath = sourceSets.devtools.runtimeClasspath

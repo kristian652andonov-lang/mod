@@ -1,0 +1,17 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "terrahaul:config",
+      "key": "replace_vanilla_trees"
+    }
+  ],
+  "type": "neoforge:add_features",
+  "biomes": [
+    "minecraft:jungle",
+    "minecraft:sparse_jungle",
+    "minecraft:bamboo_jungle",
+    "minecraft:mangrove_swamp"
+  ],
+  "features": "terrahaul:mountain/montane_tropical",
+  "step": "vegetal_decoration"
+}

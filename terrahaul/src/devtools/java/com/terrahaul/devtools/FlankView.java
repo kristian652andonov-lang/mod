@@ -423,7 +423,8 @@ final class FlankView {
             case Fades.MOSSY_COBBLE -> MOSSY_COBBLESTONE;
             case Fades.GRAVEL -> GRAVEL;
             case Fades.EARTH -> c.col.geology == Geology.GRANITE ? GRANITE : TERRACOTTA;
-            case Fades.COARSE_DIRT -> COARSE_DIRT;
+            // (the flora's podzol: the picture has no colour of its own for it)
+            case Fades.COARSE_DIRT, Fades.PODZOL -> COARSE_DIRT;
             case Fades.DIRT -> DIRT;
             case Fades.MOSS -> MOSS;
             case Fades.GRASS -> GRASS;

@@ -1,0 +1,31 @@
+{
+  "feature": "terrahaul:mountain/alpine_flowers",
+  "placement": [
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 1.6,
+      "density": "vegetation",
+      "scale": 70,
+      "variation": 1.4,
+      "clearing": -0.35
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "alpine"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -226,6 +226,22 @@ running water throws up spray, mist and foam and can be heard.
   put around it.
 - **Forests have layers and clearings:** tree density follows noise, giving clearings and
   thickets. Trees thin out towards an altitude- and climate-dependent tree line and avoid cliffs.
+- **Vegetation climbs the mountains** (Terrahaul world type): conifer forest of spruce, fir and
+  pine on the lower and middle flanks, with the local biome's broadleaf trees low down, thinning
+  out and shrinking towards a ragged tree line. The line is measured from the valley floors
+  around the mountain, so ranges on high ground carry their forests higher; it lies higher in
+  warm and wet climates than in cold and dry ones, higher on south-facing slopes, climbs up
+  sheltered gullies in tongues of trees and drops on exposed ridges, and avalanche tracks below
+  steep ground stay open. Above it come groups of small trees, then **krummholz** (wind-bent
+  dwarf spruces, needle mats and bushes, all streaming downwind from the west) and alpine
+  meadows of grass, moss, shrubs and flowers (cornflower, allium, azure bluet, oxeye daisy,
+  poppy, dandelion) between the snow patches. The forests have shrubs, ferns, moss, sweet
+  berries in cold climates, lily of the valley, boulders and fallen spruce logs. Where plants
+  grow, the ground is soil (grass, podzol, moss and coarse dirt over dirt) instead of the rock
+  and snow mosaic, up to slopes of about 58 degrees, and the steps of steeper faces (up to about
+  69 degrees) carry patches of grass, moss and shrubs over rock; sheer faces, crags and the
+  summits keep their rock and snow. Trees are placed only where the ground rises at most five
+  blocks over three (about 59 degrees).
 - **Fallen logs and dead trees** appear in forests.
 - *Pale oak is not part of Minecraft 1.21.1* (it was added in 1.21.4), so there is no pale oak
   tree.
@@ -384,7 +400,8 @@ terrahaul/
     mixin/                         generation and compatibility hooks (see COMPATIBILITY.md)
     worldgen/terrain/              terrain model, finder, geology
     worldgen/density/              density functions binding the model to the noise router
-    worldgen/surface/, water/      surface rule, rivers/lakes, waterfalls and cascades
+    worldgen/surface/, water/      surface rule and mountain vegetation zones, rivers/lakes,
+                                   waterfalls and cascades
     worldgen/trees/, features/     procedural trees, ground detail, boulders, formations
     worldgen/features/marine/      coral reefs, sea-floor rocks, kelp and seagrass, grottos
     worldgen/features/lake/        lake floors and freshwater life

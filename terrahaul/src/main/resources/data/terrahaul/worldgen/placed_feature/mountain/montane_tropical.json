@@ -1,0 +1,36 @@
+{
+  "feature": "terrahaul:mountain/montane_tropical",
+  "placement": [
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 2.5,
+      "density": "forest",
+      "scale": 220,
+      "variation": 0.6,
+      "clearing": -0.6
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "montane",
+      "max_slope": 5
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

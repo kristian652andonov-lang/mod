@@ -1,0 +1,36 @@
+{
+  "feature": "terrahaul:tree/krummholz",
+  "placement": [
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "any"
+    },
+    {
+      "type": "terrahaul:density_count",
+      "count": 4.5,
+      "density": "forest",
+      "scale": 55,
+      "variation": 1.3,
+      "clearing": -0.3
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:surface_water_depth_filter",
+      "max_water_depth": 0
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "terrahaul:mountain_flora",
+      "zone": "krummholz",
+      "max_slope": 5
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}
