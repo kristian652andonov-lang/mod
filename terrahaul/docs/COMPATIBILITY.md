@@ -121,6 +121,12 @@ and `CreateWorldScreen.recreated`.
   is used unchanged (sway is then switched off before any plant is marked). Terrahaul's
   `pack.mcmeta` tells Sodium that its vanilla shader overrides are meant to be ignored, so
   Sodium does not warn about them.
+- **Shine** (tested 2.0.2 with Sodium 0.8.13): works. Shine edits the same Sodium terrain shaders
+  for its bloom and coloured light. Terrahaul edits them where Sodium loads them, after Shine's own
+  hook, so both sets of edits end up in the shader whichever mod loads first (checked in a dump of
+  the final shaders). An earlier build hooked the same place as Shine; whichever hook ran first
+  then stopped the other, and without Shine's bloom output in the terrain shader some drivers
+  washed the screen white.
 - **Iris** (tested: Iris 1.8.12 with Sodium 0.6.13, without a shader pack and with
   Complementary Reimagined r5.9.3): works. Each Iris version is built for one Sodium line:
   Iris 1.8.12 needs Sodium 0.6.x and crashes on its own when the world loads with Sodium 0.8
