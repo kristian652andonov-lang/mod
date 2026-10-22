@@ -111,7 +111,7 @@ and `CreateWorldScreen.recreated`.
 - **Resource packs:** a resource pack that replaces `shaders/core/rendertype_cutout.*` replaces
   Terrahaul's sway shader. Sway stops, but nothing else breaks. Leaf colours follow the pack's
   block colours.
-- **Sodium** (tested with 0.8.13 for 1.21.1): supported. Sodium draws terrain with its own
+- **Sodium** (tested with 0.8.13 and 0.6.13 for 1.21.1): supported. Sodium draws terrain with its own
   shaders, read from its own jar, so Terrahaul edits two of them as Sodium loads them
   (`SodiumShaders`, through a mixin on Sodium's shader loader): its fog include learns
   Terrahaul's tall-world fog shape, so valleys stay visible from high peaks, and its terrain
@@ -121,11 +121,21 @@ and `CreateWorldScreen.recreated`.
   is used unchanged (sway is then switched off before any plant is marked). Terrahaul's
   `pack.mcmeta` tells Sodium that its vanilla shader overrides are meant to be ignored, so
   Sodium does not warn about them.
-- **Embeddium / Iris / Oculus:** these replace the chunk renderer (Iris and Oculus with shader
-  packs that also replace sky, cloud and particle rendering). Terrahaul does not enable
-  vegetation sway with them, and the tall-world fog only reaches what they draw with vanilla
-  shaders. Falling leaves, petals, dust, the water spray, mist and foam, wind and clouds still
-  work because they use the normal particle, sound and sky pipelines.
+- **Iris** (tested: Iris 1.8.12 with Sodium 0.6.13, without a shader pack and with
+  Complementary Reimagined r5.9.3): works. Each Iris version is built for one Sodium line:
+  Iris 1.8.12 needs Sodium 0.6.x and crashes on its own when the world loads with Sodium 0.8
+  (`ClassNotFoundException: ...SodiumGameOptions$PerformanceSettings` in
+  `mixins.iris.compat.sodium.json`); Sodium 0.8 needs Iris 1.8.14 or later. Terrahaul's edits of
+  Sodium's shaders match Sodium 0.6.13 as well, so without a shader pack the tall-world fog works
+  as with Sodium alone. Vegetation sway stays off whenever Iris is installed, because a shader
+  pack can be switched on at any time and draws terrain with its own shaders. With a shader pack
+  the pack draws terrain, sky, fog and clouds; Iris passes Terrahaul's fog to it as an ordinary
+  cylinder. When a pack is switched on Iris rebuilds every chunk, so for a moment parts of the
+  terrain are missing.
+- **Embeddium / Oculus:** these replace the chunk renderer. Terrahaul does not enable vegetation
+  sway with them, and the tall-world fog only reaches what they draw with vanilla shaders.
+  Falling leaves, petals, dust, the water spray, mist and foam, wind and clouds still work
+  because they use the normal particle, sound and sky pipelines.
 - **Water effects** need no mixin: they read the client's own copy of the world, so they also
   appear on falls built by players, by vanilla or by other mods, and on servers. Water of other
   mods counts when its fluid is in the `minecraft:water` fluid tag. Mist is drawn in its own
