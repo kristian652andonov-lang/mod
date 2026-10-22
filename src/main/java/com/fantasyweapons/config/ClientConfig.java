@@ -44,7 +44,7 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue DAMAGE_NUMBERS;
     public static final ModConfigSpec.BooleanValue CONFIRM_UPGRADES;
 
-    public static final ModConfigSpec.BooleanValue PUNCHY_KEEP_OWN_ANIMATIONS;
+    public static final ModConfigSpec.BooleanValue PUNCHY_CODEX_OWN_ANIMATION;
 
     public static final ModConfigSpec SPEC;
 
@@ -74,9 +74,9 @@ public final class ClientConfig {
         B.pop();
 
         B.push("compat");
-        PUNCHY_KEEP_OWN_ANIMATIONS = B.comment("With Punchy installed: keep this mod's own first-person animations (the Wayfarer's Codex, the weapons, the tools)",
-                        "by putting its items on Punchy's item blacklist. Turn off to let Punchy animate them (the Codex then cannot be read).")
-                .define("punchy_keep_own_animations", true);
+        PUNCHY_CODEX_OWN_ANIMATION = B.comment("With Punchy installed: put the Wayfarer's Codex on Punchy's item blacklist, so it lifts, opens and reads with",
+                        "its own animation (in Punchy's hand it stays shut). Weapons and tools keep Punchy's animations either way.")
+                .define("punchy_codex_own_animation", true);
         B.pop();
 
         SPEC = B.build();

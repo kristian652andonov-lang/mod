@@ -66,7 +66,7 @@ public final class ClientSetup {
             e.register(com.fantasyweapons.registry.ModMenus.UPGRADING.get(), com.fantasyweapons.client.gui.UpgradingScreen::new);
         });
         modBus.addListener(ClientSetup::registerExtensions);
-        // Punchy would draw over the Codex and the weapons' own first-person animations: leave this mod's items to us
+        // in Punchy's hand the Wayfarer's Codex stays shut: leave the Codex to its own animation
         modBus.addListener((net.neoforged.fml.event.lifecycle.FMLClientSetupEvent e) -> e.enqueueWork(com.fantasyweapons.compat.punchy.PunchyCompat::sync));
         modBus.addListener((net.neoforged.fml.event.config.ModConfigEvent.Reloading e) -> {
             if (e.getConfig().getSpec() == com.fantasyweapons.config.ClientConfig.SPEC) com.fantasyweapons.compat.punchy.PunchyCompat.sync();
