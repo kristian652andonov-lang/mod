@@ -37,6 +37,7 @@ public final class TerrahaulConfig {
     // client
     public static final ModConfigSpec.BooleanValue SELECT_TERRAHAUL_BY_DEFAULT;
     public static final ModConfigSpec.IntValue CLOUD_HEIGHT;
+    public static final ModConfigSpec.BooleanValue DISTANCE_FOG;
     public static final ModConfigSpec.EnumValue<AnimationQuality> ANIMATION_QUALITY;
     public static final ModConfigSpec.BooleanValue FALLING_LEAVES;
     public static final ModConfigSpec.DoubleValue FALLING_LEAF_DENSITY;
@@ -96,6 +97,9 @@ public final class TerrahaulConfig {
             .define("selectTerrahaulByDefault", true);
         CLOUD_HEIGHT = b.comment("Height of the cloud layer in Terrahaul worlds (vanilla clouds are at 192, inside Terrahaul's hills).")
             .defineInRange("cloudHeight", 448, 192, 2000);
+        DISTANCE_FOG = b.comment("Distance fog, the haze at the edge of the view. Set to false to turn it off in every world; fog under",
+            "water or lava, in powder snow and from blindness or darkness stays. A shader pack draws its own fog.")
+            .define("distanceFog", true);
         b.pop();
         b.comment("Environmental animations: falling leaves and petals, wind, dust and vegetation sway.").push("animations");
         ANIMATION_QUALITY = b.comment("Overall animation quality. OFF disables every Terrahaul animation; LOW reduces range and particle counts.")
@@ -217,6 +221,10 @@ public final class TerrahaulConfig {
 
     public static boolean selectTerrahaulByDefault() {
         return bool(SELECT_TERRAHAUL_BY_DEFAULT);
+    }
+
+    public static boolean distanceFog() {
+        return bool(DISTANCE_FOG);
     }
 
     public static int cloudHeight() {

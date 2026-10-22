@@ -6,6 +6,7 @@ import com.terrahaul.client.particle.AmbientParticleSpawner;
 import com.terrahaul.client.particle.MistParticle;
 import com.terrahaul.client.particle.MistShaders;
 import com.terrahaul.client.particle.TerrahaulParticleProviders;
+import com.terrahaul.client.render.FogControl;
 import com.terrahaul.client.render.TerrahaulColors;
 import com.terrahaul.client.render.TerrahaulSkyEffects;
 import com.terrahaul.client.sway.SwayModels;
@@ -50,6 +51,7 @@ public final class TerrahaulClient {
         NeoForge.EVENT_BUS.addListener((ChunkEvent.Load event) -> WaterEffects.onChunkChanged(event));
         NeoForge.EVENT_BUS.addListener((ChunkEvent.Unload event) -> WaterEffects.onChunkChanged(event));
         NeoForge.EVENT_BUS.addListener(SwayShader::onRenderStage);
+        NeoForge.EVENT_BUS.addListener(FogControl::onRenderFog);
         NeoForge.EVENT_BUS.addListener(MistParticle::onRenderStage);
         NeoForge.EVENT_BUS.addListener(WorldTypeDefault::onScreenInit);
         NeoForge.EVENT_BUS.addListener(MemoryHint::onClientTick);

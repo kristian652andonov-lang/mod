@@ -366,6 +366,7 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 |---|---|---|
 | `selectTerrahaulByDefault` | `true` | Pre-select the Terrahaul world type |
 | `cloudHeight` | `448` | Cloud layer height in Terrahaul worlds (192–2000) |
+| `distanceFog` | `true` | Distance fog at the edge of the view; `false` turns it off in every world (fog under water or lava, in powder snow and from blindness or darkness stays) |
 | `animations.quality` | `HIGH` | `OFF`, `LOW`, `MEDIUM`, `HIGH`: range and amount of animation |
 | `animations.fallingLeaves` | `true` | Falling leaves and needles |
 | `animations.fallingLeafDensity` | `1.0` | Multiplier for falling leaves (0–4) |
