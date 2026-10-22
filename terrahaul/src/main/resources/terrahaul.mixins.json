@@ -24,7 +24,9 @@
   "client": [
     "client.FogShapeMixin",
     "client.VertexBufferMixin",
-    "client.RenderSectionMixin"
+    "client.RenderSectionMixin",
+    "client.SodiumShaderInterfaceMixin",
+    "client.SodiumShaderLoaderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

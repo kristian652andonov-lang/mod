@@ -1,0 +1,5 @@
+{
+  "sodium": {
+    "ignored_shaders": ["rendertype_cutout.vsh", "rendertype_cutout.json", "fog.glsl"]
+  }
+}

@@ -2,6 +2,7 @@ package com.terrahaul.client.sway;
 
 import com.terrahaul.Terrahaul;
 import com.terrahaul.blocks.ShrubBlock;
+import com.terrahaul.client.sodium.SodiumShaders;
 import com.terrahaul.config.TerrahaulConfig;
 import java.util.List;
 import java.util.Map;
@@ -35,11 +36,12 @@ import net.neoforged.neoforge.client.model.data.ModelData;
  * <p>
  * Only models drawn exclusively in the cutout layer are wrapped, because the sway lives in the
  * cutout core shader. Sway is skipped entirely when it is disabled in the client config at
- * resource load time, or when a mod that replaces the chunk renderer (Sodium, Embeddium, Iris,
- * Oculus) is installed: those renderers do not use the vanilla core shaders.
+ * resource load time, or when a mod that replaces the chunk renderer with shaders Terrahaul cannot
+ * reach (Embeddium, Iris, Oculus) is installed. Sodium is supported: {@link SodiumShaders} adds the
+ * same sway to Sodium's terrain shader.
  */
 public final class SwayModels {
-    private static final List<String> RENDERER_MODS = List.of("sodium", "embeddium", "iris", "oculus", "rubidium");
+    private static final List<String> RENDERER_MODS = List.of("embeddium", "iris", "oculus", "rubidium");
 
     private SwayModels() {
     }
@@ -51,7 +53,7 @@ public final class SwayModels {
                 return false;
             }
         }
-        return true;
+        return !ModList.get().isLoaded("sodium") || SodiumShaders.swaySupported();
     }
 
     public static void modifyBakingResult(ModelEvent.ModifyBakingResult event) {

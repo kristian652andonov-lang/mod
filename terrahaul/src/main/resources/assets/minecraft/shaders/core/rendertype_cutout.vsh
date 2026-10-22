@@ -22,14 +22,15 @@ uniform mat4 ProjMat;
 uniform vec3 ChunkOffset;
 uniform int FogShape;
 
+out float vertexDistance;
+out vec4 vertexColor;
+out vec2 texCoord0;
+
+// terrahaul:sway begin (also copied into Sodium's terrain shader by SodiumShaders)
 // xy: wind direction, z: strength (0 disables sway), w: time in seconds (wraps every 3600 s)
 uniform vec4 TerrahaulWind;
 // camera position with x and z wrapped to [0, 1024)
 uniform vec3 TerrahaulCamera;
-
-out float vertexDistance;
-out vec4 vertexColor;
-out vec2 texCoord0;
 
 const float TAU = 6.2831853;
 // whole cycles per 1024 blocks and per 3600 seconds, so both wraps are seamless
@@ -56,6 +57,7 @@ vec3 terrahaulSway(vec3 world, float height) {
     float drop = -dot(offset, offset) * 0.5 / max(height, 0.25);
     return vec3(offset.x, drop, offset.y);
 }
+// terrahaul:sway end
 
 void main() {
     vec3 pos = Position + ChunkOffset;
