@@ -92,6 +92,7 @@ public final class SodiumShaders {
             }
             return source;
         }
+        Terrahaul.LOGGER.info("Added Terrahaul's tall-world fog to Sodium's fog shader");
         return source.substring(0, at) + FOG_CASE + source.substring(at);
     }
 
@@ -106,6 +107,7 @@ public final class SodiumShaders {
         int uniforms = source.indexOf(UNIFORM_ANCHOR) + UNIFORM_ANCHOR.length();
         String withDeclarations = source.substring(0, uniforms) + "\n\n" + sway + source.substring(uniforms);
         int position = withDeclarations.indexOf(POSITION_ANCHOR) + POSITION_ANCHOR.length();
+        Terrahaul.LOGGER.info("Added Terrahaul's vegetation sway to Sodium's terrain shader");
         return withDeclarations.substring(0, position) + SWAY_MAIN + withDeclarations.substring(position);
     }
 
@@ -123,8 +125,9 @@ public final class SodiumShaders {
             return false;
         }
         try {
+            // read the way Sodium reads it: through its own class loader
             Class<?> loader = Class.forName("net.caffeinemc.mods.sodium.client.gl.shader.ShaderLoader");
-            String source = read(loader.getClassLoader(), SODIUM_TERRAIN_SOURCE);
+            String source = read(loader.getClassLoader().getResourceAsStream(SODIUM_TERRAIN_SOURCE));
             boolean ok = source != null && canPatchTerrain(source);
             if (!ok) {
                 Terrahaul.LOGGER.info("Vegetation sway disabled: this Sodium version's terrain shader is not one Terrahaul can extend");
@@ -140,7 +143,8 @@ public final class SodiumShaders {
     private static synchronized String swayCode() {
         if (!swayRead) {
             swayRead = true;
-            String cutout = read(SodiumShaders.class.getClassLoader(), CUTOUT_SOURCE);
+            // through the class, not its loader: a mod's resources are only readable from its own module
+            String cutout = read(SodiumShaders.class.getResourceAsStream("/" + CUTOUT_SOURCE));
             int begin = cutout == null ? -1 : cutout.indexOf(SWAY_BEGIN);
             int end = cutout == null ? -1 : cutout.indexOf(SWAY_END);
             if (begin >= 0 && end > begin) {
@@ -152,8 +156,8 @@ public final class SodiumShaders {
         return swayCode;
     }
 
-    private static String read(ClassLoader loader, String path) {
-        try (InputStream in = loader.getResourceAsStream(path)) {
+    private static String read(InputStream stream) {
+        try (InputStream in = stream) {
             return in == null ? null : new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             return null;
