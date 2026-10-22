@@ -27,7 +27,8 @@
     "client.VertexBufferMixin",
     "client.RenderSectionMixin",
     "client.SodiumShaderInterfaceMixin",
-    "client.SodiumShaderLoaderMixin"
+    "client.SodiumShaderLoaderMixin",
+    "client.SodiumShaderParserMixin"
   ],
   "injectors": {
     "defaultRequire": 1
