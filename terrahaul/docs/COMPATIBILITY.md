@@ -111,10 +111,21 @@ and `CreateWorldScreen.recreated`.
 - **Resource packs:** a resource pack that replaces `shaders/core/rendertype_cutout.*` replaces
   Terrahaul's sway shader. Sway stops, but nothing else breaks. Leaf colours follow the pack's
   block colours.
-- **Sodium / Embeddium / Iris / Oculus:** these replace the chunk renderer and do not use vanilla
-  core shaders. Terrahaul detects them and does not enable vegetation sway. Falling leaves,
-  petals, dust, the water spray, mist and foam, wind and clouds still work because they use the
-  normal particle, sound and sky pipelines. Shader packs replace sky and cloud rendering.
+- **Sodium** (tested with 0.8.13 for 1.21.1): supported. Sodium draws terrain with its own
+  shaders, read from its own jar, so Terrahaul edits two of them as Sodium loads them
+  (`SodiumShaders`, through a mixin on Sodium's shader loader): its fog include learns
+  Terrahaul's tall-world fog shape, so valleys stay visible from high peaks, and its terrain
+  vertex shader gets the vegetation sway, copied from Terrahaul's `rendertype_cutout.vsh`. The
+  log says "Added Terrahaul's ... to Sodium's ... shader" for each. If a later Sodium version
+  changes the lines these edits look for, the edit is skipped with a warning and Sodium's shader
+  is used unchanged (sway is then switched off before any plant is marked). Terrahaul's
+  `pack.mcmeta` tells Sodium that its vanilla shader overrides are meant to be ignored, so
+  Sodium does not warn about them.
+- **Embeddium / Iris / Oculus:** these replace the chunk renderer (Iris and Oculus with shader
+  packs that also replace sky, cloud and particle rendering). Terrahaul does not enable
+  vegetation sway with them, and the tall-world fog only reaches what they draw with vanilla
+  shaders. Falling leaves, petals, dust, the water spray, mist and foam, wind and clouds still
+  work because they use the normal particle, sound and sky pipelines.
 - **Water effects** need no mixin: they read the client's own copy of the world, so they also
   appear on falls built by players, by vanilla or by other mods, and on servers. Water of other
   mods counts when its fluid is in the `minecraft:water` fluid tag. Mist is drawn in its own
@@ -134,7 +145,7 @@ and `CreateWorldScreen.recreated`.
 - **Foam and the water surface:** foam floats on the water surface as vanilla's liquid renderer
   draws it (corner heights raised to the full block next to falling water, the top face split
   into two triangles along the north-west to south-east diagonal). A renderer that draws water
-  another way (Sodium, Embeddium) was not tested; foam is lifted 0.02 blocks over the highest
+  another way (Embeddium) was not tested; foam is lifted 0.02 blocks over the highest
   point of the surface under it, which covers small differences in how the face is split.
 - **Mods that override `rendertype_cutout`:** whichever resource pack is higher wins; see above.
 - **Packs or mods that override `shaders/include/fog.glsl`:** their version falls back to the
