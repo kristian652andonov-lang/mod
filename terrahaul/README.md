@@ -44,6 +44,11 @@ running water throws up spray, mist and foam and can be heard.
   degrees) climb, level out briefly on small, scattered ledges and shoulders, and climb again.
   Valley floors between the mountains stay flat.
 
+  Summits and crests are cusped rather than domed: the ground falls away steeply within a few
+  dozen blocks of a top, teeth and notches stand high on the crests, and crags break up even the
+  biggest faces up to about half their height, so a face is not one smooth curtain. A main
+  valley's trough keeps its floor smooth only where it actually lowers the range.
+
   Most terrain is moderate. **Colossal massifs** are rare: broad pyramids with long arêtes and
   radiating valleys whose summits approach Y 1500–1900.
 - **Plains, plateaus, valleys, hills, windswept uplands and wetlands.**

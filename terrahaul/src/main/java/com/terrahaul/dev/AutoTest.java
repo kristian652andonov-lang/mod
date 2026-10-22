@@ -444,7 +444,9 @@ public final class AutoTest {
         BlockState state = level.getBlockState(pos);
         return !state.isAir() && state.getFluidState().isEmpty() && !state.is(net.minecraft.tags.BlockTags.LOGS)
             && !state.is(net.minecraft.tags.BlockTags.LEAVES) && !state.is(net.minecraft.tags.BlockTags.BEEHIVES)
-            && state.isCollisionShapeFullBlock(level, pos);
+            // mud's collision box is 14/16 of a block high, but it is ground: patches of clay, moss or
+            // gravel lying on a mud lake floor are not floating
+            && (state.isCollisionShapeFullBlock(level, pos) || state.is(net.minecraft.world.level.block.Blocks.MUD));
     }
 
     /** Counts the top solid block of every column and the blocks 1..15 below it. */

@@ -18,6 +18,63 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
+## Fourth round: pointed mountains and mountain vegetation (merged build, seed 12345)
+This round merged the pointed mountains (`wf/pointed`: cusped crests and summits, crags on the
+big faces, no domed tops), the mountain vegetation (`wf/mountain-flora`, see below) and the
+underground structures kept below deep sea floors (see below). Both branches were tested on
+their own before the merge; the merged build was tested once more in game, in a fresh world on
+the dedicated server (`AutoTest`) and with the client (35 screenshots, Mesa llvmpipe, render
+distance 10).
+- **Build and data:** `compileJava compileDevtoolsJava` and `./gradlew build` pass; the three
+  data generators (`datagen_worldgen.py`, `datagen_features.py`, `datagen_assets.py`) were re-run
+  on the merged tree and changed nothing.
+- **AutoTest areas:** the 17 areas of the previous release test, the trial chambers at 64 ~ 2864
+  and 768 ~ 2368 and the stronghold at 4688 ~ 0 (all under deep ocean), and four random mountain
+  sites of `domeSurvey` (sites 8, 16, 20 and 37 of world 12345, radius 4 around the summit).
+  - Water walls: 0 in all 24 areas. Water fins (single water blocks at the surface): 8 and 16
+    at the crater lake and volcano (5 in the previous release test), 1 at the great river.
+  - Floating terrain: none that is real. The lake areas (0 and 2) reported 25 flat patches of
+    clay, moss and gravel; the saved world shows them lying on two blocks of mud over sand.
+    `AutoTest` did not count mud as ground (its collision box is lower than a full block); it
+    does now. The other 6 hits are single blocks held by tree roots or trunks (dirt and rooted
+    dirt under an oak root flare, stone and smooth basalt wrapped in spruce wood).
+  - Trees: 0 floating trees and 0 decaying leaves, apart from two single spruce-wood blocks that
+    touch their tree only at an edge (a root stub at -959 105 -622 and a branch inside a crown at
+    -1204 215 435).
+  - Underground structures, after the merge: both deep-sea trial chambers lie 13 blocks under
+    the sea floor (cover by real blocks at least 13, no column under 12, nothing exposed), no
+    water under them, 17 and 16 trial spawners and 18 and 15 vaults, all with their block
+    entities; the stronghold also lies 13 under the floor. The held starts equal starts
+    generated afresh. Every vanilla structure near spawn was located and its start was present.
+  - Mountain sites (vegetation census of the flanks; site 16, a savanna range, has no flank
+    columns in it): 45-85% of the flank columns more than 50 blocks below the tree line are
+    under trees and 81-90% have soil; at site 37 the forest
+    thins to 37% just below the line and 8% just above it, with 31% snow there. 1281 trunks
+    stood on the flanks of the four sites; 18 of them (1.4%) read a rise of 6-7 blocks over 3
+    around the foot, one stood in a snowfield. The model/height mismatch count is high on these
+    sites (227-810 of 1296) because the forest canopy is part of the heightmap it compares.
+  - No exception in the server log. A first run with the server heap lowered to 4.5 GB ran out
+    of memory while generating the areas; with the default 6 GB it ran through.
+- **Client screenshots** (in `run/screenshots/` of the test worktree; looked at by eye):
+  - Pointed and forested: from the valley under the `find:mountain` range a sharp rock peak
+    rises over spruce forest; `find:mountain_wall` is a sharp snowy peak; `domeSurvey` sites 16
+    and 20 show pointed rock peaks with forest and acacias on their lower flanks; the cold grove
+    shows pointed snowy peaks with snowy spruces climbing the flank; on the south flank near
+    spawn the forest thins upwards towards snowy peaks.
+  - Still rounded: seen from 150 blocks away and below, the summit that `/terrahaul find
+    mountain` leads to (-352 460 -32) reads as a broad knob with regular snow contour stripes.
+  - Deep ocean: open water where the trial chambers used to hang at 64 ~ 2864 and 768 ~ 2368.
+  - Blocked views: the camera of `domeSurvey` site 8 and the fixed waterfall-pool camera are
+    inside tree crowns now that forest grows there; the waterfall shots frame the stream but not
+    a fall (the client counted falls up to 48 blocks tall in view).
+- **Standalone server:** the built JAR in a fresh NeoForge 21.1.262 server world (seed 12345,
+  `level-type=terrahaul:terrahaul`): ready in 20 s, `/terrahaul find mountain` answered in 47 ms
+  (-352 460 -32), `/locate structure minecraft:trial_chambers` in 519 ms, clean stop, no error
+  or exception in the log.
+- **Not tested in this round:** other seeds in game; `wallAudit`, `fragmentAudit` and
+  `finderAudit` on the merged tree (the merge does not change the terrain model's heights
+  beyond the pointed branch, which ran them); a second in-game round after the `AutoTest` fix.
+
 ## Underground structures kept below deep sea floors (seed 12345, dedicated server and client)
 Reported in game: trial chambers hung in the middle of deep oceans as huge blobs of stone with the
 chambers inside. Vanilla starts them at a fixed height (Y −40 to −20; their corridors climb to
@@ -172,8 +229,9 @@ them (see "Vegetation climbs the mountains" in the README). Tested in game on se
 - **Not tested:** other seeds in game (the zones were only surveyed offline on seed 12345);
   worlds of other world types (the mountain features do nothing outside Terrahaul worlds);
   other mods' biomes on the flanks (they get no mountain forest unless they are in one of the
-  datagen's biome groups); the mountains as reshaped on the parallel `pointed` branch (the zones
-  and the tree line were tuned on the mountain shapes of 98b91c0 and need a look after a merge).
+  datagen's biome groups). The zones and the tree line were tuned on the mountain shapes of
+  98b91c0; after the merge with the pointed mountains they were looked at once in game (see
+  "Fourth round" above) but not tuned again.
 
 ## Third feedback round
 This round merged: no floating icebergs or monument rooms over deep oceans; ocean monuments only
