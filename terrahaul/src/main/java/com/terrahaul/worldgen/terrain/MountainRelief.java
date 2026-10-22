@@ -50,7 +50,7 @@ final class MountainRelief {
     /** Size of the patches of ledgy rock (noise scale, blocks): ledges some 30-100 blocks long. */
     private static final double LEDGE_PATCH = 110.0;
     /** Mean height between the ledges of a patch (blocks; see {@link #ledges}). */
-    private static final double LEDGE_STEP = 36.0;
+    private static final double LEDGE_STEP = 28.0;
     /** Greatest shift of the ledges' levels across a mountain (blocks). */
     private static final double LEDGE_SHIFT = 60.0;
 
@@ -308,9 +308,11 @@ final class MountainRelief {
             octaves++;
         }
         // gentle ground has no gullies: there the fall line wanders, and stripes that follow it
-        // would curl into worm-like patterns
+        // would curl into worm-like patterns. Ground of 10-30 degrees is furrowed as well: left
+        // smooth, the broad tops and shoulders of the mountains were domes, on which the block
+        // steps drew concentric contour rings.
         double baseSlope = Math.sqrt(gx * gx + gz * gz);
-        double strength = smoothstep(0.12, 0.6, baseSlope);
+        double strength = smoothstep(0.08, 0.4, baseSlope);
         if (strength <= 0.0) {
             return 0.0;
         }
@@ -320,7 +322,9 @@ final class MountainRelief {
         // for their sides shrinks until the ground stays below about MAX_SLOPE even where the
         // scales line up. A depth beyond that cut slots with sides of over 76 degrees.
         double cross = Math.sqrt(Math.max(MIN_CROSS * MIN_CROSS, MAX_SLOPE * MAX_SLOPE - baseSlope * baseSlope));
-        double incision = Math.min(INCISION * Math.min(baseSlope, 1.5), cross / (1.3 * octaves));
+        // (gentle ground is cut as steeply as ground of about 25 degrees, so its spurs are sharp
+        // as well)
+        double incision = Math.min(INCISION * Math.max(0.45, Math.min(baseSlope, 1.5)), cross / (1.3 * octaves));
         for (int o = 0; o < octaves; o++) {
             // depth of this octave: each finer octave 2.5 times shallower, the coarsest one
             // handing its depth on to the others where `fine` says so, and no deeper than the
@@ -413,7 +417,7 @@ final class MountainRelief {
                 }
             }
             size /= OCTAVE_SCALE;
-            share /= 2.5;
+            share /= 2.2;
         }
         g[0] = gx;
         g[1] = gz;
@@ -445,11 +449,11 @@ final class MountainRelief {
      */
     double ledges(double x, double z, double h, double slope, double weight) {
         // gentle ground needs no ledges (they would be broad terraces there)
-        double w = weight * smoothstep(0.45, 0.85, slope) * (1.0 - smoothstep(1.8, 2.6, slope));
+        double w = weight * smoothstep(0.3, 0.7, slope) * (1.0 - smoothstep(1.8, 2.6, slope));
         if (w <= 0.0) {
             return 0.0;
         }
-        double patch = smoothstep(0.15, 0.55, ledgeNoise.noise2(x / LEDGE_PATCH, z / LEDGE_PATCH));
+        double patch = smoothstep(-0.05, 0.4, ledgeNoise.noise2(x / LEDGE_PATCH, z / LEDGE_PATCH));
         w *= patch;
         if (w <= 0.0) {
             return 0.0;
