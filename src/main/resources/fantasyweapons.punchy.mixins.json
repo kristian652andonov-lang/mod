@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.fantasyweapons.mixin.punchy",
+  "plugin": "com.fantasyweapons.compat.punchy.PunchyMixinPlugin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "PunchyArmRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

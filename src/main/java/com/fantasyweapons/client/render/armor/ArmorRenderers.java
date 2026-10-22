@@ -10,6 +10,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
@@ -76,6 +78,27 @@ public final class ArmorRenderers {
         public ResourceLocation getTextureLocation(FantasyArmorItem item) {
             if (set == ArmorSet.ECLIPSE_REAPER && darkMode(getCurrentEntity())) return dark;
             return super.getTextureLocation(item);
+        }
+
+        /** The one arm drawn while rendering for a first-person arm (see {@link FirstPersonArmor}), else null. */
+        private HumanoidArm onlyArm;
+
+        /** Draws only one arm of the chestplate (prepared with {@code prepForRender}): a first-person sleeve. */
+        void renderArm(HumanoidArm arm, PoseStack poseStack, MultiBufferSource buffer, float partialTick, int light) {
+            onlyArm = arm;
+            try {
+                defaultRender(poseStack, getAnimatable(), buffer, null, null, 0, partialTick, light);
+            } finally {
+                onlyArm = null;
+            }
+        }
+
+        @Override
+        protected void applyBoneVisibilityBySlot(EquipmentSlot slot) {
+            super.applyBoneVisibilityBySlot(slot);
+            if (onlyArm == null) return;
+            setAllBonesVisible(false);
+            setBoneVisible(onlyArm == HumanoidArm.LEFT ? leftArm : rightArm, true);
         }
     }
 

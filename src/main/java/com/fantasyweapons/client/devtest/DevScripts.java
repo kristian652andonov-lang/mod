@@ -122,6 +122,7 @@ final class DevScripts {
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.equals("bettercombat")) betterCombat(b, null);
                 else if (name.equals("punchy")) punchy(b);
+                else if (name.equals("punchyarmor")) punchyArmor(b);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
                 else if (name.startsWith("bcframes:")) betterCombatFrames(b, name.substring(9).split(","));
                 else if (name.equals("magehud")) mageHud(b);
@@ -2857,6 +2858,23 @@ final class DevScripts {
         }
         b.cmd("/clear @s").cmd("/give @s fantasyweapons:void_crystal_pickaxe").wait(12).slot(0).wait(30).screenshot("punchy_pickaxe_held");
         logPunchy(b, "pickaxe held");
+    }
+
+    /**
+     * Punchy's armored first-person arms: an empty hand and a held weapon in several legendary chestplates (and a vanilla
+     * one to compare), first person and from the side.
+     */
+    private static void punchyArmor(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
+                .cmd("/clear @s").camera(CameraType.FIRST_PERSON).look(0, 25).hud(true).wait(20);
+        for (String set : new String[]{"voidfang", "solaris", "doomcleaver", "pyromancer", "minecraft:iron"}) {
+            String chest = set.startsWith("minecraft:") ? set + "_chestplate" : "fantasyweapons:" + set + "_chestplate";
+            b.cmd("/clear @s").cmd("/item replace entity @s armor.chest with " + chest).slot(1).wait(30);
+            String tag = set.replace("minecraft:", "vanilla_");
+            b.screenshot("parmor_" + tag + "_empty").look(-35, 45).wait(6).screenshot("parmor_" + tag + "_empty_look").look(0, 25);
+            b.cmd("/give @s fantasyweapons:voidfang").slot(0).wait(30).screenshot("parmor_" + tag + "_blade");
+            b.slot(1).camera(CameraType.THIRD_PERSON_BACK).wait(10).screenshot("parmor_" + tag + "_back").camera(CameraType.FIRST_PERSON).wait(5);
+        }
     }
 
     /** What Punchy makes of the held items: whether each hand is left to this mod (on Punchy's blacklist). */

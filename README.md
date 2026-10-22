@@ -47,6 +47,10 @@ the Codex then lifts, opens and reads with its own animation. The entry shows up
 animate the Codex anyway, set `punchy_codex_own_animation = false` in `config/fantasyweapons-client.toml`, which takes
 the entry off again.
 
+Punchy also dresses its first-person arms in the worn chestplate's sleeve, painted from the armor's vanilla texture. The
+legendary armor is a 3D model with no such texture, so the arm came out black. When a legendary chestplate is worn,
+the arm of its own model is drawn on Punchy's arm instead.
+
 ## Controls
 
 All keys can be rebound under *Controls → Fantasy Weapons*.
