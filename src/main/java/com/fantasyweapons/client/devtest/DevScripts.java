@@ -123,6 +123,7 @@ final class DevScripts {
                 else if (name.equals("bettercombat")) betterCombat(b, null);
                 else if (name.equals("punchy")) punchy(b);
                 else if (name.equals("punchyarmor")) punchyArmor(b);
+                else if (name.equals("codexshield")) codexShield(b);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
                 else if (name.startsWith("bcframes:")) betterCombatFrames(b, name.substring(9).split(","));
                 else if (name.equals("magehud")) mageHud(b);
@@ -2874,6 +2875,25 @@ final class DevScripts {
             b.screenshot("parmor_" + tag + "_empty").look(-35, 45).wait(6).screenshot("parmor_" + tag + "_empty_look").look(0, 25);
             b.cmd("/give @s fantasyweapons:voidfang").slot(0).wait(30).screenshot("parmor_" + tag + "_blade");
             b.slot(1).camera(CameraType.THIRD_PERSON_BACK).wait(10).screenshot("parmor_" + tag + "_back").camera(CameraType.FIRST_PERSON).wait(5);
+        }
+    }
+
+    /**
+     * The Codex read with something in the other hand: a shield beside it in the main hand's Codex, then a pickaxe in the
+     * main hand beside an off-hand Codex. The other hand goes down as the book comes up and returns once it is lowered.
+     */
+    private static void codexShield(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
+                .camera(CameraType.FIRST_PERSON).look(0, 10).hud(true);
+        String[][] setups = {{"fantasyweapons:wayfarers_codex", "minecraft:shield", "MAIN_HAND", "shield"},
+                {"fantasyweapons:void_crystal_pickaxe", "fantasyweapons:wayfarers_codex", "OFF_HAND", "offhand"}};
+        for (String[] setup : setups) {
+            var hand = net.minecraft.world.InteractionHand.valueOf(setup[2]);
+            String tag = "codexshield_" + setup[3];
+            b.cmd("/clear @s").cmd("/item replace entity @s hotbar.0 with " + setup[0]).cmd("/item replace entity @s weapon.offhand with " + setup[1])
+                    .slot(0).wait(30).screenshot(tag + "_held").run(mc -> mc.gameMode.useItem(mc.player, hand));
+            for (int f = 1; f <= 3; f++) b.wait(2).screenshot(tag + "_raise" + f);
+            b.wait(100).screenshot(tag + "_read").closeScreen().wait(20).screenshot(tag + "_closing").wait(70).screenshot(tag + "_closed");
         }
     }
 

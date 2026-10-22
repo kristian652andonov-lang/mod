@@ -6,6 +6,9 @@
   "mixins": [
     "ChunkMapMixin"
   ],
+  "client": [
+    "ItemInHandRendererMixin"
+  ],
   "injectors": {
     "defaultRequire": 0
   }

@@ -127,6 +127,11 @@ public final class Codex {
         return t * t * (3 - 2 * t);
     }
 
+    /** The hand the book was opened in; the other one is put away while it is up (see ItemInHandRendererMixin). */
+    public static InteractionHand hand() {
+        return hand;
+    }
+
     private static boolean holding(Player player) {
         return player != null && player.getItemInHand(hand).getItem() instanceof WayfarersCodexItem;
     }
