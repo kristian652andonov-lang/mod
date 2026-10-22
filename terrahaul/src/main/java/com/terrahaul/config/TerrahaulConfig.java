@@ -51,6 +51,7 @@ public final class TerrahaulConfig {
     public static final ModConfigSpec.BooleanValue WATER_SOUNDS;
     public static final ModConfigSpec.DoubleValue WATER_EFFECT_DENSITY;
     public static final ModConfigSpec.DoubleValue WATER_SOUND_VOLUME;
+    public static final ModConfigSpec.DoubleValue WATER_SOUND_RANGE;
 
     static {
         ModConfigSpec.Builder c = new ModConfigSpec.Builder();
@@ -120,6 +121,8 @@ public final class TerrahaulConfig {
             .define("waterSounds", true);
         WATER_EFFECT_DENSITY = b.comment("Multiplier for the number of water particles.").defineInRange("waterEffectDensity", 1.0, 0.0, 3.0);
         WATER_SOUND_VOLUME = b.comment("Multiplier for the volume of the water sounds.").defineInRange("waterSoundVolume", 1.0, 0.0, 2.0);
+        WATER_SOUND_RANGE = b.comment("Multiplier for how far the water sounds are heard (the largest falls reach 48 blocks at 1.0).")
+            .defineInRange("waterSoundRange", 1.0, 0.25, 1.3);
         b.pop();
         CLIENT_SPEC = b.build();
     }
@@ -278,6 +281,10 @@ public final class TerrahaulConfig {
 
     public static double waterSoundVolume() {
         return number(WATER_SOUND_VOLUME);
+    }
+
+    public static double waterSoundRange() {
+        return number(WATER_SOUND_RANGE);
     }
 
     /** Looks up a boolean option by its key, for the {@code terrahaul:config} data pack condition. */

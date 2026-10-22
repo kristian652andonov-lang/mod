@@ -47,6 +47,10 @@ final class WaterSounds {
     private static final int MAX_RUSHES = 3;
     /** Small sources closer than this are heard as one. */
     private static final double MERGE = 10.0;
+    /** Share of full volume a source needs before a new sound starts for it. */
+    private static final float START = 0.015F;
+    /** A playing sound this close to a source whose key changed carries on for it. */
+    private static final double ADOPT = 16.0;
 
     /** A place the sound of water comes from. */
     private static final class Source {
@@ -76,13 +80,18 @@ final class WaterSounds {
             this.points = points;
         }
 
-        double reach() {
-            return roar ? Mth.clamp(24.0 + 4.0 * Math.sqrt(strength), 28.0, 110.0) : Mth.clamp(10.0 + 2.6 * Math.sqrt(strength), 12.0, 36.0);
+        /**
+         * How far the source is heard. Even the largest fall stays well inside the area the
+         * scanner watches at the lowest quality (four chunks), so a sound fades out smoothly
+         * instead of cutting off where the scan ends.
+         */
+        double reach(double scale) {
+            return scale * (roar ? Mth.clamp(12.0 + 2.2 * Math.sqrt(strength), 16.0, 48.0) : Mth.clamp(6.0 + 1.5 * Math.sqrt(strength), 8.0, 20.0));
         }
 
         float peak() {
-            return (float) (roar ? Mth.clamp(0.3 + 0.13 * Math.log1p(strength / 20.0), 0.3, 1.0)
-                : Mth.clamp(0.12 + 0.07 * Math.log1p(strength), 0.12, 0.45));
+            return (float) (roar ? Mth.clamp(0.25 + 0.11 * Math.log1p(strength / 20.0), 0.25, 0.8)
+                : Mth.clamp(0.1 + 0.06 * Math.log1p(strength), 0.1, 0.38));
         }
 
         double nearestY(double y) {
@@ -171,10 +180,11 @@ final class WaterSounds {
         if (mc.gameRenderer.getMainCamera().getFluidInCamera() == FogType.WATER) {
             master *= 0.45F;
         }
+        double scale = TerrahaulConfig.waterSoundRange();
         for (Source s : sources) {
             double d = s.distance(listener);
-            double f = Mth.clamp(1.0 - Math.max(0.0, d - 2.0) / s.reach(), 0.0, 1.0);
-            s.level = (float) (s.peak() * Math.pow(f, 1.7)) * master;
+            double f = Mth.clamp(1.0 - Math.max(0.0, d - 2.0) / s.reach(scale), 0.0, 1.0);
+            s.level = (float) (s.peak() * f * f) * master;
         }
         // the loudest few of each kind play; those already playing are favoured, so two sources
         // of about the same loudness do not take turns
@@ -184,23 +194,37 @@ final class WaterSounds {
 
         for (Loop loop : playing.values()) {
             loop.target = 0.0F;
+            loop.claimed = false;
+        }
+        for (Source s : chosen) {
+            Loop loop = playing.get(s.key);
+            if (loop != null && !loop.isStopped()) {
+                loop.claimed = true;
+            }
         }
         for (Source s : chosen) {
             Loop loop = playing.get(s.key);
             if (loop == null || loop.isStopped()) {
-                if (sinceStart < 4) {
-                    // start sounds one at a time, a few ticks apart, so they never play in step
+                loop = adopt(s);
+            }
+            if (loop == null || loop.isStopped()) {
+                if (sinceStart < 4 || s.level < START * master) {
+                    // start sounds one at a time, a few ticks apart, so they never play in step,
+                    // and only once they are clearly heard: a source at the edge of its reach
+                    // does not start and stop again as the listener steps back and forth
                     continue;
                 }
                 float pitch = s.roar ? (float) Mth.clamp(1.06 - 0.07 * Math.log1p(s.strength / 30.0), 0.8, 1.06)
                     : 0.92F + (float) Math.floorMod(s.key * 0x9E3779B97F4A7C15L >>> 40, 18) / 100.0F;
-                loop = new Loop(s.roar ? WATERFALL : RAPIDS, pitch);
+                loop = new Loop(s.roar, pitch);
                 playing.put(s.key, loop);
+                loop.claimed = true;
                 loop.aim(s.nearX, s.nearestY(listener.y), s.nearZ, s.level);
                 loop.jump();
                 mc.getSoundManager().play(loop);
                 sinceStart = 0;
             } else {
+                loop.claimed = true;
                 loop.aim(s.nearX, s.nearestY(listener.y), s.nearZ, s.level);
             }
         }
@@ -216,6 +240,39 @@ final class WaterSounds {
                 sinceStart = -100;
             }
         }
+    }
+
+    /**
+     * Hands a source a loop that is already playing nearby for the same kind of water, if no
+     * other source has taken it this tick. A source's key comes from its blocks, and far from the
+     * listener the scanner sees the edge columns of a fall come and go, which changes the key;
+     * without this the sound would fade out and start again from the beginning each time.
+     */
+    private Loop adopt(Source s) {
+        long found = 0L;
+        Loop best = null;
+        double bestDistance = ADOPT * ADOPT;
+        var it = playing.long2ObjectEntrySet().fastIterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            Loop loop = e.getValue();
+            if (loop.claimed || loop.isStopped() || loop.roar != s.roar) {
+                continue;
+            }
+            double dx = loop.targetX - s.nearX;
+            double dz = loop.targetZ - s.nearZ;
+            double d = dx * dx + dz * dz;
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = loop;
+                found = e.getLongKey();
+            }
+        }
+        if (best != null) {
+            playing.remove(found);
+            playing.put(s.key, best);
+        }
+        return best;
     }
 
     private void choose(List<Source> chosen, boolean roar, int count) {
@@ -250,15 +307,19 @@ final class WaterSounds {
 
     /** One looping water sound, eased towards the volume and position it is given. */
     private static final class Loop extends AbstractTickableSoundInstance {
+        final boolean roar;
         float target;
         int watched;
+        /** Taken by a source this tick. */
+        boolean claimed;
         private int sinceAim;
         private double targetX;
         private double targetY;
         private double targetZ;
 
-        Loop(SoundEvent event, float pitch) {
-            super(event, SoundSource.AMBIENT, SoundInstance.createUnseededRandom());
+        Loop(boolean roar, float pitch) {
+            super(roar ? WATERFALL : RAPIDS, SoundSource.AMBIENT, SoundInstance.createUnseededRandom());
+            this.roar = roar;
             this.looping = true;
             this.delay = 0;
             this.attenuation = SoundInstance.Attenuation.NONE;

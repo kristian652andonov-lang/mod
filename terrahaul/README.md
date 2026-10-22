@@ -278,7 +278,8 @@ running water throws up spray, mist and foam and can be heard.
   - the pool churns white at the foot of every fall and step, foam floats away on the pool and
     down the stream, and the water running into and out of a drop carries flecks of foam;
   - tall falls roar and cascades and rapids rush, from the nearest part of the water, louder for
-    bigger falls and about as loud as Minecraft's own ambient sounds.
+    bigger falls and about as loud as Minecraft's own ambient sounds. They carry about 16 to 48
+    blocks for falls and 8 to 20 for rapids, depending on size, and fade out smoothly.
 
   Each effect has its own option (`[water]` in the client config); the particle count follows the
   animation quality and Minecraft's Particles setting.
@@ -379,6 +380,7 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | `water.waterSounds` | `true` | Roar of tall falls, rush of cascades and rapids (Ambient/Environment volume) |
 | `water.waterEffectDensity` | `1.0` | Multiplier for the number of water particles (0–3) |
 | `water.waterSoundVolume` | `1.0` | Multiplier for the volume of the water sounds (0–2) |
+| `water.waterSoundRange` | `1.0` | Multiplier for how far the water sounds are heard (0.25–1.3; the largest falls reach 48 blocks at 1.0) |
 
 The water effects apply in every world, to any falling or running water. Their particles follow
 `animations.quality` and Minecraft's Particles option (half at Decreased, none at Minimal).
