@@ -2,6 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.terrahaul.mixin",
+  "plugin": "com.terrahaul.mixin.TerrahaulMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BeardifierMixin",
