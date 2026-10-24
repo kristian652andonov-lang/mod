@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "minecraft:deep_dark",
+  "features": "fantasyweapons:necrostone_ore",
+  "step": "underground_ores"
+}

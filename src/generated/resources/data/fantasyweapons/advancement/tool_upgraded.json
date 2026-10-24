@@ -1,0 +1,34 @@
+{
+  "parent": "fantasyweapons:legendary_tool",
+  "criteria": {
+    "upgrade": {
+      "conditions": {
+        "name": "upgrade"
+      },
+      "trigger": "fantasyweapons:legendary_tool"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Upgrade a legendary tool at the Legendary Upgrading Table",
+      "translate": "advancements.fantasyweapons.tool_upgraded.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:legendary_upgrading_table"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF8A3D",
+      "fallback": "Honed",
+      "translate": "advancements.fantasyweapons.tool_upgraded.title"
+    }
+  },
+  "requirements": [
+    [
+      "upgrade"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:copper_ingot"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:thundercryst"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:thundercryst_core"
+  }
+}

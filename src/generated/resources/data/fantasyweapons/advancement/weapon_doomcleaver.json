@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:doomcleaver"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Doomcleaver",
+      "translate": "advancements.fantasyweapons.weapon_doomcleaver.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:doomcleaver"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF3424",
+      "fallback": "Doom Given Form",
+      "translate": "advancements.fantasyweapons.weapon_doomcleaver.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

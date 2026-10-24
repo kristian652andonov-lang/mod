@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:magma_block"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:infernite"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:infernite_core"
+  }
+}

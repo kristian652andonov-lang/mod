@@ -1,0 +1,195 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "aetherite": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:aetherite"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "astralite": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:astralite"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "bloodstone_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloodstone_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "eclipsite": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipsite"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "frostheart_shard": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostheart_shard"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "infernite": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernite"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "necrostone_shard": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:necrostone_shard"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "solarite_crystal": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:solarite_crystal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "soulshard": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:soulshard"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "thundercryst": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:thundercryst"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "titanstone": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:titanstone"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "verdant_core": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:verdant_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "void_crystal": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:void_crystal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine all thirteen legendary ores, in all three realms",
+      "translate": "advancements.fantasyweapons.every_ore.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:eclipsite_ore"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Prospector of Legends",
+      "translate": "advancements.fantasyweapons.every_ore.title"
+    }
+  },
+  "requirements": [
+    [
+      "void_crystal"
+    ],
+    [
+      "solarite_crystal"
+    ],
+    [
+      "frostheart_shard"
+    ],
+    [
+      "bloodstone_fragment"
+    ],
+    [
+      "thundercryst"
+    ],
+    [
+      "necrostone_shard"
+    ],
+    [
+      "soulshard"
+    ],
+    [
+      "verdant_core"
+    ],
+    [
+      "eclipsite"
+    ],
+    [
+      "astralite"
+    ],
+    [
+      "aetherite"
+    ],
+    [
+      "titanstone"
+    ],
+    [
+      "infernite"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

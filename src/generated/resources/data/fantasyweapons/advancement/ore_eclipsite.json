@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipsite"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Find the rare Eclipsite deep in the overworld's caves",
+      "translate": "advancements.fantasyweapons.ore_eclipsite.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:eclipsite"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#E8D9A8",
+      "fallback": "Between Day and Night",
+      "translate": "advancements.fantasyweapons.ore_eclipsite.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1800,
+  "key": {
+    "A": {
+      "item": "minecraft:green_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:verdant_heart"
+    }
+  },
+  "pattern": [
+    "  ARRRA  ",
+    "  RRARR  ",
+    "  R   R  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:archdruid_helmet"
+  }
+}

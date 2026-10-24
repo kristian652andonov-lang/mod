@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:glowstone_dust"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:solarite_crystal"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:solarite_core"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:first_forging",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "#fantasyweapons:legendary_tools"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge a legendary pickaxe, shovel or axe",
+      "translate": "advancements.fantasyweapons.legendary_tool.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:void_crystal_pickaxe"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#6FD8F0",
+      "fallback": "Tools of Legend",
+      "translate": "advancements.fantasyweapons.legendary_tool.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

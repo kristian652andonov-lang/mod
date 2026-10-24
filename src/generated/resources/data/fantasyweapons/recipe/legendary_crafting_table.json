@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "B": {
+      "item": "minecraft:dragon_breath"
+    },
+    "H": {
+      "item": "minecraft:heavy_core"
+    },
+    "N": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "S": {
+      "item": "minecraft:nether_star"
+    },
+    "Z": {
+      "item": "minecraft:totem_of_undying"
+    }
+  },
+  "pattern": [
+    "ZSZ",
+    "BHB",
+    "N N"
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:legendary_crafting_table"
+  }
+}

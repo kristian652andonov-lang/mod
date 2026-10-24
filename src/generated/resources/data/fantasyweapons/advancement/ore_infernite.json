@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernite"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Infernite beside the lava of the basalt deltas",
+      "translate": "advancements.fantasyweapons.ore_infernite.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:infernite"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF6A1A",
+      "fallback": "Ember in the Rock",
+      "translate": "advancements.fantasyweapons.ore_infernite.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

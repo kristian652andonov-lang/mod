@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:chain"
+    },
+    "R": {
+      "item": "fantasyweapons:bloodstone_core"
+    }
+  },
+  "pattern": [
+    "  ARRRA  ",
+    "  RRARR  ",
+    "  RR RR  ",
+    "  RA AR  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:doomcleaver_leggings"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:moss_block"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:verdant_core"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:verdant_heart"
+  }
+}

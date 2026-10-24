@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "key": {
+    "A": {
+      "item": "minecraft:cyan_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:aetherite_core"
+    }
+  },
+  "pattern": [
+    "  ARRRA  ",
+    "  RRARR  ",
+    "  RR RR  ",
+    "  RA AR  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:tidemancer_leggings"
+  }
+}

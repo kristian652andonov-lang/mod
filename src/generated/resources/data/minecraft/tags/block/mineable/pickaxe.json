@@ -1,0 +1,25 @@
+{
+  "values": [
+    "fantasyweapons:void_crystal_ore",
+    "fantasyweapons:solarite_ore",
+    "fantasyweapons:frostheart_ore",
+    "fantasyweapons:bloodstone_ore",
+    "fantasyweapons:thundercryst_ore",
+    "fantasyweapons:necrostone_ore",
+    "fantasyweapons:soulshard_ore",
+    "fantasyweapons:verdant_ore",
+    "fantasyweapons:eclipsite_ore",
+    "fantasyweapons:astralite_ore",
+    "fantasyweapons:aetherite_ore",
+    "fantasyweapons:titanstone_ore",
+    "fantasyweapons:infernite_ore",
+    "fantasyweapons:arcane_refinery",
+    "fantasyweapons:arcane_refinery_part",
+    "fantasyweapons:legendary_crafting_table",
+    "fantasyweapons:legendary_crafting_table_part",
+    "fantasyweapons:worldforge",
+    "fantasyweapons:worldforge_part",
+    "fantasyweapons:legendary_upgrading_table",
+    "fantasyweapons:legendary_upgrading_table_part"
+  ]
+}

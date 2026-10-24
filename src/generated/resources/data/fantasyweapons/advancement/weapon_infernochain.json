@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernochain"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Infernochain",
+      "translate": "advancements.fantasyweapons.weapon_infernochain.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:infernochain"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF6A1A",
+      "fallback": "Chains of the Inferno",
+      "translate": "advancements.fantasyweapons.weapon_infernochain.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3600,
+  "key": {
+    "A": {
+      "item": "minecraft:packed_ice"
+    },
+    "C": {
+      "item": "minecraft:diamond"
+    },
+    "H": {
+      "item": "minecraft:breeze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:frostheart_crystal"
+    }
+  },
+  "pattern": [
+    "    R    ",
+    "   RRR   ",
+    "   RRR   ",
+    "   RRR   ",
+    "    R    ",
+    "  ARCRA  ",
+    "    H    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:frostrend"
+  }
+}

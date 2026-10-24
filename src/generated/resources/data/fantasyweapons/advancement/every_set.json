@@ -1,0 +1,143 @@
+{
+  "parent": "fantasyweapons:full_set",
+  "criteria": {
+    "aetherlance": {
+      "conditions": {
+        "name": "aetherlance"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "bloomfall": {
+      "conditions": {
+        "name": "bloomfall"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "doomcleaver": {
+      "conditions": {
+        "name": "doomcleaver"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "eclipse_reaper": {
+      "conditions": {
+        "name": "eclipse_reaper"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "frostrend": {
+      "conditions": {
+        "name": "frostrend"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "gravebite": {
+      "conditions": {
+        "name": "gravebite"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "infernochain": {
+      "conditions": {
+        "name": "infernochain"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "monolith": {
+      "conditions": {
+        "name": "monolith"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "solaris": {
+      "conditions": {
+        "name": "solaris"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "soulreaper": {
+      "conditions": {
+        "name": "soulreaper"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "starforge": {
+      "conditions": {
+        "name": "starforge"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "stormbreaker": {
+      "conditions": {
+        "name": "stormbreaker"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "voidfang": {
+      "conditions": {
+        "name": "voidfang"
+      },
+      "trigger": "fantasyweapons:full_set"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Wear every one of the thirteen warriors' legendary armor sets",
+      "translate": "advancements.fantasyweapons.every_set.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:starforge_chestplate"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Wardrobe of Legends",
+      "translate": "advancements.fantasyweapons.every_set.title"
+    }
+  },
+  "requirements": [
+    [
+      "voidfang"
+    ],
+    [
+      "solaris"
+    ],
+    [
+      "frostrend"
+    ],
+    [
+      "doomcleaver"
+    ],
+    [
+      "stormbreaker"
+    ],
+    [
+      "gravebite"
+    ],
+    [
+      "soulreaper"
+    ],
+    [
+      "bloomfall"
+    ],
+    [
+      "eclipse_reaper"
+    ],
+    [
+      "starforge"
+    ],
+    [
+      "aetherlance"
+    ],
+    [
+      "monolith"
+    ],
+    [
+      "infernochain"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

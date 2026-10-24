@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1800,
+  "key": {
+    "A": {
+      "item": "minecraft:black_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:void_core"
+    }
+  },
+  "pattern": [
+    "  ARRRA  ",
+    "  RRARR  ",
+    "  R   R  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:voidfang_helmet"
+  }
+}

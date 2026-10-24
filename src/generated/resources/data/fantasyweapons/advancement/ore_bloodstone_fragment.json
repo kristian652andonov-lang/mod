@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloodstone_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Bloodstone in the Nether's crimson forests",
+      "translate": "advancements.fantasyweapons.ore_bloodstone_fragment.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:bloodstone_fragment"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF3424",
+      "fallback": "Blood from a Stone",
+      "translate": "advancements.fantasyweapons.ore_bloodstone_fragment.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:titanstone"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Titanstone in the deepslate below",
+      "translate": "advancements.fantasyweapons.ore_titanstone.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:titanstone"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FFAE3A",
+      "fallback": "Bones of the Mountain",
+      "translate": "advancements.fantasyweapons.ore_titanstone.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

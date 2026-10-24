@@ -1,0 +1,80 @@
+{
+  "parent": "fantasyweapons:full_set",
+  "criteria": {
+    "archdruid": {
+      "conditions": {
+        "name": "archdruid"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "cryomancer": {
+      "conditions": {
+        "name": "cryomancer"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "luminarch": {
+      "conditions": {
+        "name": "luminarch"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "pyromancer": {
+      "conditions": {
+        "name": "pyromancer"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "tidemancer": {
+      "conditions": {
+        "name": "tidemancer"
+      },
+      "trigger": "fantasyweapons:full_set"
+    },
+    "umbramancer": {
+      "conditions": {
+        "name": "umbramancer"
+      },
+      "trigger": "fantasyweapons:full_set"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Wear every one of the Mage's six regalia",
+      "translate": "advancements.fantasyweapons.every_regalia.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:luminarch_chestplate"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Robes of Every Element",
+      "translate": "advancements.fantasyweapons.every_regalia.title"
+    }
+  },
+  "requirements": [
+    [
+      "pyromancer"
+    ],
+    [
+      "cryomancer"
+    ],
+    [
+      "tidemancer"
+    ],
+    [
+      "archdruid"
+    ],
+    [
+      "luminarch"
+    ],
+    [
+      "umbramancer"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

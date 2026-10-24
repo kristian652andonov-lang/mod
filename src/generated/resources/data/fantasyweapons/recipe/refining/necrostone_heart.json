@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:bone"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:necrostone_shard"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:necrostone_heart"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1200,
+  "key": {
+    "A": {
+      "item": "minecraft:quartz"
+    },
+    "R": {
+      "item": "fantasyweapons:aetherite_core"
+    }
+  },
+  "pattern": [
+    "  R   R  ",
+    " RR   RR ",
+    " AR   RA "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:aetherlance_boots"
+  }
+}

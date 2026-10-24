@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:sunwarden"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Sunwarden",
+      "translate": "advancements.fantasyweapons.weapon_sunwarden.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:sunwarden"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FFB030",
+      "fallback": "Herald of the Dawn",
+      "translate": "advancements.fantasyweapons.weapon_sunwarden.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

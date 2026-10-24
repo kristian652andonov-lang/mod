@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:world_ender",
+  "criteria": {
+    "cast": {
+      "conditions": {
+        "name": "from_afar"
+      },
+      "trigger": "fantasyweapons:ability_cast"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Bring a power down on a far place through the targeting map",
+      "translate": "advancements.fantasyweapons.from_afar.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:filled_map"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "Dominion Sight",
+      "translate": "advancements.fantasyweapons.from_afar.title"
+    }
+  },
+  "requirements": [
+    [
+      "cast"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

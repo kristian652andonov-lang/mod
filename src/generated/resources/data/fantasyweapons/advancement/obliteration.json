@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:first_rite",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:great_sword_of_obliteration"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Great Sword of Obliteration",
+      "translate": "advancements.fantasyweapons.obliteration.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:great_sword_of_obliteration"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF5050",
+      "fallback": "The End of All Things",
+      "translate": "advancements.fantasyweapons.obliteration.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

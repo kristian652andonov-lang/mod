@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legendary_table",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:worldforge"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Raise the Worldforge, the altar the world is broken on",
+      "translate": "advancements.fantasyweapons.worldforge.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:worldforge"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF5050",
+      "fallback": "The Worldforge",
+      "translate": "advancements.fantasyweapons.worldforge.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

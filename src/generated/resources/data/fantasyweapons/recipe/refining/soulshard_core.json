@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:soul_sand"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:soulshard"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:soulshard_core"
+  }
+}

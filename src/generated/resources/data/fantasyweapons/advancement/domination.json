@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:first_rite",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:spell_book_of_absolute_domination"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Bind the Spell Book of Absolute Domination",
+      "translate": "advancements.fantasyweapons.domination.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:spell_book_of_absolute_domination"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "The Last Word",
+      "translate": "advancements.fantasyweapons.domination.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

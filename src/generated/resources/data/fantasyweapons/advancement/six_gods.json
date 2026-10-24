@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:divine_power",
+  "criteria": {
+    "cast": {
+      "conditions": {
+        "name": "combined_power_of_the_six_gods"
+      },
+      "trigger": "fantasyweapons:ability_cast"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Call down the beam of every colour",
+      "translate": "advancements.fantasyweapons.six_gods.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:nether_star"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Combined Power of the 6 Gods",
+      "translate": "advancements.fantasyweapons.six_gods.title"
+    }
+  },
+  "requirements": [
+    [
+      "cast"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

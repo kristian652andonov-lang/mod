@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3000,
+  "key": {
+    "A": {
+      "item": "minecraft:crying_obsidian"
+    },
+    "C": {
+      "item": "minecraft:sculk_catalyst"
+    },
+    "H": {
+      "item": "minecraft:leather"
+    },
+    "R": {
+      "item": "fantasyweapons:void_core"
+    }
+  },
+  "pattern": [
+    "         ",
+    "   ARA   ",
+    "  RRHRR  ",
+    "  RRCRR  ",
+    "  RRHRR  ",
+    "   ARA   ",
+    "         ",
+    "         ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:umbral_codex"
+  }
+}

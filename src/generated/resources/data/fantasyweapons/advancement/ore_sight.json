@@ -1,0 +1,34 @@
+{
+  "parent": "fantasyweapons:legendary_tool",
+  "criteria": {
+    "power": {
+      "conditions": {
+        "name": "ore_sight"
+      },
+      "trigger": "fantasyweapons:legendary_tool"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "See the legendary ores through the stone with a pickaxe's Ore Sight",
+      "translate": "advancements.fantasyweapons.ore_sight.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:solarite_pickaxe"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "The Seer",
+      "translate": "advancements.fantasyweapons.ore_sight.title"
+    }
+  },
+  "requirements": [
+    [
+      "power"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "crafting=false,facing=east": {
+      "model": "fantasyweapons:block/worldforge"
+    },
+    "crafting=false,facing=north": {
+      "model": "fantasyweapons:block/worldforge"
+    },
+    "crafting=false,facing=south": {
+      "model": "fantasyweapons:block/worldforge"
+    },
+    "crafting=false,facing=west": {
+      "model": "fantasyweapons:block/worldforge"
+    },
+    "crafting=true,facing=east": {
+      "model": "fantasyweapons:block/worldforge"
+    },
+    "crafting=true,facing=north": {
+      "model": "fantasyweapons:block/worldforge"
+    },
+    "crafting=true,facing=south": {
+      "model": "fantasyweapons:block/worldforge"
+    },
+    "crafting=true,facing=west": {
+      "model": "fantasyweapons:block/worldforge"
+    }
+  }
+}

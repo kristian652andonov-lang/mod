@@ -1,0 +1,29 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1800,
+  "key": {
+    "A": {
+      "item": "minecraft:soul_lantern"
+    },
+    "C": {
+      "item": "minecraft:ghast_tear"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:soulshard_core"
+    }
+  },
+  "pattern": [
+    "   RR    ",
+    "  RRC    ",
+    "   RH    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:soulshard_axe"
+  }
+}
