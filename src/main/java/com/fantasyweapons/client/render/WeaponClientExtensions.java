@@ -47,9 +47,27 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         float time = (player.tickCount + partialTick) * 0.05f;
         pose.translate(0, Mth.sin(time) * 0.008f, 0);
 
+        applyAbilityMotion(pose, player, item, side, partialTick);
+
+        FirstPersonAttacks.debug(pose, side);
+        float s = AnimTracker.swingProgress(player, partialTick);
+        if (s < 0) return true;
+        float heavy = AnimTracker.heavy(player) ? 1.3f : 1f;
+        FirstPersonAttacks.apply(pose, item.definition().weaponClass().swingStyle(), AnimTracker.variant(player), side, heavy, s);
+        return true;
+    }
+
+    /**
+     * The first-person motion of the weapon's abilities, about the hand: raised while charging, the release, Monolith's
+     * plant, Cinder Cyclone's whirl and the form switch. Also laid over the arms of mods that draw the first-person
+     * hands themselves (see {@code compat/punchy}). Returns whether any of it is playing.
+     */
+    public static boolean applyAbilityMotion(PoseStack pose, LivingEntity player, FantasyWeaponItem item, int side, float partialTick) {
+        boolean moving = false;
         // ability charge: the weapon is raised and held steady (power shows in its glow, not in a shaking hand)
         float charge = AnimTracker.charge(player, partialTick);
         if (charge > 0) {
+            moving = true;
             float w = smooth(Math.min(1, charge * 3));
             boolean big = item.definition().weaponClass().twoHanded();
             pose.translate(side * (big ? -0.04f : -0.08f) * w, 0.12f * w, -0.04f * w);
@@ -58,10 +76,14 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         }
         // ability release: the weapon's own first attack, so every cast is a clean, designed motion
         float cast = AnimTracker.castProgress(player, partialTick);
-        if (cast >= 0) FirstPersonAttacks.apply(pose, item.definition().weaponClass().swingStyle(), 0, side, 1f, Math.min(1, cast * 1.15f));
+        if (cast >= 0) {
+            moving = true;
+            FirstPersonAttacks.apply(pose, item.definition().weaponClass().swingStyle(), 0, side, 1f, Math.min(1, cast * 1.15f));
+        }
         // Monolith plant: from overhead, driven point-first into the ground ahead, then pulled free
         float[] plant = AnimTracker.plantPhase(player, partialTick);
         if (plant != null) {
+            moving = true;
             float w = plant[0], d = plant[1], raise = 1 - plant[1];
             float sh = plant[2] * 0.03f;
             float[] k = debugPlantFp != null ? debugPlantFp : PLANT_FP;
@@ -73,6 +95,7 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         // Cinder Cyclone: the chain whirls around in front of the view
         float spin = AnimTracker.spinAngle(player, partialTick);
         if (spin != 0) {
+            moving = true;
             float k = (float) Math.sin(-spin);
             pose.translate(side * -0.25f * k, 0.1f, -0.15f);
             pose.mulPose(Axis.ZP.rotationDegrees(side * 55 * k));
@@ -81,17 +104,12 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         // form switch: raise the weapon in front of you
         float form = AnimTracker.formProgress(player, partialTick);
         if (form >= 0) {
+            moving = true;
             float k = form < 0.3f ? smooth(form / 0.3f) : smooth(1 - (form - 0.3f) / 0.7f);
             pose.translate(side * -0.2f * k, 0.15f * k, -0.1f * k);
             pose.mulPose(Axis.ZP.rotationDegrees(side * 25 * k));
         }
-
-        FirstPersonAttacks.debug(pose, side);
-        float s = AnimTracker.swingProgress(player, partialTick);
-        if (s < 0) return true;
-        float heavy = AnimTracker.heavy(player) ? 1.3f : 1f;
-        FirstPersonAttacks.apply(pose, item.definition().weaponClass().swingStyle(), AnimTracker.variant(player), side, heavy, s);
-        return true;
+        return moving;
     }
 
     /** First-person planted offset: x (towards centre), y, z, pitch, roll. */

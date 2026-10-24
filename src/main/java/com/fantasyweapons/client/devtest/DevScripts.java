@@ -126,6 +126,7 @@ final class DevScripts {
                 else if (name.equals("codexshield")) codexShield(b);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
                 else if (name.startsWith("bcframes:")) betterCombatFrames(b, name.substring(9).split(","));
+                else if (name.startsWith("bcability:")) betterCombatAbility(b, name.substring(10).split(","));
                 else if (name.equals("magehud")) mageHud(b);
                 else if (name.startsWith("empower:")) empower(b, name.substring(8));
                 else if (name.equals("impacthit")) impactHit(b);
@@ -2894,6 +2895,41 @@ final class DevScripts {
                     .slot(0).wait(30).screenshot(tag + "_held").run(mc -> mc.gameMode.useItem(mc.player, hand));
             for (int f = 1; f <= 3; f++) b.wait(2).screenshot(tag + "_raise" + f);
             b.wait(100).screenshot(tag + "_read").closeScreen().wait(20).screenshot(tag + "_closing").wait(70).screenshot(tag + "_closed");
+        }
+    }
+
+    /**
+     * A weapon's first active ability charged and cast, in first and in third person, with the pose timelines logged
+     * each frame: to compare the cast animation with Better Combat installed and without.
+     */
+    private static void betterCombatAbility(ScreenshotDirector.Builder b, String[] weapons) {
+        b.cmd("/gamemode creative").hud(false);
+        for (String w : weapons) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            if (def == null) continue;
+            var a = def.abilities().stream().filter(x -> x.kind() == com.fantasyweapons.ability.AbilityKind.ACTIVE && x.requiredForm() == null)
+                    .findFirst().orElse(null);
+            if (a == null) continue;
+            b.cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]").cmd("/clear @s")
+                    .cmd("/fw give " + w + " 100").wait(20).slot(0).cmd("/fw points 200").cmd("/fw cooldowns").wait(150);
+            for (CameraType view : new CameraType[]{CameraType.FIRST_PERSON, CameraType.THIRD_PERSON_BACK}) {
+                String tag = "bcab_" + w + (view == CameraType.FIRST_PERSON ? "_fp" : "_tp");
+                // the first-person hand is only drawn with the HUD showing
+                b.camera(view).hud(view == CameraType.FIRST_PERSON).look(0, 8).cmd("/fw cooldowns").select(a.id()).wait(20).screenshot(tag + "_idle")
+                        .abilityDown();
+                int charge = Math.max(2, a.chargeTicks() + 1);
+                for (int t = 0; t < charge; t += Math.max(1, charge / 3)) b.wait(Math.max(1, charge / 3)).screenshot(tag + "_charge" + t);
+                b.abilityUp();
+                for (int f = 0; f < 6; f++) {
+                    int frame = f;
+                    b.wait(2).screenshot(tag + "_cast" + f).run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info(
+                            "[bcability] {} frame {}: charge={} cast={} swing={}", tag, frame,
+                            com.fantasyweapons.client.anim.AnimTracker.charge(mc.player, 0),
+                            com.fantasyweapons.client.anim.AnimTracker.castProgress(mc.player, 0),
+                            com.fantasyweapons.client.anim.AnimTracker.swingProgress(mc.player, 0)));
+                }
+                b.wait(30);
+            }
         }
     }
 

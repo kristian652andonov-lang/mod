@@ -5,6 +5,7 @@
   "plugin": "com.fantasyweapons.compat.punchy.PunchyMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "PunchyAbilityMotionMixin",
     "PunchyArmRendererMixin"
   ],
   "injectors": {
