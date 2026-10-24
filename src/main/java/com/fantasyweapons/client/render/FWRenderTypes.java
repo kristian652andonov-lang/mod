@@ -22,7 +22,8 @@ import java.util.function.Function;
  *   <li>{@link #solid}: like translucent but writes depth, for modelled props that must hide their own back faces</li>
  * </ul>
  * Apart from {@link #solid} none of them write depth, so effects overlap without sorting artefacts but are still
- * hidden behind terrain.
+ * hidden behind terrain. While a shader pack is on they are swapped for the {@code pack*} types, on the game's own
+ * shaders (see {@link ShaderPacks}).
  */
 public final class FWRenderTypes extends RenderType {
     private FWRenderTypes(String name, VertexFormat format, VertexFormat.Mode mode, int size, boolean crumbling, boolean sort,
@@ -109,6 +110,48 @@ public final class FWRenderTypes extends RenderType {
                     .setWriteMaskState(COLOR_WRITE)
                     .createCompositeState(false)));
 
+    // ---- while a shader pack is on (see ShaderPacks): the game's own entity shaders, which the pack replaces with its
+    // programs; the effects' own shaders would not be drawn at all. Glows draw as glowing eyes do (unlit and added to the
+    // scene: Iris always adds that program's colour, so nothing dark may go there); everything that is seen by its own
+    // colour (smoke, cracks, vines, chains, the void) as translucent entities, lit by the pack like any other thing.
+    // The noise of energy and the void's nebula need their own shaders, so those draw plainly there. ----
+    private static final Function<ResourceLocation, RenderType> PACK_GLOW = Util.memoize(tex -> create("fw_vfx_pack_glow",
+            DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(RENDERTYPE_EYES_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(ADDITIVE_ALPHA)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> PACK_TRANSLUCENT = Util.memoize(tex -> create("fw_vfx_pack_translucent",
+            DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setLightmapState(LIGHTMAP)
+                    .setOverlayState(OVERLAY)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> PACK_SOLID = Util.memoize(tex -> create("fw_vfx_pack_solid",
+            DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setLightmapState(LIGHTMAP)
+                    .setOverlayState(OVERLAY)
+                    .setWriteMaskState(COLOR_DEPTH_WRITE)
+                    .createCompositeState(false)));
+
     // ---- GUI (screen-space) variants, using the vanilla position-tex-colour shader (no fog) ----
     private static final ShaderStateShard GUI_TEX_COLOR = new ShaderStateShard(GameRenderer::getPositionTexColorShader);
 
@@ -191,6 +234,23 @@ public final class FWRenderTypes extends RenderType {
 
     public static RenderType translucent(ResourceLocation texture) {
         return TRANSLUCENT.apply(texture);
+    }
+
+    /** {@link #additive} and {@link #energy} while a shader pack is on: drawn as glowing eyes are (added). Takes entity vertices. */
+    public static RenderType packGlow(ResourceLocation texture) {
+        return PACK_GLOW.apply(texture);
+    }
+
+    /** {@link #translucent} and {@link #voidInterior} while a shader pack is on. Takes entity vertices. */
+    public static RenderType packTranslucent(ResourceLocation texture) {
+        return PACK_TRANSLUCENT.apply(texture);
+    }
+
+    /** {@link #solid} and {@link #cutout} while a shader pack is on (writes depth, drawn first). Takes entity vertices. */
+    public static RenderType packSolid(ResourceLocation texture) {
+        RenderType t = PACK_SOLID.apply(texture);
+        OPAQUE.add(t);
+        return t;
     }
 
     public static RenderType energy(ResourceLocation texture) {

@@ -24,6 +24,8 @@ public final class VfxContext {
     private final MultiBufferSource buffers;
     /** Alpha multiplier applied to every vertex (set per effect by VfxManager for the automatic fade-out). */
     public float alphaScale = 1f;
+    /** Whether a shader pack is drawing this frame: the effects then draw with the game's own shaders (see ShaderPacks). */
+    private final boolean packs = com.fantasyweapons.client.render.ShaderPacks.inUse();
 
     public VfxContext(Vec3 cam, Vector3f left, Vector3f up, Vector3f look, float partial, float time, float density, MultiBufferSource buffers) {
         this.cam = cam;
@@ -37,28 +39,34 @@ public final class VfxContext {
     }
 
     public VertexConsumer additive(ResourceLocation tex) {
+        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packGlow(tex)));
         return buffers.getBuffer(FWRenderTypes.additive(tex));
     }
 
     public VertexConsumer energy(ResourceLocation tex) {
+        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packGlow(tex)));
         return buffers.getBuffer(FWRenderTypes.energy(tex));
     }
 
     public VertexConsumer voidInterior(ResourceLocation mask) {
+        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packTranslucent(mask)));
         return buffers.getBuffer(FWRenderTypes.voidInterior(mask));
     }
 
     /** Depth-writing textured geometry for modelled props (see {@link FWRenderTypes#solid}). */
     public VertexConsumer solid(ResourceLocation tex) {
+        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packSolid(tex)));
         return buffers.getBuffer(FWRenderTypes.solid(tex));
     }
 
     /** Opaque geometry cut out by its texture's alpha (see {@link FWRenderTypes#cutout}). */
     public VertexConsumer cutout(ResourceLocation tex) {
+        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packSolid(tex)));
         return buffers.getBuffer(FWRenderTypes.cutout(tex));
     }
 
     public VertexConsumer translucent(ResourceLocation tex) {
+        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packTranslucent(tex)));
         return buffers.getBuffer(FWRenderTypes.translucent(tex));
     }
 

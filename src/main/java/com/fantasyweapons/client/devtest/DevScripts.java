@@ -127,6 +127,7 @@ final class DevScripts {
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
                 else if (name.startsWith("bcframes:")) betterCombatFrames(b, name.substring(9).split(","));
                 else if (name.startsWith("bcability:")) betterCombatAbility(b, name.substring(10).split(","));
+                else if (name.startsWith("shaderfx:")) shaderFx(b, name.substring(9).split(","));
                 else if (name.equals("magehud")) mageHud(b);
                 else if (name.startsWith("empower:")) empower(b, name.substring(8));
                 else if (name.equals("impacthit")) impactHit(b);
@@ -2929,6 +2930,32 @@ final class DevScripts {
                             com.fantasyweapons.client.anim.AnimTracker.swingProgress(mc.player, 0)));
                 }
                 b.wait(30);
+            }
+        }
+    }
+
+    /**
+     * Up to three active abilities of each weapon, cast at dummies and watched from the side: to compare the effects with
+     * a shader pack on and off (run once with each).
+     */
+    private static void shaderFx(ScreenshotDirector.Builder b, String[] weapons) {
+        b.cmd("/gamemode creative").cmd("/time set noon").hud(false);
+        for (String w : weapons) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            if (def == null) continue;
+            var picks = def.abilities().stream().filter(x -> x.kind() == com.fantasyweapons.ability.AbilityKind.ACTIVE && x.requiredForm() == null).limit(3).toList();
+            b.cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]").cmd("/clear @s")
+                    .cmd("/fw give " + w + " 100").wait(20).slot(0).cmd("/fw points 200").wait(150);
+            for (var a : picks) {
+                for (int i = 0; i < 3; i++) {
+                    b.cmd("/summon minecraft:husk " + (200.5 + (i - 1) * 1.6) + " -60 " + (205.5 + (i % 2))
+                            + " {NoAI:1b,Health:1000000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000000d}]}");
+                }
+                String tag = "sfx_" + w + "_" + a.id();
+                b.camera(CameraType.FIRST_PERSON).look(0, 10).cmd("/fw cooldowns").select(a.id()).wait(10).viewFrom(9.5, 3.5, 4.0)
+                        .abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+                for (int t : new int[]{3, 8, 16, 30}) b.wait(t == 3 ? 3 : t == 8 ? 5 : t == 16 ? 8 : 14).screenshot(tag + "_" + t);
+                b.playerView().wait(40).cmd("/kill @e[type=!player]");
             }
         }
     }

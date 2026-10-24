@@ -56,6 +56,15 @@ Punchy also dresses its first-person arms in the worn chestplate's sleeve, paint
 legendary armor is a 3D model with no such texture, so the arm came out black. When a legendary chestplate is worn,
 the arm of its own model is drawn on Punchy's arm instead.
 
+### Shader packs (Iris)
+
+The effects are drawn with the mod's own shaders. While a shader pack is on, Iris draws nothing made with shaders it does
+not know (unless its "allow unknown shaders" setting is on), so the effects draw with the game's own shaders instead,
+which the pack replaces with its programs: glows as glowing eyes are, everything else (smoke, cracks, vines, chains, the
+void) as translucent entities lit by the pack. The animated noise of energy and the swirl inside the void are left out
+there. Nothing changes without a pack. For development, Iris, Sodium and a pack can be put in `run/mods` and
+`run/shaderpacks`; the `shaderfx:<weapons>` screenshot script casts their abilities from the side to compare.
+
 ## Controls
 
 All keys can be rebound under *Controls → Fantasy Weapons*.
