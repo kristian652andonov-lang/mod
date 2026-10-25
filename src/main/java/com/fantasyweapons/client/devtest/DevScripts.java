@@ -2966,6 +2966,11 @@ final class DevScripts {
     private static void settingsMenu(ScreenshotDirector.Builder b) {
         b.cmd("/gamemode survival").hud(true).wait(10)
                 .run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(10).screenshot("settings_inventory")
+                // with the recipe book open, which moves the inventory aside
+                .closeScreen().run(mc -> mc.player.getRecipeBook().setOpen(net.minecraft.world.inventory.RecipeBookType.CRAFTING, true))
+                .run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(10).screenshot("settings_inventory_book")
+                .closeScreen().run(mc -> mc.player.getRecipeBook().setOpen(net.minecraft.world.inventory.RecipeBookType.CRAFTING, false))
+                .run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(10)
                 .run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.SettingsScreen(mc.screen))).wait(10);
         for (int i = 0; i < 9; i++) {
             int section = i;

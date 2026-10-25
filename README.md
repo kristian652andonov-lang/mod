@@ -112,7 +112,7 @@ The bold ability in each row is the ultimate, unlocked at level 100.
 
 ## Configuration
 
-Every setting can be changed in game: the gear button in the inventory, beside the Quest Journal and Class buttons,
+Every setting can be changed in game: the gear button in the inventory's top right corner, above the crafting result,
 opens the settings menu. *This game* holds the client settings (effects, HUD, notifications, compatibility); *this
 world* holds the world's settings (progression, weapon EXP, damage, world destruction, and every ability's numbers,
 weapon by weapon), shown once a world is open. Hover a setting for what it does, its default and its range; click a

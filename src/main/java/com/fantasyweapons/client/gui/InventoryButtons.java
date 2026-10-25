@@ -20,9 +20,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 /**
- * Three buttons in the player's inventory, beside the recipe book's and framed like it: the Quest Journal (a sealed
- * scroll, with a gold mark while a quest waits to be claimed), the class menu (the player's class's sign) and the mod's
- * settings (a gear). They keep beside the recipe book's button when the book opens and moves the inventory aside.
+ * Three buttons in the player's inventory, framed like the recipe book's: beside it the Quest Journal (a sealed scroll,
+ * with a gold mark while a quest waits to be claimed) and the class menu (the player's class's sign), and in the top
+ * right corner, over the crafting result, the mod's settings (a gear). They keep their places on the inventory when the
+ * recipe book opens and moves it aside.
  */
 public final class InventoryButtons {
     private static ResourceLocation sprite(String name, boolean hover) {
@@ -34,26 +35,29 @@ public final class InventoryButtons {
 
     public static void onInit(ScreenEvent.Init.Post event) {
         if (!(event.getScreen() instanceof InventoryScreen inventory)) return;
-        event.addListener(new Journal(inventory, 126));
-        event.addListener(new Classes(inventory, 148));
-        event.addListener(new Settings(inventory, 170));
+        // the recipe book's row (its button is at 104, 61), and the corner above the crafting result
+        event.addListener(new Journal(inventory, 126, 61));
+        event.addListener(new Classes(inventory, 148, 61));
+        event.addListener(new Settings(inventory, 152, 4));
     }
 
     private abstract static class Small extends AbstractButton {
         private final InventoryScreen screen;
-        private final int offset;
+        private final int dx, dy;
 
-        Small(InventoryScreen screen, int offset, Component name) {
-            super(screen.getGuiLeft() + offset, screen.height / 2 - 22, 20, 18, name);
+        /** A button at {@code dx, dy} from the inventory's top left corner. */
+        Small(InventoryScreen screen, int dx, int dy, Component name) {
+            super(screen.getGuiLeft() + dx, screen.getGuiTop() + dy, 20, 18, name);
             this.screen = screen;
-            this.offset = offset;
+            this.dx = dx;
+            this.dy = dy;
         }
 
         @Override
         protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-            // beside the recipe book's button, wherever the open book has moved the inventory
-            setX(screen.getGuiLeft() + offset);
-            setY(screen.height / 2 - 22);
+            // in its place on the inventory, wherever the open recipe book has moved it
+            setX(screen.getGuiLeft() + dx);
+            setY(screen.getGuiTop() + dy);
             g.blitSprite(sprite(spriteName(), isHoveredOrFocused()), getX(), getY(), width, height);
             mark(g, getX(), getY());
             setTooltip(Tooltip.create(tooltip()));
@@ -75,8 +79,8 @@ public final class InventoryButtons {
     }
 
     private static final class Journal extends Small {
-        Journal(InventoryScreen screen, int offset) {
-            super(screen, offset, Component.literal(Tr.s("Quest Journal")));
+        Journal(InventoryScreen screen, int dx, int dy) {
+            super(screen, dx, dy, Component.literal(Tr.s("Quest Journal")));
         }
 
         @Override
@@ -120,8 +124,8 @@ public final class InventoryButtons {
     private static final class Settings extends Small {
         private final InventoryScreen screen;
 
-        Settings(InventoryScreen screen, int offset) {
-            super(screen, offset, Component.literal(Tr.s("Settings")));
+        Settings(InventoryScreen screen, int dx, int dy) {
+            super(screen, dx, dy, Component.literal(Tr.s("Settings")));
             this.screen = screen;
         }
 
@@ -142,8 +146,8 @@ public final class InventoryButtons {
     }
 
     private static final class Classes extends Small {
-        Classes(InventoryScreen screen, int offset) {
-            super(screen, offset, Component.literal(Tr.s("Class")));
+        Classes(InventoryScreen screen, int dx, int dy) {
+            super(screen, dx, dy, Component.literal(Tr.s("Class")));
         }
 
         @Override
