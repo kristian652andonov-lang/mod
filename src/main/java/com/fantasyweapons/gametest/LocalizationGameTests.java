@@ -139,6 +139,10 @@ public final class LocalizationGameTests {
         for (UpgradeTrack t : UpgradeTrack.values()) t.displayName();
         for (ArmorClass c : ArmorClass.values()) c.displayName();
         for (Chapter c : Chapter.values()) c.title();
+        for (var m : com.fantasyweapons.progression.MasteryBonus.MILESTONES) m.description();
+        Tr.s("QUEST COMPLETE");
+        Tr.s("Infuse a %s for a level");
+        Tr.s("Infuse an %s for a level");
 
         for (WeaponDefinition def : Weapons.all()) {
             def.displayName();

@@ -84,7 +84,11 @@ public final class PageCanvas {
 
     /** Text at a place on the page. All the page's text is English looked up in the player's language (see Tr). */
     public void text(String text, float x, float y, int color, float scale) {
-        text(Component.literal(Tr.s(text)).getVisualOrderText(), x, y, color, scale);
+        // a line that would run off the page (a language's longer words) is set smaller to fit
+        String shown = Tr.s(text);
+        float room = W - MARGIN - x, s = scale;
+        if (x >= MARGIN - 1 && room > 4 && font.width(shown) * scale > room + 0.5f) s = room / font.width(shown);
+        text(Component.literal(shown).getVisualOrderText(), x, y + (scale - s) * 4, color, s);
     }
 
     public float width(String text, float scale) {
@@ -92,7 +96,8 @@ public final class PageCanvas {
     }
 
     public void centered(String text, float y, int color, float scale) {
-        text(text, (W - width(text, scale)) / 2, y, color, scale);
+        float s = Math.min(scale, (W - 2 * MARGIN) / Math.max(1f, width(text, 1f)));
+        text(text, (W - width(text, s)) / 2, y + (scale - s) * 4, color, s);
     }
 
     /** A filled rectangle (colour with alpha). */

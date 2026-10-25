@@ -10,6 +10,11 @@ public final class MasteryBonus {
     public enum Kind { DAMAGE, COOLDOWN, CHARGE_SPEED, AWAKENED }
 
     public record Milestone(float threshold, Kind kind, float amount, String description) {
+        /** What the milestone grants, in the player's language. */
+        @Override
+        public String description() {
+            return com.fantasyweapons.text.Tr.s(description);
+        }
     }
 
     public static final List<Milestone> MILESTONES = List.of(

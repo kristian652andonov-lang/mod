@@ -112,10 +112,30 @@ The bold ability in each row is the ultimate, unlocked at level 100.
 
 ## Configuration
 
+Every setting can be changed in game: the gear button in the inventory, beside the Quest Journal and Class buttons,
+opens the settings menu. *This game* holds the client settings (effects, HUD, notifications, compatibility); *this
+world* holds the world's settings (progression, weapon EXP, damage, world destruction, and every ability's numbers,
+weapon by weapon), shown once a world is open. Hover a setting for what it does, its default and its range; click a
+switch or a choice to change it (right-click goes back), type a number and press Enter. Changes are saved at once. A
+world's settings can be changed in single player; on a server they are shown but set by the server. The menu also opens
+the game's Language and Controls screens.
+
+The same settings are in the config files:
+
 - **`config/fantasyweapons-server.toml`**: EXP curve and sources, damage scaling, per-weapon base damage, and every
   ability parameter (damage, charge, cooldown, radius, …). The server syncs these values to clients.
 - **`config/fantasyweapons-client.toml`**: VFX quality, distortion, screen shake, VFX instance cap, and HUD layout and
   notifications.
+
+## Languages
+
+English and Russian (*Русский*). The mod follows the game's language. Each piece of the mod's English text is its own
+translation key, so a language file (`assets/fantasyweapons/lang/<code>.json`) maps the English to its translation, and
+anything a file leaves out stays in English. Messages from the server are sent as translatable text, so on a server each
+player reads them in their own language. The `russianTranslatesEveryText` GameTest gathers every text the mod's
+definitions make (weapons, abilities, armor, materials, classes, quests, settings) and fails on any the Russian file
+lacks; the `l10n` screenshot script films every screen and lists in `run/fw_untranslated.txt` whatever text it showed
+that the current language has no translation for.
 
 ## Commands
 

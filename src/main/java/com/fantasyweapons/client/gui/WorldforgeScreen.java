@@ -359,7 +359,8 @@ public class WorldforgeScreen extends AbstractContainerScreen<WorldforgeMenu> {
         boolean can = canFill(), hover = can && mouseX >= bx && mouseX < bx + FILL_W && mouseY >= by && mouseY < by + 13;
         UiDraw.rect(g, bx, by, bx + FILL_W, by + 13, Colors.alpha(1f, hover ? 0x3A0A0C : 0x1A0809));
         UiDraw.border(g, bx, by, bx + FILL_W, by + 13, 1, Colors.alpha(1f, can ? 0x9A2A2C : 0x4A1A1C));
-        UiDraw.textCentered(g, "Fill", bx + FILL_W / 2f, by + 3, Colors.alpha(can ? 1f : 0.45f, hover ? 0xFFFFFF : BONE), 0.72f, true);
+        float fs = Math.min(0.72f, (FILL_W - 6) / Math.max(1f, UiDraw.width("Fill")));
+        UiDraw.textCentered(g, "Fill", bx + FILL_W / 2f, by + 3 + (0.72f - fs) * 4, Colors.alpha(can ? 1f : 0.45f, hover ? 0xFFFFFF : BONE), fs, true);
     }
 
     private static ItemStack cycled(Ingredient ing, float time) {

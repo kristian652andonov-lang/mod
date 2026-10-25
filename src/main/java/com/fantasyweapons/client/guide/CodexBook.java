@@ -76,7 +76,7 @@ public final class CodexBook {
             pages.get(i).accept(c);
             // the chapter's name at the outer top corner, beside the frame's ornament
             if (i > 1 && !chapter.get(i).isEmpty()) {
-                String head = chapter.get(i).toUpperCase(Locale.ROOT);
+                String head = Tr.s(chapter.get(i)).toUpperCase(Locale.ROOT);
                 float hs = 0.42f;
                 while (c.width(head, hs) > 34 && head.length() > 4) head = head.substring(0, head.length() - 2).trim();
                 c.text(head, left ? outer : far - c.width(head, hs), 8.5f, PageCanvas.FADED, hs);
@@ -214,9 +214,10 @@ public final class CodexBook {
                 {"The Mage's Arts", "mage"}, {"The Ultimate Weapons", "ultimates"}, {"Legendary Tools", "tools"}, {"Mastery", "mastery"}, {"Deeds", "deeds"}};
         for (String[] e : entries) {
             int page = anchors.getOrDefault(e[1], 0) + 1;
-            float s = 0.64f;
-            c.link(e[0], PageCanvas.MARGIN, c.y, s, go(e[1]));
             String n = String.valueOf(page);
+            // a long chapter name is set smaller so its page number keeps its place
+            float s = Math.min(0.64f, (PageCanvas.W - 2 * PageCanvas.MARGIN - c.width(n, 0.64f) - 6) / Math.max(1f, c.width(e[0], 1f)));
+            c.link(e[0], PageCanvas.MARGIN, c.y, s, go(e[1]));
             c.text(n, PageCanvas.W - PageCanvas.MARGIN - c.width(n, s), c.y, PageCanvas.FADED, s);
             // dotted leader
             float from = PageCanvas.MARGIN + c.width(e[0], s) + 2, to = PageCanvas.W - PageCanvas.MARGIN - c.width(n, s) - 2;
@@ -477,8 +478,11 @@ public final class CodexBook {
                 for (ArmorSet set : ArmorSet.values()) {
                     if (set.regalia() != regalia || !c.fits(8)) continue;
                     c.link(set.abilityName(), PageCanvas.MARGIN, c.y, 0.52f, go("armor_" + set.name()));
+                    // the set's name at the right, smaller when it would run into the power's
                     String who = set.displayName();
-                    c.text(who, PageCanvas.W - PageCanvas.MARGIN - c.width(who, 0.45f), c.y + 0.6f, PageCanvas.FADED, 0.45f);
+                    float room = PageCanvas.W - 2 * PageCanvas.MARGIN - c.width(set.abilityName(), 0.52f) - 4;
+                    float ws = Math.min(0.45f, room / Math.max(1f, c.width(who, 1f)));
+                    c.text(who, PageCanvas.W - PageCanvas.MARGIN - c.width(who, ws), c.y + 0.6f + (0.45f - ws) * 4, PageCanvas.FADED, ws);
                     c.y += 7.6f;
                 }
             });
@@ -1015,8 +1019,9 @@ public final class CodexBook {
             c.y = PageCanvas.TOP;
             for (Object row : rows) {
                 if (row instanceof String name) {
-                    c.text(name.toUpperCase(Locale.ROOT), PageCanvas.MARGIN, c.y + 1, PageCanvas.RED, 0.5f);
-                    c.fill(PageCanvas.MARGIN + c.width(name.toUpperCase(Locale.ROOT), 0.5f) + 3, c.y + 3.2f, PageCanvas.W - PageCanvas.MARGIN, c.y + 3.7f, PageCanvas.RULE);
+                    String heading = Tr.s(name).toUpperCase(Locale.ROOT);
+                    c.text(heading, PageCanvas.MARGIN, c.y + 1, PageCanvas.RED, 0.5f);
+                    c.fill(PageCanvas.MARGIN + c.width(heading, 0.5f) + 3, c.y + 3.2f, PageCanvas.W - PageCanvas.MARGIN, c.y + 3.7f, PageCanvas.RULE);
                     c.y += 10;
                 } else {
                     deed(c, (AdvancementHolder) row);

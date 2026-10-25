@@ -641,8 +641,21 @@ public final class QuestScreen extends Screen {
         }
         if (n.group != null) {
             // its name beneath
-            String name = n.group.title();
-            UiDraw.textCentered(g, name, cx, cy + r + 6, Colors.alpha(n.alpha, s == State.LOCKED ? 0x8A8494 : 0xE8DCC0), 0.5f, true);
+            // its name beneath, broken into lines that stay inside the gap to its neighbours
+            int color = Colors.alpha(n.alpha, s == State.LOCKED ? 0x8A8494 : 0xE8DCC0);
+            float room = r * 3.8f, ly = cy + r + 6;
+            StringBuilder line = new StringBuilder();
+            for (String word : n.group.title().split(" ")) {
+                String tried = line.isEmpty() ? word : line + " " + word;
+                if (!line.isEmpty() && UiDraw.width(tried) * 0.5f > room) {
+                    UiDraw.textCentered(g, line.toString(), cx, ly, color, 0.5f, true);
+                    ly += 5;
+                    line = new StringBuilder(word);
+                } else {
+                    line = new StringBuilder(tried);
+                }
+            }
+            UiDraw.textCentered(g, line.toString(), cx, ly, color, 0.5f, true);
         }
     }
 

@@ -235,7 +235,8 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
     private void fillButton(GuiGraphics g, int x, int y, int mouseX, int mouseY) {
         boolean can = canFill(), hover = can && mouseX >= x && mouseX < x + FILL_W && mouseY >= y && mouseY < y + 14;
         UiDraw.button(g, x, y, FILL_W, 14, hover ? 1 : 0, can ? 1f : 0.45f);
-        UiDraw.textCentered(g, "Fill", x + FILL_W / 2f, y + 3.5f, Colors.alpha(can ? 1f : 0.55f, hover ? 0xFFFFFF : GOLD), 0.8f, true);
+        float fs = Math.min(0.8f, (FILL_W - 6) / Math.max(1f, UiDraw.width("Fill")));
+        UiDraw.textCentered(g, "Fill", x + FILL_W / 2f, y + 3.5f + (0.8f - fs) * 4, Colors.alpha(can ? 1f : 0.55f, hover ? 0xFFFFFF : GOLD), fs, true);
     }
 
     private boolean canFill() {

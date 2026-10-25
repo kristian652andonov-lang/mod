@@ -203,6 +203,18 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         return input.getCount() >= r.count() && (r.additive().isEmpty() || r.additive().test(add) && add.getCount() >= r.additiveCount());
     }
 
+    /** Text ending at {@code right}, made smaller when it is wider than {@code room}. */
+    private static void rightFit(GuiGraphics g, String text, float right, float y, int argb, float scale, float room) {
+        float s = Math.min(scale, room / Math.max(1f, UiDraw.width(text)));
+        UiDraw.textRight(g, text, right, y + (scale - s) * 4, argb, s, false);
+    }
+
+    /** Centred text, made smaller when it is wider than {@code room}. */
+    private static void centeredFit(GuiGraphics g, String text, float cx, float y, int argb, float scale, boolean shadow, float room) {
+        float s = Math.min(scale, room / Math.max(1f, UiDraw.width(text)));
+        UiDraw.textCentered(g, text, cx, y + (scale - s) * 4, argb, s, shadow);
+    }
+
     private static void heading(GuiGraphics g, String s, int x, int y) {
         UiDraw.text(g, s, x, y, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.7f, true);
     }
@@ -223,33 +235,36 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         String title = this.title.getString();
         UiDraw.text(g, title, (imageWidth - font.width(title)) / 2f, 9, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 1f, true);
         int muted = Colors.alpha(1f, UiDraw.INK_MUTED);
-        UiDraw.text(g, "Raw", RefineryMenu.INPUT_X - 26, RefineryMenu.INPUT_Y + 5, muted, 0.75f, false);
+        rightFit(g, "Raw", RefineryMenu.INPUT_X - 4, RefineryMenu.INPUT_Y + 5, muted, 0.75f, RefineryMenu.INPUT_X - 10);
         UiDraw.textCentered(g, "+", (RefineryMenu.INPUT_X + RefineryMenu.ADDITIVE_X + 16) / 2f, RefineryMenu.INPUT_Y + 4, muted, 0.9f, false);
         UiDraw.textCentered(g, "Additive", RefineryMenu.ADDITIVE_X + 8, RefineryMenu.ADDITIVE_Y - 11, muted, 0.6f, false);
-        UiDraw.text(g, "Fuel", RefineryMenu.FUEL_X - 28, RefineryMenu.FUEL_Y + 5, muted, 0.75f, false);
+        rightFit(g, "Fuel", RefineryMenu.FUEL_X - 4, RefineryMenu.FUEL_Y + 5, muted, 0.75f, RefineryMenu.FUEL_X - 10);
         UiDraw.textCentered(g, "Refined", RefineryMenu.OUTPUT_X + 8, RefineryMenu.OUTPUT_Y + 26, muted, 0.75f, false);
         // what the machine is doing, or what it needs
         float cx = (RefineryMenu.INPUT_X + 28 + RefineryMenu.OUTPUT_X - 12) / 2f;
         int ly = RefineryMenu.OUTPUT_Y + 16;
+        // the lines stay clear of the Refined slot and its label, shrinking when a language's words run long
+        float refinedHalf = UiDraw.width("Refined") * 0.75f / 2;
+        float room = 2 * (Math.min(RefineryMenu.OUTPUT_X - 4, RefineryMenu.OUTPUT_X + 8 - refinedHalf - 3) - cx);
         ItemStack input = menu.slots.get(0).getItem(), fuel = menu.slots.get(1).getItem(), out = menu.slots.get(2).getItem();
         if (menu.progress() > 0 && menu.burning()) {
-            UiDraw.textCentered(g, Tr.f("Refining  %ss", String.format("%.0f", Math.ceil(menu.secondsLeft()))), cx, ly, Colors.alpha(1f, UiDraw.INK), 0.75f, false);
-            if (menu.fastFire()) UiDraw.textCentered(g, "Fast fire  x2", cx, ly + 10, Colors.alpha(1f, BLAZE), 0.7f, true);
+            centeredFit(g, Tr.f("Refining  %ss", String.format("%.0f", Math.ceil(menu.secondsLeft()))), cx, ly, Colors.alpha(1f, UiDraw.INK), 0.75f, false, room);
+            if (menu.fastFire()) centeredFit(g, "Fast fire  x2", cx, ly + 10, Colors.alpha(1f, BLAZE), 0.7f, true, room);
         } else if (input.isEmpty()) {
-            UiDraw.textCentered(g, "Put a raw material in", cx, ly, muted, 0.7f, false);
+            centeredFit(g, "Put a raw material in", cx, ly, muted, 0.7f, false, room);
         } else if (recipe() != null && !enough(recipe())) {
             // what it still needs: 8 of the raw material and 8 of its additive, each green once there is enough
             RefiningRecipe r = recipe();
             ItemStack add = menu.slots.get(ArcaneRefineryBlockEntity.ADDITIVE).getItem();
             int haveRaw = input.getCount(), haveAdd = r.additive().test(add) ? add.getCount() : 0;
             String addName = r.additive().getItems().length > 0 ? r.additive().getItems()[0].getHoverName().getString() : Tr.s("Additive");
-            UiDraw.textCentered(g, Tr.s("Raw") + "  " + Math.min(haveRaw, r.count()) + "/" + r.count(), cx, ly, Colors.alpha(1f, haveRaw >= r.count() ? UiDraw.GOOD : BLAZE), 0.62f, true);
-            UiDraw.textCentered(g, addName + "  " + Math.min(haveAdd, r.additiveCount()) + "/" + r.additiveCount(), cx, ly + 9,
-                    Colors.alpha(1f, haveAdd >= r.additiveCount() ? UiDraw.GOOD : BLAZE), 0.62f, true);
+            centeredFit(g, Tr.s("Raw") + "  " + Math.min(haveRaw, r.count()) + "/" + r.count(), cx, ly, Colors.alpha(1f, haveRaw >= r.count() ? UiDraw.GOOD : BLAZE), 0.62f, true, room);
+            centeredFit(g, addName + "  " + Math.min(haveAdd, r.additiveCount()) + "/" + r.additiveCount(), cx, ly + 9,
+                    Colors.alpha(1f, haveAdd >= r.additiveCount() ? UiDraw.GOOD : BLAZE), 0.62f, true, room);
         } else if (!out.isEmpty() && out.getCount() >= out.getMaxStackSize()) {
-            UiDraw.textCentered(g, "Take the refined out", cx, ly, muted, 0.7f, false);
+            centeredFit(g, "Take the refined out", cx, ly, muted, 0.7f, false, room);
         } else if (!menu.burning() && (fuel.isEmpty() || fuel.is(Items.BUCKET))) {
-            UiDraw.textCentered(g, "Add fuel to light the fire", cx, ly, muted, 0.7f, false);
+            centeredFit(g, "Add fuel to light the fire", cx, ly, muted, 0.7f, false, room);
         }
         UiDraw.text(g, playerInventoryTitle, inventoryLabelX, inventoryLabelY, muted, 0.75f, false);
     }

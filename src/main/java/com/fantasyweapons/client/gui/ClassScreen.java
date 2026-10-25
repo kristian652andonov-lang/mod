@@ -327,7 +327,7 @@ public final class ClassScreen extends Screen {
         if (!locked) UiDraw.glow(g, rx + 18, sy + 18, 30, Colors.alpha(0.35f, color));
         var sprite = minecraft.getMobEffectTextures().get(page.giftIcon());
         g.blit(rx + 9, sy + 9, 0, 18, 18, sprite, locked ? 0.5f : 1f, locked ? 0.5f : 1f, locked ? 0.5f : 1f, 1f);
-        UiDraw.text(g, page.gift().toUpperCase(java.util.Locale.ROOT), rx + 37, sy + 5, Colors.alpha(1f, locked ? 0xA09CAA : color), 0.7f, true);
+        UiDraw.text(g, Tr.s(page.gift()).toUpperCase(java.util.Locale.ROOT), rx + 37, sy + 5, Colors.alpha(1f, locked ? 0xA09CAA : color), 0.7f, true);
         UiDraw.wrap(g, page.giftText(), rx + 37, sy + 14, 210, Colors.alpha(1f, locked ? 0x8A8494 : 0xD8CCB0), 0.5f, 6);
         // a word of its lore
         int ly = sy + 42;

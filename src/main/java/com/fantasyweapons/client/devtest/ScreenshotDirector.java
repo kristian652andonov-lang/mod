@@ -29,6 +29,19 @@ public final class ScreenshotDirector {
     }
 
     private static final List<Step> STEPS = new ArrayList<>();
+    private static final java.util.Set<String> ASKED = new java.util.concurrent.ConcurrentSkipListSet<>();
+
+    /** Lists in {@code fw_untranslated.txt} the texts the run showed that the current language has no translation for. */
+    private static void writeUntranslated() {
+        var language = net.minecraft.locale.Language.getInstance();
+        List<String> missing = ASKED.stream().filter(k -> k.chars().anyMatch(Character::isLetter) && !language.has(k))
+                .map(k -> k.replace("\n", "\\n")).toList();
+        try {
+            java.nio.file.Files.write(java.nio.file.Path.of("fw_untranslated.txt"), missing, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException e) {
+            FantasyWeapons.LOGGER.warn("Could not write the untranslated texts", e);
+        }
+    }
     private static int index;
     private static int wait;
     private static int inWorldTicks;
@@ -44,6 +57,8 @@ public final class ScreenshotDirector {
             InputSelfTest.start();
             return;
         }
+        // every text the run shows is noted, so what the current language does not translate can be listed at the end
+        com.fantasyweapons.text.Tr.record(ASKED);
         DevScripts.build(script, new Builder());
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> tick());
         PerfProbe.start();
@@ -266,7 +281,10 @@ public final class ScreenshotDirector {
         }
 
         public Builder quit() {
-            return run(mc -> mc.stop());
+            return run(mc -> {
+                writeUntranslated();
+                mc.stop();
+            });
         }
     }
 }

@@ -12,6 +12,7 @@ final class DevScripts {
                 .cmd("/kill @e[type=!player]").cmd("/tp @s 0 -60 0 0 0").cmd("/clear @s");
         switch (name) {
             case "voidfang" -> voidfang(b);
+            case "l10n" -> translated(b);
             case "poses" -> poses(b);
             case "grip" -> grip(b);
             case "check" -> check(b);
@@ -2978,6 +2979,31 @@ final class DevScripts {
             }).wait(4).screenshot("settings_abilities_" + w);
         }
         b.closeScreen().cmd("/gamemode creative");
+    }
+
+    /** Every screen of the mod in turn, for checking a translation: the settings, the HUD and tome, tooltips, quests, machines, the Codex. */
+    private static void translated(ScreenshotDirector.Builder b) {
+        settingsMenu(b);
+        b.cmd("/fw give voidfang 100").cmd("/fw give infernochain 60").wait(20).cmd("/fw points 200").camera(CameraType.FIRST_PERSON).hud(true).look(0, 5);
+        b.slot(0).wait(20).screenshot("l10n_hud");
+        var def = com.fantasyweapons.weapon.Weapons.get("voidfang");
+        b.menu(def.castables().get(0).id()).wait(20).screenshot("l10n_tome").closeScreen().wait(5);
+        b.menu("#core").wait(20).screenshot("l10n_tome_core").closeScreen().wait(5);
+        b.slot(1).wait(20).screenshot("l10n_hud_chain");
+        for (String item : new String[]{"fantasyweapons:voidfang_helmet", "fantasyweapons:void_crystal_pickaxe", "fantasyweapons:void_crystal",
+                "fantasyweapons:void_core", "fantasyweapons:void_crystal_ore", "fantasyweapons:pyromancer_hood", "fantasyweapons:worldforge"}) {
+            String tag = item.substring(item.indexOf(':') + 1);
+            b.cmd("/clear @s").cmd("/give @s " + item).wait(10).slot(0)
+                    .run(mc -> mc.setScreen(new TooltipPreviewScreen(mc.player.getMainHandItem()))).wait(8).screenshot("l10n_tip_" + tag).closeScreen().wait(4);
+        }
+        b.cmd("/clear @s").cmd("/fw give voidfang 40").wait(20).slot(0)
+                .run(mc -> mc.setScreen(new TooltipPreviewScreen(mc.player.getMainHandItem()))).wait(8).screenshot("l10n_tip_voidfang").closeScreen().wait(4);
+        quests(b);
+        forge(b);
+        upgrader(b);
+        codexAll(b);
+        // last, for it ends the run
+        refinery(b);
     }
 
     /** What Punchy makes of the held items: whether each hand is left to this mod (on Punchy's blacklist). */
