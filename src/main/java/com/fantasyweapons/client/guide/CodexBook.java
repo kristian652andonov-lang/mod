@@ -1042,7 +1042,7 @@ public final class CodexBook {
         // a gold seal behind what is done
         if (done) c.fill(PageCanvas.MARGIN - 1, top - 1, PageCanvas.MARGIN + 13, top + 13, 0x449A6A12);
         c.item(display.getIcon(), PageCanvas.MARGIN, top, 12);
-        String rank = com.fantasyweapons.advancement.Deeds.rank(display.getType()).toUpperCase(Locale.ROOT);
+        String rank = Tr.s(com.fantasyweapons.advancement.Deeds.rank(display.getType())).toUpperCase(Locale.ROOT);
         float rx = PageCanvas.W - PageCanvas.MARGIN - c.width(rank, 0.36f);
         c.text(display.getTitle().getString(), PageCanvas.MARGIN + 15, top, done ? titleColor : (titleColor & 0x00FFFFFF) | 0x99000000, 0.54f);
         c.text(rank, rx, top + 0.8f, (rankColor & 0x00FFFFFF) | (done ? 0xFF000000 : 0x99000000), 0.36f);

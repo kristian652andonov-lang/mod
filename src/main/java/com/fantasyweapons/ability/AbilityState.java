@@ -16,7 +16,8 @@ public enum AbilityState {
         this.label = label;
     }
 
+    /** The state's name in the player's language. */
     public String label() {
-        return label;
+        return com.fantasyweapons.text.Tr.s(label);
     }
 }

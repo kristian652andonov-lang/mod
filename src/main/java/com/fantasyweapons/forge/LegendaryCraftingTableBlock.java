@@ -1,5 +1,6 @@
 package com.fantasyweapons.forge;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.machine.MachineCoreBlock;
 import com.fantasyweapons.machine.ModelShape;
 import com.fantasyweapons.registry.ModBlockEntities;
@@ -37,7 +38,7 @@ import java.util.Set;
 public class LegendaryCraftingTableBlock extends MachineCoreBlock {
     public static final MapCodec<LegendaryCraftingTableBlock> CODEC = simpleCodec(LegendaryCraftingTableBlock::new);
     public static final BooleanProperty CRAFTING = BooleanProperty.create("crafting");
-    public static final Component TITLE = Component.literal("Legendary Crafting Table");
+    public static final Component TITLE = Tr.c("Legendary Crafting Table");
 
     public LegendaryCraftingTableBlock(Properties properties) {
         super(properties, ModBlocks.LEGENDARY_CRAFTING_TABLE_PART);

@@ -1,5 +1,6 @@
 package com.fantasyweapons.tool;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.material.Material;
 import com.fantasyweapons.registry.ModComponents;
 import net.minecraft.core.Holder;
@@ -69,32 +70,32 @@ public final class LegendaryTools {
         Material m = tool.material();
         int color = m.color(), light = mix(color, 0xFFFFFF, 0.45f), faded = mix(color, 0x9C8862, 0.55f), stat = 0xC8D2DC;
         ToolUpgrades u = upgrades(stack);
-        tooltip.add(Component.literal("Legendary " + tool.kind().displayName().toLowerCase(java.util.Locale.ROOT) + " of " + m.materialName())
+        tooltip.add(Component.literal(Tr.f("Legendary %s of %s", tool.kind().displayName().toLowerCase(java.util.Locale.ROOT), m.materialName()))
                 .withStyle(s -> s.withColor(color)));
         tooltip.add(Component.empty());
-        if (tool.kind() == ToolKind.AXE) tooltip.add(Component.literal("⛏ Fells a whole tree at a stroke").withStyle(s -> s.withColor(stat)));
+        if (tool.kind() == ToolKind.AXE) tooltip.add(Component.literal("⛏ " + Tr.s("Fells a whole tree at a stroke")).withStyle(s -> s.withColor(stat)));
         for (UpgradeTrack t : UpgradeTrack.values()) {
             String icon = t == UpgradeTrack.AREA ? "⛏ " : "✦ ";
-            String label = t == UpgradeTrack.AREA && tool.kind() == ToolKind.AXE ? "Other Wood" : t.displayName();
+            String label = t == UpgradeTrack.AREA && tool.kind() == ToolKind.AXE ? Tr.s("Other Wood") : t.displayName();
             tooltip.add(Component.literal(icon + label + "  " + t.describe(u.level(t)) + "  ")
                     .withStyle(s -> s.withColor(stat))
                     .append(Component.literal(pips(u.level(t) - t.min() + 1, t.max() - t.min() + 1)).withStyle(s -> s.withColor(u.maxed(t) ? 0xFFE7A8 : light))));
         }
-        tooltip.add(Component.literal("Sneak to dig a single block").withStyle(s -> s.withColor(faded).withItalic(true)));
+        tooltip.add(Component.literal(Tr.s("Sneak to dig a single block")).withStyle(s -> s.withColor(faded).withItalic(true)));
         tooltip.add(Component.empty());
         // its power, on the ability key
         String key = com.fantasyweapons.SidedHooks.get().abilityKeyName();
         tooltip.add(Component.literal("[" + key + "] " + ToolAbilities.name(tool.kind())).withStyle(s -> s.withColor(light).withBold(true))
-                .append(Component.literal("  rests " + ToolAbilities.cooldown(tool.kind()) / 20 + "s").withStyle(s -> s.withColor(faded).withBold(false))));
+                .append(Component.literal("  " + Tr.f("rests %ss", ToolAbilities.cooldown(tool.kind()) / 20)).withStyle(s -> s.withColor(faded).withBold(false))));
         for (String line : wrap(ToolAbilities.describe(tool.kind(), u), 40)) {
             tooltip.add(Component.literal("  " + line).withStyle(s -> s.withColor(stat)));
         }
         tooltip.add(Component.empty());
         if (u.maxed()) {
-            tooltip.add(Component.literal("★ Fully upgraded").withStyle(s -> s.withColor(0xFFE7A8).withBold(true)));
+            tooltip.add(Component.literal("★ " + Tr.s("Fully upgraded")).withStyle(s -> s.withColor(0xFFE7A8).withBold(true)));
         } else {
-            tooltip.add(Component.literal("⚒ Upgrade at the Legendary Upgrading Table").withStyle(s -> s.withColor(light)));
-            tooltip.add(Component.literal("   with " + m.refinedName() + " and experience").withStyle(s -> s.withColor(faded)));
+            tooltip.add(Component.literal("⚒ " + Tr.s("Upgrade at the Legendary Upgrading Table")).withStyle(s -> s.withColor(light)));
+            tooltip.add(Component.literal("   " + Tr.f("with %s and experience", m.refinedName())).withStyle(s -> s.withColor(faded)));
         }
     }
 

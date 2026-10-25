@@ -1,5 +1,6 @@
 package com.fantasyweapons.forge;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.armor.FantasyArmorItem;
 import com.fantasyweapons.material.Material;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
@@ -28,65 +29,73 @@ public final class ForgeStages {
     /** The line for stage {@code stage} of forging {@code made} from {@code recipe} (when it is known). */
     public static String line(ItemStack made, @Nullable ForgeRecipe recipe, int stage) {
         String name = made.getHoverName().getString();
-        String core = "cores", catalyst = "catalyst";
+        String core = Tr.s("cores"), catalyst = Tr.s("catalyst");
         if (recipe != null) {
             Item[] parts = parts(recipe);
-            if (parts[0] != null) core = new ItemStack(parts[0]).getHoverName().getString() + "s";
+            if (parts[0] != null) core = plural(parts[0]);
             if (parts[1] != null) catalyst = new ItemStack(parts[1]).getHoverName().getString();
         }
         if (made.getItem() instanceof FantasyArmorItem armor) {
             String piece = switch (armor.getType()) {
-                case HELMET -> "helm";
-                case CHESTPLATE -> "breastplate";
-                case LEGGINGS -> "greaves";
-                default -> "boots";
+                case HELMET -> Tr.s("helm");
+                case CHESTPLATE -> Tr.s("breastplate");
+                case LEGGINGS -> Tr.s("greaves");
+                default -> Tr.s("boots");
             };
             String set = armor.set().displayName();
             return switch (stage) {
-                case 0 -> "Measuring the " + piece;
-                case 1 -> "Heating the " + core;
-                case 2 -> "Hammering out the plates";
-                case 3 -> "Riveting the bindings";
-                case 4 -> "Etching the runes of " + set;
-                default -> "Polishing the " + piece;
+                case 0 -> Tr.f("Measuring the %s", piece);
+                case 1 -> Tr.f("Heating the %s", core);
+                case 2 -> Tr.s("Hammering out the plates");
+                case 3 -> Tr.s("Riveting the bindings");
+                case 4 -> Tr.f("Etching the runes of %s", set);
+                default -> Tr.f("Polishing the %s", piece);
             };
         }
         WeaponClass cls = made.getItem() instanceof FantasyWeaponItem w ? w.definition().weaponClass() : WeaponClass.LONGSWORD;
         if (cls.magic()) {
             boolean book = cls == WeaponClass.TOME;
             return switch (stage) {
-                case 0 -> "Laying out the " + core;
-                case 1 -> "Heating the " + core + " in the forge-light";
-                case 2 -> book ? "Pressing the pages" : "Turning the shaft";
-                case 3 -> book ? "Inking the incantations" : "Carving its runes";
-                case 4 -> book ? "Binding the covers" : "Crowning the head";
-                case 5 -> "Setting the " + catalyst + " at its heart";
-                case 6 -> "Quenching " + name;
-                default -> "Waking " + name + "...";
+                case 0 -> Tr.f("Laying out the %s", core);
+                case 1 -> Tr.f("Heating the %s in the forge-light", core);
+                case 2 -> Tr.s(book ? "Pressing the pages" : "Turning the shaft");
+                case 3 -> Tr.s(book ? "Inking the incantations" : "Carving its runes");
+                case 4 -> Tr.s(book ? "Binding the covers" : "Crowning the head");
+                case 5 -> Tr.f("Setting the %s at its heart", catalyst);
+                case 6 -> Tr.f("Quenching %s", name);
+                default -> Tr.f("Waking %s...", name);
             };
         }
         String blade = blade(cls);
         return switch (stage) {
-            case 0 -> "Laying out the " + core;
-            case 1 -> "Heating the " + core + " in the forge-light";
-            case 2 -> "Drawing out the " + blade;
-            case 3 -> "Folding the " + blade + " a hundred times";
-            case 4 -> "Forging the handle";
-            case 5 -> "Setting the " + catalyst + " at its heart";
-            case 6 -> "Quenching " + name;
-            default -> "Waking " + name + "...";
+            case 0 -> Tr.f("Laying out the %s", core);
+            case 1 -> Tr.f("Heating the %s in the forge-light", core);
+            case 2 -> Tr.f("Drawing out the %s", blade);
+            case 3 -> Tr.f("Folding the %s a hundred times", blade);
+            case 4 -> Tr.s("Forging the handle");
+            case 5 -> Tr.f("Setting the %s at its heart", catalyst);
+            case 6 -> Tr.f("Quenching %s", name);
+            default -> Tr.f("Waking %s...", name);
         };
     }
 
     private static String blade(WeaponClass c) {
-        return switch (c) {
+        return Tr.s(switch (c) {
             case BATTLEAXE -> "axe head";
             case SCYTHE -> "crescent blade";
             case WARHAMMER -> "hammer head";
             case LANCE -> "lance head";
             case COLOSSAL -> "great blade";
             default -> "blade";
-        };
+        });
+    }
+
+    /** A refined core's name in the plural ("Void Cores"), or its name as it is when it is not a refined core. */
+    private static String plural(Item item) {
+        for (Material m : Material.values()) {
+            if (com.fantasyweapons.registry.ModItems.REFINED.get(m).get() == item) return Tr.s(m.refinedEnglish() + "s");
+        }
+        return new ItemStack(item).getHoverName().getString();
     }
 
     /**

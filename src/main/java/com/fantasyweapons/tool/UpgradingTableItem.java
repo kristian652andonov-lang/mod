@@ -1,5 +1,6 @@
 package com.fantasyweapons.tool;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.SidedHooks;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
@@ -29,12 +30,12 @@ public class UpgradingTableItem extends BlockItem implements GeoItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int ink = 0xD8C9A8, faded = 0x9C8862, copper = 0xF0A878, xp = 0xB6F27A;
-        tooltip.add(Component.literal("Where legendary tools are made greater").withStyle(s -> s.withColor(ink).withItalic(true)));
+        tooltip.add(Component.literal(Tr.s("Where legendary tools are made greater")).withStyle(s -> s.withColor(ink).withItalic(true)));
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("⚒ Raises a legendary tool's mining area,").withStyle(s -> s.withColor(copper)));
-        tooltip.add(Component.literal("   Fortune and Efficiency, a step at a time").withStyle(s -> s.withColor(copper)));
-        tooltip.add(Component.literal("✦ Costs the tool's refined material and experience").withStyle(s -> s.withColor(xp)));
-        tooltip.add(Component.literal("⚒ Needs a space 1 wide and 2 high").withStyle(s -> s.withColor(faded)));
+        tooltip.add(Component.literal(Tr.s("⚒ Raises a legendary tool's mining area,")).withStyle(s -> s.withColor(copper)));
+        tooltip.add(Component.literal(Tr.s("   Fortune and Efficiency, a step at a time")).withStyle(s -> s.withColor(copper)));
+        tooltip.add(Component.literal(Tr.s("✦ Costs the tool's refined material and experience")).withStyle(s -> s.withColor(xp)));
+        tooltip.add(Component.literal(Tr.s("⚒ Needs a space 1 wide and 2 high")).withStyle(s -> s.withColor(faded)));
     }
 
     @Override

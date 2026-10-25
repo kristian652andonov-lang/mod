@@ -1,5 +1,6 @@
 package com.fantasyweapons.armor;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.ability.AbilityRuntime;
 import com.fantasyweapons.ability.AbilityService;
@@ -148,25 +149,25 @@ public final class SetAbilities {
     /** The numbers behind a set's ability, for its tooltip. */
     public static String details(ArmorSet set) {
         return switch (set) {
-            case VOIDFANG -> "Within " + RIFT_WINDOW / 20 + "s of a teleport · the echo deals " + pct(RIFT_ECHO) + " of the hit";
-            case SOLARIS -> "Full-strength hits and fully charged abilities · " + pct(DAWN_DAMAGE) + " of the hit around the target, and burns";
-            case FROSTREND -> "Frostbite slows " + pct(CHILL_SLOW) + " per hit, up to five, for " + CHILL_TICKS / 20 + "s";
-            case DOOMCLEAVER -> "+" + pct((float) FRENZY_ATTACK_SPEED) + " attack speed and +" + pct(FRENZY_LIFE_STEAL) + " life steal";
-            case STORMBREAKER -> "Every " + STORM_HITS + "th hit · " + pct(STORM_DAMAGE) + " of the hit, and staggers";
-            case GRAVEBITE -> pct(RISE_CHANCE) + " chance · up to " + MAX_ALLIES + " allies for " + ALLY_LIFE / 20 + "s";
-            case SOULREAPER -> "Up to " + MAX_SOULS + " souls · +" + pct(SOUL_BONUS) + " ability damage each";
-            case BLOOMFALL -> "After " + GROVE_STILL / 20 + "s still · heals half a heart a second, roots within " + (int) GROVE_RADIUS + " blocks";
-            case ECLIPSE_REAPER -> "Once every " + TOTALITY_COOLDOWN / 20 + "s · both modes for " + TOTALITY_TICKS / 20 + "s";
-            case STARFORGE -> "Pulls enemies within " + (int) WELL_RADIUS + " blocks of the impact";
-            case AETHERLANCE -> "The bolt deals " + pct(BOLT_DAMAGE) + " of the hit and pierces";
-            case MONOLITH -> "The shockwave deals " + pct(SHOCK_DAMAGE) + " of the hit around the impact";
-            case INFERNOCHAIN -> "The Infernochain's chain form and abilities · burns for " + TRAIL_TICKS / 20 + "s";
-            case PYROMANCER -> "Every " + PYRE_HITS + "th spell hit · " + pct(PYRE_DAMAGE) + " of your power within " + (int) PYRE_RADIUS + " blocks, and burns";
-            case CRYOMANCER -> DEEP_FREEZE_STACKS + " stacks of frostbite · frozen for " + DEEP_FREEZE_TICKS / 20f + "s, then shatters for " + pct(DEEP_FREEZE_SHATTER);
-            case TIDEMANCER -> "Heals " + pct(TIDE_SHARE) + " of the heal to allies within " + (int) TIDE_RADIUS + " blocks of the healed";
-            case ARCHDRUID -> "Half a heart every " + GROWTH_PERIOD / 20 + "s within " + (int) GROWTH_RADIUS + " blocks · roots for " + ROOT_TICKS / 20f + "s";
-            case LUMINARCH -> "The ray deals " + pct(JUDGEMENT_DAMAGE) + " of your power, within " + (int) JUDGEMENT_RANGE + " blocks of the ally";
-            case UMBRAMANCER -> "Heals " + pct(PACT_HEAL) + " of your health · withers enemies within " + (int) PACT_RADIUS + " blocks";
+            case VOIDFANG -> Tr.f("Within %ss of a teleport · the echo deals %s of the hit", RIFT_WINDOW / 20, pct(RIFT_ECHO));
+            case SOLARIS -> Tr.f("Full-strength hits and fully charged abilities · %s of the hit around the target, and burns", pct(DAWN_DAMAGE));
+            case FROSTREND -> Tr.f("Frostbite slows %s per hit, up to five, for %ss", pct(CHILL_SLOW), CHILL_TICKS / 20);
+            case DOOMCLEAVER -> Tr.f("+%s attack speed and +%s life steal", pct((float) FRENZY_ATTACK_SPEED), pct(FRENZY_LIFE_STEAL));
+            case STORMBREAKER -> Tr.f("Every %sth hit · %s of the hit, and staggers", STORM_HITS, pct(STORM_DAMAGE));
+            case GRAVEBITE -> Tr.f("%s chance · up to %s allies for %ss", pct(RISE_CHANCE), MAX_ALLIES, ALLY_LIFE / 20);
+            case SOULREAPER -> Tr.f("Up to %s souls · +%s ability damage each", MAX_SOULS, pct(SOUL_BONUS));
+            case BLOOMFALL -> Tr.f("After %ss still · heals half a heart a second, roots within %s blocks", GROVE_STILL / 20, (int) GROVE_RADIUS);
+            case ECLIPSE_REAPER -> Tr.f("Once every %ss · both modes for %ss", TOTALITY_COOLDOWN / 20, TOTALITY_TICKS / 20);
+            case STARFORGE -> Tr.f("Pulls enemies within %s blocks of the impact", (int) WELL_RADIUS);
+            case AETHERLANCE -> Tr.f("The bolt deals %s of the hit and pierces", pct(BOLT_DAMAGE));
+            case MONOLITH -> Tr.f("The shockwave deals %s of the hit around the impact", pct(SHOCK_DAMAGE));
+            case INFERNOCHAIN -> Tr.f("The Infernochain's chain form and abilities · burns for %ss", TRAIL_TICKS / 20);
+            case PYROMANCER -> Tr.f("Every %sth spell hit · %s of your power within %s blocks, and burns", PYRE_HITS, pct(PYRE_DAMAGE), (int) PYRE_RADIUS);
+            case CRYOMANCER -> Tr.f("%s stacks of frostbite · frozen for %ss, then shatters for %s", DEEP_FREEZE_STACKS, DEEP_FREEZE_TICKS / 20f, pct(DEEP_FREEZE_SHATTER));
+            case TIDEMANCER -> Tr.f("Heals %s of the heal to allies within %s blocks of the healed", pct(TIDE_SHARE), (int) TIDE_RADIUS);
+            case ARCHDRUID -> Tr.f("Half a heart every %ss within %s blocks · roots for %ss", GROWTH_PERIOD / 20, (int) GROWTH_RADIUS, ROOT_TICKS / 20f);
+            case LUMINARCH -> Tr.f("The ray deals %s of your power, within %s blocks of the ally", pct(JUDGEMENT_DAMAGE), (int) JUDGEMENT_RANGE);
+            case UMBRAMANCER -> Tr.f("Heals %s of your health · withers enemies within %s blocks", pct(PACT_HEAL), (int) PACT_RADIUS);
         };
     }
 

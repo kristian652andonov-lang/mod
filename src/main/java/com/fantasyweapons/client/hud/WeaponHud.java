@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.hud;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.ability.AbilityDefinition;
 import com.fantasyweapons.ability.AbilityService;
@@ -140,7 +141,7 @@ public final class WeaponHud {
         if (full || castFlash > 0) UiDraw.glow(g, 26, 66, 70, Colors.alpha(a * Math.max(fullPulse * 0.5f, castFlash * 0.6f), themeLight));
 
         // ---- header: name, rarity and element, level plaque ----
-        String lv = "Lv " + data.level();
+        String lv = Tr.f("Lv %s", data.level());
         float lvW = UiDraw.width(lv) * 0.7f + 10;
         // long names (the ultimate weapons') shrink to fit beside the level plaque
         float nameScale = Math.min(0.95f, (W - 22 - lvW) / Math.max(1f, UiDraw.width(def.displayName())));
@@ -151,7 +152,7 @@ public final class WeaponHud {
         UiDraw.text(g, sub, 9, 16, Colors.alpha(a, Colors.lerpRgb(rarity, UiDraw.INK_MUTED, 0.35f)), 0.55f, false);
         WeaponForm form = def.form(data);
         if (form != null) {
-            UiDraw.textRight(g, form.displayName() + " form", W - 9, 18, Colors.alpha(a, form.themePrimary()), 0.52f, false);
+            UiDraw.textRight(g, Tr.f("%s form", form.displayName()), W - 9, 18, Colors.alpha(a, form.themePrimary()), 0.52f, false);
         }
 
         // ---- experience ----
@@ -165,11 +166,11 @@ public final class WeaponHud {
         shownExp += (expFrac - shownExp) * Math.min(1, dt * 5);
         UiDraw.bar(g, 9, 27, W - 18, 3, shownExp, Colors.darken(theme, 0.15f), themeLight, a, t);
         float dmg = ProgressionMath.weaponDamage(def, data) * (form != null ? form.damageFactor() : 1f);
-        String dmgText = String.format("Damage %,.0f", dmg);
+        String dmgText = Tr.f("Damage %s", String.format(java.util.Locale.ROOT, "%,.0f", dmg));
         UiDraw.text(g, dmgText, 9, 34, Colors.alpha(a, 0xF0A080), 0.58f, false);
         int mastery = Math.round(ProgressionMath.mastery(def, data) * 100);
-        UiDraw.text(g, "Mastery " + mastery + "%", 9 + UiDraw.width(dmgText) * 0.58f + 6, 34, Colors.alpha(a, UiDraw.ARCANE), 0.58f, false);
-        String expText = need <= 0 ? "Mastered" : String.format("%,d / %,d", data.exp(), need);
+        UiDraw.text(g, Tr.f("Mastery %s%%", mastery), 9 + UiDraw.width(dmgText) * 0.58f + 6, 34, Colors.alpha(a, UiDraw.ARCANE), 0.58f, false);
+        String expText = need <= 0 ? "Mastered" : String.format(java.util.Locale.ROOT, "%,d / %,d", data.exp(), need);
         UiDraw.textRight(g, expText, W - 9, 34, Colors.alpha(a, UiDraw.INK_MUTED), 0.55f, false);
 
         UiDraw.divider(g, W / 2f, 44, W - 30, a);
@@ -214,7 +215,7 @@ public final class WeaponHud {
             }
             UiDraw.text(g, "No ability awakened yet", 44, 52, Colors.alpha(a, UiDraw.INK), 0.68f, false);
             if (next != null) {
-                UiDraw.text(g, next.name() + " awakens at level " + next.unlockLevel(), 44, 62, Colors.alpha(a, UiDraw.INK_MUTED), 0.55f, false);
+                UiDraw.text(g, Tr.f("%s awakens at level %s", next.name(), next.unlockLevel()), 44, 62, Colors.alpha(a, UiDraw.INK_MUTED), 0.55f, false);
             }
             renderStrip(g, def, data, null, a, theme, light);
             return;
@@ -252,7 +253,7 @@ public final class WeaponHud {
         // name, rank and state
         int nameColor = castFlash > 0 ? Colors.lerpRgb(UiDraw.INK, 0xFFFFFF, castFlash) : UiDraw.INK;
         int lvl = data.abilityLevel(sel);
-        String rank = "Rank " + lvl;
+        String rank = Tr.f("Rank %s", lvl);
         // a long name (the Weapon of God's) shrinks so its rank still fits inside the panel
         float rankW = UiDraw.width(rank) * 0.55f + 4;
         float nameS = Math.max(0.55f, Math.min(0.78f, (W - 9 - 44 - rankW) / Math.max(1f, UiDraw.width(sel.name()))));
@@ -273,7 +274,7 @@ public final class WeaponHud {
                 long rem = ClientState.cooldownRemaining(data, sel);
                 int tot = Math.max(1, ClientState.cooldownTotal(data, sel));
                 UiDraw.bar(g, bx, by, bw, bh, rem / (float) tot, 0x5A5048, 0x8A8070, a, -1);
-                right = String.format("%.1fs", rem / 20f);
+                right = Tr.f("%ss", String.format(java.util.Locale.ROOT, "%.1f", rem / 20f));
             }
             case ACTIVE -> {
                 float p = 0.6f + 0.4f * (float) Math.sin(t * 6);
@@ -321,8 +322,8 @@ public final class WeaponHud {
         g.pose().pushPose();
         g.pose().translate(0, 0, 200);
         int hintColor = Colors.alpha(a * 0.9f, UiDraw.INK_MUTED);
-        UiDraw.textRight(g, keyName(KeyBindings.CYCLE) + " next ability", W - 9, y - 5.5f, hintColor, 0.46f, false);
-        UiDraw.textRight(g, keyName(KeyBindings.MENU) + " open the tome", W - 9, y + 1f, hintColor, 0.46f, false);
+        UiDraw.textRight(g, Tr.f("%s next ability", keyName(KeyBindings.CYCLE)), W - 9, y - 5.5f, hintColor, 0.46f, false);
+        UiDraw.textRight(g, Tr.f("%s open the tome", keyName(KeyBindings.MENU)), W - 9, y + 1f, hintColor, 0.46f, false);
         g.pose().popPose();
     }
 

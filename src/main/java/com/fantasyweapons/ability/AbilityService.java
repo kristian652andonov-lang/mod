@@ -1,5 +1,6 @@
 package com.fantasyweapons.ability;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.config.ServerConfig;
 import com.fantasyweapons.network.Fx;
@@ -88,7 +89,7 @@ public final class AbilityService {
             return;
         }
         if (rt.cooldownRemaining(data.idOrNil(), ability.id(), now(player)) > 0) {
-            deny(player, def, ability.name() + " is on cooldown");
+            deny(player, def, Tr.compose("%s is on cooldown", ability.englishName()));
             player.syncData(ModAttachments.ABILITY_RUNTIME);
             return;
         }
@@ -185,10 +186,10 @@ public final class AbilityService {
     @Nullable
     public static String upgradeDenial(WeaponData data, AbilityDefinition a) {
         int cur = data.abilityLevel(a);
-        if (cur <= 0) return "Locked until weapon level " + a.unlockLevel();
+        if (cur <= 0) return Tr.compose("Locked until weapon level %s", a.unlockLevel());
         if (cur >= a.maxLevel()) return "Already at max level";
         int needLevel = a.weaponLevelFor(cur + 1);
-        if (data.level() < needLevel) return "Requires weapon level " + needLevel;
+        if (data.level() < needLevel) return Tr.compose("Requires weapon level %s", needLevel);
         if (data.masteryPoints() < a.costFor(cur + 1)) return "Insufficient mastery points";
         return null;
     }
@@ -258,7 +259,7 @@ public final class AbilityService {
             return;
         }
         if (ability.executor() == null) {
-            deny(player, def, ability.name() + " is not implemented");
+            deny(player, def, Tr.compose("%s is not implemented", ability.englishName()));
             return;
         }
         if (rt.isThrown(data.idOrNil())) {
@@ -267,7 +268,7 @@ public final class AbilityService {
         }
         long now = now(player);
         if (rt.cooldownRemaining(data.idOrNil(), ability.id(), now) > 0) {
-            deny(player, def, ability.name() + " is on cooldown");
+            deny(player, def, Tr.compose("%s is on cooldown", ability.englishName()));
             player.syncData(ModAttachments.ABILITY_RUNTIME);
             return;
         }
@@ -275,7 +276,7 @@ public final class AbilityService {
         if (!formAllows(def, data, ability)) {
             int target = formIndex(def, ability.requiredForm());
             if (target < 0) {
-                deny(player, def, ability.name() + " needs another form");
+                deny(player, def, Tr.compose("%s needs another form", ability.englishName()));
                 return;
             }
             if (!canSwitchForm(player, def, data)) {

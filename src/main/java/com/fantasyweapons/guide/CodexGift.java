@@ -1,5 +1,6 @@
 package com.fantasyweapons.guide;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.registry.ModItems;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -22,7 +23,7 @@ public final class CodexGift {
         player.getPersistentData().put(Player.PERSISTED_NBT_TAG, persisted);
         ItemStack codex = new ItemStack(ModItems.CODEX.get());
         if (!player.getInventory().add(codex)) player.drop(codex, false);
-        player.sendSystemMessage(Component.literal("A worn book is in your pack: the Wayfarer's Codex. Use it to read.")
+        player.sendSystemMessage(Tr.c("A worn book is in your pack: the Wayfarer's Codex. Use it to read.")
                 .withStyle(s -> s.withColor(0xF2C46B).withItalic(true)));
     }
 }

@@ -1,5 +1,6 @@
 package com.fantasyweapons.refinery;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.SidedHooks;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
@@ -29,12 +30,12 @@ public class ArcaneRefineryItem extends BlockItem implements GeoItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int ink = 0xD8C9A8, faded = 0x9C8862, arcane = 0xC9A8F0;
-        tooltip.add(Component.literal("An iron furnace built to refine legendary materials").withStyle(s -> s.withColor(ink).withItalic(true)));
+        tooltip.add(Component.literal(Tr.s("An iron furnace built to refine legendary materials")).withStyle(s -> s.withColor(ink).withItalic(true)));
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("♨ Raw material + any fuel → refined in 20 s").withStyle(s -> s.withColor(arcane)));
-        tooltip.add(Component.literal("♨ Blaze rods refine twice as fast").withStyle(s -> s.withColor(arcane)));
-        tooltip.add(Component.literal("⚒ Hoppers: top = input, sides = fuel, bottom = output").withStyle(s -> s.withColor(faded)));
-        tooltip.add(Component.literal("⚒ Needs a space 3 wide and 2 high").withStyle(s -> s.withColor(faded)));
+        tooltip.add(Component.literal(Tr.s("♨ Raw material + any fuel → refined in 20 s")).withStyle(s -> s.withColor(arcane)));
+        tooltip.add(Component.literal(Tr.s("♨ Blaze rods refine twice as fast")).withStyle(s -> s.withColor(arcane)));
+        tooltip.add(Component.literal(Tr.s("⚒ Hoppers: top = input, sides = fuel, bottom = output")).withStyle(s -> s.withColor(faded)));
+        tooltip.add(Component.literal(Tr.s("⚒ Needs a space 3 wide and 2 high")).withStyle(s -> s.withColor(faded)));
     }
 
     @Override

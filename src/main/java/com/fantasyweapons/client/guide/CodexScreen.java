@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.guide;
 
+import com.fantasyweapons.text.Tr;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -12,7 +13,7 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class CodexScreen extends Screen {
     CodexScreen() {
-        super(Component.literal("Wayfarer's Codex"));
+        super(Component.literal(Tr.s("Wayfarer's Codex")));
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.SidedHooks;
 import com.fantasyweapons.ability.AbilityDefinition;
@@ -236,13 +237,13 @@ public class FantasyWeaponItem extends Item implements GeoItem {
         if (def.rarity().classTier()) {
             // a class of its own: named on its own line, in its own colour
             tooltip.add(Component.literal("\u2726 " + def.rarity().displayName() + " \u2726").withStyle(s -> s.withColor(def.rarity().color()).withBold(true)));
-            tooltip.add(Component.literal(def.weaponClass().displayName() + " of " + def.element().displayName()).withStyle(s -> s.withColor(theme)));
+            tooltip.add(Component.literal(Tr.f("%s of %s", def.weaponClass().displayName(), def.element().displayName())).withStyle(s -> s.withColor(theme)));
         } else {
-            tooltip.add(Component.literal(def.rarity().displayName() + " " + def.weaponClass().displayName() + " of " + def.element().displayName())
+            tooltip.add(Component.literal(Tr.f("%s %s of %s", def.rarity().displayName(), def.weaponClass().displayName(), def.element().displayName()))
                     .withStyle(s -> s.withColor(theme)));
         }
         com.fantasyweapons.playerclass.ClassGear.tooltip(com.fantasyweapons.SidedHooks.get().clientPlayer(), stack, tooltip);
-        String runes = (def.displayName() + " " + def.title()).toLowerCase().replaceAll("[^a-z ]", "");
+        String runes = (def.englishName() + " " + def.englishTitle()).toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z ]", "");
         tooltip.add(Component.literal(runes.length() > 30 ? runes.substring(0, 30) : runes)
                 .withStyle(s -> s.withColor(mix(theme, 0x000000, 0.4f)).withFont(ResourceLocation.withDefaultNamespace("alt"))));
         // the legend
@@ -259,34 +260,34 @@ public class FantasyWeaponItem extends Item implements GeoItem {
         }
         tooltip.add(Component.empty());
         long need = ProgressionMath.expToNext(d.level());
-        tooltip.add(Component.literal("\u2726 Level " + d.level() + " of " + ProgressionMath.maxLevel()).withStyle(s -> s.withColor(gold))
-                .append(Component.literal(need > 0 ? "   " + String.format("%,d / %,d experience", d.exp(), need) : "   Mastered")
+        tooltip.add(Component.literal("\u2726 " + Tr.f("Level %s of %s", d.level(), ProgressionMath.maxLevel())).withStyle(s -> s.withColor(gold))
+                .append(Component.literal("   " + (need > 0 ? Tr.f("%s / %s experience", String.format(java.util.Locale.ROOT, "%,d", d.exp()), String.format(java.util.Locale.ROOT, "%,d", need)) : Tr.s("Mastered")))
                         .withStyle(s -> s.withColor(faded))));
         if (need > 0) {
             var core = com.fantasyweapons.material.Material.ofWeapon(def.id());
             if (core != null) {
-                String article = "AEIOU".indexOf(core.refinedName().charAt(0)) >= 0 ? "an " : "a ";
-                tooltip.add(Component.literal("   Infuse " + article + core.refinedName() + " for a level").withStyle(s -> s.withColor(faded).withItalic(true)));
+                String article = "AEIOU".indexOf(core.refinedEnglish().charAt(0)) >= 0 ? "Infuse an %s for a level" : "Infuse a %s for a level";
+                tooltip.add(Component.literal("   " + Tr.f(article, core.refinedName())).withStyle(s -> s.withColor(faded).withItalic(true)));
             }
         }
-        tooltip.add(Component.literal(String.format("\u2694 %,.0f Damage", ProgressionMath.weaponDamage(def, d))).withStyle(s -> s.withColor(0xF0A080)));
+        tooltip.add(Component.literal("\u2694 " + Tr.f("%s Damage", String.format(java.util.Locale.ROOT, "%,.0f", ProgressionMath.weaponDamage(def, d)))).withStyle(s -> s.withColor(0xF0A080)));
         int pct = Math.round(ProgressionMath.mastery(def, d) * 100);
-        tooltip.add(Component.literal("\u2727 Mastery " + pct + "%").withStyle(s -> s.withColor(0xC9A8F0))
-                .append(Component.literal(d.masteryPoints() > 0 ? "   " + d.masteryPoints() + " points to spend" : "").withStyle(s -> s.withColor(faded))));
+        tooltip.add(Component.literal("\u2727 " + Tr.f("Mastery %s%%", pct)).withStyle(s -> s.withColor(0xC9A8F0))
+                .append(Component.literal(d.masteryPoints() > 0 ? "   " + Tr.f(d.masteryPoints() == 1 ? "%s point to spend" : "%s points to spend", d.masteryPoints()) : "").withStyle(s -> s.withColor(faded))));
         WeaponForm form = def.form(d);
         if (form != null) {
-            tooltip.add(Component.literal("\u25C8 " + form.displayName() + " form").withStyle(s -> s.withColor(form.themePrimary())));
+            tooltip.add(Component.literal("\u25C8 " + Tr.f("%s form", form.displayName())).withStyle(s -> s.withColor(form.themePrimary())));
         }
         // abilities
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("Abilities").withStyle(s -> s.withColor(gold)));
+        tooltip.add(Component.literal(Tr.s("Abilities")).withStyle(s -> s.withColor(gold)));
         for (AbilityDefinition a : def.abilities()) {
             int lvl = d.abilityLevel(a);
             if (lvl > 0) {
                 tooltip.add(Component.literal(" \u25C6 " + a.name()).withStyle(s -> s.withColor(light))
-                        .append(Component.literal("  rank " + lvl).withStyle(s -> s.withColor(faded))));
+                        .append(Component.literal("  " + Tr.f("rank %s", lvl)).withStyle(s -> s.withColor(faded))));
             } else {
-                tooltip.add(Component.literal(" \u25C7 " + a.name() + "  sealed until level " + a.unlockLevel()).withStyle(s -> s.withColor(0x5E5444)));
+                tooltip.add(Component.literal(" \u25C7 " + a.name() + "  " + Tr.f("sealed until level %s", a.unlockLevel())).withStyle(s -> s.withColor(0x5E5444)));
             }
         }
     }

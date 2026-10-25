@@ -1,5 +1,6 @@
 package com.fantasyweapons.command;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.progression.ExpService;
 import com.fantasyweapons.progression.ProgressionMath;
 import com.fantasyweapons.progression.WeaponData;
@@ -29,7 +30,7 @@ import java.util.Optional;
  */
 public final class FWCommand {
     private static final SimpleCommandExceptionType NOT_HOLDING =
-            new SimpleCommandExceptionType(Component.literal("Hold a fantasy weapon in your main hand"));
+            new SimpleCommandExceptionType(Tr.c("Hold a fantasy weapon in your main hand"));
 
     private FWCommand() {
     }
@@ -69,7 +70,7 @@ public final class FWCommand {
                     ServerPlayer p = c.getSource().getPlayerOrException();
                     p.getData(ModAttachments.ABILITY_RUNTIME).clearCooldowns();
                     p.syncData(ModAttachments.ABILITY_RUNTIME);
-                    c.getSource().sendSuccess(() -> Component.literal("Ability cooldowns cleared"), false);
+                    c.getSource().sendSuccess(() -> Tr.c("Ability cooldowns cleared"), false);
                     return 1;
                 }))
                 .then(Commands.literal("setfx").then(Commands.argument("set", com.mojang.brigadier.arguments.StringArgumentType.word())
@@ -81,14 +82,14 @@ public final class FWCommand {
                             com.fantasyweapons.armor.ArmorSet set = java.util.Arrays.stream(com.fantasyweapons.armor.ArmorSet.values())
                                     .filter(a -> a.id().equals(id)).findFirst().orElse(null);
                             if (set == null) {
-                                c.getSource().sendFailure(Component.literal("No armor set " + id));
+                                c.getSource().sendFailure(Tr.c("No armor set %s", id));
                                 return 0;
                             }
                             if (!com.fantasyweapons.armor.SetAbilities.demo(p, set)) {
-                                c.getSource().sendFailure(Component.literal("No enemy nearby to set off " + set.abilityName() + " against"));
+                                c.getSource().sendFailure(Tr.c("No enemy nearby to set off %s against", Tr.c(set.englishAbilityName())));
                                 return 0;
                             }
-                            c.getSource().sendSuccess(() -> Component.literal(set.abilityName() + " set off"), false);
+                            c.getSource().sendSuccess(() -> Tr.c("%s set off", Tr.c(set.englishAbilityName())), false);
                             return 1;
                         })))
                 .then(Commands.literal("orescan").then(Commands.argument("radius", IntegerArgumentType.integer(0, 32))
@@ -103,7 +104,7 @@ public final class FWCommand {
                             int r = IntegerArgumentType.getInteger(c, "radius");
                             int n = com.fantasyweapons.world.wreck.WorldWreck.disc(c.getSource().getLevel(), pos, r + Math.min(8, r * 0.06) + 12, 1L,
                                     d -> (int) (d / 8), com.fantasyweapons.world.wreck.WreckShapes.shaft(pos, r));
-                            c.getSource().sendSuccess(() -> Component.literal("Wrecking " + n + " chunks"), false);
+                            c.getSource().sendSuccess(() -> Tr.c("Wrecking %s chunks", String.valueOf(n)), false);
                             return n;
                         }))))
                 .then(Commands.literal("quest")
@@ -113,11 +114,11 @@ public final class FWCommand {
                                     String id = StringArgumentType.getString(c, "quest");
                                     var q = com.fantasyweapons.quest.Quests.get(id);
                                     if (q == null) {
-                                        c.getSource().sendFailure(Component.literal("No quest " + id));
+                                        c.getSource().sendFailure(Tr.c("No quest %s", id));
                                         return 0;
                                     }
                                     com.fantasyweapons.quest.QuestService.force(c.getSource().getPlayerOrException(), q);
-                                    c.getSource().sendSuccess(() -> Component.literal("Filled the objectives of " + q.title()), false);
+                                    c.getSource().sendSuccess(() -> Tr.c("Filled the objectives of %s", q.title()), false);
                                     return 1;
                                 })))
                         .then(Commands.literal("claim").then(Commands.argument("quest", StringArgumentType.word())
@@ -128,7 +129,7 @@ public final class FWCommand {
                                 })))
                         .then(Commands.literal("reset").executes(c -> {
                             com.fantasyweapons.quest.QuestService.reset(c.getSource().getPlayerOrException());
-                            c.getSource().sendSuccess(() -> Component.literal("Quests reset"), false);
+                            c.getSource().sendSuccess(() -> Tr.c("Quests reset"), false);
                             return 1;
                         })))
                 .then(Commands.literal("class")
@@ -139,13 +140,13 @@ public final class FWCommand {
                                     ServerPlayer p = c.getSource().getPlayerOrException();
                                     var chosen = com.fantasyweapons.playerclass.PlayerClass.byId(StringArgumentType.getString(c, "class"));
                                     com.fantasyweapons.playerclass.ClassService.set(p, chosen, false);
-                                    c.getSource().sendSuccess(() -> Component.literal("Class set to " + chosen.displayName()), false);
+                                    c.getSource().sendSuccess(() -> Tr.c("Class set to %s", Tr.c(chosen.englishName())), false);
                                     return 1;
                                 })))
                         .then(Commands.literal("ready").executes(c -> {
                             ServerPlayer p = c.getSource().getPlayerOrException();
                             com.fantasyweapons.playerclass.ClassService.set(p, com.fantasyweapons.playerclass.ClassService.of(p), false);
-                            c.getSource().sendSuccess(() -> Component.literal("Class change wait cleared"), false);
+                            c.getSource().sendSuccess(() -> Tr.c("Class change wait cleared"), false);
                             return 1;
                         })))
                 .then(Commands.literal("info").executes(c -> info(c, held(c.getSource().getPlayerOrException()))))
@@ -167,7 +168,7 @@ public final class FWCommand {
     private static int give(CommandContext<CommandSourceStack> c, int level) throws CommandSyntaxException {
         ServerPlayer p = c.getSource().getPlayerOrException();
         var item = ModItems.WEAPONS.get(StringArgumentType.getString(c, "weapon"));
-        if (item == null) throw new SimpleCommandExceptionType(Component.literal("Unknown weapon")).create();
+        if (item == null) throw new SimpleCommandExceptionType(Tr.c("Unknown weapon")).create();
         ItemStack stack = new ItemStack(item.get());
         stack.set(ModComponents.WEAPON_DATA.get(), WeaponData.EMPTY.withId(java.util.UUID.randomUUID()));
         if (level > 1) ExpService.setLevel(p, stack, level);

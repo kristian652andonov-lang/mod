@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.armor.ArmorSet;
 import com.fantasyweapons.client.hud.UiDraw;
 import com.fantasyweapons.client.vfx.Colors;
@@ -135,7 +136,7 @@ public class LegendaryCraftingScreen extends AbstractContainerScreen<LegendaryCr
         if (!menu.busy()) {
             ItemStack next = menu.slots.get(LegendaryCraftingMenu.RESULT).getItem();
             String hint = menu.resultIsLegendary() && !next.isEmpty()
-                    ? "Ready: press Forge (" + ForgeStages.remaining(0, forgeTime(next)) + ")"
+                    ? Tr.f("Ready: press Forge (%s)", ForgeStages.remaining(0, forgeTime(next)))
                     : "Lay a legendary pattern on the grid, then Forge";
             UiDraw.text(g, hint, sx, sy + 4, Colors.alpha(1f, UiDraw.INK_MUTED), 0.62f, false);
             return;

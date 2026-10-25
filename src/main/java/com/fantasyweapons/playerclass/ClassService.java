@@ -1,5 +1,6 @@
 package com.fantasyweapons.playerclass;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.registry.ModAttachments;
 import net.minecraft.core.particles.ParticleTypes;
@@ -53,7 +54,7 @@ public final class ClassService {
         if (!chosen.available() || chosen == PlayerClass.NONE || chosen == of(player)) return;
         long wait = waitLeft(player);
         if (wait > 0) {
-            player.displayClientMessage(Component.literal("You can change your class again in " + (wait / 20 / 60 + 1) + " minutes.").withColor(0xFF8A6A), true);
+            player.displayClientMessage(Tr.c("You can change your class again in %s minutes.", String.valueOf(wait / 20 / 60 + 1)).withColor(0xFF8A6A), true);
             return;
         }
         player.setData(ModAttachments.PLAYER_CLASS, new ClassData(chosen, player.level().getGameTime()));
@@ -61,8 +62,8 @@ public final class ClassService {
         player.syncData(ModAttachments.PLAYER_CLASS);
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.5f, 1.3f);
         player.serverLevel().sendParticles(ParticleTypes.TOTEM_OF_UNDYING, player.getX(), player.getY() + 1, player.getZ(), 40, 0.4, 0.8, 0.4, 0.3);
-        player.displayClientMessage(Component.literal("You are now a ").withColor(0xCFC3A6)
-                .append(Component.literal(chosen.displayName()).withColor(chosen.color())).append(Component.literal(".").withColor(0xCFC3A6)), false);
+        player.displayClientMessage(Tr.c(chosen == PlayerClass.ASSASSIN ? "You are now an %s." : "You are now a %s.",
+                Tr.c(chosen.englishName()).withColor(chosen.color())).withColor(0xCFC3A6), false);
     }
 
     /**

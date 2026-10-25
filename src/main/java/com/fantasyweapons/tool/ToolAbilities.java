@@ -1,5 +1,6 @@
 package com.fantasyweapons.tool;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.material.MaterialOreBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -56,18 +57,18 @@ public final class ToolAbilities {
     private static final List<Running> RUNNING = new ArrayList<>();
 
     public static String name(ToolKind kind) {
-        return switch (kind) {
+        return Tr.s(switch (kind) {
             case PICKAXE -> "Ore Sight";
             case AXE -> "Timberfall";
             case SHOVEL -> "Earthshaper";
-        };
+        });
     }
 
     public static String describe(ToolKind kind, ToolUpgrades upgrades) {
         return switch (kind) {
-            case PICKAXE -> "Shows every legendary ore within " + SIGHT_RADIUS + " blocks, through the stone, for " + SIGHT_TICKS / 20 + " seconds";
-            case AXE -> "Fells every tree within " + TIMBER_RADIUS + " blocks";
-            case SHOVEL -> "Levels the earth within " + earthRadius(upgrades) + " blocks to the ground you stand on";
+            case PICKAXE -> Tr.f("Shows every legendary ore within %s blocks, through the stone, for %s seconds", SIGHT_RADIUS, SIGHT_TICKS / 20);
+            case AXE -> Tr.f("Fells every tree within %s blocks", TIMBER_RADIUS);
+            case SHOVEL -> Tr.f("Levels the earth within %s blocks to the ground you stand on", earthRadius(upgrades));
         };
     }
 
@@ -126,8 +127,9 @@ public final class ToolAbilities {
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player, new OreSightPayload(center.asLong(), p, m, SIGHT_TICKS));
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1.2f, 0.6f);
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 0.6f, 1.6f);
-        player.displayClientMessage(Component.literal(p.length == 0 ? "Ore Sight: no legendary ore within " + SIGHT_RADIUS + " blocks"
-                : "Ore Sight: " + p.length + " legendary ore" + (p.length == 1 ? "" : "s") + " nearby").withStyle(s -> s.withColor(0xD8C2FF)), true);
+        player.displayClientMessage((p.length == 0 ? Tr.c("Ore Sight: no legendary ore within %s blocks", String.valueOf(SIGHT_RADIUS))
+                : Tr.c(p.length == 1 ? "Ore Sight: %s legendary ore nearby" : "Ore Sight: %s legendary ores nearby", String.valueOf(p.length)))
+                .withStyle(s -> s.withColor(0xD8C2FF)), true);
         return true;
     }
 
@@ -187,10 +189,10 @@ public final class ToolAbilities {
     private static boolean timberfall(ServerPlayer player, ServerLevel level) {
         List<TreeFelling.Tree> trees = treesAround(level, player.blockPosition(), TIMBER_RADIUS);
         if (trees.isEmpty()) {
-            player.displayClientMessage(Component.literal("Timberfall: no trees within " + TIMBER_RADIUS + " blocks").withStyle(s -> s.withColor(0xC9E8A0)), true);
+            player.displayClientMessage(Tr.c("Timberfall: no trees within %s blocks", String.valueOf(TIMBER_RADIUS)).withStyle(s -> s.withColor(0xC9E8A0)), true);
             return false;
         }
-        player.displayClientMessage(Component.literal("Timberfall: " + trees.size() + " tree" + (trees.size() == 1 ? "" : "s"))
+        player.displayClientMessage(Tr.c(trees.size() == 1 ? "Timberfall: %s tree" : "Timberfall: %s trees", String.valueOf(trees.size()))
                 .withStyle(s -> s.withColor(0xC9E8A0)), true);
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1f, 0.6f);
         Iterator<TreeFelling.Tree> left = trees.iterator();
@@ -238,7 +240,7 @@ public final class ToolAbilities {
         List<List<BlockPos>> rings = earthAround(level, player.blockPosition(), radius, player.getMainHandItem());
         int total = rings.stream().mapToInt(List::size).sum();
         if (total == 0) {
-            player.displayClientMessage(Component.literal("Earthshaper: the ground here is already level").withStyle(s -> s.withColor(0xE8D2A0)), true);
+            player.displayClientMessage(Tr.c("Earthshaper: the ground here is already level").withStyle(s -> s.withColor(0xE8D2A0)), true);
             return false;
         }
         level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ROOTED_DIRT_BREAK, SoundSource.PLAYERS, 1.5f, 0.5f);

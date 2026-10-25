@@ -1,5 +1,6 @@
 package com.fantasyweapons.forge;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.machine.ModelShape;
 import com.fantasyweapons.registry.ModBlockEntities;
 import com.fantasyweapons.registry.ModBlocks;
@@ -57,7 +58,7 @@ public class WorldforgeBlock extends BaseEntityBlock {
     public static final MapCodec<WorldforgeBlock> CODEC = simpleCodec(WorldforgeBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty CRAFTING = BooleanProperty.create("crafting");
-    public static final Component TITLE = Component.literal("The Worldforge");
+    public static final Component TITLE = Tr.c("The Worldforge");
     /** Blocks from the core to the edge, and layers from the bottom to the top. */
     public static final int REACH = 10, LAYERS = 22, SIDE = 2 * REACH + 1;
     /** The parts of the model that are solid: the tiers and stairs, the altar and anvil, the towers and their skulls, the palisades and friezes. */
@@ -253,8 +254,10 @@ public class WorldforgeBlock extends BaseEntityBlock {
             if (!level.isClientSide && ctx.getPlayer() != null) {
                 String where = blocked == null ? "" : " (" + level.getBlockState(blocked).getBlock().getName().getString() + " in the way at "
                         + blocked.getX() + ", " + blocked.getY() + ", " + blocked.getZ() + ")";
-                ctx.getPlayer().displayClientMessage(Component.literal("The Worldforge needs a clear space 21 wide, 21 deep and 22 high in front of you" + where)
-                        .withStyle(s -> s.withColor(0xFF5A4A)), true);
+                Component message = blocked == null ? Tr.c("The Worldforge needs a clear space 21 wide, 21 deep and 22 high in front of you")
+                        : Tr.c("The Worldforge needs a clear space 21 wide, 21 deep and 22 high in front of you (%s in the way at %s)",
+                        level.getBlockState(blocked).getBlock().getName(), blocked.getX() + ", " + blocked.getY() + ", " + blocked.getZ());
+                ctx.getPlayer().displayClientMessage(message.copy().withStyle(s -> s.withColor(0xFF5A4A)), true);
                 com.fantasyweapons.FantasyWeapons.LOGGER.debug("Worldforge not placed at {}: {}", core, where.isEmpty() ? "entity or height" : where);
             }
             return null;

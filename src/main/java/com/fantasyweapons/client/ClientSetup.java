@@ -336,8 +336,8 @@ public final class ClientSetup {
             if (q == null) return;
             var payload = new com.fantasyweapons.network.DeedPayload(com.fantasyweapons.FantasyWeapons.id("quest/" + id),
                     net.minecraft.network.chat.Component.literal(q.title()).withColor(q.chapter().color()),
-                    net.minecraft.network.chat.Component.literal("Claim your reward in the Quest Journal (" + com.fantasyweapons.client.input.KeyBindings.QUESTS
-                            .getTranslatedKeyMessage().getString() + ")"), q.icon(), net.minecraft.advancements.AdvancementType.GOAL.ordinal());
+                    net.minecraft.network.chat.Component.literal(com.fantasyweapons.text.Tr.f("Claim your reward in the Quest Journal (%s)",
+                            com.fantasyweapons.client.input.KeyBindings.QUESTS.getTranslatedKeyMessage().getString())), q.icon(), net.minecraft.advancements.AdvancementType.GOAL.ordinal());
             Minecraft.getInstance().getToasts().addToast(new com.fantasyweapons.client.hud.DeedToast(payload, "QUEST COMPLETE"));
         }
 

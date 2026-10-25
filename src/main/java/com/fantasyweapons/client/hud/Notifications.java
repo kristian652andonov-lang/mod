@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.hud;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.ability.AbilityDefinition;
 import com.fantasyweapons.client.ClientState;
 import com.fantasyweapons.client.vfx.Colors;
@@ -71,11 +72,11 @@ public final class Notifications {
             case UPGRADE -> {
                 if (def == null || p.abilities().isEmpty()) return;
                 AbilityDefinition a = def.ability(p.abilities().get(0));
-                if (a != null) POPUPS.add(new Popup(a.name() + "  ·  Rank " + p.oldLevel() + " → " + p.newLevel(),
+                if (a != null) POPUPS.add(new Popup(a.name() + "  ·  " + Tr.f("Rank %s → %s", p.oldLevel(), p.newLevel()),
                         def.element().light(), Util.getMillis()));
             }
             case FORM -> {
-                if (def != null) POPUPS.add(new Popup(p.message() + " form",
+                if (def != null) POPUPS.add(new Popup(Tr.f("%s form", Tr.s(p.message())),
                         def.form(p.newLevel()).themePrimary(), Util.getMillis()));
             }
             case DENIED -> {
@@ -139,7 +140,7 @@ public final class Notifications {
 
         // ---- +EXP popups (aggregate bursts of kills) ----
         if (pendingExp > 0 && now - pendingExpAt > 120) {
-            POPUPS.add(new Popup("+" + String.format("%,d", pendingExp) + " experience", 0xC8E08A, now));
+            POPUPS.add(new Popup(Tr.f("+%s experience", String.format(java.util.Locale.ROOT, "%,d", pendingExp)), 0xC8E08A, now));
             pendingExp = 0;
             pendingExpAt = 0;
         }
@@ -199,10 +200,10 @@ public final class Notifications {
             UiDraw.banner(g, cx, y, 150, 22, alpha);
             UiDraw.title(g, "Level Up", cx, y + 6, Colors.alpha(alpha, UiDraw.GOLD_LIGHT), 1.05f);
             UiDraw.textCentered(g, def.displayName(), cx, y + 25, Colors.alpha(alpha, def.rarity().color()), 0.72f, true);
-            UiDraw.title(g, "Level " + from + "  →  Level " + to, cx, y + 35, Colors.alpha(alpha, UiDraw.INK), 0.82f);
-            UiDraw.textCentered(g, String.format("Damage %,.0f  →  %,.0f", dmgFrom, dmgTo), cx, y + 47, Colors.alpha(alpha, 0xF0A080), 0.62f, true);
+            UiDraw.title(g, Tr.f("Level %s  →  Level %s", from, to), cx, y + 35, Colors.alpha(alpha, UiDraw.INK), 0.82f);
+            UiDraw.textCentered(g, Tr.f("Damage %s  →  %s", String.format(java.util.Locale.ROOT, "%,.0f", dmgFrom), String.format(java.util.Locale.ROOT, "%,.0f", dmgTo)), cx, y + 47, Colors.alpha(alpha, 0xF0A080), 0.62f, true);
             if (points > 0) {
-                UiDraw.textCentered(g, "+" + points + " Mastery Point" + (points > 1 ? "s" : ""), cx, y + 56, Colors.alpha(alpha, UiDraw.ARCANE), 0.56f, true);
+                UiDraw.textCentered(g, Tr.f(points > 1 ? "+%s Mastery Points" : "+%s Mastery Point", points), cx, y + 56, Colors.alpha(alpha, UiDraw.ARCANE), 0.56f, true);
             }
         }
     }
@@ -241,7 +242,7 @@ public final class Notifications {
             UiDraw.text(g, ability.name(), tx, y + 25, Colors.alpha(alpha, UiDraw.INK), 0.9f, true);
             UiDraw.wrap(g, Component.literal(ability.description()).withStyle(net.minecraft.ChatFormatting.ITALIC), tx, y + 36,
                     (int) (cx + w / 2 - tx - 10), Colors.alpha(alpha * 0.95f, 0xD8C9A8), 0.55f, 7);
-            UiDraw.text(g, UiDraw.titleCase(ability.kind().displayName()) + "  ·  awakened at level " + ability.unlockLevel(), tx, y + h - 12,
+            UiDraw.text(g, UiDraw.titleCase(ability.kind().displayName()) + "  ·  " + Tr.f("awakened at level %s", ability.unlockLevel()), tx, y + h - 12,
                     Colors.alpha(alpha, UiDraw.GOLD), 0.52f, false);
         }
     }

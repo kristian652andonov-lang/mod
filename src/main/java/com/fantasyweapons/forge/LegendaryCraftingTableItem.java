@@ -1,5 +1,6 @@
 package com.fantasyweapons.forge;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.SidedHooks;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
@@ -29,12 +30,12 @@ public class LegendaryCraftingTableItem extends BlockItem implements GeoItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int ink = 0xD8C9A8, faded = 0x9C8862, star = 0xA8E6F0;
-        tooltip.add(Component.literal("A crafting table worthy of legends").withStyle(s -> s.withColor(ink).withItalic(true)));
+        tooltip.add(Component.literal(Tr.s("A crafting table worthy of legends")).withStyle(s -> s.withColor(ink).withItalic(true)));
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("✦ A 9x9 crafting grid").withStyle(s -> s.withColor(star)));
-        tooltip.add(Component.literal("✦ Forges the legendary weapons and armor").withStyle(s -> s.withColor(star)));
-        tooltip.add(Component.literal("✦ Crafts anything a crafting table can").withStyle(s -> s.withColor(star)));
-        tooltip.add(Component.literal("⚒ Needs a space 3 wide and 2 high").withStyle(s -> s.withColor(faded)));
+        tooltip.add(Component.literal(Tr.s("✦ A 9x9 crafting grid")).withStyle(s -> s.withColor(star)));
+        tooltip.add(Component.literal(Tr.s("✦ Forges the legendary weapons and armor")).withStyle(s -> s.withColor(star)));
+        tooltip.add(Component.literal(Tr.s("✦ Crafts anything a crafting table can")).withStyle(s -> s.withColor(star)));
+        tooltip.add(Component.literal(Tr.s("⚒ Needs a space 3 wide and 2 high")).withStyle(s -> s.withColor(faded)));
     }
 
     @Override

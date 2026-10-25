@@ -1,5 +1,6 @@
 package com.fantasyweapons.guide;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.SidedHooks;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -58,11 +59,11 @@ public class WayfarersCodexItem extends Item implements GeoItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int ink = 0xD8C9A8, faded = 0x9C8862, gold = 0xF2C46B;
-        tooltip.add(Component.literal("Every road to a legend, written down").withStyle(s -> s.withColor(ink).withItalic(true)));
+        tooltip.add(Component.literal(Tr.s("Every road to a legend, written down")).withStyle(s -> s.withColor(ink).withItalic(true)));
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("✦ Ores, the Refinery, the Crafting Table").withStyle(s -> s.withColor(gold)));
-        tooltip.add(Component.literal("✦ Every weapon, armor set and recipe").withStyle(s -> s.withColor(gold)));
-        tooltip.add(Component.literal("⚒ Use to open and read").withStyle(s -> s.withColor(faded)));
+        tooltip.add(Component.literal(Tr.s("✦ Ores, the Refinery, the Crafting Table")).withStyle(s -> s.withColor(gold)));
+        tooltip.add(Component.literal(Tr.s("✦ Every weapon, armor set and recipe")).withStyle(s -> s.withColor(gold)));
+        tooltip.add(Component.literal(Tr.s("⚒ Use to open and read")).withStyle(s -> s.withColor(faded)));
     }
 
     /** In first person the book opens and is held open while it is read; everywhere else it stays shut. */

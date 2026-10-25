@@ -1,5 +1,6 @@
 package com.fantasyweapons.playerclass;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.armor.ArmorClass;
 import com.fantasyweapons.armor.ArmorSet;
 import com.fantasyweapons.armor.FantasyArmorItem;
@@ -86,20 +87,27 @@ public final class ClassGear {
     /** What the player is told when they try (in the gear's class colour). */
     public static Component refusal(Player player, ItemStack stack) {
         if (warriors(stack)) {
-            return Component.literal("The " + stack.getHoverName().getString() + " answers only to a warrior: an ").withColor(0xFF8A6A)
-                    .append(Component.literal("Assassin").withColor(PlayerClass.ASSASSIN.color())).append(Component.literal(", ").withColor(0xFF8A6A))
-                    .append(Component.literal("Berserker").withColor(PlayerClass.BERSERKER.color())).append(Component.literal(" or ").withColor(0xFF8A6A))
-                    .append(Component.literal("Paladin").withColor(PlayerClass.PALADIN.color())).append(Component.literal(".").withColor(0xFF8A6A));
+            // sent as translatable text, so each player reads it in their own language
+            return Component.translatable("The %s answers only to a warrior: an %s, %s or %s.", plainName(stack),
+                    className(PlayerClass.ASSASSIN), className(PlayerClass.BERSERKER), className(PlayerClass.PALADIN)).withColor(0xFF8A6A);
         }
         PlayerClass need = of(stack);
-        String article = need == PlayerClass.ASSASSIN ? "an " : "a ";
-        Component name = Component.literal(need.displayName()).withColor(need.color());
+        boolean an = need == PlayerClass.ASSASSIN;
         if (ClassService.of(player) == PlayerClass.NONE) {
-            return Component.literal("The " + stack.getHoverName().getString() + " answers only to " + article).withColor(0xE8DCC0).append(name)
-                    .append(Component.literal(". Choose a class first.").withColor(0xE8DCC0));
+            return Component.translatable(an ? "The %s answers only to an %s. Choose a class first." : "The %s answers only to a %s. Choose a class first.",
+                    plainName(stack), className(need)).withColor(0xE8DCC0);
         }
-        return Component.literal("Only " + article).withColor(0xFF8A6A).append(name)
-                .append(Component.literal(" can use the " + stack.getHoverName().getString() + ".").withColor(0xFF8A6A));
+        return Component.translatable(an ? "Only an %s can use the %s." : "Only a %s can use the %s.", className(need), plainName(stack)).withColor(0xFF8A6A);
+    }
+
+    /** A class's name in its colour, in the reader's language. */
+    private static Component className(PlayerClass c) {
+        return Component.translatable(c.englishName()).withColor(c.color());
+    }
+
+    /** The stack's name without its own colour, in the reader's language. */
+    private static Component plainName(ItemStack stack) {
+        return stack.getHoverName().copy().setStyle(net.minecraft.network.chat.Style.EMPTY);
     }
 
     /** Tells the player they cannot use the stack (at most once a second). */
@@ -126,24 +134,24 @@ public final class ClassGear {
     /** The tooltip's lines: the gear's class, and whether the player reading it can use it. */
     public static void tooltip(@org.jetbrains.annotations.Nullable Player player, ItemStack stack, java.util.List<Component> tooltip) {
         if (warriors(stack)) {
-            tooltip.add(Component.literal("Class: ").withColor(0xB9AC92).append(Component.literal("Assassin").withColor(PlayerClass.ASSASSIN.color()))
-                    .append(Component.literal(" · ").withColor(0xB9AC92)).append(Component.literal("Berserker").withColor(PlayerClass.BERSERKER.color()))
-                    .append(Component.literal(" · ").withColor(0xB9AC92)).append(Component.literal("Paladin").withColor(PlayerClass.PALADIN.color())));
+            tooltip.add(Component.literal(Tr.s("Class:") + " ").withColor(0xB9AC92).append(Component.literal(PlayerClass.ASSASSIN.displayName()).withColor(PlayerClass.ASSASSIN.color()))
+                    .append(Component.literal(" · ").withColor(0xB9AC92)).append(Component.literal(PlayerClass.BERSERKER.displayName()).withColor(PlayerClass.BERSERKER.color()))
+                    .append(Component.literal(" · ").withColor(0xB9AC92)).append(Component.literal(PlayerClass.PALADIN.displayName()).withColor(PlayerClass.PALADIN.color())));
             if (player == null) return;
-            tooltip.add(canUse(player, stack) ? Component.literal("✔ You can use this").withColor(0x8FE08A)
-                    : Component.literal("✖ Only a warrior class can use this").withColor(0xF07A62));
+            tooltip.add(canUse(player, stack) ? Component.literal("✔ " + Tr.s("You can use this")).withColor(0x8FE08A)
+                    : Component.literal("✖ " + Tr.s("Only a warrior class can use this")).withColor(0xF07A62));
             return;
         }
         PlayerClass need = of(stack);
         if (need == PlayerClass.NONE) return;
-        tooltip.add(Component.literal("Class: ").withColor(0xB9AC92).append(Component.literal(need.displayName()).withColor(need.color())));
+        tooltip.add(Component.literal(Tr.s("Class:") + " ").withColor(0xB9AC92).append(Component.literal(need.displayName()).withColor(need.color())));
         if (player == null) return;
         if (canUse(player, stack)) {
-            tooltip.add(Component.literal("✔ You can use this").withColor(0x8FE08A));
+            tooltip.add(Component.literal("✔ " + Tr.s("You can use this")).withColor(0x8FE08A));
         } else if (ClassService.of(player) == PlayerClass.NONE) {
-            tooltip.add(Component.literal("✖ Choose the " + need.displayName() + " class to use this").withColor(0xF07A62));
+            tooltip.add(Component.literal("✖ " + Tr.f("Choose the %s class to use this", need.displayName())).withColor(0xF07A62));
         } else {
-            tooltip.add(Component.literal("✖ Your class (" + ClassService.of(player).displayName() + ") cannot use this").withColor(0xF07A62));
+            tooltip.add(Component.literal("✖ " + Tr.f("Your class (%s) cannot use this", ClassService.of(player).displayName())).withColor(0xF07A62));
         }
     }
 

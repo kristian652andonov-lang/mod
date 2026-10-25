@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.client.hud.UiDraw;
 import com.fantasyweapons.client.vfx.Colors;
 import com.fantasyweapons.registry.ModItems;
@@ -119,8 +120,8 @@ public class UpgradingScreen extends AbstractContainerScreen<UpgradingMenu> {
         }
         int levels = com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_LEVELS;
         boolean enough = minecraft.player.getAbilities().instabuild || minecraft.player.experienceLevel >= levels;
-        UiDraw.text(g, levels + " levels", rx + 8, by + 1, Colors.alpha(1f, enough ? XP : BAD), 0.66f, true);
-        UiDraw.text(g, com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_DURATION / 20 + " s", rx + 8, by + 9, Colors.alpha(1f, UiDraw.INK_MUTED), 0.6f, false);
+        UiDraw.text(g, Tr.f("%s levels", levels), rx + 8, by + 1, Colors.alpha(1f, enough ? XP : BAD), 0.66f, true);
+        UiDraw.text(g, Tr.f("%s s", com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_DURATION / 20), rx + 8, by + 9, Colors.alpha(1f, UiDraw.INK_MUTED), 0.6f, false);
         boolean ready = !menu.working() && com.fantasyweapons.tool.UpgradingTableBlockEntity.checkFusion(sword, book, minecraft.player)
                 == UpgradingTableBlockEntity.Check.READY;
         boolean hover = mouseX >= bx && mouseX < bx + BUTTON_W && mouseY >= by && mouseY < by + BUTTON_H;
@@ -196,7 +197,7 @@ public class UpgradingScreen extends AbstractContainerScreen<UpgradingMenu> {
         g.renderFakeItem(core, 0, 0);
         g.pose().popPose();
         UiDraw.text(g, "×" + cores, cx + 11, ry + 5, Colors.alpha(1f, enoughCores ? UiDraw.GOOD : BAD), 0.62f, true);
-        UiDraw.text(g, levels + " lv", cx + 1, ry + 15, Colors.alpha(1f, enoughLevels ? XP : BAD), 0.62f, true);
+        UiDraw.text(g, Tr.f("%s lv", levels), cx + 1, ry + 15, Colors.alpha(1f, enoughLevels ? XP : BAD), 0.62f, true);
         boolean ready = !menu.working() && UpgradingTableBlockEntity.check(tool, cup, t, minecraft.player) == UpgradingTableBlockEntity.Check.READY;
         boolean hover = mouseX >= bx && mouseX < bx + BUTTON_W && mouseY >= by && mouseY < by + BUTTON_H;
         UiDraw.button(g, bx, by, BUTTON_W, BUTTON_H, hover && ready ? 1 : 0, ready ? 1f : 0.45f);
@@ -236,7 +237,7 @@ public class UpgradingScreen extends AbstractContainerScreen<UpgradingMenu> {
         UpgradeTrack under = menu.track();
         if (menu.fusing()) {
             float left = (1 - menu.progress()) * UpgradingTableBlockEntity.FUSE_DURATION / 20f;
-            UiDraw.textCentered(g, String.format("Fusing the Weapon of God   %.0fs", Math.ceil(left)), cx, ly, Colors.alpha(1f, LIGHT), 0.72f, true);
+            UiDraw.textCentered(g, Tr.f("Fusing the Weapon of God   %ss", String.format("%.0f", Math.ceil(left))), cx, ly, Colors.alpha(1f, LIGHT), 0.72f, true);
         } else if (UpgradingTableBlockEntity.isGod(tool)) {
             UiDraw.textCentered(g, "Take the Weapon of God from the vise", cx, ly, Colors.alpha(1f, UiDraw.GOLD_LIGHT), 0.68f, false);
         } else if (menu.fusion()) {
@@ -245,7 +246,7 @@ public class UpgradingScreen extends AbstractContainerScreen<UpgradingMenu> {
             UiDraw.textCentered(g, ready ? "Fuse the two calamities" : c.message, cx, ly, ready ? Colors.alpha(1f, UiDraw.GOLD_LIGHT) : muted, 0.68f, false);
         } else if (under != null) {
             float left = (1 - menu.progress()) * UpgradingTableBlockEntity.DURATION / 20f;
-            UiDraw.textCentered(g, String.format("Raising %s   %.0fs", under.displayName(), Math.ceil(left)), cx, ly, Colors.alpha(1f, XP), 0.72f, true);
+            UiDraw.textCentered(g, Tr.f("Raising %s   %ss", under.displayName(), String.format("%.0f", Math.ceil(left))), cx, ly, Colors.alpha(1f, XP), 0.72f, true);
         } else if (!(tool.getItem() instanceof LegendaryTool)) {
             UiDraw.textCentered(g, "Lay a legendary tool in the vise", cx, ly, muted, 0.68f, false);
         } else {

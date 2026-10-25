@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.ability.AbilityDefinition;
 import com.fantasyweapons.client.ClientState;
@@ -59,7 +60,7 @@ public class TargetMapScreen extends Screen {
     private long openedAt;
 
     public TargetMapScreen(WeaponDefinition def, AbilityDefinition ability) {
-        super(Component.literal("Dominion Sight"));
+        super(Component.literal(Tr.s("Dominion Sight")));
         this.def = def;
         this.ability = ability;
         this.remotes = def.castables().stream().filter(AbilityDefinition::remote).toList();
@@ -382,8 +383,8 @@ public class TargetMapScreen extends Screen {
     }
 
     private void drawHeader(GuiGraphics g, float open, int accent) {
-        UiDraw.text(g, "DOMINION SIGHT  //  " + def.displayName().toUpperCase(Locale.ROOT), 10, 8, Colors.alpha(0.75f * open, 0xC8A0A0), 0.55f, false);
-        UiDraw.textRight(g, "REACH " + reach / 16 + " CHUNKS", width - 10, 8, Colors.alpha(0.75f * open, 0xC8A0A0), 0.55f, false);
+        UiDraw.text(g, Tr.s("DOMINION SIGHT") + "  //  " + def.displayName().toUpperCase(Locale.ROOT), 10, 8, Colors.alpha(0.75f * open, 0xC8A0A0), 0.55f, false);
+        UiDraw.textRight(g, Tr.f("REACH %s CHUNKS", reach / 16), width - 10, 8, Colors.alpha(0.75f * open, 0xC8A0A0), 0.55f, false);
     }
 
     /** The remote spells of the weapon, to pick from; the chosen one is cast. */
@@ -407,7 +408,7 @@ public class TargetMapScreen extends Screen {
         // the spell
         UiDraw.title(g, ability.name().toUpperCase(Locale.ROOT), mx + ms / 2, mapY() - 36, Colors.alpha(open, accent), 0.95f);
         long cd = cooldownLeft();
-        String sub = cd > 0 ? String.format("SEALED  ·  %d:%02d", cd / 20 / 60, cd / 20 % 60) : "CHOOSE WHERE IT FALLS";
+        String sub = cd > 0 ? Tr.f("SEALED  ·  %s", String.format("%d:%02d", cd / 20 / 60, cd / 20 % 60)) : "CHOOSE WHERE IT FALLS";
         UiDraw.textCentered(g, sub, mx + ms / 2, mapY() - 22, Colors.alpha(0.85f * open, cd > 0 ? 0xFF6A6A : 0xE8D8C8), 0.55f, false);
         // readout at the cursor
         float ry = height - 14;
@@ -416,8 +417,8 @@ public class TargetMapScreen extends Screen {
             double dist = Math.hypot(wx - cx, wz - cz);
             Integer h = heightAt(wx, wz);
             boolean ok = inReach(wx, wz);
-            String s = String.format("X %d   Z %d   %s   %,.0f m  ·  %.1f chunks", (int) Math.floor(wx), (int) Math.floor(wz),
-                    h == null ? "UNCHARTED" : "Y " + h, dist, dist / 16);
+            String s = Tr.f("X %s   Z %s   %s   %s m  ·  %s chunks", (int) Math.floor(wx), (int) Math.floor(wz),
+                    h == null ? Tr.s("UNCHARTED") : "Y " + h, String.format(Locale.ROOT, "%,.0f", dist), String.format(Locale.ROOT, "%.1f", dist / 16));
             UiDraw.textCentered(g, s, mx + ms / 2, mapY() + ms + 11, Colors.alpha(open, ok ? 0xF4E8D8 : 0xFF6060), 0.6f, true);
             if (!ok) UiDraw.textCentered(g, "[ OUT OF REACH ]", mx + ms / 2, mapY() + ms - 14, Colors.alpha(open, 0xFF4040), 0.6f, true);
         }

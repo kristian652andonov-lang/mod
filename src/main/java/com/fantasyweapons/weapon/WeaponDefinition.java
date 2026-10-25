@@ -91,6 +91,11 @@ public final class WeaponDefinition {
         return Tr.s(title);
     }
 
+    /** The epithet in English whatever the language (the runes engraved along the blade spell it). */
+    public String englishTitle() {
+        return title;
+    }
+
     /** Where the lore is "quoted" from (a ballad, a chronicle...), or empty. */
     public String loreSource() {
         return Tr.s(loreSource);

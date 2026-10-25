@@ -216,6 +216,18 @@ public final class ServerConfig {
         return new Bool(B.comment(comment).translation(label).define(name, def), def);
     }
 
+    /** A config comment without the lines the config file adds itself (the default, the range, the allowed values). */
+    public static String help(String comment) {
+        if (comment == null) return "";
+        List<String> keep = new java.util.ArrayList<>();
+        for (String line : comment.split("\n")) {
+            String t = line.trim();
+            if (t.startsWith("Default:") || t.startsWith("Range:") || t.startsWith("Allowed Values:")) continue;
+            keep.add(line);
+        }
+        return String.join("\n", keep).trim();
+    }
+
     /** A setting's English label from its name: {@code range_per_level} reads "Range per level". */
     public static String label(String name) {
         String words = name.replace('_', ' ');

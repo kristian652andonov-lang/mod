@@ -1,5 +1,6 @@
 package com.fantasyweapons.forge;
 
+import com.fantasyweapons.text.Tr;
 import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.core.Direction;
@@ -30,12 +31,12 @@ public class WorldforgeItem extends BlockItem implements GeoItem {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int ink = 0xD8B0A8, blood = 0xFF5A4A, faded = 0x9C7068;
-        tooltip.add(Component.literal("It was not built. It was summoned.").withStyle(s -> s.withColor(ink).withItalic(true)));
+        tooltip.add(Component.literal(Tr.s("It was not built. It was summoned.")).withStyle(s -> s.withColor(ink).withItalic(true)));
         tooltip.add(Component.empty());
-        tooltip.add(Component.literal("☠ An 11x11 forging grid").withStyle(s -> s.withColor(blood)));
-        tooltip.add(Component.literal("☠ Forges the two ultimate weapons from every legend").withStyle(s -> s.withColor(blood)));
-        tooltip.add(Component.literal("⚒ Unfolds into a forge 21 wide, 21 deep and 22 high").withStyle(s -> s.withColor(faded)));
-        tooltip.add(Component.literal("⚒ It rises before you: the block you choose is the foot of its stairs").withStyle(s -> s.withColor(faded)));
+        tooltip.add(Component.literal(Tr.s("☠ An 11x11 forging grid")).withStyle(s -> s.withColor(blood)));
+        tooltip.add(Component.literal(Tr.s("☠ Forges the two ultimate weapons from every legend")).withStyle(s -> s.withColor(blood)));
+        tooltip.add(Component.literal(Tr.s("⚒ Unfolds into a forge 21 wide, 21 deep and 22 high")).withStyle(s -> s.withColor(faded)));
+        tooltip.add(Component.literal(Tr.s("⚒ It rises before you: the block you choose is the foot of its stairs")).withStyle(s -> s.withColor(faded)));
     }
 
     /**

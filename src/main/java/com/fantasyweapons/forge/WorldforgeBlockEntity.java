@@ -1,5 +1,6 @@
 package com.fantasyweapons.forge;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.registry.ModBlockEntities;
 import com.fantasyweapons.registry.ModParticles;
 import net.minecraft.core.BlockPos;
@@ -221,9 +222,8 @@ public class WorldforgeBlockEntity extends BlockEntity implements GeoBlockEntity
                 bolt.setVisualOnly(true);
                 server.addFreshEntity(bolt);
             }
-            Component line = Component.literal("☠ The Worldforge has forged ").withStyle(s -> s.withColor(0xFF4A3A))
-                    .append(made.getHoverName().copy().withStyle(s -> s.withColor(0xFFE0D0).withBold(true)))
-                    .append(Component.literal(". The world trembles.").withStyle(s -> s.withColor(0xFF4A3A)));
+            Component line = Tr.c("☠ The Worldforge has forged %s. The world trembles.",
+                    made.getHoverName().copy().withStyle(s -> s.withColor(0xFFE0D0).withBold(true))).withStyle(s -> s.withColor(0xFF4A3A));
             server.getServer().getPlayerList().broadcastSystemMessage(line, false);
         }
     }

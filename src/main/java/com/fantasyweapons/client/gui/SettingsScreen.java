@@ -164,19 +164,7 @@ public final class SettingsScreen extends Screen {
         ModConfigSpec.ValueSpec vs = value.getSpec();
         List<String> path = value.getPath();
         String label = vs.getTranslationKey() != null ? vs.getTranslationKey() : ServerConfig.label(path.get(path.size() - 1));
-        return new Setting(spec, (ModConfigSpec.ConfigValue<Object>) value, label, help(vs.getComment()), world);
-    }
-
-    /** A config comment without the lines the config file adds itself (the default, the range, the allowed values). */
-    private static String help(String comment) {
-        if (comment == null) return "";
-        List<String> keep = new ArrayList<>();
-        for (String line : comment.split("\n")) {
-            String t = line.trim();
-            if (t.startsWith("Default:") || t.startsWith("Range:") || t.startsWith("Allowed Values:")) continue;
-            keep.add(line);
-        }
-        return String.join("\n", keep).trim();
+        return new Setting(spec, (ModConfigSpec.ConfigValue<Object>) value, label, ServerConfig.help(vs.getComment()), world);
     }
 
     private static String groupTitle(ModConfigSpec spec, List<String> path) {

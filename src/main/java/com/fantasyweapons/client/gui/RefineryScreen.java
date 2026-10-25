@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.client.hud.UiDraw;
 import com.fantasyweapons.client.vfx.Colors;
 import com.fantasyweapons.material.Material;
@@ -159,8 +160,8 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         arrow(g, tx + 74, yy + 8);
         icon(g, refined, tx + 96, yy);
         yy += 19;
-        UiDraw.wrap(g, Material.REFINE_COUNT + " " + m.rawName() + " and " + Material.REFINE_COUNT + " " + additive.getHoverName().getString()
-                + " melt into one " + m.refinedName() + " in 20 seconds.", tx, yy, w, ink, 0.6f, 7);
+        UiDraw.wrap(g, Tr.f("%s ×%s and %s ×%s melt into one %s in 20 seconds.", m.rawName(), Material.REFINE_COUNT,
+                additive.getHoverName().getString(), Material.REFINE_COUNT, m.refinedName()), tx, yy, w, ink, 0.6f, 7);
         yy += 18;
 
         heading(g, "2  Fuel", tx, yy);
@@ -232,7 +233,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
         int ly = RefineryMenu.OUTPUT_Y + 16;
         ItemStack input = menu.slots.get(0).getItem(), fuel = menu.slots.get(1).getItem(), out = menu.slots.get(2).getItem();
         if (menu.progress() > 0 && menu.burning()) {
-            UiDraw.textCentered(g, String.format("Refining  %.0fs", Math.ceil(menu.secondsLeft())), cx, ly, Colors.alpha(1f, UiDraw.INK), 0.75f, false);
+            UiDraw.textCentered(g, Tr.f("Refining  %ss", String.format("%.0f", Math.ceil(menu.secondsLeft()))), cx, ly, Colors.alpha(1f, UiDraw.INK), 0.75f, false);
             if (menu.fastFire()) UiDraw.textCentered(g, "Fast fire  x2", cx, ly + 10, Colors.alpha(1f, BLAZE), 0.7f, true);
         } else if (input.isEmpty()) {
             UiDraw.textCentered(g, "Put a raw material in", cx, ly, muted, 0.7f, false);
@@ -241,8 +242,8 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
             RefiningRecipe r = recipe();
             ItemStack add = menu.slots.get(ArcaneRefineryBlockEntity.ADDITIVE).getItem();
             int haveRaw = input.getCount(), haveAdd = r.additive().test(add) ? add.getCount() : 0;
-            String addName = r.additive().getItems().length > 0 ? r.additive().getItems()[0].getHoverName().getString() : "Additive";
-            UiDraw.textCentered(g, "Raw  " + Math.min(haveRaw, r.count()) + "/" + r.count(), cx, ly, Colors.alpha(1f, haveRaw >= r.count() ? UiDraw.GOOD : BLAZE), 0.62f, true);
+            String addName = r.additive().getItems().length > 0 ? r.additive().getItems()[0].getHoverName().getString() : Tr.s("Additive");
+            UiDraw.textCentered(g, Tr.s("Raw") + "  " + Math.min(haveRaw, r.count()) + "/" + r.count(), cx, ly, Colors.alpha(1f, haveRaw >= r.count() ? UiDraw.GOOD : BLAZE), 0.62f, true);
             UiDraw.textCentered(g, addName + "  " + Math.min(haveAdd, r.additiveCount()) + "/" + r.additiveCount(), cx, ly + 9,
                     Colors.alpha(1f, haveAdd >= r.additiveCount() ? UiDraw.GOOD : BLAZE), 0.62f, true);
         } else if (!out.isEmpty() && out.getCount() >= out.getMaxStackSize()) {

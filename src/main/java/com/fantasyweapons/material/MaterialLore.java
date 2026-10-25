@@ -1,5 +1,6 @@
 package com.fantasyweapons.material;
 
+import com.fantasyweapons.text.Tr;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -17,26 +18,26 @@ public final class MaterialLore {
     public static void append(Material m, Form form, List<Component> tooltip) {
         int light = mix(m.color(), 0xFFFFFF, 0.45f), ink = mix(0xD8C9A8, m.color(), 0.15f), faded = mix(m.color(), 0x9C8862, 0.55f);
         String weapon = m.weaponDefinition().displayName();
-        tooltip.add(Component.literal("Legendary material of " + weapon).withStyle(s -> s.withColor(m.color())));
+        tooltip.add(Component.literal(Tr.f("Legendary material of %s", weapon)).withStyle(s -> s.withColor(m.color())));
         for (String line : wrap(m.look(), 40)) tooltip.add(Component.literal(line).withStyle(s -> s.withColor(ink).withItalic(true)));
         tooltip.add(Component.empty());
         switch (form) {
             case ORE -> {
-                tooltip.add(Component.literal("⚒ Found: " + m.found()).withStyle(s -> s.withColor(faded)));
-                tooltip.add(Component.literal("⚒ Extremely rare").withStyle(s -> s.withColor(faded)));
-                tooltip.add(Component.literal("⚒ Mine with a diamond pickaxe or better").withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("⚒ " + Tr.f("Found: %s", m.found())).withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("⚒ " + Tr.s("Extremely rare")).withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("⚒ " + Tr.s("Mine with a diamond pickaxe or better")).withStyle(s -> s.withColor(faded)));
             }
             case RAW -> {
-                tooltip.add(Component.literal("♨ Refine " + Material.REFINE_COUNT + " in the Arcane Refinery").withStyle(s -> s.withColor(light)));
-                tooltip.add(Component.literal("   with " + Material.REFINE_COUNT + " " + new net.minecraft.world.item.ItemStack(m.additive()).getHoverName().getString())
+                tooltip.add(Component.literal("♨ " + Tr.f("Refine %s in the Arcane Refinery", Material.REFINE_COUNT)).withStyle(s -> s.withColor(light)));
+                tooltip.add(Component.literal("   " + Tr.f("with %s ×%s", new net.minecraft.world.item.ItemStack(m.additive()).getHoverName().getString(), Material.REFINE_COUNT))
                         .withStyle(s -> s.withColor(faded)));
-                tooltip.add(Component.literal("   to make one " + m.refinedName()).withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("   " + Tr.f("to make one %s", m.refinedName())).withStyle(s -> s.withColor(faded)));
             }
             case REFINED -> {
-                tooltip.add(Component.literal("✦ Forges " + weapon + " and its armor").withStyle(s -> s.withColor(light)));
-                tooltip.add(Component.literal("   at the Legendary Crafting Table").withStyle(s -> s.withColor(faded)));
-                tooltip.add(Component.literal("✦ Upgrades " + weapon).withStyle(s -> s.withColor(light)));
-                tooltip.add(Component.literal("   craft it with the weapon: +1 level each").withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("✦ " + Tr.f("Forges %s and its armor", weapon)).withStyle(s -> s.withColor(light)));
+                tooltip.add(Component.literal("   " + Tr.s("at the Legendary Crafting Table")).withStyle(s -> s.withColor(faded)));
+                tooltip.add(Component.literal("✦ " + Tr.f("Upgrades %s", weapon)).withStyle(s -> s.withColor(light)));
+                tooltip.add(Component.literal("   " + Tr.s("craft it with the weapon: +1 level each")).withStyle(s -> s.withColor(faded)));
             }
         }
     }

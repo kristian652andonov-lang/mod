@@ -244,6 +244,11 @@ public enum ArmorSet {
         return Tr.s(abilityName);
     }
 
+    /** The set ability's name in English whatever the language. */
+    public String englishAbilityName() {
+        return abilityName;
+    }
+
     public String abilityText() {
         return Tr.s(abilityText);
     }

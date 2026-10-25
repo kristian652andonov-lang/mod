@@ -19,8 +19,9 @@ public enum Chapter {
         this.color = color;
     }
 
+    /** The chapter's name in the player's language. */
     public String title() {
-        return title;
+        return com.fantasyweapons.text.Tr.s(title);
     }
 
     /** The chapter's colour (RGB). */

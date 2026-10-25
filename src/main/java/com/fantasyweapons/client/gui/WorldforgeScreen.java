@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.client.hud.UiDraw;
 import com.fantasyweapons.client.vfx.Colors;
@@ -346,7 +347,7 @@ public class WorldforgeScreen extends AbstractContainerScreen<WorldforgeMenu> {
         int laid = WorldforgeMenu.laid(menu.grid(), r);
         int tx = x + RITE_X + recipes.size() * 24 + 2;
         UiDraw.text(g, r.result().getHoverName().getString(), tx, y + RITE_Y + 1, Colors.alpha(1f, BONE), 0.6f, true);
-        UiDraw.text(g, laid + " / " + need + " offerings laid", tx, y + RITE_Y + 10, Colors.alpha(1f, laid >= need ? 0xFF8070 : ASH), 0.58f, false);
+        UiDraw.text(g, Tr.f("%s / %s offerings laid", laid, need), tx, y + RITE_Y + 10, Colors.alpha(1f, laid >= need ? 0xFF8070 : ASH), 0.58f, false);
         fillButton(g, x + 436 - 14 - 8 - FILL_W, y + RITE_Y + 24, mouseX, mouseY);
     }
 

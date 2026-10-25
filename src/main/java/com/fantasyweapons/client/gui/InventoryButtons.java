@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.client.hud.UiDraw;
 import com.fantasyweapons.client.input.KeyBindings;
 import com.fantasyweapons.client.vfx.Colors;
@@ -75,7 +76,7 @@ public final class InventoryButtons {
 
     private static final class Journal extends Small {
         Journal(InventoryScreen screen, int offset) {
-            super(screen, offset, Component.literal("Quest Journal"));
+            super(screen, offset, Component.literal(Tr.s("Quest Journal")));
         }
 
         @Override
@@ -110,9 +111,9 @@ public final class InventoryButtons {
         @Override
         Component tooltip() {
             int n = waiting();
-            Component title = Component.literal("Quest Journal").withColor(0xF2C46B)
+            Component title = Component.literal(Tr.s("Quest Journal")).withColor(0xF2C46B)
                     .append(Component.literal(" (" + KeyBindings.QUESTS.getTranslatedKeyMessage().getString() + ")").withColor(0xB9AC92));
-            return n == 0 ? title : title.copy().append(Component.literal("\n" + n + (n == 1 ? " quest" : " quests") + " to claim").withColor(0x8FE08A));
+            return n == 0 ? title : title.copy().append(Component.literal("\n" + Tr.f(n == 1 ? "%s quest to claim" : "%s quests to claim", n)).withColor(0x8FE08A));
         }
     }
 
@@ -120,7 +121,7 @@ public final class InventoryButtons {
         private final InventoryScreen screen;
 
         Settings(InventoryScreen screen, int offset) {
-            super(screen, offset, Component.literal(com.fantasyweapons.text.Tr.s("Settings")));
+            super(screen, offset, Component.literal(Tr.s("Settings")));
             this.screen = screen;
         }
 
@@ -136,13 +137,13 @@ public final class InventoryButtons {
 
         @Override
         Component tooltip() {
-            return Component.literal(com.fantasyweapons.text.Tr.s("Fantasy Weapons settings")).withColor(0xF2C46B);
+            return Component.literal(Tr.s("Fantasy Weapons settings")).withColor(0xF2C46B);
         }
     }
 
     private static final class Classes extends Small {
         Classes(InventoryScreen screen, int offset) {
-            super(screen, offset, Component.literal("Class"));
+            super(screen, offset, Component.literal(Tr.s("Class")));
         }
 
         @Override
@@ -159,7 +160,7 @@ public final class InventoryButtons {
         @Override
         Component tooltip() {
             PlayerClass c = ClassService.of(Minecraft.getInstance().player);
-            return Component.literal("Class: ").withColor(0xB9AC92).append(Component.literal(c.displayName()).withColor(c.color()))
+            return Component.literal(Tr.s("Class:") + " ").withColor(0xB9AC92).append(Component.literal(c.displayName()).withColor(c.color()))
                     .append(Component.literal(" (" + KeyBindings.CLASSES.getTranslatedKeyMessage().getString() + ")").withColor(0xB9AC92));
         }
     }

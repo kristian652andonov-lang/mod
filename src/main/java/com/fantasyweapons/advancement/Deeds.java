@@ -63,9 +63,9 @@ public final class Deeds {
 
     private static String verb(AdvancementType type) {
         return switch (type) {
-            case TASK -> " has earned the deed ";
-            case GOAL -> " has accomplished the feat ";
-            case CHALLENGE -> " has become a legend: ";
+            case TASK -> "%s has earned the deed %s";
+            case GOAL -> "%s has accomplished the feat %s";
+            case CHALLENGE -> "%s has become a legend: %s";
         };
     }
 
@@ -85,13 +85,12 @@ public final class Deeds {
     public static MutableComponent announcement(ServerPlayer player, DisplayInfo display) {
         int color = color(display.getType());
         Component hover = Component.empty().append(display.getTitle()).append("\n").append(mark(display.getType())).append(" ")
-                .append(Component.literal(rank(display.getType())).withColor(color)).append("\n").append(display.getDescription());
+                .append(Component.translatable(rank(display.getType())).withColor(color)).append("\n").append(display.getDescription());
         MutableComponent title = ComponentUtils.wrapInSquareBrackets(display.getTitle().copy())
                 .withStyle(s -> s.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hover)));
         return Component.empty()
                 .append(mark(display.getType())).append(" ")
-                .append(player.getDisplayName())
-                .append(Component.literal(verb(display.getType())).withColor(PLAIN))
-                .append(title);
+                // translatable, so each player reads it in their own language
+                .append(Component.translatable(verb(display.getType()), player.getDisplayName().copy().withColor(0xFFFFFF), title).withColor(PLAIN));
     }
 }

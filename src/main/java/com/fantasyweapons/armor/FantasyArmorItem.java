@@ -1,5 +1,6 @@
 package com.fantasyweapons.armor;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.SidedHooks;
 import com.google.common.base.Suppliers;
@@ -115,21 +116,21 @@ public class FantasyArmorItem extends ArmorItem implements GeoItem {
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int color = set.material().color();
         int light = mix(color, 0xFFFFFF, 0.45f), ink = mix(0xD8C9A8, color, 0.15f), faded = mix(color, 0x9C8862, 0.55f);
-        tooltip.add(Component.literal(set.armorClass().displayName() + " armor of " + set.element().displayName()).withStyle(s -> s.withColor(color)));
+        tooltip.add(Component.literal(Tr.f("%s armor of %s", set.armorClass().displayName(), set.element().displayName())).withStyle(s -> s.withColor(color)));
         com.fantasyweapons.playerclass.ClassGear.tooltip(SidedHooks.get().clientPlayer(), stack, tooltip);
         for (String line : wrap(set.look(), 40)) tooltip.add(Component.literal(line).withStyle(s -> s.withColor(ink).withItalic(true)));
         tooltip.add(Component.empty());
         ArmorClass c = set.armorClass();
-        tooltip.add(Component.literal(String.format(Locale.ROOT, "⛨ %d Armor   %s Toughness", c.defense(getType()), trim(c.toughness())))
+        tooltip.add(Component.literal("⛨ " + Tr.f("%s Armor   %s Toughness", c.defense(getType()), trim(c.toughness())))
                 .withStyle(s -> s.withColor(0xC8D2DC)));
         for (ArmorSet.Bonus b : set.bonuses(getType())) tooltip.add(Component.literal("◆ " + b.text()).withStyle(s -> s.withColor(light)));
-        tooltip.add(Component.literal(String.format(Locale.ROOT, "◆ Legendary Ward: legendary blows -%d%%, never more than %d%% of your health with all four",
+        tooltip.add(Component.literal("◆ " + Tr.f("Legendary Ward: legendary blows -%s%%, never more than %s%% of your health with all four",
                 Math.round(ArmorEffects.WARD_PER_PIECE * 100), Math.round((1 - ArmorEffects.WARD_CAP_PER_PIECE * 4) * 100))).withStyle(s -> s.withColor(0xC8D2DC)));
         tooltip.add(Component.empty());
         Player player = SidedHooks.get().clientPlayer();
         int worn = player == null ? 0 : worn(player, set);
         boolean active = worn == 4;
-        tooltip.add(Component.literal("Set: " + set.abilityName().toUpperCase(Locale.ROOT) + " (" + worn + "/4)")
+        tooltip.add(Component.literal(Tr.f("Set: %s (%s/4)", set.abilityName().toUpperCase(Locale.ROOT), worn))
                 .withStyle(s -> s.withColor(active ? 0xFFE7A8 : faded).withBold(active)));
         for (String line : wrap(set.abilityText(), 40)) {
             tooltip.add(Component.literal("  " + line).withStyle(s -> s.withColor(active ? ink : faded).withItalic(!active)));
