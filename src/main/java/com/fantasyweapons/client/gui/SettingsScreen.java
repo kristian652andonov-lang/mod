@@ -13,10 +13,11 @@ import com.fantasyweapons.weapon.Weapons;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.options.LanguageSelectScreen;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen;
+import net.minecraft.client.resources.language.LanguageInfo;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
@@ -36,7 +37,8 @@ import java.util.Locale;
  * settings of the chosen section: switches flip on a click, choices step through their values, numbers are typed in
  * (Enter keeps them, Escape drops them) and are kept only within their range. A changed setting can be put back to its
  * default. Changes are saved at once. The world's settings can be changed only in a world of one's own (singleplayer or
- * one opened to LAN); on a server they are shown as the server has them.
+ * one opened to LAN); on a server they are shown as the server has them. Below the sections, the language page lists the
+ * languages the mod is translated into and switches the game to the one chosen.
  * <p>
  * The settings are read from the configs themselves, so every setting there appears here: its label is the config's
  * translation key (English text, translated as all the mod's text is, see {@link Tr}), its help the config's comment.
@@ -67,6 +69,10 @@ public final class SettingsScreen extends Screen {
     private record Entry(Setting setting) implements Row {
     }
 
+    /** A language the mod is translated into: its code ({@code ru_ru}) and the game's name for it. */
+    private record Lang(String code, LanguageInfo info) {
+    }
+
     /** A section of the sidebar; the abilities' rows depend on the weapon picked, so they are made when shown. */
     private record Section(String title, boolean world, List<Row> rows, boolean abilities) {
     }
@@ -88,6 +94,10 @@ public final class SettingsScreen extends Screen {
     /** The section reset asks once more first: when it was first clicked (ms). */
     private long resetAskedAt;
     private Setting hovered;
+    /** The language page is shown in the body in place of a section. */
+    private boolean languagePage;
+    private List<Lang> langs = List.of();
+    private static final int LANG_ROW = 24;
 
     public SettingsScreen(Screen parent) {
         super(Component.literal(Tr.s("Settings")));
@@ -100,6 +110,7 @@ public final class SettingsScreen extends Screen {
         left = zoom.left(width);
         top = zoom.top(height);
         build();
+        langs = languages();
         sectionIndex = Math.min(sectionIndex, sections.size() - 1);
         refresh();
     }
@@ -123,6 +134,37 @@ public final class SettingsScreen extends Screen {
         if (ServerConfig.SPEC.isLoaded()) {
             for (String group : groups(ServerConfig.SPEC)) sections.add(section(ServerConfig.SPEC, group, true));
         }
+    }
+
+    /** The languages the mod has a language file for, English first: the ones it can be played in. */
+    private List<Lang> languages() {
+        var manager = minecraft.getLanguageManager();
+        List<String> codes = new ArrayList<>();
+        var files = minecraft.getResourceManager().listResources("lang",
+                f -> f.getNamespace().equals(com.fantasyweapons.FantasyWeapons.MOD_ID) && f.getPath().endsWith(".json"));
+        for (ResourceLocation file : files.keySet()) {
+            String path = file.getPath();
+            String code = path.substring(path.lastIndexOf('/') + 1, path.length() - ".json".length());
+            if (!codes.contains(code)) codes.add(code);
+        }
+        codes.sort(java.util.Comparator.comparing((String c) -> !c.equals("en_us")).thenComparing(c -> c));
+        List<Lang> out = new ArrayList<>();
+        for (String code : codes) {
+            LanguageInfo info = manager.getLanguage(code);
+            if (info != null) out.add(new Lang(code, info));
+        }
+        return out;
+    }
+
+    /** Plays the game, and so the mod, in {@code code}, as the game's own language screen does. */
+    private void chooseLanguage(String code) {
+        playClick();
+        var manager = minecraft.getLanguageManager();
+        if (code.equals(manager.getSelected())) return;
+        manager.setSelected(code);
+        minecraft.options.languageCode = code;
+        minecraft.reloadResourcePacks();
+        minecraft.options.save();
     }
 
     private static List<String> groups(ModConfigSpec spec) {
@@ -387,7 +429,7 @@ public final class SettingsScreen extends Screen {
         else if (tip != null) g.renderTooltip(font, font.split(Component.literal(tip), 220), realX, realY);
     }
 
-    /** The sections, and the game's language and controls; returns a tooltip for what is under the mouse, if any. */
+    /** The sections, the language page and the game's controls; returns a tooltip for what is under the mouse, if any. */
     private String sidebar(GuiGraphics g, int mouseX, int mouseY, float time) {
         int x = left + SIDE_X;
         String tip = null;
@@ -398,7 +440,7 @@ public final class SettingsScreen extends Screen {
         }
         for (int i = 0; i < sections.size(); i++) {
             int y = tabY(i);
-            boolean on = i == sectionIndex, over = inside(mouseX, mouseY, x, y, SIDE_W, TAB);
+            boolean on = !languagePage && i == sectionIndex, over = inside(mouseX, mouseY, x, y, SIDE_W, TAB);
             UiDraw.button(g, x, y, SIDE_W, TAB, on ? 1 : over ? 1 : 0, on ? 1f : 0.9f);
             if (on) UiDraw.glowBorder(g, x, y, x + SIDE_W, y + TAB, THEME, 0.55f + 0.15f * (float) Math.sin(time * 0.2f), 3);
             int c = on ? GOLD_LIGHT : over ? 0xFFFFFF : GOLD;
@@ -407,15 +449,16 @@ public final class SettingsScreen extends Screen {
         if (!ServerConfig.SPEC.isLoaded()) {
             UiDraw.wrap(g, Tr.s("The world's settings show once a world is open."), x + 2, tabY(clientCount) + 2, SIDE_W - 4, Colors.alpha(1f, MUTED), 0.5f, 7);
         }
-        // the game's own language and controls, where the mod's keys are
+        // the language page, and the game's controls, where the mod's keys are
         int by = footY() - 2 * (TAB + 2);
-        String[] labels = {Tr.s("Language..."), Tr.s("Controls...")};
+        String[] labels = {Tr.s("Language"), Tr.s("Controls...")};
         for (int i = 0; i < 2; i++) {
             int y = by + i * (TAB + 2);
-            boolean over = inside(mouseX, mouseY, x, y, SIDE_W, TAB);
-            UiDraw.button(g, x, y, SIDE_W, TAB, over ? 1 : 0, 0.9f);
-            UiDraw.textCentered(g, labels[i], x + SIDE_W / 2f, y + 4.5f, Colors.alpha(1f, over ? 0xFFFFFF : MUTED), 0.62f, true);
-            if (over) tip = i == 0 ? Tr.s("The game's language, which the mod follows") : Tr.s("The keys, the mod's among them (under Fantasy Weapons)");
+            boolean on = i == 0 && languagePage, over = inside(mouseX, mouseY, x, y, SIDE_W, TAB);
+            UiDraw.button(g, x, y, SIDE_W, TAB, on || over ? 1 : 0, on ? 1f : 0.9f);
+            if (on) UiDraw.glowBorder(g, x, y, x + SIDE_W, y + TAB, THEME, 0.55f + 0.15f * (float) Math.sin(time * 0.2f), 3);
+            UiDraw.textCentered(g, labels[i], x + SIDE_W / 2f, y + 4.5f, Colors.alpha(1f, on ? GOLD_LIGHT : over ? 0xFFFFFF : MUTED), 0.62f, true);
+            if (over) tip = i == 0 ? Tr.s("Choose the language of the mod and the game") : Tr.s("The keys, the mod's among them (under Fantasy Weapons)");
         }
         return tip;
     }
@@ -424,6 +467,10 @@ public final class SettingsScreen extends Screen {
         int x0 = bodyLeft(), x1 = bodyRight(), y0 = top + BODY_TOP, y1 = listBottom() + 2;
         UiDraw.rect(g, x0, y0, x1, y1, 0xE0120D18);
         UiDraw.border(g, x0 - 1, y0 - 1, x1 + 1, y1 + 1, 1, Colors.alpha(0.8f, LINE));
+        if (languagePage) {
+            languageBody(g, mouseX, mouseY, time);
+            return;
+        }
         Section s = current();
         if (s == null) return;
         if (s.abilities()) picker(g, mouseX, mouseY);
@@ -453,6 +500,48 @@ public final class SettingsScreen extends Screen {
             UiDraw.rect(g, x1 - 3, lt, x1 - 1, lb, 0x40FFFFFF);
             UiDraw.rect(g, x1 - 3, by, x1 - 1, by + bar, Colors.alpha(0.9f, GOLD));
         }
+    }
+
+    private int langRowY(int i) {
+        return top + BODY_TOP + 4 + 18 + i * LANG_ROW;
+    }
+
+    /** The languages the mod is translated into, the one in use lit; a click on another switches to it. */
+    private void languageBody(GuiGraphics g, int mouseX, int mouseY, float time) {
+        int x0 = bodyLeft(), x1 = bodyRight();
+        heading(g, new Heading("Language", Tr.s("The language of the game and of the mod's text"), 0), x0, top + BODY_TOP + 4, x1);
+        String selected = minecraft.getLanguageManager().getSelected();
+        boolean known = false;
+        for (int i = 0; i < langs.size(); i++) {
+            Lang l = langs.get(i);
+            int ry = langRowY(i), rx0 = x0 + 4, rx1 = x1 - 4, rh = LANG_ROW - 3;
+            boolean on = l.code().equals(selected), over = inside(mouseX, mouseY, rx0, ry, rx1 - rx0, rh);
+            known |= on;
+            UiDraw.rect(g, rx0, ry, rx1, ry + rh, on ? 0x26F2C46B : over ? 0x1EFFFFFF : 0x0FFFFFFF);
+            UiDraw.border(g, rx0, ry, rx1, ry + rh, 1, Colors.alpha(on ? 0.9f : 0.45f, on ? GOLD : LINE));
+            if (on) UiDraw.glowBorder(g, rx0, ry, rx1, ry + rh, THEME, 0.5f + 0.15f * (float) Math.sin(time * 0.2f), 3);
+            // each language by its own name (never translated), and where it is from
+            UiDraw.text(g, Component.literal(l.info().name()), rx0 + 8, ry + 3.5f, Colors.alpha(1f, on ? GOLD_LIGHT : 0xE8DCC0), 0.8f, true);
+            UiDraw.text(g, Component.literal(l.info().region()), rx0 + 8, ry + 12.5f, Colors.alpha(1f, MUTED), 0.5f, false);
+            int bx = rx1 - 6 - VALUE_W;
+            if (on) {
+                UiDraw.textCentered(g, "✔ " + Tr.s("In use"), bx + VALUE_W / 2f, ry + 7, Colors.alpha(1f, GOOD), 0.62f, true);
+            } else {
+                UiDraw.button(g, bx, ry + 3, VALUE_W, rh - 6, over ? 1 : 0, 1f);
+                UiDraw.textCentered(g, Tr.s("Choose"), bx + VALUE_W / 2f, ry + 7, Colors.alpha(1f, over ? 0xFFFFFF : GOLD), 0.62f, true);
+            }
+        }
+        float ny = langRowY(langs.size()) + 4;
+        int w = x1 - x0 - 16;
+        if (!known) {
+            LanguageInfo game = minecraft.getLanguageManager().getLanguage(selected);
+            String name = game != null ? game.name() : selected;
+            int lines = UiDraw.wrap(g, Tr.f("The game is in %s, which the mod is not translated into yet: its text shows in English.", name),
+                    x0 + 8, ny, w, Colors.alpha(1f, GOLD), 0.55f, 8);
+            ny += lines * 8 + 4;
+        }
+        UiDraw.wrap(g, Tr.s("Only the languages the mod is translated into are shown. Changing the language reloads the game's resources, which takes a moment."),
+                x0 + 8, ny, w, Colors.alpha(1f, MUTED), 0.55f, 8);
     }
 
     private void picker(GuiGraphics g, int mouseX, int mouseY) {
@@ -549,6 +638,11 @@ public final class SettingsScreen extends Screen {
         boolean over = inside(mouseX, mouseY, dx, y, dw, 16);
         UiDraw.button(g, dx, y, dw, 16, over ? 1 : 0, 1f);
         UiDraw.textCentered(g, Tr.s("Done"), dx + dw / 2f, y + 4.5f, Colors.alpha(1f, over ? 0xFFFFFF : GOLD), 0.72f, true);
+        if (languagePage) {
+            UiDraw.text(g, fit(Tr.s("Changes the language of the game and the mod"), dx - left - SIDE_X - 6, 0.52f), left + SIDE_X + 2, y + 5,
+                    Colors.alpha(1f, MUTED), 0.52f, false);
+            return;
+        }
         Section s = current();
         if (s == null) return;
         // how the section's settings are kept
@@ -603,6 +697,16 @@ public final class SettingsScreen extends Screen {
         refresh();
     }
 
+    /** DEVELOPMENT ONLY (screenshot director): shows the language page. */
+    public void debugLanguage() {
+        languagePage = true;
+    }
+
+    /** DEVELOPMENT ONLY (screenshot director): chooses a language as a click on its row does. */
+    public void debugChooseLanguage(String code) {
+        chooseLanguage(code);
+    }
+
     public int debugSections() {
         return sections.size();
     }
@@ -621,6 +725,7 @@ public final class SettingsScreen extends Screen {
         for (int i = 0; i < sections.size(); i++) {
             if (inside(mx, my, x, tabY(i), SIDE_W, TAB)) {
                 commitEdit();
+                languagePage = false;
                 if (i != sectionIndex) {
                     sectionIndex = i;
                     scroll = 0;
@@ -635,7 +740,8 @@ public final class SettingsScreen extends Screen {
         if (inside(mx, my, x, by, SIDE_W, TAB)) {
             commitEdit();
             playClick();
-            minecraft.setScreen(new LanguageSelectScreen(this, minecraft.options, minecraft.getLanguageManager()));
+            languagePage = true;
+            resetAskedAt = 0;
             return true;
         }
         if (inside(mx, my, x, by + TAB + 2, SIDE_W, TAB)) {
@@ -649,6 +755,16 @@ public final class SettingsScreen extends Screen {
             playClick();
             onClose();
             return true;
+        }
+        if (languagePage) {
+            int x0 = bodyLeft() + 4, x1 = bodyRight() - 4;
+            for (int i = 0; i < langs.size(); i++) {
+                if (inside(mx, my, x0, langRowY(i), x1 - x0, LANG_ROW - 3)) {
+                    chooseLanguage(langs.get(i).code());
+                    return true;
+                }
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
         }
         Section s = current();
         if (s != null && inside(mx, my, bodyRight() - 92, fy, 92, 16)) {
@@ -711,6 +827,7 @@ public final class SettingsScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (languagePage) return true;
         scroll = (float) Math.max(0, Math.min(maxScroll(), scroll - scrollY * ROW * 2));
         return true;
     }
@@ -731,7 +848,7 @@ public final class SettingsScreen extends Screen {
             return true;
         }
         Section s = current();
-        if (s != null && s.abilities() && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) {
+        if (!languagePage && s != null && s.abilities() && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) {
             weaponIndex += key == GLFW.GLFW_KEY_LEFT ? -1 : 1;
             scroll = 0;
             refresh();

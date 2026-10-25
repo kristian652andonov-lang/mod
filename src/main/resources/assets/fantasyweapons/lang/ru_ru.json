@@ -3004,5 +3004,13 @@
   "QUEST COMPLETE": "ЗАДАНИЕ ВЫПОЛНЕНО",
   "Infuse a %s for a level": "Наполните ядром «%s» — +1 уровень",
   "Infuse an %s for a level": "Наполните ядром «%s» — +1 уровень",
-  "destruction": "разрушение"
+  "destruction": "разрушение",
+  "Language": "Язык",
+  "Choose the language of the mod and the game": "Выбор языка мода и игры",
+  "The language of the game and of the mod's text": "Язык игры и текста мода",
+  "In use": "Выбран",
+  "Choose": "Выбрать",
+  "The game is in %s, which the mod is not translated into yet: its text shows in English.": "Игра на языке «%s», на который мод ещё не переведён: его текст показан на английском.",
+  "Only the languages the mod is translated into are shown. Changing the language reloads the game's resources, which takes a moment.": "Показаны только языки, на которые переведён мод. Смена языка перезагружает ресурсы игры, это займёт немного времени.",
+  "Changes the language of the game and the mod": "Меняет язык игры и мода"
 }

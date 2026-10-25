@@ -2983,6 +2983,15 @@ final class DevScripts {
                 if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugShow(s.debugSections() - 1, w);
             }).wait(4).screenshot("settings_abilities_" + w);
         }
+        b.run(mc -> {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugLanguage();
+        }).wait(4).screenshot("settings_language");
+        // a click on Russian switches the game and the menu to it; then back to English
+        b.run(mc -> {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugChooseLanguage("ru_ru");
+        }).wait(240).screenshot("settings_language_ru").run(mc -> {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugChooseLanguage("en_us");
+        }).wait(240).screenshot("settings_language_back");
         b.closeScreen().cmd("/gamemode creative");
     }
 

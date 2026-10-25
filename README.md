@@ -117,8 +117,9 @@ opens the settings menu. *This game* holds the client settings (effects, HUD, no
 world* holds the world's settings (progression, weapon EXP, damage, world destruction, and every ability's numbers,
 weapon by weapon), shown once a world is open. Hover a setting for what it does, its default and its range; click a
 switch or a choice to change it (right-click goes back), type a number and press Enter. Changes are saved at once. A
-world's settings can be changed in single player; on a server they are shown but set by the server. The menu also opens
-the game's Language and Controls screens.
+world's settings can be changed in single player; on a server they are shown but set by the server. The menu's Language page
+lists the languages the mod is translated into and switches the game to the one chosen; the menu also opens the
+game's Controls screen.
 
 The same settings are in the config files:
 
@@ -129,7 +130,8 @@ The same settings are in the config files:
 
 ## Languages
 
-English and Russian (*Русский*). The mod follows the game's language. Each piece of the mod's English text is its own
+English and Russian (*Русский*). The mod follows the game's language, which the Language page of the settings menu
+switches between the languages the mod is translated into. Each piece of the mod's English text is its own
 translation key, so a language file (`assets/fantasyweapons/lang/<code>.json`) maps the English to its translation, and
 anything a file leaves out stays in English. Messages from the server are sent as translatable text, so on a server each
 player reads them in their own language. The `russianTranslatesEveryText` GameTest gathers every text the mod's
