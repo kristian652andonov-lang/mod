@@ -1,5 +1,6 @@
 package com.fantasyweapons.quest;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -31,6 +32,11 @@ public sealed interface QuestObjective {
 
     /** Done {@code target} times something reported by {@code key} (for instance "mine:fantasyweapons:solarite_ore"). */
     record Count(String key, int target, String label, Supplier<ItemStack> iconOf) implements QuestObjective {
+
+        @Override
+        public String label() {
+            return Tr.s(label);
+        }
         @Override
         public boolean counted() {
             return true;
@@ -44,6 +50,11 @@ public sealed interface QuestObjective {
 
     /** Holds {@code target} of an item. */
     record Collect(Supplier<? extends net.minecraft.world.level.ItemLike> item, int target, String label) implements QuestObjective {
+
+        @Override
+        public String label() {
+            return Tr.s(label);
+        }
         @Override
         public ItemStack icon() {
             return new ItemStack(item.get());
@@ -63,6 +74,11 @@ public sealed interface QuestObjective {
 
     /** Holds {@code target} items that pass {@code test} (any legendary tool, say). */
     record Holds(java.util.function.Predicate<ItemStack> test, int target, String label, Supplier<ItemStack> iconOf) implements QuestObjective {
+
+        @Override
+        public String label() {
+            return Tr.s(label);
+        }
         @Override
         public ItemStack icon() {
             return iconOf.get();
@@ -81,6 +97,11 @@ public sealed interface QuestObjective {
 
     /** Has a legendary weapon (that one, or any when {@code weapon} is null) at level {@code target} or above. */
     record Reach(String weapon, int target, String label, Supplier<ItemStack> iconOf) implements QuestObjective {
+
+        @Override
+        public String label() {
+            return Tr.s(label);
+        }
         @Override
         public ItemStack icon() {
             return iconOf.get();

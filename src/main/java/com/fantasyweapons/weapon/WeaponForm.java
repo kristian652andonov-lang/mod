@@ -19,4 +19,14 @@ import org.jetbrains.annotations.Nullable;
 public record WeaponForm(String id, String displayName, String label, int themePrimary, int themeSecondary,
                          @Nullable String enterAnimation, String idleAnimation, String attackAnimation,
                          float reachBonus, float damageFactor, float attackSpeedFactor) {
+    /** The form's name in the player's language. */
+    @Override
+    public String displayName() {
+        return com.fantasyweapons.text.Tr.s(displayName);
+    }
+
+    @Override
+    public String label() {
+        return com.fantasyweapons.text.Tr.s(label);
+    }
 }

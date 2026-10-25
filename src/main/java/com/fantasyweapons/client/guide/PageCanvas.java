@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.guide;
 
+import com.fantasyweapons.text.Tr;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -81,12 +82,13 @@ public final class PageCanvas {
         font.drawInBatch(text, 0, 0, color, false, m, buffers, Font.DisplayMode.POLYGON_OFFSET, 0, LightTexture.FULL_BRIGHT);
     }
 
+    /** Text at a place on the page. All the page's text is English looked up in the player's language (see Tr). */
     public void text(String text, float x, float y, int color, float scale) {
-        text(Component.literal(text).getVisualOrderText(), x, y, color, scale);
+        text(Component.literal(Tr.s(text)).getVisualOrderText(), x, y, color, scale);
     }
 
     public float width(String text, float scale) {
-        return font.width(text) * scale;
+        return font.width(Tr.s(text)) * scale;
     }
 
     public void centered(String text, float y, int color, float scale) {
@@ -205,7 +207,7 @@ public final class PageCanvas {
 
     /** A heading in red, centred, with a gilded rule under it. */
     public void heading(String text) {
-        float s = text.length() > 18 ? 0.85f : 1f;
+        float s = Tr.s(text).length() > 18 ? 0.85f : 1f;
         centered(text, y, RED, s);
         y += 9 * s + 1;
         rule();
@@ -222,7 +224,7 @@ public final class PageCanvas {
 
     /** Wrapped text at the cursor. */
     public void para(String text, int color, float scale) {
-        para(Component.literal(text), color, scale);
+        para(Component.literal(Tr.s(text)), color, scale);
     }
 
     public void para(FormattedText text, int color, float scale) {
@@ -235,6 +237,7 @@ public final class PageCanvas {
 
     /** A line of text the reader can click, underlined and reddened under the mouse. */
     public void link(String text, float x, float yy, float scale, Runnable click) {
+        text = Tr.s(text);
         float w = width(text, scale), h = 8 * scale;
         boolean over = hovered(x - 1, yy - 1, x + w + 1, yy + h + 1);
         text(text, x, yy, over ? RED : INK, scale);

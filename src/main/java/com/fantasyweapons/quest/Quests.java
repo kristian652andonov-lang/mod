@@ -1,5 +1,6 @@
 package com.fantasyweapons.quest;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.armor.ArmorSet;
 import com.fantasyweapons.material.Material;
 import com.fantasyweapons.registry.ModBlocks;
@@ -95,14 +96,14 @@ public final class Quests {
     private static void ores(List<Quest> list) {
         for (Material m : Material.values()) {
             String raw = m.rawId(), ore = BuiltInRegistries.BLOCK.getKey(ModBlocks.ORES.get(m).get()).toString();
-            QuestGroup group = new QuestGroup("ore_" + raw, m.materialName(), () -> stack(ModItems.ORES.get(m).get(), 1));
-            list.add(quest("prospect_" + raw, Chapter.ORES, "Prospector: " + m.materialName(), m.found() + ". Find its ore and break into it.",
+            QuestGroup group = new QuestGroup("ore_" + raw, m.englishName(), () -> stack(ModItems.ORES.get(m).get(), 1));
+            list.add(quest("prospect_" + raw, Chapter.ORES, Tr.compose("Prospector: %s", m.englishName()), Tr.compose("%s. Find its ore and break into it.", m.foundEnglish()),
                     () -> stack(ModItems.ORES.get(m).get(), 1))
-                    .count("mine:" + ore, 8, "Mine 8 " + m.oreName(), () -> stack(ModItems.ORES.get(m).get(), 1))
+                    .count("mine:" + ore, 8, Tr.compose("Mine %2$s ×%1$s", 8, m.oreEnglish()), () -> stack(ModItems.ORES.get(m).get(), 1))
                     .reward(() -> stack(ModItems.RAW.get(m).get(), 8)).reward(() -> stack(m.additive(), 8)).reward(Items.EMERALD, 4).xp(60).group(group).build());
-            list.add(quest("vein_" + raw, Chapter.ORES, "Deep Vein: " + m.materialName(), "A prospector finds one ore; a legend empties the vein. Mine its ore by the dozen.",
+            list.add(quest("vein_" + raw, Chapter.ORES, Tr.compose("Deep Vein: %s", m.englishName()), "A prospector finds one ore; a legend empties the vein. Mine its ore by the dozen.",
                     () -> stack(ModItems.ORES.get(m).get(), 1))
-                    .count("mine:" + ore, 32, "Mine 32 " + m.oreName(), () -> stack(ModItems.ORES.get(m).get(), 1))
+                    .count("mine:" + ore, 32, Tr.compose("Mine %2$s ×%1$s", 32, m.oreEnglish()), () -> stack(ModItems.ORES.get(m).get(), 1))
                     .reward(() -> stack(ModItems.RAW.get(m).get(), 16)).reward(() -> stack(m.additive(), 16)).reward(Items.DIAMOND, 3).xp(200)
                     .requires("prospect_" + raw).group(group).build());
         }
@@ -110,43 +111,43 @@ public final class Quests {
 
     private static void refining(List<Quest> list) {
         for (Material m : Material.values()) {
-            list.add(quest("refine_" + m.refinedId(), Chapter.REFINING, "Purified: " + m.refinedName(),
+            list.add(quest("refine_" + m.refinedId(), Chapter.REFINING, Tr.compose("Purified: %s", m.refinedEnglish()),
                     "Melt its raw ore and additive down in the Arcane Refinery, eight and eight to a core.", () -> stack(ModItems.REFINED.get(m).get(), 1))
-                    .collect(() -> ModItems.REFINED.get(m).get(), 4, "Hold 4 " + m.refinedName() + "s")
+                    .collect(() -> ModItems.REFINED.get(m).get(), 4, Tr.compose("Hold %2$s ×%1$s", 4, m.refinedEnglish()))
                     .reward(() -> stack(ModItems.REFINED.get(m).get(), 1)).reward(() -> stack(m.additive(), 16)).reward(Items.DIAMOND, 1).xp(120)
                     .requires("prospect_" + m.rawId()).build());
         }
         Builder b = quest("master_alchemist", Chapter.REFINING, "Master Alchemist", "Hold one of every legendary core at once: all thirteen, from Void to Infernite.",
                 () -> stack(ModItems.REFINED.get(Material.ASTRALITE).get(), 1));
-        for (Material m : Material.values()) b.collect(() -> ModItems.REFINED.get(m).get(), 1, m.refinedName());
+        for (Material m : Material.values()) b.collect(() -> ModItems.REFINED.get(m).get(), 1, m.refinedEnglish());
         list.add(b.reward(Items.NETHERITE_INGOT, 2).reward(Items.ENCHANTED_GOLDEN_APPLE, 1).xp(800).build());
     }
 
     private static void weapons(List<Quest> list) {
         for (WeaponDefinition def : Weapons.legendaries()) {
-            String id = def.id(), name = def.displayName();
+            String id = def.id(), name = def.englishName();
             Material m = Material.ofWeapon(id);
             Supplier<ItemStack> icon = () -> stack(ModItems.WEAPONS.get(id).get(), 1);
             QuestGroup group = new QuestGroup("weapon_" + id, name, icon);
-            list.add(quest("forge_" + id, Chapter.WEAPONS, "Forged: " + name, "Lay the " + name + "'s pattern on the Legendary Crafting Table and forge it.", icon)
-                    .collect(() -> ModItems.WEAPONS.get(id).get(), 1, "Hold the " + name)
+            list.add(quest("forge_" + id, Chapter.WEAPONS, Tr.compose("Forged: %s", name), Tr.compose("Lay the %s's pattern on the Legendary Crafting Table and forge it.", name), icon)
+                    .collect(() -> ModItems.WEAPONS.get(id).get(), 1, Tr.compose("Hold the %s", name))
                     .reward(() -> stack(ModItems.REFINED.get(m).get(), 4)).reward(Items.EXPERIENCE_BOTTLE, 16).xp(400).group(group).build());
-            list.add(quest("blooded_" + id, Chapter.WEAPONS, "Blooded: " + name, "Fight with the " + name + " until it reaches level 25.", icon)
-                    .reach(id, 25, "Raise the " + name + " to level 25", icon)
+            list.add(quest("blooded_" + id, Chapter.WEAPONS, Tr.compose("Blooded: %s", name), Tr.compose("Fight with the %s until it reaches level 25.", name), icon)
+                    .reach(id, 25, Tr.compose("Raise the %s to level 25", name), icon)
                     .reward(() -> stack(ModItems.REFINED.get(m).get(), 3)).reward(Items.DIAMOND, 4).reward(Items.NETHERITE_SCRAP, 2).xp(500)
                     .requires("forge_" + id).group(group).build());
-            list.add(quest("champion_" + id, Chapter.WEAPONS, "Champion: " + name, "Fight on until the " + name + " reaches level 50.", icon)
-                    .reach(id, 50, "Raise the " + name + " to level 50", icon)
+            list.add(quest("champion_" + id, Chapter.WEAPONS, Tr.compose("Champion: %s", name), Tr.compose("Fight on until the %s reaches level 50.", name), icon)
+                    .reach(id, 50, Tr.compose("Raise the %s to level 50", name), icon)
                     .reward(() -> stack(ModItems.REFINED.get(m).get(), 6)).reward(Items.NETHERITE_INGOT, 1).reward(Items.ENCHANTED_GOLDEN_APPLE, 1).xp(1200)
                     .requires("blooded_" + id).group(group).build());
         }
         Builder b = quest("the_thirteen", Chapter.WEAPONS, "The Thirteen", "Hold every one of the thirteen legendary weapons at once.",
                 () -> stack(ModItems.WEAPONS.get("monolith").get(), 1));
-        for (WeaponDefinition def : Weapons.blades()) b.collect(() -> ModItems.WEAPONS.get(def.id()).get(), 1, def.displayName());
+        for (WeaponDefinition def : Weapons.blades()) b.collect(() -> ModItems.WEAPONS.get(def.id()).get(), 1, def.englishName());
         list.add(b.reward(Items.NETHER_STAR, 1).reward(Items.ENCHANTED_GOLDEN_APPLE, 3).reward(Items.NETHERITE_INGOT, 8).xp(3000).build());
         Builder mage = quest("archmage", Chapter.WEAPONS, "Archmage", "Hold every staff and spellbook of the six elements at once.",
                 () -> stack(ModItems.WEAPONS.get("lumen_psalter").get(), 1));
-        for (WeaponDefinition def : Weapons.focuses()) mage.collect(() -> ModItems.WEAPONS.get(def.id()).get(), 1, def.displayName());
+        for (WeaponDefinition def : Weapons.focuses()) mage.collect(() -> ModItems.WEAPONS.get(def.id()).get(), 1, def.englishName());
         list.add(mage.reward(Items.NETHER_STAR, 1).reward(Items.ENCHANTED_GOLDEN_APPLE, 3).reward(Items.EXPERIENCE_BOTTLE, 64).xp(3000).build());
         ultimates(list);
     }
@@ -208,21 +209,21 @@ public final class Quests {
     private static void armor(List<Quest> list) {
         for (ArmorSet set : ArmorSet.values()) {
             Material m = set.material();
-            list.add(quest("wear_" + set.id(), Chapter.ARMOR, "Regalia: " + set.displayName(), "Forge all four pieces of the " + set.displayName()
-                    + " armor and wear them together, until the set's power wakes.", () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.CHESTPLATE).get(), 1))
-                    .count("wear:" + set.id(), 1, "Wear the full " + set.displayName() + " set", () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1))
+            list.add(quest("wear_" + set.id(), Chapter.ARMOR, Tr.compose("Regalia: %s", set.englishName()), Tr.compose("Forge all four pieces of the %s"
+                    + " armor and wear them together, until the set's power wakes.", set.englishName()), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.CHESTPLATE).get(), 1))
+                    .count("wear:" + set.id(), 1, Tr.compose("Wear the full %s set", set.englishName()), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1))
                     .reward(() -> stack(ModItems.RAW.get(m).get(), 8)).reward(Items.NETHERITE_SCRAP, 4).reward(Items.DIAMOND, 2).xp(600).build());
         }
         Builder b = quest("wardrobe", Chapter.ARMOR, "Wardrobe of Legends", "Wear every one of the thirteen warriors' legendary armor sets.",
                 () -> stack(ModItems.ARMOR.get(ArmorSet.STARFORGE).get(ArmorItem.Type.CHESTPLATE).get(), 1));
         for (ArmorSet set : ArmorSet.values()) {
-            if (!set.regalia()) b.count("wear:" + set.id(), 1, set.displayName(), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1));
+            if (!set.regalia()) b.count("wear:" + set.id(), 1, set.englishName(), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1));
         }
         list.add(b.reward(Items.TOTEM_OF_UNDYING, 2).reward(Items.NETHERITE_INGOT, 4).xp(2500).build());
         Builder robes = quest("robes_of_the_elements", Chapter.ARMOR, "Robes of Every Element", "Wear every one of the Mage's six regalia.",
                 () -> stack(ModItems.ARMOR.get(ArmorSet.LUMINARCH).get(ArmorItem.Type.CHESTPLATE).get(), 1));
         for (ArmorSet set : ArmorSet.values()) {
-            if (set.regalia()) robes.count("wear:" + set.id(), 1, set.displayName(), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1));
+            if (set.regalia()) robes.count("wear:" + set.id(), 1, set.englishName(), () -> stack(ModItems.ARMOR.get(set).get(ArmorItem.Type.HELMET).get(), 1));
         }
         list.add(robes.reward(Items.TOTEM_OF_UNDYING, 2).reward(Items.EXPERIENCE_BOTTLE, 64).xp(2500).build());
     }
@@ -262,7 +263,7 @@ public final class Quests {
     private static void hunt(List<Quest> list, String id, EntityType<?> type, String title, String description, ItemLike icon, Reward[] rewards, int xp) {
         String key = "kill:" + BuiltInRegistries.ENTITY_TYPE.getKey(type);
         Builder b = quest(id, Chapter.HUNTS, title, description, () -> stack(icon, 1))
-                .count(key, 1, "Slay " + type.getDescription().getString() + " with a legendary weapon", () -> stack(icon, 1));
+                .count(key, 1, Tr.compose("Slay %s with a legendary weapon", type.getDescriptionId()), () -> stack(icon, 1));
         for (Reward r : rewards) b.reward(r.item, r.count);
         list.add(b.xp(xp).build());
     }

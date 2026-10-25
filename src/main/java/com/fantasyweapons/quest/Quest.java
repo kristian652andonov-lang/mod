@@ -1,5 +1,6 @@
 package com.fantasyweapons.quest;
 
+import com.fantasyweapons.text.Tr;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,5 +17,16 @@ public record Quest(String id, Chapter chapter, String title, String description
                     @Nullable QuestGroup group) {
     public ItemStack icon() {
         return iconOf.get();
+    }
+
+    /** The quest's title in the player's language. */
+    @Override
+    public String title() {
+        return Tr.s(title);
+    }
+
+    @Override
+    public String description() {
+        return Tr.s(description);
     }
 }

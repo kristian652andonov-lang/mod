@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.ability.AbilityDefinition;
 import com.fantasyweapons.ability.AbilityKind;
@@ -73,7 +74,7 @@ public class ProgressionScreen extends Screen {
     private int lastPoints = -1;
 
     public ProgressionScreen(int slot) {
-        super(Component.translatableWithFallback("screen.fantasyweapons.progression", "Weapon Progression"));
+        super(Component.literal(Tr.s("Weapon Progression")));
         this.slot = slot;
     }
 
@@ -200,7 +201,7 @@ public class ProgressionScreen extends Screen {
         float cx = CW / 2;
         // the weapon's name on a ribbon banner, its epithet beneath
         String name = def.displayName();
-        float nameW = UiDraw.font().width(name) * 1.5f;
+        float nameW = UiDraw.width(name) * 1.5f;
         UiDraw.banner(g, cx, 1, nameW + 64, 24, ease);
         UiDraw.title(g, name, cx, 6.5f, Colors.alpha(ease, UiDraw.GOLD_LIGHT), 1.5f);
         UiDraw.textCentered(g, def.title(), cx, 26, Colors.alpha(ease * 0.9f, UiDraw.INK_MUTED), 0.62f, false);
@@ -221,7 +222,7 @@ public class ProgressionScreen extends Screen {
         float x = 11, ty = y + 4.5f;
         x = stat(g, x, ty, "Level", data.level() + " / " + ProgressionMath.maxLevel(), UiDraw.INK, ease);
         UiDraw.text(g, "Experience", x, ty, Colors.alpha(ease, UiDraw.INK_MUTED), 0.58f, false);
-        float bx = x + UiDraw.font().width("Experience") * 0.58f + 4;
+        float bx = x + UiDraw.width("Experience") * 0.58f + 4;
         UiDraw.bar(g, bx, y + 5f, 62, 4, need <= 0 ? 1 : data.exp() / (float) need, Colors.darken(theme, 0.2f), light, ease, t);
         UiDraw.textCentered(g, need <= 0 ? "Mastered" : String.format("%,d / %,d", data.exp(), need), bx + 31, y + 10.5f,
                 Colors.alpha(ease * 0.85f, UiDraw.INK_MUTED), 0.4f, false);
@@ -236,9 +237,9 @@ public class ProgressionScreen extends Screen {
 
     private float stat(GuiGraphics g, float x, float y, String label, String value, int color, float a) {
         UiDraw.text(g, label, x, y, Colors.alpha(a, UiDraw.INK_MUTED), 0.58f, false);
-        float lx = x + UiDraw.font().width(label) * 0.58f + 3;
+        float lx = x + UiDraw.width(label) * 0.58f + 3;
         UiDraw.text(g, value, lx, y - 0.5f, Colors.alpha(a, color), 0.7f, true);
-        return lx + UiDraw.font().width(value) * 0.7f + 9;
+        return lx + UiDraw.width(value) * 0.7f + 9;
     }
 
     /** A small gold heading with a flourish under it. */
@@ -269,7 +270,7 @@ public class ProgressionScreen extends Screen {
         UiDraw.text(g, ab.name(), x + 31, y + 2, Colors.alpha(a, UiDraw.INK), 0.82f, true);
         int kindColor = ab.kind() == AbilityKind.ULTIMATE ? UiDraw.GOLD_LIGHT : ab.kind() == AbilityKind.PASSIVE ? UiDraw.GOOD : light;
         UiDraw.text(g, UiDraw.titleCase(ab.kind().displayName()), x + 31, y + 11.5f, Colors.alpha(a, kindColor), 0.58f, false);
-        UiDraw.text(g, "Rank " + lvl + " of " + ab.maxLevel(), x + 31, y + 19, Colors.alpha(a, unlocked ? UiDraw.ARCANE : 0x8A7F70), 0.58f, false);
+        UiDraw.text(g, Tr.f("Rank %s of %s", lvl, ab.maxLevel()), x + 31, y + 19, Colors.alpha(a, unlocked ? UiDraw.ARCANE : 0x8A7F70), 0.58f, false);
         y += 31;
         Component desc = Component.literal(ab.description()).withStyle(net.minecraft.ChatFormatting.ITALIC);
         int lines = UiDraw.wrap(g, desc, x, y, (int) w, Colors.alpha(a * 0.95f, 0xD8C9A8), 0.58f, 7);
@@ -287,10 +288,10 @@ public class ProgressionScreen extends Screen {
         }
         float fy = PANEL_Y + PANEL_H - 20;
         UiDraw.text(g, "Unlocked at", x, fy, Colors.alpha(a, UiDraw.INK_MUTED), 0.56f, false);
-        UiDraw.textRight(g, "Level " + ab.unlockLevel(), x + w, fy, Colors.alpha(a, unlocked ? UiDraw.GOOD : UiDraw.BAD), 0.6f, false);
+        UiDraw.textRight(g, Tr.f("Level %s", ab.unlockLevel()), x + w, fy, Colors.alpha(a, unlocked ? UiDraw.GOOD : UiDraw.BAD), 0.6f, false);
         fy += 8;
         UiDraw.text(g, "Next rank", x, fy, Colors.alpha(a, UiDraw.INK_MUTED), 0.56f, false);
-        String next = lvl >= ab.maxLevel() ? "Mastered" : "Level " + ab.weaponLevelFor(Math.max(1, lvl) + (unlocked ? 1 : 0));
+        String next = lvl >= ab.maxLevel() ? "Mastered" : Tr.f("Level %s", ab.weaponLevelFor(Math.max(1, lvl) + (unlocked ? 1 : 0)));
         UiDraw.textRight(g, next, x + w, fy, Colors.alpha(a, lvl >= ab.maxLevel() ? UiDraw.GOLD_LIGHT : UiDraw.INK), 0.6f, false);
     }
 
@@ -318,7 +319,7 @@ public class ProgressionScreen extends Screen {
                 {"Heavy (sneak)", String.format("%,.0f", dmg * def.heavyMultiplier())},
                 {"Critical chance", Math.round(def.critChance() * 100) + "%"},
                 {"Critical damage", "x" + def.critMultiplier()},
-                {"Attack speed", String.format("%.2f/s", def.weaponClass().attackSpeed() * (form != null ? form.attackSpeedFactor() : 1f))},
+                {"Attack speed", Tr.f("%.2f/s", def.weaponClass().attackSpeed() * (form != null ? form.attackSpeedFactor() : 1f))},
                 {"Cleave arc", def.weaponClass().cleaveAngle() <= 0 ? "Pierce" : Math.round(def.weaponClass().cleaveAngle()) + "°"},
                 {"Lifesteal", def.lifesteal() > 0 ? Math.round(def.lifesteal() * 100) + "%" : "—"},
                 {"Foes slain", String.valueOf(data.kills())},
@@ -455,8 +456,8 @@ public class ProgressionScreen extends Screen {
                 UiDraw.diamond(g, px + 1, n.y() + r + 2.5f, 1.2f, Colors.alpha(a, i < lvl ? (maxed ? UiDraw.GOLD_LIGHT : UiDraw.GOLD) : 0x4A3A28));
             }
             if (hover) {
-                String label = ab.name() + (unlocked ? "  ·  Rank " + lvl : "  ·  Level " + ab.unlockLevel());
-                float lw = UiDraw.font().width(label) * 0.55f + 10;
+                String label = ab.name() + "  ·  " + (unlocked ? Tr.f("Rank %s", lvl) : Tr.f("Level %s", ab.unlockLevel()));
+                float lw = UiDraw.width(label) * 0.55f + 10;
                 float lx = Math.max(MID_X + 2, Math.min(MID_X + MID_W - lw - 2, n.x() - lw / 2));
                 float ly = n.y() - r - 13;
                 UiDraw.panel(g, lx, ly, lw, 10, theme, 1f);
@@ -476,7 +477,7 @@ public class ProgressionScreen extends Screen {
         y += 13;
         AbilityDefinition ab = CORE.equals(selected) ? null : def.ability(selected);
         if (ab == null) {
-            Component tip = Component.literal("Each level makes every blow stronger. Spend Mastery Points on the abilities in the tree to empower them.")
+            Component tip = Component.literal(Tr.s("Each level makes every blow stronger. Spend Mastery Points on the abilities in the tree to empower them."))
                     .withStyle(net.minecraft.ChatFormatting.ITALIC);
             int n = UiDraw.wrap(g, tip, x, y, (int) w, Colors.alpha(a * 0.95f, 0xD8C9A8), 0.58f, 7);
             y += n * 7 + 6;
@@ -506,7 +507,7 @@ public class ProgressionScreen extends Screen {
         if (!maxed) {
             UiDraw.text(g, unlocked ? "Next rank grants" : "To unlock", x, y, Colors.alpha(a, UiDraw.INK_MUTED), 0.56f, false);
             y += 8;
-            List<String> lines = unlocked ? ab.upgradeLines(lvl + 1) : List.of("Reach weapon level " + ab.unlockLevel(), "Then empower it with Mastery Points");
+            List<String> lines = unlocked ? ab.upgradeLines(lvl + 1) : List.of(Tr.f("Reach weapon level %s", ab.unlockLevel()), Tr.s("Then empower it with Mastery Points"));
             for (String line : lines) {
                 boolean bonus = line.startsWith("+") || line.startsWith("-");
                 UiDraw.text(g, bonus ? UiDraw.titleCase(line) : line, x + 2, y, Colors.alpha(a, bonus ? UiDraw.GOOD : UiDraw.GOLD_LIGHT), 0.56f, false);
@@ -524,27 +525,27 @@ public class ProgressionScreen extends Screen {
             boolean afford = data.masteryPoints() >= cost;
             UiDraw.text(g, "Cost", x, cy, Colors.alpha(a, UiDraw.INK_MUTED), 0.56f, false);
             UiDraw.texture(g, GEM, x + 32, cy - 1.5f, 9, 9, Colors.alpha(a, 0xFFFFFF));
-            UiDraw.text(g, cost + " Mastery Point" + (cost > 1 ? "s" : ""), x + 43, cy, Colors.alpha(a, afford ? UiDraw.ARCANE : UiDraw.BAD), 0.58f, false);
+            UiDraw.text(g, Tr.f(cost > 1 ? "%s Mastery Points" : "%s Mastery Point", cost), x + 43, cy, Colors.alpha(a, afford ? UiDraw.ARCANE : UiDraw.BAD), 0.58f, false);
             int need = ab.weaponLevelFor(lvl + 1);
             UiDraw.text(g, "Requires", x, cy + 9, Colors.alpha(a, UiDraw.INK_MUTED), 0.56f, false);
-            UiDraw.text(g, "Weapon level " + need, x + 32, cy + 9, Colors.alpha(a, data.level() >= need ? UiDraw.GOOD : UiDraw.BAD), 0.58f, false);
+            UiDraw.text(g, Tr.f("Weapon level %s", need), x + 32, cy + 9, Colors.alpha(a, data.level() >= need ? UiDraw.GOOD : UiDraw.BAD), 0.58f, false);
         }
         // buttons: empower one rank, empower as far as the points and the weapon's level allow, bind to the ability key
         String denial = AbilityService.upgradeDenial(data, ab);
         String label = denial == null ? "Empower" : maxed ? "Mastered" : !unlocked ? "Sealed" : denial.startsWith("Insufficient") ? "Need Points"
-                : "Level " + ab.weaponLevelFor(lvl + 1);
+                : Tr.f("Level %s", ab.weaponLevelFor(lvl + 1));
         float by = PANEL_Y + PANEL_H - 50;
         button(g, "upgrade", x, by, w, 15, label, denial == null && !confirmOpen, mx, my, 0.8f);
         int[] plan = AbilityService.maxUpgrade(data, ab);
         boolean canMax = plan[0] >= 2 && !confirmOpen;
-        button(g, "upgrade_max", x, by + 17, w, 12, plan[0] >= 2 ? "Empower to Rank " + (lvl + plan[0]) + "  (" + plan[1] + " pts)" : "Empower to Max",
+        button(g, "upgrade_max", x, by + 17, w, 12, plan[0] >= 2 ? Tr.f("Empower to Rank %s  (%s pts)", lvl + plan[0], plan[1]) : "Empower to Max",
                 canMax, mx, my, 0.55f);
         if (denial != null && !maxed) {
             UiDraw.textCentered(g, denial, x + w / 2, by - 8, Colors.alpha(a * 0.9f, UiDraw.BAD), 0.5f, false);
         }
         if (ab.kind().castable() && unlocked) {
             boolean active = ab == AbilityService.selected(def, data);
-            button(g, "select", x, PANEL_Y + PANEL_H - 16, w, 10, active ? "Bound to " + keyName() : "Bind to " + keyName(), !active && !confirmOpen, mx, my,
+            button(g, "select", x, PANEL_Y + PANEL_H - 16, w, 10, active ? Tr.f("Bound to %s", keyName()) : Tr.f("Bind to %s", keyName()), !active && !confirmOpen, mx, my,
                     0.5f);
         }
     }
@@ -569,9 +570,9 @@ public class ProgressionScreen extends Screen {
         UiDraw.rect(g, -ox / scale, -oy / scale, (width - ox) / scale, (height - oy) / scale, 0xA0000000);
         float w = 200, h = 74, x = CW / 2 - w / 2, y = CH / 2 - h / 2;
         UiDraw.panel(g, x, y, w, h, theme, 1f);
-        UiDraw.title(g, "Empower " + ab.name() + "?", CW / 2, y + 9, Colors.alpha(1, UiDraw.GOLD_LIGHT), 0.9f);
+        UiDraw.title(g, Tr.f("Empower %s?", ab.name()), CW / 2, y + 9, Colors.alpha(1, UiDraw.GOLD_LIGHT), 0.9f);
         UiDraw.divider(g, CW / 2, y + 22, w - 40, 1f);
-        UiDraw.textCentered(g, "Raise it to rank " + (lvl + 1) + " for " + ab.costFor(lvl + 1) + " Mastery Point" + (ab.costFor(lvl + 1) > 1 ? "s" : "") + ".",
+        UiDraw.textCentered(g, Tr.f(ab.costFor(lvl + 1) > 1 ? "Raise it to rank %s for %s Mastery Points." : "Raise it to rank %s for %s Mastery Point.", lvl + 1, ab.costFor(lvl + 1)),
                 CW / 2, y + 30, Colors.alpha(1, UiDraw.INK), 0.62f, false);
         button(g, "confirm", x + 16, y + h - 24, 76, 15, "Empower", true, mx, my, 0.75f);
         button(g, "cancel", x + w - 92, y + h - 24, 76, 15, "Cancel", true, mx, my, 0.75f);

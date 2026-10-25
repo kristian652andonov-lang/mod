@@ -1,5 +1,6 @@
 package com.fantasyweapons.armor;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.material.Material;
 import com.fantasyweapons.weapon.Element;
 import net.minecraft.core.Holder;
@@ -177,6 +178,11 @@ public enum ArmorSet {
      */
     public record Bonus(Supplier<Holder<Attribute>> attribute, double amount, AttributeModifier.Operation operation, String text,
                         ArmorStat stat) {
+        /** The tooltip line in the player's language. */
+        @Override
+        public String text() {
+            return Tr.s(text);
+        }
     }
 
     private final String id;
@@ -204,7 +210,13 @@ public enum ArmorSet {
         return id;
     }
 
+    /** The set's name in the player's language. */
     public String displayName() {
+        return Tr.s(displayName);
+    }
+
+    /** The set's name in English whatever the language. */
+    public String englishName() {
         return displayName;
     }
 
@@ -221,7 +233,7 @@ public enum ArmorSet {
     }
 
     public String look() {
-        return look;
+        return Tr.s(look);
     }
 
     public List<Bonus> bonuses(ArmorItem.Type type) {
@@ -229,11 +241,11 @@ public enum ArmorSet {
     }
 
     public String abilityName() {
-        return abilityName;
+        return Tr.s(abilityName);
     }
 
     public String abilityText() {
-        return abilityText;
+        return Tr.s(abilityText);
     }
 
     /** Registry id of a piece, e.g. {@code voidfang_helmet}. */

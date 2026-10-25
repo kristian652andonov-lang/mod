@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.armor.ArmorSet;
 import com.fantasyweapons.client.hud.UiDraw;
@@ -82,7 +83,7 @@ public final class ClassScreen extends Screen {
     private ItemStack hoveredGear = ItemStack.EMPTY;
 
     public ClassScreen() {
-        super(Component.literal("Choose Your Class"));
+        super(Component.literal(Tr.s("Choose Your Class")));
     }
 
     /** Opens the menu for a player new to the world, a moment after the world appears. */
@@ -216,7 +217,7 @@ public final class ClassScreen extends Screen {
         UiDraw.banner(g, left + W / 2f, top + 2, 176, 22, 1f);
         UiDraw.title(g, c.displayName().toUpperCase(java.util.Locale.ROOT), left + W / 2f, top + 8, Colors.alpha(1f, Colors.lerpRgb(color, 0xFFFFFF, 0.55f)), 0.95f);
         UiDraw.text(g, "Calling:", left + 12, top + 9, Colors.alpha(1f, MUTED), 0.58f, false);
-        UiDraw.text(g, current.displayName(), left + 12 + UiDraw.font().width("Calling: ") * 0.58f, top + 9, Colors.alpha(1f, current.color()), 0.58f, true);
+        UiDraw.text(g, current.displayName(), left + 12 + UiDraw.width("Calling: ") * 0.58f, top + 9, Colors.alpha(1f, current.color()), 0.58f, true);
         // a pip for each page
         for (int i = 0; i < PAGES.size(); i++) {
             PlayerClass p = PAGES.get(i);
@@ -370,7 +371,7 @@ public final class ClassScreen extends Screen {
             float pulse = asking ? 0.7f + 0.3f * (float) Math.sin(time * 0.5f) : 0.45f + 0.2f * (float) Math.sin(time * 0.2f);
             UiDraw.glowBorder(g, bx, y, bx + bw, y + bh, color, pulse, asking ? 4 : 3);
         }
-        String label = locked ? "In the making" : chosen ? "Chosen" : wait > 0 ? "Wait " + minutes(wait) : asking ? "Confirm?" : "Choose " + c.displayName();
+        String label = locked ? "In the making" : chosen ? "Chosen" : wait > 0 ? Tr.f("Wait %s", minutes(wait)) : asking ? "Confirm?" : Tr.f("Choose %s", c.displayName());
         int labelColor = asking ? Colors.lerpRgb(color, 0xFFFFFF, 0.4f) : over ? 0xFFFFFF : canTake ? GOLD : 0x9A927E;
         UiDraw.textCentered(g, label, bx + bw / 2f, y + 4.5f, Colors.alpha(1f, labelColor), 0.72f, true);
         // how matters stand
@@ -380,7 +381,7 @@ public final class ClassScreen extends Screen {
             status = "Your first choice is free";
             statusColor = GOOD;
         } else if (wait > 0) {
-            status = "Change again in " + minutes(wait);
+            status = Tr.f("Change again in %s", minutes(wait));
             statusColor = BAD;
         } else {
             status = "You may change your class";
@@ -388,8 +389,8 @@ public final class ClassScreen extends Screen {
         }
         UiDraw.textRight(g, status, left + W - 12, y + 1, Colors.alpha(1f, statusColor), 0.52f, true);
         String hint = current == PlayerClass.NONE
-                ? "Or choose later: " + com.fantasyweapons.client.input.KeyBindings.CLASSES.getTranslatedKeyMessage().getString()
-                : "Changing waits " + ClassService.CHANGE_WAIT / 20 / 60 + " min";
+                ? Tr.f("Or choose later: %s", com.fantasyweapons.client.input.KeyBindings.CLASSES.getTranslatedKeyMessage().getString())
+                : Tr.f("Changing waits %s min", ClassService.CHANGE_WAIT / 20 / 60);
         UiDraw.textRight(g, hint, left + W - 12, y + 9, Colors.alpha(1f, MUTED), 0.48f, false);
         UiDraw.text(g, (index + 1) + " / " + PAGES.size(), left + 14, y + 5, Colors.alpha(1f, MUTED), 0.55f, false);
     }
@@ -409,7 +410,7 @@ public final class ClassScreen extends Screen {
 
     private static String minutes(long ticks) {
         long secs = (ticks + 19) / 20;
-        return secs >= 60 ? (secs + 59) / 60 + " min" : secs + "s";
+        return secs >= 60 ? Tr.f("%s min", (secs + 59) / 60) : Tr.f("%ss", secs);
     }
 
     // ---- input ----

@@ -1,5 +1,6 @@
 package com.fantasyweapons.status;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import net.minecraft.resources.ResourceLocation;
 
@@ -92,7 +93,7 @@ public enum StatusType {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     public int color() {

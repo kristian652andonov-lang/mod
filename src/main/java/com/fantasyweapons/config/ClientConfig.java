@@ -49,34 +49,34 @@ public final class ClientConfig {
     public static final ModConfigSpec SPEC;
 
     static {
-        B.push("vfx");
-        VFX_QUALITY = B.comment("Custom VFX detail: LOW, MEDIUM, HIGH or ULTRA").defineEnum("quality", VfxQuality.HIGH);
-        DISTORTION = B.comment("Screen-space distortion behind rifts / shockwaves (HIGH and ULTRA only)").define("distortion", true);
-        SCREEN_SHAKE = B.comment("Camera shake strength for heavy impacts (0 = off)").defineInRange("screen_shake", 1.0, 0.0, 3.0);
-        MAX_VFX_INSTANCES = B.comment("Upper bound of simultaneously alive VFX objects").defineInRange("max_instances", 512, 16, 8192);
+        B.translation("Visual effects").push("vfx");
+        VFX_QUALITY = B.comment("How much detail the effects have: Low, Medium, High or Ultra").translation("Effect quality").defineEnum("quality", VfxQuality.HIGH);
+        DISTORTION = B.comment("The air bending behind rifts and shockwaves (High and Ultra quality only)").translation("Distortion").define("distortion", true);
+        SCREEN_SHAKE = B.comment("How hard the camera shakes at heavy impacts (0 = off)").translation("Screen shake").defineInRange("screen_shake", 1.0, 0.0, 3.0);
+        MAX_VFX_INSTANCES = B.comment("The most effects shown at once").translation("Effect limit").defineInRange("max_instances", 512, 16, 8192);
         IMPACT_FRAMES = B.comment("Anime impact frames when an ability's blow lands: the picture freezes for an instant as a stark black-and-white still with speed lines")
-                .define("impact_frames", true);
-        IMPACT_FRAMES_ALL = B.comment("Impact frames for every ability's hit (a quick flash), not only for ultimates").define("impact_frames_every_ability", true);
+                .translation("Impact frames").define("impact_frames", true);
+        IMPACT_FRAMES_ALL = B.comment("Impact frames for every ability's hit (a quick flash), not only for ultimates").translation("Impact frames for every ability").define("impact_frames_every_ability", true);
         B.pop();
 
-        B.push("hud");
-        HUD_ENABLED = B.define("enabled", true);
-        HUD_ANCHOR = B.comment("Corner the weapon HUD is anchored to").defineEnum("anchor", HudAnchor.BOTTOM_RIGHT);
-        HUD_SCALE = B.comment("Extra HUD scale on top of the GUI scale").defineInRange("scale", 1.0, 0.5, 2.0);
-        HUD_OFFSET_X = B.defineInRange("offset_x", 0, -2000, 2000);
-        HUD_OFFSET_Y = B.defineInRange("offset_y", 0, -2000, 2000);
-        CROSSHAIR_CHARGE_RING = B.comment("Show the radial charge ring around the crosshair").define("crosshair_charge_ring", true);
-        LEVEL_UP_NOTIFICATIONS = B.comment("Show weapon level-up banners").define("level_up_notifications", true);
-        UNLOCK_NOTIFICATIONS = B.comment("Show ability-unlock banners").define("unlock_notifications", true);
-        EXP_POPUPS = B.comment("Show small +EXP popups").define("exp_popups", true);
-        DAMAGE_NUMBERS = B.comment("Show floating damage numbers for your hits").define("damage_numbers", true);
-        CONFIRM_UPGRADES = B.comment("Ask for confirmation before spending mastery points").define("confirm_upgrades", true);
+        B.translation("Interface").push("hud");
+        HUD_ENABLED = B.comment("The panel with the held weapon's level, abilities and cooldowns").translation("Weapon HUD").define("enabled", true);
+        HUD_ANCHOR = B.comment("The corner of the screen the weapon HUD sits in").translation("HUD corner").defineEnum("anchor", HudAnchor.BOTTOM_RIGHT);
+        HUD_SCALE = B.comment("Makes the weapon HUD bigger or smaller, on top of the game's interface size").translation("HUD size").defineInRange("scale", 1.0, 0.5, 2.0);
+        HUD_OFFSET_X = B.comment("Moves the weapon HUD sideways from its corner (pixels)").translation("HUD shift sideways").defineInRange("offset_x", 0, -2000, 2000);
+        HUD_OFFSET_Y = B.comment("Moves the weapon HUD up or down from its corner (pixels)").translation("HUD shift up or down").defineInRange("offset_y", 0, -2000, 2000);
+        CROSSHAIR_CHARGE_RING = B.comment("A ring around the crosshair that fills while an ability charges").translation("Charge ring").define("crosshair_charge_ring", true);
+        LEVEL_UP_NOTIFICATIONS = B.comment("A banner when a weapon gains a level").translation("Level-up banners").define("level_up_notifications", true);
+        UNLOCK_NOTIFICATIONS = B.comment("A banner when a weapon awakens a new ability").translation("Ability banners").define("unlock_notifications", true);
+        EXP_POPUPS = B.comment("Small +EXP numbers when a weapon gains experience").translation("EXP popups").define("exp_popups", true);
+        DAMAGE_NUMBERS = B.comment("Floating numbers for the damage of your hits").translation("Damage numbers").define("damage_numbers", true);
+        CONFIRM_UPGRADES = B.comment("Ask once more before mastery points are spent").translation("Confirm upgrades").define("confirm_upgrades", true);
         B.pop();
 
-        B.push("compat");
+        B.translation("Compatibility").push("compat");
         PUNCHY_CODEX_OWN_ANIMATION = B.comment("With Punchy installed: put the Wayfarer's Codex on Punchy's item blacklist, so it lifts, opens and reads with",
                         "its own animation (in Punchy's hand it stays shut). Weapons and tools keep Punchy's animations either way.")
-                .define("punchy_codex_own_animation", true);
+                .translation("Punchy: the Codex keeps its own animation").define("punchy_codex_own_animation", true);
         B.pop();
 
         SPEC = B.build();

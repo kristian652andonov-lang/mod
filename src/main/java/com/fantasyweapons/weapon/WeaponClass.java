@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.text.Tr;
 /**
  * Physical archetype of a weapon. Controls melee feel: attack speed, reach, how wide the swing cleaves,
  * knockback and the first-person swing style.
@@ -50,7 +51,7 @@ public enum WeaponClass {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     public float attackSpeed() {

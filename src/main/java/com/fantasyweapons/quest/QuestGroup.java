@@ -1,5 +1,6 @@
 package com.fantasyweapons.quest;
 
+import com.fantasyweapons.text.Tr;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.function.Supplier;
@@ -8,5 +9,11 @@ import java.util.function.Supplier;
 public record QuestGroup(String id, String title, Supplier<ItemStack> iconOf) {
     public ItemStack icon() {
         return iconOf.get();
+    }
+
+    /** The group's title in the player's language. */
+    @Override
+    public String title() {
+        return Tr.s(title);
     }
 }

@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.text.Tr;
 /**
  * Custom rarity tiers. Rarity mostly drives presentation; it only nudges base damage slightly so that
  * weapon level stays the dominant source of power. The two highest are classes of their own, named on a line of their
@@ -28,12 +29,12 @@ public enum Rarity {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     /** The name where room is short (the HUD, the progression menu). */
     public String shortName() {
-        return shortName;
+        return Tr.s(shortName);
     }
 
     public int color() {

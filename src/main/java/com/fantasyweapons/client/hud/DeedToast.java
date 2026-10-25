@@ -140,11 +140,11 @@ public final class DeedToast implements Toast {
         UiDraw.text(g, header(), x + 8.5f, 8, Colors.alpha(1f, color), 0.6f, true);
         Component title = deed.title();
         String titleText = title.getString();
-        float titleScale = UiDraw.font().width(title) > (W - x - 8) / 0.9f ? 0.75f : 0.9f;
+        float titleScale = UiDraw.width(title) > (W - x - 8) / 0.9f ? 0.75f : 0.9f;
         String description = deed.description().getString();
         float descScale = 0.55f;
         int room = (int) ((W - x - 8) / descScale);
-        if (UiDraw.font().width(description) > room) description = UiDraw.font().plainSubstrByWidth(description, room - UiDraw.font().width("...")) + "...";
+        if (UiDraw.width(description) > room) description = UiDraw.font().plainSubstrByWidth(description, room - UiDraw.width("...")) + "...";
         // typed out: the title, a breath, then what it was for
         float since = Math.max(0, t - TYPE_FROM), titleTime = titleText.length() / TITLE_RATE;
         int titleShown = Math.min(titleText.length(), (int) (since * TITLE_RATE));
@@ -154,8 +154,8 @@ public final class DeedToast implements Toast {
         UiDraw.text(g, description.substring(0, descShown), x, 29, Colors.alpha(1f, 0xC9BDA2), descScale, false);
         // the caret, after the letter being typed, blinking a while once all is written
         boolean writingTitle = titleShown < titleText.length() || descShown == 0;
-        float caretX = writingTitle ? x + UiDraw.font().width(titleText.substring(0, titleShown)) * titleScale + 0.6f
-                : x + UiDraw.font().width(description.substring(0, descShown)) * descScale + 0.5f;
+        float caretX = writingTitle ? x + UiDraw.width(titleText.substring(0, titleShown)) * titleScale + 0.6f
+                : x + UiDraw.width(description.substring(0, descShown)) * descScale + 0.5f;
         float caretY = writingTitle ? 16.5f : 28.5f, caretH = writingTitle ? 8 * titleScale : 8 * descScale;
         boolean done = descShown >= description.length();
         if (t >= TYPE_FROM && (!done || (time - typeEnd < 1600 && (time / 260) % 2 == 0))) {

@@ -1,5 +1,6 @@
 package com.fantasyweapons.ability;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.config.ServerConfig;
 import com.fantasyweapons.progression.ProgressionMath;
@@ -31,6 +32,11 @@ public final class AbilityDefinition {
 
     /** A line of numbers shown in the progression menu for the ability at a given level. */
     public record StatLine(String label, Function<StatContext, String> value) {
+        /** The stat's name in the player's language. */
+        @Override
+        public String label() {
+            return Tr.s(label);
+        }
     }
 
     /** Values available when computing display numbers. */
@@ -144,12 +150,18 @@ public final class AbilityDefinition {
         return ResourceLocation.fromNamespaceAndPath(FantasyWeapons.MOD_ID, "textures/gui/ability/" + weapon.id() + "/" + id + ".png");
     }
 
+    /** The ability's name in the player's language. */
     public String name() {
+        return Tr.s(name);
+    }
+
+    /** The name in English whatever the language (config labels, translation keys). */
+    public String englishName() {
         return name;
     }
 
     public String description() {
-        return description;
+        return Tr.s(description);
     }
 
     public AbilityKind kind() {

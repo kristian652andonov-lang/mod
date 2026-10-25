@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.gui;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.client.hud.UiDraw;
 import com.fantasyweapons.client.vfx.Colors;
@@ -86,7 +87,7 @@ public final class QuestScreen extends Screen {
     private final GuiZoom zoom = new GuiZoom(W, H);
 
     public QuestScreen() {
-        super(Component.literal("Quest Journal"));
+        super(Component.literal(Tr.s("Quest Journal")));
     }
 
     @Override
@@ -402,15 +403,15 @@ public final class QuestScreen extends Screen {
         boolean ready = n > 0, over = ready && inside(mouseX, mouseY, bx, by, CLAIM_ALL_W, CLAIM_ALL_H);
         UiDraw.button(g, bx, by, CLAIM_ALL_W, CLAIM_ALL_H, ready ? over ? 1 : 0 : 2, ready ? 1f : 0.5f);
         if (ready) UiDraw.glowBorder(g, bx, by, bx + CLAIM_ALL_W, by + CLAIM_ALL_H, GOLD, 0.5f + 0.3f * (float) Math.sin(time * 0.3f), 3);
-        UiDraw.textCentered(g, ready ? "Claim All (" + n + ")" : "Claim All", bx + CLAIM_ALL_W / 2f, by + 3.5f,
+        UiDraw.textCentered(g, ready ? Tr.f("Claim All (%s)", n) : "Claim All", bx + CLAIM_ALL_W / 2f, by + 3.5f,
                 Colors.alpha(ready ? 1f : 0.55f, over ? 0xFFFFFF : GOLD), 0.68f, true);
         UiDraw.title(g, "Quest Journal", left + W / 2f, top + 9, Colors.alpha(1f, GOLD_LIGHT), 1f);
-        UiDraw.miniSigil(g, left + W / 2f - UiDraw.font().width("Quest Journal") / 2f - 10, top + 13, 6, chapter.color(), time, 0.8f);
-        UiDraw.miniSigil(g, left + W / 2f + UiDraw.font().width("Quest Journal") / 2f + 10, top + 13, 6, chapter.color(), -time, 0.8f);
+        UiDraw.miniSigil(g, left + W / 2f - UiDraw.width("Quest Journal") / 2f - 10, top + 13, 6, chapter.color(), time, 0.8f);
+        UiDraw.miniSigil(g, left + W / 2f + UiDraw.width("Quest Journal") / 2f + 10, top + 13, 6, chapter.color(), -time, 0.8f);
         int claimed = 0, all = Quests.all().size();
         for (Quest q : Quests.all()) if (QuestService.data(minecraft.player).claimed(q.id())) claimed++;
         float px = left + W - PAD - 80, py = top + 15;
-        UiDraw.textRight(g, claimed + " / " + all + " claimed", left + W - PAD, top + 7, Colors.alpha(1f, MUTED), 0.55f, false);
+        UiDraw.textRight(g, Tr.f("%s / %s claimed", claimed, all), left + W - PAD, top + 7, Colors.alpha(1f, MUTED), 0.55f, false);
         UiDraw.rect(g, px, py, px + 80, py + 2.5f, Colors.alpha(0.6f, 0x000000));
         UiDraw.rect(g, px, py, px + 80 * claimed / (float) all, py + 2.5f, Colors.alpha(1f, GOLD));
     }
@@ -654,7 +655,7 @@ public final class QuestScreen extends Screen {
             status = switch (s) {
                 case LOCKED -> {
                     Quest need = n.quest.requires() == null ? null : Quests.get(n.quest.requires());
-                    yield need == null ? "Locked" : "First: " + need.title();
+                    yield need == null ? "Locked" : Tr.f("First: %s", need.title());
                 }
                 case OPEN -> progressText(n.quest);
                 case DONE -> "Done! Claim your reward";
@@ -664,9 +665,9 @@ public final class QuestScreen extends Screen {
             int claimed = 0;
             for (Quest q : n.members) if (state(q) == State.CLAIMED) claimed++;
             title = n.group.title();
-            status = claimed + " / " + n.members.size() + " claimed · click to " + (n.group.id().equals(expanded) ? "close" : "open");
+            status = Tr.f(n.group.id().equals(expanded) ? "%s / %s claimed · click to close" : "%s / %s claimed · click to open", claimed, n.members.size());
         }
-        float w = Math.max(UiDraw.font().width(title) * 0.62f, UiDraw.font().width(status) * 0.5f) + 8;
+        float w = Math.max(UiDraw.width(title) * 0.62f, UiDraw.width(status) * 0.5f) + 8;
         float x = Math.max(left + MAP_X + 2, Math.min(left + MAP_X + visibleW() - w - 2, sx(n) - w / 2)), y = sy(n) - n.r - 22;
         if (y < top + TOP + 2) y = sy(n) + n.r + 6;
         UiDraw.rect(g, x, y, x + w, y + 17, Colors.alpha(0.88f, 0x0E0A14));
@@ -743,7 +744,7 @@ public final class QuestScreen extends Screen {
         int shownCount = 0;
         for (int i = 0; i < q.objectives().size(); i++) {
             if (shownCount >= 5) {
-                UiDraw.text(g, "... and " + (q.objectives().size() - shownCount) + " more", x + 8, yy, Colors.alpha(1f, MUTED), 0.48f, false);
+                UiDraw.text(g, Tr.f("... and %s more", q.objectives().size() - shownCount), x + 8, yy, Colors.alpha(1f, MUTED), 0.48f, false);
                 yy += 7;
                 break;
             }
@@ -757,7 +758,7 @@ public final class QuestScreen extends Screen {
             g.pose().popPose();
             String label = o.label();
             float scale = 0.48f;
-            while (UiDraw.font().width(label) * scale > w - 54 && label.length() > 4) label = label.substring(0, label.length() - 2);
+            while (UiDraw.width(label) * scale > w - 54 && label.length() > 4) label = label.substring(0, label.length() - 2);
             if (!label.equals(o.label())) label = label.trim() + "...";
             UiDraw.text(g, label, x + 18, yy, Colors.alpha(1f, done ? GOOD : 0xE8DCC0), scale, false);
             UiDraw.textRight(g, have + "/" + o.target(), x + w - 6, yy, Colors.alpha(1f, done ? GOOD : MUTED), scale, false);
@@ -781,7 +782,7 @@ public final class QuestScreen extends Screen {
             if (inside(mouseX, mouseY, (int) rx, (int) yy, 16, 16)) hoveredReward = stack;
             rx += 20;
         }
-        if (q.xp() > 0) UiDraw.text(g, "+" + q.xp() + " XP", rx + 2, yy + 5, Colors.alpha(1f, GOOD), 0.58f, true);
+        if (q.xp() > 0) UiDraw.text(g, Tr.f("+%s XP", q.xp()), rx + 2, yy + 5, Colors.alpha(1f, GOOD), 0.58f, true);
         // the seal to claim it: a glow round the button while it can be claimed
         int bx = claimX(), by = claimY(), bw = 64, bh = 15;
         boolean ready = s == State.DONE, over = ready && inside(mouseX, mouseY, bx, by, bw, bh);
@@ -803,7 +804,7 @@ public final class QuestScreen extends Screen {
         UiDraw.textCentered(g, label, bx + bw / 2f, by + 4, Colors.alpha(ready ? 1f : 0.55f, over ? 0xFFFFFF : GOLD), 0.75f, true);
         if (s == State.LOCKED && q.requires() != null) {
             Quest need = Quests.get(q.requires());
-            if (need != null) UiDraw.textCentered(g, "First: " + need.title(), x + w / 2, by - 8, Colors.alpha(1f, MUTED), 0.48f, false);
+            if (need != null) UiDraw.textCentered(g, Tr.f("First: %s", need.title()), x + w / 2, by - 8, Colors.alpha(1f, MUTED), 0.48f, false);
         }
     }
 

@@ -128,6 +128,7 @@ final class DevScripts {
                 else if (name.startsWith("bcframes:")) betterCombatFrames(b, name.substring(9).split(","));
                 else if (name.startsWith("bcability:")) betterCombatAbility(b, name.substring(10).split(","));
                 else if (name.startsWith("shaderfx:")) shaderFx(b, name.substring(9).split(","));
+                else if (name.equals("settings")) settingsMenu(b);
                 else if (name.equals("magehud")) mageHud(b);
                 else if (name.startsWith("empower:")) empower(b, name.substring(8));
                 else if (name.equals("impacthit")) impactHit(b);
@@ -2958,6 +2959,25 @@ final class DevScripts {
                 b.playerView().wait(40).cmd("/kill @e[type=!player]");
             }
         }
+    }
+
+    /** The settings menu: the inventory with its buttons, then every section of the menu (three of the weapons' abilities). */
+    private static void settingsMenu(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode survival").hud(true).wait(10)
+                .run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(10).screenshot("settings_inventory")
+                .run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.SettingsScreen(mc.screen))).wait(10);
+        for (int i = 0; i < 9; i++) {
+            int section = i;
+            b.run(mc -> {
+                if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugShow(section, 0);
+            }).wait(4).screenshot("settings_" + i);
+        }
+        for (int w : new int[]{3, 12}) {
+            b.run(mc -> {
+                if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugShow(s.debugSections() - 1, w);
+            }).wait(4).screenshot("settings_abilities_" + w);
+        }
+        b.closeScreen().cmd("/gamemode creative");
     }
 
     /** What Punchy makes of the held items: whether each hand is left to this mod (on Punchy's blacklist). */

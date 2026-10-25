@@ -1,5 +1,6 @@
 package com.fantasyweapons.playerclass;
 
+import com.fantasyweapons.text.Tr;
 import net.minecraft.core.Holder;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -66,7 +67,13 @@ public enum PlayerClass {
         this.perks = perks;
     }
 
+    /** The class's name in the player's language. */
     public String displayName() {
+        return Tr.s(displayName);
+    }
+
+    /** The class's name in English whatever the language. */
+    public String englishName() {
         return displayName;
     }
 
@@ -75,11 +82,11 @@ public enum PlayerClass {
     }
 
     public String tagline() {
-        return tagline;
+        return Tr.s(tagline);
     }
 
     public String lore() {
-        return lore;
+        return Tr.s(lore);
     }
 
     /** Whether it can be chosen. */
@@ -93,7 +100,7 @@ public enum PlayerClass {
 
     /** What it does, line by line; a line starting with "-" is a drawback. */
     public List<String> perks() {
-        return perks;
+        return perks.stream().map(Tr::s).toList();
     }
 
     public String id() {

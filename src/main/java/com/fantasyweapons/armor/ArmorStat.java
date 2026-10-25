@@ -1,5 +1,6 @@
 package com.fantasyweapons.armor;
 
+import com.fantasyweapons.text.Tr;
 import net.minecraft.core.Holder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -89,7 +90,7 @@ public enum ArmorStat {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     public Format format() {
@@ -110,11 +111,11 @@ public enum ArmorStat {
     /** One tooltip line for a bonus of {@code amount} of this stat. */
     public String describe(double amount) {
         return switch (format) {
-            case PERCENT -> String.format(Locale.ROOT, "+%d%% %s", Math.round(amount * 100), displayName);
-            case COUNT -> String.format(Locale.ROOT, "+%d %s%s", Math.round(amount), displayName, Math.round(amount) == 1 ? "" : "s");
-            case FLAG -> displayName;
-            case REGEN -> String.format(Locale.ROOT, "Regeneration: %s health every 4 seconds", trim(amount));
-            case SHIELD -> String.format(Locale.ROOT, "Mode-Switch Shield: %s absorption", trim(amount));
+            case PERCENT -> Tr.f("+%s%% %s", Math.round(amount * 100), displayName());
+            case COUNT -> Tr.f("+%s %s", Math.round(amount), Tr.s(Math.round(amount) == 1 ? displayName : displayName + "s"));
+            case FLAG -> displayName();
+            case REGEN -> Tr.f("Regeneration: %s health every 4 seconds", trim(amount));
+            case SHIELD -> Tr.f("Mode-Switch Shield: %s absorption", trim(amount));
         };
     }
 

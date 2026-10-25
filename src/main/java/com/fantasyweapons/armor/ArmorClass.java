@@ -1,5 +1,6 @@
 package com.fantasyweapons.armor;
 
+import com.fantasyweapons.text.Tr;
 import net.minecraft.core.Holder;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -33,7 +34,7 @@ public enum ArmorClass {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     public int defense(ArmorItem.Type type) {

@@ -1,5 +1,6 @@
 package com.fantasyweapons.ability;
 
+import com.fantasyweapons.text.Tr;
 public enum AbilityKind {
     /** Charged (or instant) ability activated with the ability key. */
     ACTIVE("Active"),
@@ -15,7 +16,7 @@ public enum AbilityKind {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     public boolean castable() {

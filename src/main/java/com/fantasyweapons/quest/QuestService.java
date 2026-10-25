@@ -1,5 +1,6 @@
 package com.fantasyweapons.quest;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.network.QuestPayloads;
 import com.fantasyweapons.registry.ModAttachments;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
@@ -113,7 +114,7 @@ public final class QuestService {
         QuestData d = data(player);
         for (Quest q : Quests.all()) if (d.claimed(q.id())) d.announce(q.id());
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.9f, 1.0f);
-        player.displayClientMessage(net.minecraft.network.chat.Component.literal("Claimed " + paid + (paid == 1 ? " quest" : " quests")).withColor(0xF2C46B), true);
+        player.displayClientMessage(Tr.c(paid == 1 ? "Claimed %s quest" : "Claimed %s quests", String.valueOf(paid)).withColor(0xF2C46B), true);
         announceDone(player);
         player.syncData(ModAttachments.QUESTS);
         return paid;

@@ -1,5 +1,6 @@
 package com.fantasyweapons.tool;
 
+import com.fantasyweapons.text.Tr;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
@@ -26,7 +27,7 @@ public enum ToolKind {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     /** The blocks it is made for. */

@@ -1,5 +1,6 @@
 package com.fantasyweapons.material;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.weapon.Element;
 import com.fantasyweapons.weapon.WeaponDefinition;
 import com.fantasyweapons.weapon.Weapons;
@@ -87,8 +88,24 @@ public enum Material {
         return weaponDefinition().element();
     }
 
+    /** The material's name in the player's language. */
     public String materialName() {
+        return Tr.s(materialName);
+    }
+
+    /** The material's name in English whatever the language. */
+    public String englishName() {
         return materialName;
+    }
+
+    /** The ore's name in English whatever the language. */
+    public String oreEnglish() {
+        return oreName;
+    }
+
+    /** Where its ore is found, in English whatever the language. */
+    public String foundEnglish() {
+        return found;
     }
 
     public String oreId() {
@@ -96,7 +113,7 @@ public enum Material {
     }
 
     public String oreName() {
-        return oreName;
+        return Tr.s(oreName);
     }
 
     public String rawId() {
@@ -104,7 +121,7 @@ public enum Material {
     }
 
     public String rawName() {
-        return rawName;
+        return Tr.s(rawName);
     }
 
     public String refinedId() {
@@ -112,6 +129,11 @@ public enum Material {
     }
 
     public String refinedName() {
+        return Tr.s(refinedName);
+    }
+
+    /** The refined material's name in English whatever the language (sentences that put it in the plural). */
+    public String refinedEnglish() {
         return refinedName;
     }
 
@@ -122,16 +144,16 @@ public enum Material {
 
     /** The rhythm its glow pulses with. */
     public String pulse() {
-        return pulse;
+        return Tr.s(pulse);
     }
 
     /** Where its ore is found. */
     public String found() {
-        return found;
+        return Tr.s(found);
     }
 
     public String look() {
-        return look;
+        return Tr.s(look);
     }
 
     /** Asset name of the ore block model, e.g. {@code voidfang_ore}. */

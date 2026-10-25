@@ -1,5 +1,6 @@
 package com.fantasyweapons.tool;
 
+import com.fantasyweapons.text.Tr;
 /**
  * What the Legendary Upgrading Table can raise on a legendary tool, each a level at a time: how far it digs round the
  * block it strikes (3x3 up to 13x13), its Fortune (III up to X) and its Efficiency (V up to X). Every step costs some of
@@ -25,7 +26,7 @@ public enum UpgradeTrack {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     /** The level a new tool has. */

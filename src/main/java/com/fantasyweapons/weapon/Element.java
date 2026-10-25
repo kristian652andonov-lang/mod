@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.text.Tr;
 /**
  * Elemental affinity of a weapon. Colours are ARGB-less RGB ints used by the HUD, menus and VFX.
  */
@@ -38,7 +39,7 @@ public enum Element {
     }
 
     public String displayName() {
-        return displayName;
+        return Tr.s(displayName);
     }
 
     public int primary() {

@@ -1,5 +1,6 @@
 package com.fantasyweapons.weapon;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.ability.AbilityDefinition;
 import com.fantasyweapons.ability.AbilityKind;
@@ -76,21 +77,27 @@ public final class WeaponDefinition {
         return ResourceLocation.fromNamespaceAndPath(FantasyWeapons.MOD_ID, id);
     }
 
+    /** The weapon's name in the player's language. */
     public String displayName() {
+        return Tr.s(displayName);
+    }
+
+    /** The name in English whatever the language (config labels, translation keys). */
+    public String englishName() {
         return displayName;
     }
 
     public String title() {
-        return title;
+        return Tr.s(title);
     }
 
     /** Where the lore is "quoted" from (a ballad, a chronicle...), or empty. */
     public String loreSource() {
-        return loreSource;
+        return Tr.s(loreSource);
     }
 
     public String lore() {
-        return lore;
+        return Tr.s(lore);
     }
 
     public Element element() {

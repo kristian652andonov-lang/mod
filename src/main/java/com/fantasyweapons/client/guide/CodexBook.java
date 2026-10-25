@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.guide;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.ability.AbilityDefinition;
 import com.fantasyweapons.ability.AbilityKind;
@@ -109,7 +110,7 @@ public final class CodexBook {
             if (at == null) continue;
             boolean open = at < chapter.size() && chapter.get(at).equals(here) && !here.isEmpty();
             float x0 = PageCanvas.W + 4, x1 = PageCanvas.W + (open ? 28 : 24);
-            c.region(x0, y, x1, y + h, List.of(Component.literal(tab.name())), go(tab.anchor()));
+            c.region(x0, y, x1, y + h, List.of(Component.literal(Tr.s(tab.name()))), go(tab.anchor()));
             boolean hover = c.hovered(x0, y, x1, y + h);
             int body = hover || open ? 0xFF000000 | tab.color() : 0xFF000000 | deepen(tab.color(), 0.78f);
             // the tab's end is cut in, like a ribbon's
@@ -189,7 +190,7 @@ public final class CodexBook {
         c.rule();
         c.centered("of the Thirteen Legendary Arms", c.y, PageCanvas.FADED, 0.55f);
         c.y += 6;
-        if (mc.player != null) c.centered("carried by " + mc.player.getGameProfile().getName(), c.y, PageCanvas.FADED, 0.42f);
+        if (mc.player != null) c.centered(Tr.f("carried by %s", mc.player.getGameProfile().getName()), c.y, PageCanvas.FADED, 0.42f);
         c.y += 4;
         // the thirteen weapons in a ring
         List<WeaponDefinition> all = new ArrayList<>(Weapons.blades());
@@ -264,10 +265,10 @@ public final class CodexBook {
     private void step(PageCanvas c, int n, String name, String text, ItemStack icon) {
         float top = c.y;
         c.item(icon, PageCanvas.MARGIN, top, 14);
-        c.text(n + ". " + name, PageCanvas.MARGIN + 17, top + 1, PageCanvas.RED, 0.68f);
+        c.text(n + ". " + Tr.s(name), PageCanvas.MARGIN + 17, top + 1, PageCanvas.RED, 0.68f);
         c.y = top + 9;
         float s = 0.52f;
-        for (var line : Minecraft.getInstance().font.split(Component.literal(text), (int) ((c.inner() - 17) / s))) {
+        for (var line : Minecraft.getInstance().font.split(Component.literal(Tr.s(text)), (int) ((c.inner() - 17) / s))) {
             c.text(line, PageCanvas.MARGIN + 17, c.y, PageCanvas.INK, s);
             c.y += 9 * s;
         }
@@ -320,7 +321,7 @@ public final class CodexBook {
                 boolean first = i == 0;
                 page(c -> {
                     c.y = PageCanvas.TOP;
-                    c.heading(first ? realm.title : realm.title + " (cont.)");
+                    c.heading(first ? realm.title : Tr.f("%s (cont.)", Tr.s(realm.title)));
                     for (Material m : on) ore(c, m);
                 });
             }
@@ -335,7 +336,7 @@ public final class CodexBook {
         c.item(new ItemStack(ModItems.RAW.get(m).get()), x, top + 7, 9);
         c.text("→", x + 10, top + 8.5f, PageCanvas.FADED, 0.6f);
         c.item(new ItemStack(ModItems.REFINED.get(m).get()), x + 15, top + 7, 9);
-        c.text("for " + m.weaponDefinition().displayName(), x + 27, top + 9, PageCanvas.FADED, 0.5f);
+        c.text(Tr.f("for %s", m.weaponDefinition().displayName()), x + 27, top + 9, PageCanvas.FADED, 0.5f);
         c.y = top + 18;
         c.para(m.found() + ".", PageCanvas.INK, 0.52f);
         c.y += 3;
@@ -442,7 +443,7 @@ public final class CodexBook {
                     float y = c.y;
                     c.item(weapon(def), PageCanvas.MARGIN, y, 12);
                     c.link(def.displayName(), PageCanvas.MARGIN + 15, y + 0.5f, 0.62f, go("weapon_" + def.id()));
-                    c.text(def.weaponClass().displayName() + " · " + def.element().displayName(), PageCanvas.MARGIN + 15, y + 7.5f,
+                    c.text(Tr.f("%s · %s", def.weaponClass().displayName(), def.element().displayName()), PageCanvas.MARGIN + 15, y + 7.5f,
                             PageCanvas.FADED, 0.45f);
                     c.y += 14.5f;
                 }
@@ -458,7 +459,7 @@ public final class CodexBook {
             int i = 0;
             for (ArmorSet set : ArmorSet.values()) {
                 c.item(new ItemStack(ModItems.ARMOR.get(set).get(ArmorItem.Type.CHESTPLATE).get()), x, y, 13);
-                c.region(x, y, x + 13, y + 13, List.of(Component.literal(set.displayName() + " Armor"), Component.literal("Click to read")
+                c.region(x, y, x + 13, y + 13, List.of(Component.literal(Tr.f("%s Armor", set.displayName())), Component.literal(Tr.s("Click to read"))
                         .withStyle(s -> s.withColor(0x9C8862))), go("armor_" + set.name()));
                 x += 14.5f;
                 if (++i % 7 == 0) {
@@ -517,7 +518,7 @@ public final class CodexBook {
                     float y = c.y;
                     c.item(weapon(def), PageCanvas.MARGIN, y, 12);
                     c.link(def.displayName(), PageCanvas.MARGIN + 15, y + 0.5f, 0.62f, go("weapon_" + def.id()));
-                    c.text(def.weaponClass().displayName() + " · " + def.element().displayName(), PageCanvas.MARGIN + 15, y + 7.5f,
+                    c.text(Tr.f("%s · %s", def.weaponClass().displayName(), def.element().displayName()), PageCanvas.MARGIN + 15, y + 7.5f,
                             PageCanvas.FADED, 0.45f);
                     c.y += 17f;
                 }
@@ -542,8 +543,8 @@ public final class CodexBook {
             c.para("Its grid is eleven by eleven, and it forges only the two weapons of the Calamity class, each from all "
                     + "twenty-five legendary weapons, a core of every material and the rarest treasures of the world. The Weapon of "
                     + "God is fused from the two on the Upgrading Table.", PageCanvas.INK, 0.5f);
-            c.para("Lay the rite as on the table, then press Forge. It works for " + com.fantasyweapons.forge.WorldforgeRecipe.DEFAULT_TIME / 20 / 60
-                    + " minutes; when it is done, lightning falls and the whole world hears.", PageCanvas.INK, 0.5f);
+            c.para(Tr.f("Lay the rite as on the table, then press Forge. It works for %s minutes; when it is done, lightning falls and the whole world hears.",
+                    com.fantasyweapons.forge.WorldforgeRecipe.DEFAULT_TIME / 20 / 60), PageCanvas.INK, 0.5f);
             c.gap(2);
             for (WeaponDefinition def : Weapons.ultimates()) {
                 float y = c.y;
@@ -584,13 +585,13 @@ public final class CodexBook {
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("Their Powers");
-            c.para("Press [" + key + "] with a tool in hand to wake its power. Each must rest a while after.", PageCanvas.INK, 0.52f);
-            step(c, 1, "Ore Sight", "Every legendary ore within " + ToolAbilities.SIGHT_RADIUS + " blocks shines through the stone for "
-                    + ToolAbilities.SIGHT_TICKS / 20 + " seconds. Rests " + ToolAbilities.SIGHT_COOLDOWN / 20 + " s.", pickaxe);
-            step(c, 2, "Timberfall", "Fells every tree within " + ToolAbilities.TIMBER_RADIUS + " blocks, its wood falling at your feet. Rests "
-                    + ToolAbilities.TIMBER_COOLDOWN / 20 + " s.", axe);
-            step(c, 3, "Earthshaper", "Levels the earth around you down to your feet, wider as its square grows. Rests "
-                    + ToolAbilities.EARTH_COOLDOWN / 20 + " s.", shovel);
+            c.para(Tr.f("Press [%s] with a tool in hand to wake its power. Each must rest a while after.", key), PageCanvas.INK, 0.52f);
+            step(c, 1, "Ore Sight", Tr.f("Every legendary ore within %s blocks shines through the stone for %s seconds. Rests %s s.",
+                    ToolAbilities.SIGHT_RADIUS, ToolAbilities.SIGHT_TICKS / 20, ToolAbilities.SIGHT_COOLDOWN / 20), pickaxe);
+            step(c, 2, "Timberfall", Tr.f("Fells every tree within %s blocks, its wood falling at your feet. Rests %s s.",
+                    ToolAbilities.TIMBER_RADIUS, ToolAbilities.TIMBER_COOLDOWN / 20), axe);
+            step(c, 3, "Earthshaper", Tr.f("Levels the earth around you down to your feet, wider as its square grows. Rests %s s.",
+                    ToolAbilities.EARTH_COOLDOWN / 20), shovel);
         });
         page(c -> {
             c.y = PageCanvas.TOP;
@@ -598,8 +599,8 @@ public final class CodexBook {
             craftingGrid(c, FantasyWeapons.id("legendary_upgrading_table"), new ItemStack(ModItems.UPGRADING_TABLE.get()));
             c.para("A copper bench with a grindstone and a lens. Clamp a legendary tool in its vise, fill its copper cup with that "
                     + "tool's refined material, and choose what to raise.", PageCanvas.INK, 0.52f);
-            c.para("Each step costs cores and experience levels, paid at once; the table works for "
-                    + com.fantasyweapons.tool.UpgradingTableBlockEntity.DURATION / 20 + " seconds.", PageCanvas.INK, 0.52f);
+            c.para(Tr.f("Each step costs cores and experience levels, paid at once; the table works for %s seconds.",
+                    com.fantasyweapons.tool.UpgradingTableBlockEntity.DURATION / 20), PageCanvas.INK, 0.52f);
             c.para("With both Calamity weapons on it - the sword in the vise, the book in the cup - it fuses them into the Weapon of God.",
                     PageCanvas.FADED, 0.5f);
         });
@@ -607,7 +608,7 @@ public final class CodexBook {
             c.y = PageCanvas.TOP;
             c.heading("What It Raises");
             for (UpgradeTrack track : UpgradeTrack.values()) {
-                c.text(track.displayName() + ": " + track.describe(track.min()) + " to " + track.describe(track.max()),
+                c.text(Tr.f("%s: %s to %s", track.displayName(), track.describe(track.min()), track.describe(track.max())),
                         PageCanvas.MARGIN, c.y, PageCanvas.RED, 0.56f);
                 c.y += 6.5f;
                 // each step: what it reaches, its cores and levels, two to a line
@@ -616,7 +617,7 @@ public final class CodexBook {
                     int level = track.min() + i;
                     float x = PageCanvas.MARGIN + 2 + (i % 2) * (c.inner() / 2);
                     int n = track.cores(level);
-                    c.text(track.describe(level + 1) + "  " + n + (n == 1 ? " core, " : " cores, ") + track.levels(level) + " lv",
+                    c.text(track.describe(level + 1) + "  " + Tr.f(n == 1 ? "%s core, %s lv" : "%s cores, %s lv", n, track.levels(level)),
                             x, c.y, PageCanvas.INK, 0.45f);
                     if (i % 2 == 1 || i == steps - 1) c.y += 5.2f;
                 }
@@ -664,7 +665,7 @@ public final class CodexBook {
             float size = 42;
             c.item(weapon(def), (PageCanvas.W - size) / 2, c.y, size);
             c.y += size + 3;
-            String kind = def.weaponClass().displayName() + " · " + def.element().displayName();
+            String kind = Tr.f("%s · %s", def.weaponClass().displayName(), def.element().displayName());
             c.centered(kind, c.y, PageCanvas.RED, 0.6f);
             c.y += 7;
             if (def.rarity().classTier()) {
@@ -673,7 +674,7 @@ public final class CodexBook {
                 c.centered(tier, c.y, PageCanvas.GOLD, Math.min(0.55f, c.inner() / Math.max(1f, c.width(tier, 1f))));
                 c.y += 6.5f;
             }
-            String stats = String.format(Locale.ROOT, def.weaponClass().magic() ? "%.0f damage · %.1f bolts a second" : "%.0f damage · %.1f swings a second",
+            String stats = Tr.f(def.weaponClass().magic() ? "%.0f damage · %.1f bolts a second" : "%.0f damage · %.1f swings a second",
                     def.baseDamage(), def.weaponClass().attackSpeed());
             c.centered(stats, c.y, PageCanvas.FADED, 0.5f);
             c.y += 8;
@@ -703,7 +704,7 @@ public final class CodexBook {
                 c.heading(first ? "Abilities" : "Abilities (cont.)");
                 for (AbilityDefinition a : these) {
                     c.text(a.name(), PageCanvas.MARGIN, c.y, a.kind() == AbilityKind.ULTIMATE ? PageCanvas.GOLD : PageCanvas.RED, 0.62f);
-                    String tag = a.kind().displayName() + (a.unlockLevel() > 1 ? " · level " + a.unlockLevel() : "");
+                    String tag = a.unlockLevel() > 1 ? Tr.f("%s · level %s", a.kind().displayName(), a.unlockLevel()) : a.kind().displayName();
                     // the kind beside the name, or under it when the name is long
                     if (c.width(a.name(), 0.62f) + c.width(tag, 0.45f) + 4 > c.inner()) c.y += 6;
                     c.text(tag, PageCanvas.W - PageCanvas.MARGIN - c.width(tag, 0.45f), c.y + 0.8f, PageCanvas.FADED, 0.45f);
@@ -727,20 +728,20 @@ public final class CodexBook {
                 c.y = y + 20;
                 c.para("Fused on the Legendary Upgrading Table: the Great Sword of Obliteration in its vise, the Spell Book of "
                         + "Absolute Domination in its cup. Press Fuse.", PageCanvas.INK, 0.5f);
-                c.para("It costs " + com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_LEVELS + " experience levels and takes "
-                        + com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_DURATION / 20 + " seconds, and the Weapon of God keeps the "
-                        + "higher of the two calamities' levels.", PageCanvas.INK, 0.5f);
+                c.para(Tr.f("It costs %s experience levels and takes %s seconds, and the Weapon of God keeps the higher of the two calamities' levels.",
+                        com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_LEVELS, com.fantasyweapons.tool.UpgradingTableBlockEntity.FUSE_DURATION / 20),
+                        PageCanvas.INK, 0.5f);
             });
             page(c -> {
                 c.y = PageCanvas.TOP;
                 c.heading("The Summoning");
-                c.para("Its powers are not cast; they are summoned. You rise into the air and are held there, beyond harm, while the sky "
-                        + "darkens and the power is called down - " + com.fantasyweapons.weapons.god.DivineSummoning.TICKS / 20 + " seconds - and "
-                        + "only then does it fall where you chose.", PageCanvas.INK, 0.5f);
+                c.para(Tr.f("Its powers are not cast; they are summoned. You rise into the air and are held there, beyond harm, while the sky "
+                        + "darkens and the power is called down - %s seconds - and only then does it fall where you chose.",
+                        com.fantasyweapons.weapons.god.DivineSummoning.TICKS / 20), PageCanvas.INK, 0.5f);
                 c.gap(1);
                 for (AbilityDefinition a : def.abilities()) {
                     if (!c.fits(7)) break;
-                    String rest = Math.round(a.param("cooldown") / 60) + " min rest";
+                    String rest = Tr.f("%s min rest", Math.round(a.param("cooldown") / 60));
                     c.text(a.name(), PageCanvas.MARGIN, c.y, PageCanvas.GOLD, 0.46f);
                     c.text(rest, PageCanvas.W - PageCanvas.MARGIN - c.width(rest, 0.42f), c.y + 0.5f, PageCanvas.FADED, 0.42f);
                     c.y += 6.2f;
@@ -775,7 +776,7 @@ public final class CodexBook {
                         + "around you. The ring shows the spell's true size; click, and it falls there.", PageCanvas.INK, 0.5f);
                 for (AbilityDefinition a : def.abilities()) {
                     if (!a.remote() || !c.fits(7)) continue;
-                    String far = (int) a.param("remote_range") + " chunks";
+                    String far = Tr.f("%s chunks", (int) a.param("remote_range"));
                     c.text(a.name(), PageCanvas.MARGIN, c.y, PageCanvas.GOLD, 0.48f);
                     c.text(far, PageCanvas.W - PageCanvas.MARGIN - c.width(far, 0.42f), c.y + 0.5f, PageCanvas.FADED, 0.42f);
                     c.y += 6.5f;
@@ -792,19 +793,19 @@ public final class CodexBook {
                 // a staff or spellbook has no armor: its page tells of its bolt instead
                 boolean staff = def.weaponClass() == com.fantasyweapons.weapon.WeaponClass.STAFF;
                 c.heading("Its Bolt");
-                c.para((staff ? "A click looses a swift bolt of " : "A click looses a seeking bolt of ") + def.element().displayName().toLowerCase(Locale.ROOT)
-                        + " at the crosshair. " + boltMark(def), PageCanvas.INK, 0.52f);
+                c.para(Tr.f(staff ? "A click looses a swift bolt of %s at the crosshair." : "A click looses a seeking bolt of %s at the crosshair.",
+                        def.element().displayName().toLowerCase(Locale.ROOT)) + " " + Tr.s(boltMark(def)), PageCanvas.INK, 0.52f);
                 c.gap(2);
                 var core = Material.ofWeapon(def.id());
                 if (core != null) {
-                    c.text("Forged and infused with " + core.refinedName() + "s", PageCanvas.MARGIN, c.y, PageCanvas.FADED, 0.48f);
+                    c.text(Tr.f("Forged and infused with %s", Tr.s(core.refinedEnglish() + "s")), PageCanvas.MARGIN, c.y, PageCanvas.FADED, 0.48f);
                     c.y += 6;
                     c.item(new ItemStack(ModItems.REFINED.get(core).get()), PageCanvas.MARGIN, c.y, 14);
                     c.y += 16;
                 }
                 return;
             }
-            c.heading(set.displayName() + " Armor");
+            c.heading(Tr.f("%s Armor", set.displayName()));
             float x = (PageCanvas.W - 4 * 22) / 2;
             for (ArmorItem.Type type : ArmorSet.PIECES) {
                 ItemStack piece = new ItemStack(ModItems.ARMOR.get(set).get(type).get());
@@ -816,7 +817,7 @@ public final class CodexBook {
             c.y += 7;
             lore(c, set.abilityText(), 0.5f);
             c.gap(2);
-            c.text("Forged on the table from " + set.material().refinedName() + "s:", PageCanvas.MARGIN, c.y, PageCanvas.FADED, 0.48f);
+            c.text(Tr.f("Forged on the table from %s:", Tr.s(set.material().refinedEnglish() + "s")), PageCanvas.MARGIN, c.y, PageCanvas.FADED, 0.48f);
             c.y += 6;
             float px = PageCanvas.MARGIN;
             for (ArmorItem.Type type : ArmorSet.PIECES) {
@@ -835,8 +836,8 @@ public final class CodexBook {
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("Mastery");
-            c.para("A legendary weapon grows as it fights. Kills and hits give it experience; each level makes it stronger "
-                    + "and gives points to spend on its abilities, up to level " + ProgressionMath.maxLevel() + ".", PageCanvas.INK, 0.54f);
+            c.para(Tr.f("A legendary weapon grows as it fights. Kills and hits give it experience; each level makes it stronger "
+                    + "and gives points to spend on its abilities, up to level %s.", ProgressionMath.maxLevel()), PageCanvas.INK, 0.54f);
             keyLine(c, "The weapon's tree", KeyBindings.MENU.getTranslatedKeyMessage().getString());
             keyLine(c, "Cast (hold to charge)", KeyBindings.ABILITY.getTranslatedKeyMessage().getString());
             keyLine(c, "Next ability", KeyBindings.CYCLE.getTranslatedKeyMessage().getString());
@@ -881,8 +882,8 @@ public final class CodexBook {
         page(c -> {
             c.y = PageCanvas.TOP;
             c.heading("Classes");
-            c.para("Every wayfarer may take a calling. The first choice is free; changing it waits "
-                    + com.fantasyweapons.playerclass.ClassService.CHANGE_WAIT / 20 / 60 + " minutes.", PageCanvas.INK, 0.54f);
+            c.para(Tr.f("Every wayfarer may take a calling. The first choice is free; changing it waits %s minutes.",
+                    com.fantasyweapons.playerclass.ClassService.CHANGE_WAIT / 20 / 60), PageCanvas.INK, 0.54f);
             keyLine(c, "Choose a class", KeyBindings.CLASSES.getTranslatedKeyMessage().getString());
             int count = com.fantasyweapons.playerclass.PlayerClass.values().length;
             for (var pc : com.fantasyweapons.playerclass.PlayerClass.values()) {
@@ -952,7 +953,7 @@ public final class CodexBook {
             int done = 0;
             for (AdvancementHolder d : deeds) if (done(d)) done++;
             // (only the deeds in sight are known: each comes into view as the one before it is done)
-            c.centered(done + " of " + deeds.size() + " done", c.y, PageCanvas.INK, 0.62f);
+            c.centered(Tr.f("%s of %s done", done, deeds.size()), c.y, PageCanvas.INK, 0.62f);
             c.y += 6.5f;
             c.centered("more come to light as you go", c.y, PageCanvas.FADED, 0.42f);
             c.y += 6;
@@ -971,7 +972,7 @@ public final class CodexBook {
                     if (done(d)) got++;
                 }
                 int color = deep(com.fantasyweapons.advancement.Deeds.color(type));
-                String rank = com.fantasyweapons.advancement.Deeds.rank(type) + "s";
+                String rank = Tr.s(com.fantasyweapons.advancement.Deeds.rank(type) + "s");
                 c.text(com.fantasyweapons.advancement.Deeds.mark(type).getVisualOrderText(), PageCanvas.MARGIN + 8, c.y - 0.6f, 0xFFFFFFFF, 0.75f);
                 c.text(rank, PageCanvas.MARGIN + 17, c.y, color, 0.6f);
                 String n = got + " / " + all;
@@ -1184,7 +1185,7 @@ public final class CodexBook {
 
     /** As much of some text as fits under the cursor, ending in an ellipsis when cut short. */
     private static void lore(PageCanvas c, String text, float scale) {
-        var lines = Minecraft.getInstance().font.split(Component.literal(text), (int) (c.inner() / scale));
+        var lines = Minecraft.getInstance().font.split(Component.literal(Tr.s(text)), (int) (c.inner() / scale));
         for (int i = 0; i < lines.size(); i++) {
             if (!c.fits(9 * scale)) {
                 c.text("...", PageCanvas.MARGIN, c.y, PageCanvas.FADED, scale);

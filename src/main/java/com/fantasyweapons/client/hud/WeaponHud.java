@@ -141,9 +141,9 @@ public final class WeaponHud {
 
         // ---- header: name, rarity and element, level plaque ----
         String lv = "Lv " + data.level();
-        float lvW = UiDraw.font().width(lv) * 0.7f + 10;
+        float lvW = UiDraw.width(lv) * 0.7f + 10;
         // long names (the ultimate weapons') shrink to fit beside the level plaque
-        float nameScale = Math.min(0.95f, (W - 22 - lvW) / Math.max(1f, UiDraw.font().width(def.displayName())));
+        float nameScale = Math.min(0.95f, (W - 22 - lvW) / Math.max(1f, UiDraw.width(def.displayName())));
         UiDraw.text(g, def.displayName(), 9, 6 + (0.95f - nameScale) * 4.5f, Colors.alpha(a, UiDraw.GOLD_LIGHT), nameScale, true);
         UiDraw.button(g, W - 8 - lvW, 4, lvW, 12, 0, a);
         UiDraw.title(g, lv, W - 8 - lvW / 2, 6.5f, Colors.alpha(a, UiDraw.GOLD_LIGHT), 0.7f);
@@ -168,7 +168,7 @@ public final class WeaponHud {
         String dmgText = String.format("Damage %,.0f", dmg);
         UiDraw.text(g, dmgText, 9, 34, Colors.alpha(a, 0xF0A080), 0.58f, false);
         int mastery = Math.round(ProgressionMath.mastery(def, data) * 100);
-        UiDraw.text(g, "Mastery " + mastery + "%", 9 + UiDraw.font().width(dmgText) * 0.58f + 6, 34, Colors.alpha(a, UiDraw.ARCANE), 0.58f, false);
+        UiDraw.text(g, "Mastery " + mastery + "%", 9 + UiDraw.width(dmgText) * 0.58f + 6, 34, Colors.alpha(a, UiDraw.ARCANE), 0.58f, false);
         String expText = need <= 0 ? "Mastered" : String.format("%,d / %,d", data.exp(), need);
         UiDraw.textRight(g, expText, W - 9, 34, Colors.alpha(a, UiDraw.INK_MUTED), 0.55f, false);
 
@@ -254,10 +254,10 @@ public final class WeaponHud {
         int lvl = data.abilityLevel(sel);
         String rank = "Rank " + lvl;
         // a long name (the Weapon of God's) shrinks so its rank still fits inside the panel
-        float rankW = UiDraw.font().width(rank) * 0.55f + 4;
-        float nameS = Math.max(0.55f, Math.min(0.78f, (W - 9 - 44 - rankW) / Math.max(1f, UiDraw.font().width(sel.name()))));
+        float rankW = UiDraw.width(rank) * 0.55f + 4;
+        float nameS = Math.max(0.55f, Math.min(0.78f, (W - 9 - 44 - rankW) / Math.max(1f, UiDraw.width(sel.name()))));
         UiDraw.text(g, sel.name(), 44, 50 + (0.78f - nameS) * 4, Colors.alpha(a, nameColor), nameS, true);
-        UiDraw.text(g, rank, 44 + UiDraw.font().width(sel.name()) * nameS + 4, 51.5f, Colors.alpha(a, UiDraw.ARCANE), 0.55f, false);
+        UiDraw.text(g, rank, 44 + UiDraw.width(sel.name()) * nameS + 4, 51.5f, Colors.alpha(a, UiDraw.ARCANE), 0.55f, false);
         UiDraw.text(g, UiDraw.titleCase(state.label()), 44, 59.5f, Colors.alpha(a, stateColor), 0.62f, false);
 
         float bx = 44, by = 68, bw = W - 53, bh = 3;

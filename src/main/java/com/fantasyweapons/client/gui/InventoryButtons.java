@@ -19,9 +19,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 /**
- * Two buttons in the player's inventory, beside the recipe book's and framed like it: the Quest Journal (a sealed scroll,
- * with a gold mark while a quest waits to be claimed) and the class menu (the player's class's sign). They keep beside
- * the recipe book's button when the book opens and moves the inventory aside.
+ * Three buttons in the player's inventory, beside the recipe book's and framed like it: the Quest Journal (a sealed
+ * scroll, with a gold mark while a quest waits to be claimed), the class menu (the player's class's sign) and the mod's
+ * settings (a gear). They keep beside the recipe book's button when the book opens and moves the inventory aside.
  */
 public final class InventoryButtons {
     private static ResourceLocation sprite(String name, boolean hover) {
@@ -35,6 +35,7 @@ public final class InventoryButtons {
         if (!(event.getScreen() instanceof InventoryScreen inventory)) return;
         event.addListener(new Journal(inventory, 126));
         event.addListener(new Classes(inventory, 148));
+        event.addListener(new Settings(inventory, 170));
     }
 
     private abstract static class Small extends AbstractButton {
@@ -112,6 +113,30 @@ public final class InventoryButtons {
             Component title = Component.literal("Quest Journal").withColor(0xF2C46B)
                     .append(Component.literal(" (" + KeyBindings.QUESTS.getTranslatedKeyMessage().getString() + ")").withColor(0xB9AC92));
             return n == 0 ? title : title.copy().append(Component.literal("\n" + n + (n == 1 ? " quest" : " quests") + " to claim").withColor(0x8FE08A));
+        }
+    }
+
+    private static final class Settings extends Small {
+        private final InventoryScreen screen;
+
+        Settings(InventoryScreen screen, int offset) {
+            super(screen, offset, Component.literal(com.fantasyweapons.text.Tr.s("Settings")));
+            this.screen = screen;
+        }
+
+        @Override
+        public void onPress() {
+            Minecraft.getInstance().setScreen(new SettingsScreen(screen));
+        }
+
+        @Override
+        String spriteName() {
+            return "settings";
+        }
+
+        @Override
+        Component tooltip() {
+            return Component.literal(com.fantasyweapons.text.Tr.s("Fantasy Weapons settings")).withColor(0xF2C46B);
         }
     }
 

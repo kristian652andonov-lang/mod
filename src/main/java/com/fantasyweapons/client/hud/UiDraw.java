@@ -1,5 +1,6 @@
 package com.fantasyweapons.client.hud;
 
+import com.fantasyweapons.text.Tr;
 import com.fantasyweapons.client.render.FWRenderTypes;
 import com.fantasyweapons.client.vfx.Colors;
 import com.fantasyweapons.client.vfx.VfxTextures;
@@ -289,10 +290,24 @@ public final class UiDraw {
         textureUv(g, tex, x + w - end, y, end, h, 216 / 256f, 0, 1, 1, c);
     }
 
-    /** "UNLOCKED AT" → "Unlocked At": labels read like a book, not a terminal. Numbers and symbols are kept as is. */
+    /**
+     * "UNLOCKED AT" → "Unlocked At": labels read like a book, not a terminal. Numbers and symbols are kept as is. Other
+     * languages than English write such labels with only their first word capitalised ("Время перезарядки").
+     */
     public static String titleCase(String s) {
         StringBuilder b = new StringBuilder(s.length());
         boolean start = true;
+        if (!english()) {
+            for (char ch : s.toCharArray()) {
+                if (Character.isLetter(ch)) {
+                    b.append(start ? Character.toUpperCase(ch) : Character.toLowerCase(ch));
+                    start = false;
+                } else {
+                    b.append(ch);
+                }
+            }
+            return b.toString();
+        }
         for (char ch : s.toCharArray()) {
             if (Character.isLetter(ch)) {
                 b.append(start ? Character.toUpperCase(ch) : Character.toLowerCase(ch));
@@ -303,6 +318,12 @@ public final class UiDraw {
             }
         }
         return b.toString();
+    }
+
+    /** Whether the game shows English (whose labels are title case). */
+    public static boolean english() {
+        var lm = net.minecraft.client.Minecraft.getInstance().getLanguageManager();
+        return lm == null || lm.getSelected().startsWith("en");
     }
 
     /** Annular arc (radians, 0 = up, clockwise). */
@@ -476,8 +497,13 @@ public final class UiDraw {
     // text
     // ------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Text drawn by these helpers is English looked up in the player's language (see Tr), so a menu's labels are
+     * translated where they are drawn; text measured beforehand is measured with {@link #width}, translated alike.
+     */
     public static void text(GuiGraphics g, String s, float x, float y, int argb, float scale, boolean shadow) {
         if ((argb >>> 24) < 5) return;
+        s = Tr.s(s);
         g.pose().pushPose();
         g.pose().translate(x, y, 0);
         g.pose().scale(scale, scale, 1);
@@ -495,16 +521,32 @@ public final class UiDraw {
     }
 
     public static void textCentered(GuiGraphics g, String s, float cx, float y, int argb, float scale, boolean shadow) {
+        s = Tr.s(s);
         text(g, s, cx - font().width(s) * scale / 2f, y, argb, scale, shadow);
     }
 
     public static void textRight(GuiGraphics g, String s, float rx, float y, int argb, float scale, boolean shadow) {
+        s = Tr.s(s);
         text(g, s, rx - font().width(s) * scale, y, argb, scale, shadow);
+    }
+
+    /** The width of {@code s} as these helpers draw it (translated), unscaled. */
+    public static int width(String s) {
+        return font().width(Tr.s(s));
+    }
+
+    public static int width(net.minecraft.network.chat.FormattedText s) {
+        return font().width(s);
+    }
+
+    public static int width(FormattedCharSequence s) {
+        return font().width(s);
     }
 
     /** Heavy display text: dark outline + coloured fill (pixel-fantasy title look). */
     public static void title(GuiGraphics g, String s, float cx, float y, int argb, float scale) {
         if ((argb >>> 24) < 5) return;
+        s = Tr.s(s);
         float x = cx - font().width(s) * scale / 2f;
         int outline = Colors.argb((argb >>> 24) * 3 / 4, 0x1A0E06);
         float o = Math.max(0.5f, scale * 0.5f);
@@ -516,7 +558,7 @@ public final class UiDraw {
     }
 
     public static int wrap(GuiGraphics g, String s, float x, float y, int maxWidth, int argb, float scale, int lineHeight) {
-        return wrap(g, Component.literal(s), x, y, maxWidth, argb, scale, lineHeight);
+        return wrap(g, Component.literal(Tr.s(s)), x, y, maxWidth, argb, scale, lineHeight);
     }
 
     /** Wrapped text with its own style (italic lore, coloured runs). */
