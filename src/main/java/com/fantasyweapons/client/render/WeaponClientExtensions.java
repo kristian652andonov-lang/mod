@@ -4,6 +4,7 @@ import com.fantasyweapons.client.anim.AnimTracker;
 import com.fantasyweapons.client.anim.WeaponArmPoses;
 import com.fantasyweapons.compat.bettercombat.BetterCombatClient;
 import com.fantasyweapons.compat.bettercombat.BetterCombatCompat;
+import com.fantasyweapons.compat.bettercombat.FirstPersonAttack;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
 import com.fantasyweapons.weapon.WeaponClass;
 import com.fantasyweapons.weapon.WeaponForm;
@@ -17,7 +18,7 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
-import org.joml.Vector3f;
+import org.joml.Matrix4f;
 
 /**
  * Player presentation for fantasy weapons.
@@ -29,8 +30,13 @@ import org.joml.Vector3f;
  * </ul>
  */
 public class WeaponClientExtensions implements IClientItemExtensions {
-    /** Where the weapon hand rests in the first-person view (x for the right hand). */
-    private static final float HAND_X = 0.56F, HAND_Y = -0.52F, HAND_Z = -0.72F;
+    /**
+     * Where the first-person hands are drawn from this frame, before the hand is placed: the view, as the pass that draws
+     * them has it (the game's, a shader pack's, or Punchy's). What is laid out from the eye is laid out from here.
+     */
+    public static Matrix4f handRoot;
+    /** Set while Punchy draws the first-person hands: it sets {@link #handRoot} itself, and may call the hand transform. */
+    public static boolean punchyPass;
 
     @Override
     public HumanoidModel.ArmPose getArmPose(LivingEntity entity, InteractionHand hand, ItemStack stack) {
@@ -43,12 +49,13 @@ public class WeaponClientExtensions implements IClientItemExtensions {
     public boolean applyForgeHandTransform(PoseStack pose, LocalPlayer player, HumanoidArm arm, ItemStack stack, float partialTick,
                                            float equipProcess, float swingProcess) {
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return false;
+        if (!punchyPass) handRoot = new Matrix4f(pose.last().pose());
         int side = arm == HumanoidArm.RIGHT ? 1 : -1;
         // the game lowers a held item while an attack recovers and raises it again: these weapons come back to rest by
         // their own swing instead (the dip sank them out of sight through the blow and had them climb back after it);
         // switching items still lowers and raises them
         if (AnimTracker.recoveringFromSwing(player)) equipProcess = 0;
-        pose.translate(side * HAND_X, HAND_Y + equipProcess * -0.6F, HAND_Z);
+        pose.translate(side * 0.56F, -0.52F + equipProcess * -0.6F, -0.72F);
 
         // the extended chainblade is far longer than the sword: keep it from filling the whole view
         WeaponForm heldForm = item.definition().form(FantasyWeaponItem.data(stack));
@@ -66,8 +73,8 @@ public class WeaponClientExtensions implements IClientItemExtensions {
 
     /** The first-person attack swing about the hand, if one is playing; returns whether it is. */
     public static boolean applySwing(PoseStack pose, LivingEntity player, FantasyWeaponItem item, int side, float partialTick) {
-        // Better Combat's attacks play its own animation, as the player model does in third person
-        if (AnimTracker.betterCombatSwing(player)) return applyBetterCombatSwing(pose, new Vector3f(side * HAND_X, HAND_Y, HAND_Z), player, partialTick);
+        // Better Combat's attacks are the model's, drawn as the model holds the weapon (see WeaponRenderer)
+        if (AnimTracker.betterCombatSwing(player)) return false;
         float s = AnimTracker.swingProgress(player, partialTick);
         if (s < 0) return false;
         float heavy = AnimTracker.heavy(player) ? 1.3f : 1f;
@@ -75,12 +82,9 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         return true;
     }
 
-    /**
-     * The first-person motion of a Better Combat attack about the hand ({@code hand}: where it is in the view), if one is
-     * playing; returns whether it is.
-     */
-    public static boolean applyBetterCombatSwing(PoseStack pose, Vector3f hand, LivingEntity player, float partialTick) {
-        return BetterCombatCompat.loaded() && BetterCombatClient.firstPersonAttack(pose, hand, player, partialTick);
+    /** The Better Combat attack the player is making, as the first person sees it, or null when none is playing. */
+    public static FirstPersonAttack betterCombatAttack(LivingEntity player, float partialTick) {
+        return BetterCombatCompat.loaded() && AnimTracker.betterCombatSwing(player) ? BetterCombatClient.firstPersonAttack(player, partialTick) : null;
     }
 
     /**

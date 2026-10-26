@@ -291,6 +291,17 @@ public final class WeaponPoses {
 
     // ------------------------------------------------------------------------------------------------------------
     // evaluation & application
+    /**
+     * How the weapon is gripped in its stance, as {gx, gz} (see {@link Pose}): the grip it is held with on the model
+     * while Better Combat's attacks move the arms.
+     */
+    public static float[] stanceGrip(ItemStack stack) {
+        if (!(stack.getItem() instanceof FantasyWeaponItem item)) return new float[2];
+        WeaponForm form = item.definition().form(FantasyWeaponItem.data(stack));
+        Pose stance = stance(item.definition().weaponClass(), form != null && "chainblade".equals(form.id()));
+        return new float[]{stance.gx(), stance.gz()};
+    }
+
     // ------------------------------------------------------------------------------------------------------------
 
     /** Full pose for an entity holding a fantasy weapon this frame. */

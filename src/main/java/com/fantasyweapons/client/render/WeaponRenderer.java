@@ -17,6 +17,8 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.cache.texture.AutoGlowingTexture;
@@ -111,7 +113,8 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> implement
             WeaponPoses.Pose p = WeaponPoses.renderingPose(stack);
             if (p != null && (p.gx() != 0 || p.gz() != 0)) applyGrip(stack, ctx, pose, p);
         }
-        float yaw = handleYaw(stack, ctx);
+        // during a Better Combat attack the first-person weapon is drawn as the model holds it, turn about the handle and all
+        float yaw = firstPersonAttack(stack, ctx, pose) ? 0 : handleYaw(stack, ctx);
         if (yaw != 0) {
             // spin the model about its own handle (GeckoLib draws the model origin at (0.5, 0.51, 0.5))
             pose.translate(0.5f, 0, 0.5f);
@@ -145,6 +148,61 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> implement
             insideTranslucent = false;
         }
         super.actuallyRender(poseStack, animatable, model, renderType, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
+    }
+
+    /**
+     * The local player's first-person weapon while a Better Combat attack plays (see BetterCombatFirstPerson): drawn where
+     * the player model holds it, seen from the eye, and as the model draws it (its third-person display, its grip and its
+     * turn about the handle), so the attack looks in first person as it does in third. It goes over to that from the
+     * first-person hold as the swing leaves rest and back as the swing returns. This covers the game's first-person hand
+     * and Punchy's (which draws held items with their third-person display, outside any entity). Returns whether it moved
+     * the weapon, turn included.
+     */
+    private static boolean firstPersonAttack(ItemStack stack, ItemDisplayContext ctx, PoseStack pose) {
+        boolean firstPerson = ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
+        boolean punchy = (ctx == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.THIRD_PERSON_LEFT_HAND) && WeaponPoses.renderingEntity() == null;
+        // (unless Punchy animates Better Combat's attacks itself)
+        if (!firstPerson && !(punchy && !com.fantasyweapons.compat.punchy.PunchyCompat.animatesBetterCombatAttacks())) return false;
+        Minecraft mc = Minecraft.getInstance();
+        // (Punchy draws a copy of the held stack)
+        if (mc.player == null || !ItemStack.isSameItemSameComponents(mc.player.getMainHandItem(), stack) || !mc.options.getCameraType().isFirstPerson()) return false;
+        var attack = WeaponClientExtensions.betterCombatAttack(mc.player, mc.getTimer().getGameTimeDeltaPartialTick(false));
+        if (attack == null) return false;
+        boolean left = mc.player.getMainArm() == net.minecraft.world.entity.HumanoidArm.LEFT;
+        ItemDisplayContext held = left ? ItemDisplayContext.THIRD_PERSON_LEFT_HAND : ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;
+        // the weapon as this draw has it, and as the model draws it in its hand, from the eye: from where the pass that
+        // draws the first-person hands starts (the game's starts turned back by the camera's turn, a shader pack's not)
+        Matrix4f now = new Matrix4f(pose.last().pose()).mul(aboutHandle(handleYaw(stack, ctx)));
+        float[] grip = WeaponPoses.stanceGrip(stack);
+        Matrix4f root = WeaponClientExtensions.handRoot != null ? WeaponClientExtensions.handRoot
+                : new Matrix4f().rotation(mc.gameRenderer.getMainCamera().rotation());
+        Matrix4f model = new Matrix4f(root).mul(attack.frame())
+                .rotateX(grip[0]).rotateZ(left ? -grip[1] : grip[1])
+                .mul(display(stack, held, left)).translate(-0.5f, -0.5f, -0.5f).mul(aboutHandle(handleYaw(stack, held)));
+        pose.mulPose(new Matrix4f(pose.last().pose()).invert().mul(blend(now, model, attack.weight())));
+        return true;
+    }
+
+    /** The turn of the weapon about its handle ({@code yaw} degrees; the model's origin is at (0.5, 0.51, 0.5)). */
+    private static Matrix4f aboutHandle(float yaw) {
+        return new Matrix4f().translation(0.5f, 0, 0.5f).rotateY((float) Math.toRadians(yaw)).translate(-0.5f, 0, -0.5f);
+    }
+
+    /** The item's display transform for {@code ctx}. */
+    private static Matrix4f display(ItemStack stack, ItemDisplayContext ctx, boolean left) {
+        BakedModel model = Minecraft.getInstance().getItemRenderer().getItemModelShaper().getItemModel(stack);
+        PoseStack tmp = new PoseStack();
+        model.applyTransform(ctx, tmp, left);
+        return new Matrix4f(tmp.last().pose());
+    }
+
+    /** {@code t} of the way from {@code a} to {@code b}: moved, turned and scaled. */
+    private static Matrix4f blend(Matrix4f a, Matrix4f b, float t) {
+        if (t >= 1) return new Matrix4f(b);
+        Vector3f move = a.getTranslation(new Vector3f()).lerp(b.getTranslation(new Vector3f()), t);
+        Quaternionf turn = a.getNormalizedRotation(new Quaternionf()).slerp(b.getNormalizedRotation(new Quaternionf()), t);
+        Vector3f scale = a.getScale(new Vector3f()).lerp(b.getScale(new Vector3f()), t);
+        return new Matrix4f().translationRotateScale(move, turn, scale);
     }
 
     /** The entity holding this stack in hand for this draw, or null (inventory, item frame, dropped). */
@@ -183,7 +241,7 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> implement
     private static final java.util.Map<String, Float> FORM_FACING = java.util.Map.of("eclipse_reaper/dark", 180f);
 
     /** Rotation of the weapon about its handle for the given view, in degrees. */
-    public static float handleYaw(ItemStack stack, ItemDisplayContext ctx) {
+    private static float handleYaw(ItemStack stack, ItemDisplayContext ctx) {
         boolean fp = ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
         boolean tp = ctx == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
         if (!fp && !tp || !(stack.getItem() instanceof FantasyWeaponItem item)) return 0;

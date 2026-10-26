@@ -1,6 +1,5 @@
 package com.fantasyweapons.compat.bettercombat;
 
-import com.fantasyweapons.client.render.WeaponRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import dev.kosmx.playerAnim.api.TransformType;
@@ -15,54 +14,50 @@ import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.PlayerSkin;
-import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.Pose;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * The weapons' first-person attacks with Better Combat, played from the very animation its attack plays on the player
- * model in third person. That animation runs on the local player in first person as well, only unseen (the weapons
- * keep to the first-person hand, see FirstPersonModeMixin). Each frame the model's weapon hand is posed twice, by the
- * animation and at rest: the first-person hand travels as the model's does, and the first-person weapon points the
- * way the model's points, so it sweeps, chops and thrusts through the view as it does on the model, the body's twist
- * and lean included, and starts and ends at its first-person rest exactly when the model's swing leaves and returns to
- * rest. What would not read from the eye is kept in view: a thrust points at the crosshair rather than straight away
- * from the eye, what the model swings behind its back is seen in front, and the hand stays on the screen.
+ * The weapons' first-person attacks with Better Combat: exactly the attack the player model plays in third person, seen
+ * from its eyes. That animation runs on the local player in first person as well, only unseen (the weapons keep to the
+ * first-person hand, see FirstPersonModeMixin). Each frame the model is posed by it and the frame its hand holds the
+ * weapon in is taken, from the eye; the first-person weapon is drawn there, with its third-person look (see
+ * WeaponRenderer), so it sweeps, chops and thrusts through the view just as it does on the model.
  * <p>
- * The model is posed looking straight ahead (Better Combat leans the swing to the player's pitch, which the view
- * already has in first person), from a model of its own so the player's renderer is left alone. Only loaded with
- * Better Combat (and so playerAnimator) installed.
+ * It goes over to the model's hold as the model's swing leaves rest and back to its own first-person rest as the swing
+ * returns, so nothing jumps where the two meet. The model is posed looking straight ahead and the swing laid on the
+ * view, so it follows where the player looks (as Better Combat's own first-person attacks do), from a model of its own,
+ * so the player's renderer is left alone. Only loaded with Better Combat (and so playerAnimator) installed.
  */
 public final class BetterCombatFirstPerson {
-    /** How far the first-person hand travels for each block the model's hand does: less, as it is nearer the eye. */
-    private static final float TRAVEL = 0.6f;
-    /** How much of the hand's travel ahead is kept: ahead is away from the eye, and shrinks the weapon into the distance. */
-    private static final float REACH = 0.4f;
-    /** How far ahead of the eye (blocks) the crosshair point is that the model's ahead aims at in the view. */
-    private static final float AIM = 1.2f;
-    /** How far (degrees) the model's hand turns from rest before the first-person blade is wholly on the model's line. */
-    private static final float INTO = 35;
-    /** How far from the middle of the view (blocks, to either side, below and above) the first-person hand may go. */
-    private static final float REACH_X = 0.75f, LOW = -0.62f, HIGH = 0.2f;
-    /** DEVELOPMENT ONLY (screenshot director): overrides the travel. */
-    public static float debugTravel = -1;
+    /** How far (degrees) the model's hand turns from rest before the first-person weapon is wholly in the model's hold. */
+    private static final float INTO = 30;
+    /** How far behind the eye (blocks) the attack is seen from (the screenshot director may change it). */
+    public static float eyeBack = 0.6f;
 
     private static PlayerModel<AbstractClientPlayer> wide, slim;
+    /** The last attack worked out, and for which moment (the weapon and the arm both ask for it every frame). */
+    private static FirstPersonAttack last;
+    private static int lastTick = Integer.MIN_VALUE;
+    private static float lastPartial = Float.NaN;
 
     private BetterCombatFirstPerson() {
     }
 
-    /**
-     * Lays the attack's motion on {@code pose} (the first-person hand, at {@code hand} in the view) if an animation is
-     * playing; returns whether one is.
-     */
-    static boolean apply(PoseStack pose, Vector3f hand, AbstractClientPlayer player, float partialTick) {
+    /** The attack as the first person sees it, or null when none is playing. */
+    static FirstPersonAttack attack(AbstractClientPlayer player, float partialTick) {
+        if (player.tickCount == lastTick && partialTick == lastPartial) return last;
+        lastTick = player.tickCount;
+        lastPartial = partialTick;
+        return last = work(player, partialTick);
+    }
+
+    private static FirstPersonAttack work(AbstractClientPlayer player, float partialTick) {
         AnimationApplier animation = ((IAnimatedPlayer) player).playerAnimator_getAnimation();
-        if (animation == null || !animation.isActive()) return false;
+        if (animation == null || !animation.isActive()) return null;
         HumanoidArm arm = player.getMainArm();
         Matrix4f swung, rest;
         float pitch = player.getXRot();
@@ -74,51 +69,23 @@ public final class BetterCombatFirstPerson {
         } finally {
             player.setXRot(pitch);
         }
-        ItemStack stack = player.getMainHandItem();
-        boolean left = arm == HumanoidArm.LEFT;
-        // how far the swing has left rest: the model's hand's turn from rest, and its travel
+        // how far the swing has left rest: the turn of the model's hand from rest
         float away = new Matrix4f(swung).mul(new Matrix4f(rest).invert()).getNormalizedRotation(new Quaternionf()).angle();
-        Vector3f travel = swung.getTranslation(new Vector3f()).sub(rest.getTranslation(new Vector3f())).mul(debugTravel >= 0 ? debugTravel : TRAVEL);
-        // the first-person blade points where the model's does, seen from the eye: up, across, down; turned there the
-        // shortest way from its rest, so it keeps its first-person face to the eye (the model's blade, flat to the
-        // swing, would be seen edge on). It turns into the model's line as the swing leaves rest and back as it returns
-        Vector3f target = swung.getNormalizedRotation(new Quaternionf())
-                .transform(display(stack, left ? ItemDisplayContext.THIRD_PERSON_LEFT_HAND : ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, left)
-                        .transform(new Vector3f(0, 1, 0)));
-        // what points ahead on the model would be seen end on from the eye, a speck: ahead is the line from the hand
-        // to the crosshair, so a thrust points the blade there. What the model swings behind its back would point
-        // past the eye, out of the view or into the camera: it is seen as far ahead instead, low and to the side for a
-        // follow-through, raised for a wind-up overhead
-        float ahead = Math.abs(target.z);
-        Vector3f aim = new Vector3f(0, 0, -AIM).sub(hand).normalize();
-        target.set(target.x, target.y, 0).fma(ahead, aim).normalize();
-        Vector3f blade = display(stack, left ? ItemDisplayContext.FIRST_PERSON_LEFT_HAND : ItemDisplayContext.FIRST_PERSON_RIGHT_HAND, left)
-                .transform(new Vector3f(0, 1, 0));
         float into = Math.min(1, away / (float) Math.toRadians(INTO));
-        Quaternionf turn = new Quaternionf().slerp(new Quaternionf().rotationTo(blade, target), into * into * (3 - 2 * into));
-        // a thrust's reach ahead would shrink the weapon into the distance, and drawing back would bring it into the
-        // camera: the hand goes only part of the way ahead, and never back; nor out of the view
-        travel.z = Math.min(travel.z * REACH, 0);
-        travel.x = Math.clamp(hand.x + travel.x, -REACH_X, REACH_X) - hand.x;
-        travel.y = Math.clamp(hand.y + travel.y, LOW, HIGH) - hand.y;
-        pose.translate(travel.x, travel.y, travel.z);
-        pose.mulPose(turn);
-        return true;
-    }
-
-    /** How the weapon's model is turned in the hand for {@code ctx}: the item's display transform and the turn about its handle. */
-    private static Quaternionf display(ItemStack stack, ItemDisplayContext ctx, boolean left) {
-        BakedModel model = Minecraft.getInstance().getItemRenderer().getItemModelShaper().getItemModel(stack);
-        PoseStack display = new PoseStack();
-        model.applyTransform(ctx, display, left);
-        display.mulPose(Axis.YP.rotationDegrees(WeaponRenderer.handleYaw(stack, ctx)));
-        return display.last().pose().getNormalizedRotation(new Quaternionf());
+        float weight = into * into * (3 - 2 * into);
+        if (weight <= 0) return null;
+        // from the eye: the model stands with its feet the eye's height below the camera, facing where it looks; seen
+        // from a little behind the eye, as the first-person view is narrower than the world's, so what the model swings
+        // out to its sides stays in view
+        Matrix4f frame = new Matrix4f().translation(0, -player.getEyeHeight(Pose.STANDING), -eyeBack).mul(swung);
+        return new FirstPersonAttack(frame, weight);
     }
 
     /**
      * Where the model holds its weapon: the frame its held item is drawn in, as the player renderer, its held item layer
      * and playerAnimator's additions to them place it, in the space the model is turned to the body's facing in (x to
-     * its right, y up, z behind: the view's axes when looking straight ahead). Posed by {@code animation}, or at rest.
+     * its right, y up, z behind: the view's axes when looking straight ahead), from its feet. Posed by
+     * {@code animation}, or at rest.
      */
     private static Matrix4f hand(AbstractClientPlayer player, HumanoidArm arm, AnimationApplier animation) {
         PlayerModel<AbstractClientPlayer> model = model(player);

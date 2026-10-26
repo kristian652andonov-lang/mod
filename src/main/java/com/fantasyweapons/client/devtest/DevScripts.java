@@ -129,7 +129,6 @@ final class DevScripts {
                 else if (name.startsWith("offhand:")) offhand(b, name.substring(8).split(","));
                 else if (name.startsWith("fpreturn:")) firstPersonReturn(b, name.substring(9).split(","));
                 else if (name.startsWith("bccombo:")) betterCombatCombo(b, name.substring(8).split(","));
-                else if (name.startsWith("bctune:")) betterCombatTune(b, name.substring(7).split(","));
                 else if (name.startsWith("reapers:")) reapers(b, name.substring(8).split(","));
                 else if (name.equals("punchyarmor")) punchyArmor(b);
                 else if (name.equals("codexshield")) codexShield(b);
@@ -3335,10 +3334,22 @@ final class DevScripts {
     private static void betterCombatCombo(ScreenshotDirector.Builder b, String[] weapons) {
         b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
                 .cmd("/time set noon").look(0, 5).hud(true).wait(20);
-        for (String w : weapons) {
-            var def = com.fantasyweapons.weapon.Weapons.get(w);
-            int cooldown = Math.round(20f / def.weaponClass().attackSpeed());
-            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).look(0, 5).wait(cooldown + 40);
+        java.util.Map<String, Integer> repeat = new java.util.HashMap<>();
+        for (String arg : weapons) {
+            // "back=" sets how far behind the eye the attacks are seen from (for the weapons after it); "native:" draws the weapon's attack in first person on Better Combat's own player model instead; a
+            // namespaced id is a vanilla item, given as it is
+            if (arg.startsWith("back=")) {
+                float back = Float.parseFloat(arg.substring(5));
+                b.run(mc -> com.fantasyweapons.compat.bettercombat.BetterCombatFirstPerson.eyeBack = back);
+                continue;
+            }
+            boolean nativeFp = arg.startsWith("native:");
+            String w = nativeFp ? arg.substring(7) : arg;
+            var def = w.contains(":") ? null : com.fantasyweapons.weapon.Weapons.get(w);
+            int cooldown = def == null ? 13 : Math.round(20f / def.weaponClass().attackSpeed());
+            b.run(mc -> com.fantasyweapons.compat.bettercombat.BetterCombatClient.debugNativeFirstPerson = nativeFp)
+                    .cmd("/clear @s").cmd(def == null ? "/give @s " + w : "/fw give " + w + " 1").wait(12).slot(0).look(0, 5).wait(cooldown + 40);
+            String tag = (nativeFp ? "native_" : "") + w.replace(':', '_') + "_" + String.format("%03d", repeat.merge(w, 1, Integer::sum));
             // a picture takes about three ticks: a dozen covers an attack and its recovery
             for (CameraType view : new CameraType[]{CameraType.FIRST_PERSON, CameraType.THIRD_PERSON_BACK}) {
                 String v = view == CameraType.FIRST_PERSON ? "fp" : "tp";
@@ -3348,39 +3359,12 @@ final class DevScripts {
                     b.click();
                     for (int f = 0; f < (k == 2 ? 16 : 12); f++) {
                         int ff = frame++;
-                        b.wait(1).screenshot("bcc_" + w + "_" + v + "_" + String.format("%03d", ff)).run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info(
+                        b.wait(1).screenshot("bcc_" + tag + "_" + v + "_" + String.format("%03d", ff)).run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info(
                                 "[bcc] {} {} f={} tick={} anim={}", w, v, ff, mc.player.tickCount, animatorState(mc.player)));
                     }
                 }
             }
             b.camera(CameraType.FIRST_PERSON);
-        }
-    }
-
-    /**
-     * The first-person combo of one weapon under several settings of the Better Combat first-person attack: each
-     * argument after the weapon is a travel.
-     */
-    private static void betterCombatTune(ScreenshotDirector.Builder b, String[] args) {
-        String w = args[0];
-        var def = com.fantasyweapons.weapon.Weapons.get(w);
-        int cooldown = Math.round(20f / def.weaponClass().attackSpeed());
-        b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
-                .cmd("/time set noon").look(0, 5).hud(true).camera(CameraType.FIRST_PERSON).wait(20)
-                .cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).look(0, 5).wait(cooldown + 40);
-        for (int c = 1; c < args.length; c++) {
-            float travel = Float.parseFloat(args[c]);
-            String tag = args[c];
-            b.run(mc -> com.fantasyweapons.compat.bettercombat.BetterCombatFirstPerson.debugTravel = travel).wait(cooldown + 30);
-            int frame = 0;
-            for (int k = 0; k < 3; k++) {
-                b.click();
-                for (int f = 0; f < (k == 2 ? 16 : 12); f++) {
-                    int ff = frame++;
-                    b.wait(1).screenshot("bct_" + w + "_" + tag + "_" + String.format("%03d", ff))
-                            .run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info("[bct] {} f={}", tag, ff));
-                }
-            }
         }
     }
 

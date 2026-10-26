@@ -19,8 +19,8 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
  * <p>
  * In first person a weapon's attack is not drawn on the player model, as Better Combat does with other weapons (see
  * FirstPersonModeMixin): the model's arm ended each swing far from where the first-person hand holds the weapon, so the
- * weapon vanished and then jumped back to rest, shaking as it rose. It stays in the first-person hand and plays the same
- * attack there, the model's animation laid on the hand, from rest back to rest (see BetterCombatFirstPerson); Better
+ * weapon vanished and then jumped back to rest, shaking as it rose. The first-person weapon plays the model's attack
+ * instead, seen from the eye, going over to it from its first-person rest and back (see BetterCombatFirstPerson); Better
  * Combat still runs the combo, picks the targets and lands the blows, and plays its animations on the model everyone
  * else sees.
  */
@@ -28,19 +28,19 @@ public final class BetterCombatClient {
     private BetterCombatClient() {
     }
 
+    /** DEVELOPMENT ONLY (screenshot director): leaves the weapons' first-person attacks to Better Combat's model. */
+    public static boolean debugNativeFirstPerson;
+
     /** Whether the local player's attack is drawn in the first-person hand, not on the model: one of the weapons held. */
     public static boolean swingsInHand() {
+        if (debugNativeFirstPerson) return false;
         var player = Minecraft.getInstance().player;
         return player != null && player.getMainHandItem().getItem() instanceof FantasyWeaponItem weapon && !weapon.definition().weaponClass().magic();
     }
 
-    /**
-     * Lays the weapon's Better Combat attack on the first-person hand ({@code pose}, at {@code hand} in the view), as the
-     * player model plays it (see BetterCombatFirstPerson); returns whether an attack is playing.
-     */
-    public static boolean firstPersonAttack(com.mojang.blaze3d.vertex.PoseStack pose, org.joml.Vector3f hand, net.minecraft.world.entity.LivingEntity entity,
-                                            float partialTick) {
-        return entity instanceof net.minecraft.client.player.AbstractClientPlayer player && BetterCombatFirstPerson.apply(pose, hand, player, partialTick);
+    /** The Better Combat attack {@code entity} is playing, as the first person sees it (see BetterCombatFirstPerson), or null. */
+    public static FirstPersonAttack firstPersonAttack(net.minecraft.world.entity.LivingEntity entity, float partialTick) {
+        return entity instanceof net.minecraft.client.player.AbstractClientPlayer player ? BetterCombatFirstPerson.attack(player, partialTick) : null;
     }
 
     public static void init() {
