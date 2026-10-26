@@ -86,6 +86,7 @@ final class DevScripts {
                     b.wait(40).screenshot("oresight_40");
                 }
                 else if (name.equals("classpages")) classPages(b);
+                else if (name.equals("classgear")) classGear(b);
                 else if (name.equals("gear")) gear(b);
                 else if (name.equals("forgefx")) forgeFx(b);
                 else if (name.equals("codexquests")) {
@@ -2569,6 +2570,34 @@ final class DevScripts {
             }
             b.run(mc -> com.fantasyweapons.client.fx.ImpactFrames.debugElapsed = null).wait(60);
         }
+    }
+
+    /**
+     * The gear row of every class page with the mouse away from it; then the mage's sliding strips over a few seconds,
+     * held still under the mouse, and turned by the wheel.
+     */
+    private static void classGear(ScreenshotDirector.Builder b) {
+        b.cmd("/gamemode survival").cmd("/time set noon").cmd("/fw class set none").wait(20).hud(true).cmd("/tp @s 0 -60 0 0 0").wait(10);
+        b.run(mc -> com.fantasyweapons.client.gui.ClassScreen.devMouse = new double[]{1, 1})
+                .run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.ClassScreen())).wait(12);
+        for (var pc : com.fantasyweapons.playerclass.PlayerClass.values()) {
+            if (pc == com.fantasyweapons.playerclass.PlayerClass.NONE) continue;
+            try {
+                classScreen(b, c -> c.devPage(pc));
+            } catch (RuntimeException e) {
+                continue;
+            }
+            b.wait(14).screenshot("cg_" + pc.id());
+        }
+        classScreen(b, c -> c.devPage(com.fantasyweapons.playerclass.PlayerClass.MAGE));
+        for (int t : new int[]{10, 30, 50, 70, 90, 110}) b.wait(t == 10 ? 10 : 20).screenshot("cg_mage_t" + t);
+        // the mouse over the weapons strip (the page's right side starts 152 in, the gear box 104 down): it holds still
+        // and the item under it is told
+        classScreen(b, c -> com.fantasyweapons.client.gui.ClassScreen.devMouse = new double[]{c.devLeft() + 152 + 60, c.devTop() + 104 + 18});
+        b.wait(10).screenshot("cg_mage_hover").wait(30).screenshot("cg_mage_hover_later");
+        classScreen(b, c -> c.devScroll(-3));
+        b.wait(5).screenshot("cg_mage_wheel");
+        b.run(mc -> com.fantasyweapons.client.gui.ClassScreen.devMouse = null);
     }
 
     private static void classPages(ScreenshotDirector.Builder b) {

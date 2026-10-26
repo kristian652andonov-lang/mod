@@ -81,6 +81,19 @@ public final class ClassScreen extends Screen {
     private float confirmUntil;
     private float time;
     private ItemStack hoveredGear = ItemStack.EMPTY;
+    /** The width of an item slot and the space after it. */
+    private static final int SLOT = 19;
+    /** How fast a gear strip slides (menu units a tick) and how long it rests at either end (in the same units). */
+    private static final float STRIP_SPEED = 0.6f, STRIP_PAUSE = 24;
+    /** The gear strips that slide on the page shown, where they are and how far they go. */
+    private record Strip(String label, int x, int y, int w, float max) {
+    }
+    private final List<Strip> strips = new ArrayList<>();
+    /** Each strip's place (menu units; past either end it rests) and the way it is sliding, by label. */
+    private final java.util.Map<String, float[]> stripState = new java.util.HashMap<>();
+    /** Ticks since the last frame, for the strips' slide. */
+    private float frameTicks;
+    private long lastFrame;
 
     public ClassScreen() {
         super(Component.literal(Tr.s("Choose Your Class")));
@@ -132,6 +145,7 @@ public final class ClassScreen extends Screen {
         turnDir = dir;
         turnAt = Util.getMillis();
         confirming = null;
+        stripState.clear();
         minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.BOOK_PAGE_TURN, 1.1f + 0.1f * dir, 0.6f));
     }
 
@@ -181,11 +195,18 @@ public final class ClassScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        if (devMouse != null) {
+            mouseX = (int) zoom.out(devMouse[0]);
+            mouseY = (int) zoom.out(devMouse[1]);
+        }
         super.render(g, mouseX, mouseY, partialTick);
         int realX = mouseX, realY = mouseY;
         mouseX = (int) zoom.in(mouseX);
         mouseY = (int) zoom.in(mouseY);
         time = Util.getMillis() / 50f;
+        long now = Util.getMillis();
+        frameTicks = lastFrame == 0 ? 0 : Math.min(5, (now - lastFrame) / 50f);
+        lastFrame = now;
         if (confirming != null && time > confirmUntil) confirming = null;
         PlayerClass c = shown(), current = ClassService.of(minecraft.player);
         boolean locked = !c.available();
@@ -308,16 +329,23 @@ public final class ClassScreen extends Screen {
             int lines = UiDraw.wrap(g, perk, px0 + 9, py, 118, Colors.alpha(1f, locked ? 0x8A8494 : drawback ? BAD : GOOD), 0.48f, 5);
             py += lines * 5 + 1.2f;
         }
-        // the gear that answers to the class
+        // the gear that answers to the class: weapons and armor side by side, each in a strip of its own that slides
+        // along when it holds more than it shows
         int gy = y + 76;
         box(g, rx, gy, rx + 252, gy + 30);
-        List<ItemStack> armor = armor(c);
+        strips.clear();
+        List<ItemStack> weapons = weapons(c), armor = armor(c);
+        int x0 = rx + 6, avail = 240;
         if (armor.isEmpty()) {
-            // the mage wears no legendary armor: its staffs and spellbooks have the whole row
-            gearRow(g, "STAFFS AND SPELLBOOKS", weapons(c), rx + 6, gy, mouseX, mouseY, locked);
+            gearRow(g, "WEAPONS", weapons, x0, gy, avail, mouseX, mouseY, locked);
         } else {
-            gearRow(g, "WEAPONS", weapons(c), rx + 6, gy, mouseX, mouseY, locked);
-            gearRow(g, "ARMOR", armor, rx + 130, gy, mouseX, mouseY, locked);
+            int gap = 10, half = (avail - gap) / 2, needW = need(weapons), needA = need(armor);
+            int ww;
+            if (needW <= half && needA <= half) ww = half;
+            else if (needW + needA + gap <= avail) ww = needW;
+            else ww = Math.clamp(Math.round((avail - gap) * weapons.size() / (float) (weapons.size() + armor.size())), 60, avail - gap - 60);
+            gearRow(g, "WEAPONS", weapons, x0, gy, ww, mouseX, mouseY, locked);
+            gearRow(g, "ARMOR", armor, x0 + ww + gap, gy, avail - gap - ww, mouseX, mouseY, locked);
         }
         // the signature gift
         int sy = gy + 36;
@@ -336,19 +364,85 @@ public final class ClassScreen extends Screen {
                 Colors.alpha(1f, locked ? 0x8A8494 : 0xCFC3A6), 0.52f, 7);
     }
 
-    private void gearRow(GuiGraphics g, String label, List<ItemStack> items, int x, int y, int mouseX, int mouseY, boolean locked) {
+    /** How wide a row of these items is at full size. */
+    private static int need(List<ItemStack> items) {
+        return items.size() * SLOT - 1;
+    }
+
+    /**
+     * A labelled row of items {@code w} wide. When they are more than it shows, it is a strip that slides along to show
+     * them all, back and forth, stops while the mouse is over it, and turns with the mouse wheel; small arrows by the
+     * label show which way there is more.
+     */
+    private void gearRow(GuiGraphics g, String label, List<ItemStack> items, int x, int y, int w, int mouseX, int mouseY, boolean locked) {
         UiDraw.text(g, label, x, y + 3, Colors.alpha(1f, GOLD), 0.5f, true);
         if (items.isEmpty()) {
             UiDraw.text(g, "None yet", x, y + 15, Colors.alpha(1f, 0x8A8494), 0.5f, false);
             return;
         }
+        int iy = y + 10;
+        float max = Math.max(0, need(items) - w);
+        boolean over = inside(mouseX, mouseY, x, iy, w, 18);
+        float[] strip = stripState.computeIfAbsent(label, k -> new float[]{0, 1});
+        if (max > 0) {
+            strips.add(new Strip(label, x, iy, w, max));
+            if (!over && !locked) {
+                // a slow slide, pausing a moment at either end
+                strip[0] += strip[1] * frameTicks * STRIP_SPEED;
+                if (strip[0] > max + STRIP_PAUSE || strip[0] < -STRIP_PAUSE) strip[1] = -strip[1];
+            }
+            strip[0] = Math.clamp(strip[0], -STRIP_PAUSE, max + STRIP_PAUSE);
+            float off = Math.clamp(strip[0], 0, max);
+            int more = Colors.alpha(1f, locked ? LOCKED : GOLD_LIGHT), none = Colors.alpha(0.35f, MUTED);
+            chevron(g, x + w - 11, y + 5.5f, -1, off > 0.5f ? more : none);
+            chevron(g, x + w - 3, y + 5.5f, 1, off < max - 0.5f ? more : none);
+            zoom.scissor(g, x, iy - 1, x + w, iy + 19);
+            try {
+                drawItems(g, items, x - off, iy, x, x + w, mouseX, mouseY, locked);
+                // the items fade out where the strip cuts them off
+                g.pose().pushPose();
+                g.pose().translate(0, 0, 200);
+                if (off > 0.5f) fade(g, x, iy - 1, iy + 19, 1);
+                if (off < max - 0.5f) fade(g, x + w, iy - 1, iy + 19, -1);
+                g.pose().popPose();
+            } finally {
+                g.disableScissor();
+            }
+        } else {
+            strip[0] = 0;
+            drawItems(g, items, x, iy, x, x + w, mouseX, mouseY, locked);
+        }
+    }
+
+    /** A shadow 10 wide from the edge at {@code x} into the strip ({@code dir} 1 rightwards, -1 leftwards), darkest at the edge. */
+    private static void fade(GuiGraphics g, float x, float y0, float y1, int dir) {
+        for (int i = 0; i < 10; i++) {
+            float a = 0.85f * (1 - i / 10f);
+            float px = x + dir * i;
+            UiDraw.rect(g, Math.min(px, px + dir), y0, Math.max(px, px + dir), y1, Colors.alpha(a * a, 0x0B0810));
+        }
+    }
+
+    /** A small chevron at ({@code cx}, {@code cy}) pointing left ({@code dir} -1) or right (1). */
+    private static void chevron(GuiGraphics g, float cx, float cy, int dir, int color) {
+        UiDraw.line(g, cx - 1.2f * dir, cy - 2.2f, cx + 1.2f * dir, cy, 0.9f, color, color);
+        UiDraw.line(g, cx + 1.2f * dir, cy, cx - 1.2f * dir, cy + 2.2f, 0.9f, color, color);
+    }
+
+    /** Item slots from {@code x}; only those between {@code clip0} and {@code clip1} can be hovered. */
+    private void drawItems(GuiGraphics g, List<ItemStack> items, float x, int iy, int clip0, int clip1, int mouseX, int mouseY, boolean locked) {
         for (int i = 0; i < items.size(); i++) {
-            int ix = x + i * 19, iy = y + 10;
-            UiDraw.rect(g, ix, iy, ix + 18, iy + 18, 0xFF0C0910);
-            UiDraw.border(g, ix, iy, ix + 18, iy + 18, 1, Colors.alpha(0.7f, LINE));
-            g.renderFakeItem(items.get(i), ix + 1, iy + 1);
-            if (locked) UiDraw.rect(g, ix + 1, iy + 1, ix + 17, iy + 17, Colors.alpha(0.55f, 0x0A0810));
-            if (mouseX >= ix && mouseX < ix + 18 && mouseY >= iy && mouseY < iy + 18) hoveredGear = items.get(i);
+            float ix = x + i * SLOT;
+            if (ix + 18 < clip0 || ix > clip1) continue;
+            g.pose().pushPose();
+            g.pose().translate(ix - (int) ix, 0, 0);
+            int sx = (int) ix;
+            UiDraw.rect(g, sx, iy, sx + 18, iy + 18, 0xFF0C0910);
+            UiDraw.border(g, sx, iy, sx + 18, iy + 18, 1, Colors.alpha(0.7f, LINE));
+            g.renderFakeItem(items.get(i), sx + 1, iy + 1);
+            if (locked) UiDraw.rect(g, sx + 1, iy + 1, sx + 17, iy + 17, Colors.alpha(0.55f, 0x0A0810));
+            g.pose().popPose();
+            if (mouseX >= Math.max(ix, clip0) && mouseX < Math.min(ix + 18, clip1) && mouseY >= iy && mouseY < iy + 18) hoveredGear = items.get(i);
         }
     }
 
@@ -462,6 +556,15 @@ public final class ClassScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        double mx = zoom.in(mouseX), my = zoom.in(mouseY);
+        for (Strip strip : strips) {
+            if (inside(mx, my, strip.x(), strip.y(), strip.w(), 18)) {
+                // over a gear strip the wheel slides it
+                float[] state = stripState.computeIfAbsent(strip.label(), k -> new float[]{0, 1});
+                state[0] = Math.clamp(Math.clamp(state[0], 0, strip.max()) - (float) scrollY * SLOT, 0, strip.max());
+                return true;
+            }
+        }
         if (scrollY != 0) turn(scrollY > 0 ? -1 : 1);
         return true;
     }
@@ -488,6 +591,23 @@ public final class ClassScreen extends Screen {
     public void devPage(PlayerClass c) {
         int at = PAGES.indexOf(c);
         if (at >= 0 && at != index) turn(at - index);
+    }
+
+    /** DEVELOPMENT ONLY (screenshot director): where the mouse is taken to be, in the menu's units from its corner. */
+    public static double[] devMouse;
+
+    /** DEVELOPMENT ONLY: the mouse wheel turned at {@link #devMouse}. */
+    public void devScroll(double amount) {
+        if (devMouse != null) mouseScrolled(zoom.out(devMouse[0]), zoom.out(devMouse[1]), 0, amount);
+    }
+
+    /** DEVELOPMENT ONLY: the menu's corner, in its own units. */
+    public int devLeft() {
+        return left;
+    }
+
+    public int devTop() {
+        return top;
     }
 
     public void devChoose() {

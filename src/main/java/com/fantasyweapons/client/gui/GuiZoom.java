@@ -39,6 +39,11 @@ final class GuiZoom {
         return screen / zoom;
     }
 
+    /** A point of the menu (in its units) on the screen. */
+    double out(double menu) {
+        return menu * zoom;
+    }
+
     void push(GuiGraphics g) {
         g.pose().pushPose();
         g.pose().scale(zoom, zoom, 1);
