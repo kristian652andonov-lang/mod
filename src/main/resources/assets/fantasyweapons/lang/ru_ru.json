@@ -3021,5 +3021,6 @@
   "Draw only the parts that show": "Рисовать только видимые части",
   "The mod's armor, weapons, tools and machines draw only the parts that show: a part whose texture is clear there is left out, and the glow layer draws only the parts that glow. Nothing you can see changes": "Броня, оружие, инструменты и механизмы мода рисуют только видимые части: часть, текстура которой там прозрачна, пропускается, а слой свечения рисует только светящиеся части. Ничего видимого не меняется",
   "Leave out details smaller than a pixel": "Пропускать детали меньше пикселя",
-  "Parts of the mod's models smaller than a pixel on the screen (on armor and weapons far away) are left out": "Части моделей мода, которые на экране меньше пикселя (у брони и оружия вдалеке), пропускаются"
+  "Parts of the mod's models smaller than a pixel on the screen (on armor and weapons far away) are left out": "Части моделей мода, которые на экране меньше пикселя (у брони и оружия вдалеке), пропускаются",
+  "The %s is held in both hands: it cannot go in the off hand.": "%s — двуручное оружие: его нельзя взять во вторую руку."
 }

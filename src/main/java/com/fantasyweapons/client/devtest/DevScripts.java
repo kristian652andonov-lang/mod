@@ -125,6 +125,7 @@ final class DevScripts {
                 else if (name.equals("punchy")) punchy(b);
                 else if (name.startsWith("punchycombo:")) punchyCombo(b, name.substring(12).split(","));
                 else if (name.startsWith("bcfinisher:")) betterCombatFinisher(b, name.substring(11).split(","));
+                else if (name.startsWith("offhand:")) offhand(b, name.substring(8).split(","));
                 else if (name.equals("punchyarmor")) punchyArmor(b);
                 else if (name.equals("codexshield")) codexShield(b);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
@@ -3233,6 +3234,23 @@ final class DevScripts {
                 b.wait(4);
             }
             b.wait(40);
+        }
+    }
+
+    /**
+     * A weapon swapped into the offhand with the real swap key (F): first person, the hotbar, third person from the
+     * front, and the inventory; then swapped back.
+     */
+    private static void offhand(ScreenshotDirector.Builder b, String[] weapons) {
+        b.cmd("/gamemode survival").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
+                .cmd("/time set noon").camera(CameraType.FIRST_PERSON).look(0, 10).hud(true).wait(20);
+        for (String w : weapons) {
+            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).wait(30).screenshot("off_" + w + "_main")
+                    .run(mc -> net.minecraft.client.KeyMapping.click(mc.options.keySwapOffhand.getKey())).wait(6).screenshot("off_" + w + "_fp")
+                    .camera(CameraType.THIRD_PERSON_FRONT).wait(10).screenshot("off_" + w + "_front")
+                    .camera(CameraType.THIRD_PERSON_BACK).wait(10).screenshot("off_" + w + "_back").camera(CameraType.FIRST_PERSON)
+                    .run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(10).screenshot("off_" + w + "_inv")
+                    .closeScreen().run(mc -> net.minecraft.client.KeyMapping.click(mc.options.keySwapOffhand.getKey())).wait(20).screenshot("off_" + w + "_back_main");
         }
     }
 

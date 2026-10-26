@@ -74,7 +74,7 @@ All keys can be rebound under *Controls → Fantasy Weapons*.
 |---|---|
 | **R** (hold) | Charge the selected ability; release to cast. Releasing too early fizzles it. |
 | **G** | Cycle the selected ability (sneak + G cycles backwards). |
-| **F** | Switch form or mode (Infernochain sword ↔ chainblade, Eclipse Reaper light ↔ dark). |
+| **F** | Switch form or mode (Infernochain sword ↔ chainblade, Eclipse Reaper light ↔ dark). With other weapons F swaps hands as usual, except that two-handed weapons (every class but the longswords, the chainblade, staffs and spellbooks) never go into the off hand: they stay in the main hand, and one put there another way goes back. |
 | **K** | Open the weapon progression menu (skill tree, upgrades, upgrade-to-max, stats, model preview). |
 | Attack | Melee with the weapon. Sneak-attack at full strength for a heavy attack. |
 

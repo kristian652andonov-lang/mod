@@ -33,6 +33,7 @@ public final class ModEvents {
         bus.addListener(ModEvents::onAttack);
         bus.addListener(EventPriority.LOWEST, ModEvents::onDeath);
         bus.addListener(ModEvents::onPlayerTick);
+        bus.addListener(com.fantasyweapons.weapon.TwoHandedGrip::onSwapHands);
         bus.addListener(ModEvents::onEntityTick);
         bus.addListener(ModEvents::onLevelTick);
         bus.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post e) -> com.fantasyweapons.world.wreck.WorldWreck.tick(e.getServer()));
@@ -83,6 +84,7 @@ public final class ModEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             AbilityService.tick(player);
             com.fantasyweapons.compat.bettercombat.BetterCombatCompat.tick(player);
+            com.fantasyweapons.weapon.TwoHandedGrip.tick(player);
             com.fantasyweapons.armor.ArmorEffects.tick(player);
             if (player.tickCount % 20 == 0) {
                 com.fantasyweapons.armor.ArmorSet set = com.fantasyweapons.armor.FantasyArmorItem.fullSet(player);
