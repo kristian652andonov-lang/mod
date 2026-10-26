@@ -166,11 +166,12 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
      * After a block of the tree took the place of {@code existing}: if that was a plant or the
      * ground (a root laid into the soil, a foot sunk into a slope), the plants it carried go with
      * it (the grass on the soil a root replaced, the top half of tall grass whose foot a log
-     * replaced, or the foot of one whose top a leaf replaced), as they would at the first block
-     * update. Such plants may stand in a neighbouring chunk that has finished its own decoration.
+     * replaced, the foot of one whose top a leaf replaced, or a propagule hanging from mangrove
+     * leaves a log replaced), as they would at the first block update. Such plants may stand in a
+     * neighbouring chunk that has finished its own decoration.
      */
     private static void replaced(WorldGenLevel level, BlockPos.MutableBlockPos pos, BlockState existing) {
-        if (!existing.isAir() && !existing.is(BlockTags.LEAVES) && !existing.is(BlockTags.LOGS) && !existing.is(Blocks.WATER)) {
+        if (!existing.isAir() && !existing.is(BlockTags.LOGS) && !existing.is(Blocks.WATER)) {
             UnsupportedPlantCleanup.clearAround(level, pos, pos.getX(), pos.getY(), pos.getZ());
         }
     }

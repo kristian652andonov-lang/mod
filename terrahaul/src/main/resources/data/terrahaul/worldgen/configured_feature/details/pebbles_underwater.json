@@ -730,6 +730,10 @@
                 "blocks": "minecraft:water"
               },
               {
+                "type": "minecraft:matching_fluids",
+                "fluids": "minecraft:water"
+              },
+              {
                 "type": "minecraft:any_of",
                 "predicates": [
                   {

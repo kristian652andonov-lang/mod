@@ -51,8 +51,10 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
  * it undermines (the surface water, trees, boulders, fallen logs, ruins), but any feature placed
  * on ground that changes later, other mods' and vanilla ones included, can leave a plant behind,
  * and one missed case shows as a plant floating in mid-air. This pass runs after every other
- * feature of the chunk (it is listed after the water wall sealer in the same biome modifier, in
- * the last step, {@code top_layer_modification}), so the chunk's own terrain is final by then.
+ * feature of the chunk but the water wall sealer (it is listed just before the sealer in the same
+ * biome modifier, in the last step, {@code top_layer_modification}), so the chunk's own terrain is
+ * final by then, and a plant it takes away from beside still water leaves no water wall: the
+ * sealer still closes it.
  * What a neighbouring chunk's features change here afterwards is that feature's to clear: a
  * vanilla feature that does not (an ice spike under a snow layer, a sand disk under grass) can
  * still leave a plant that cannot stay.

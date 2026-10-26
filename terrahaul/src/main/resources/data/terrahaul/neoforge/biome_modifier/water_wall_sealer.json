@@ -2,8 +2,8 @@
   "type": "neoforge:add_features",
   "biomes": "#minecraft:is_overworld",
   "features": [
-    "terrahaul:water_wall_sealer",
-    "terrahaul:plant_cleanup"
+    "terrahaul:plant_cleanup",
+    "terrahaul:water_wall_sealer"
   ],
   "step": "top_layer_modification"
 }

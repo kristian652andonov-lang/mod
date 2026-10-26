@@ -57,7 +57,7 @@ def terrain_cleanup():
     placed('water_wall_sealer', 'terrahaul:water_wall_sealer', [])
     configured('plant_cleanup', 'terrahaul:plant_cleanup', {})
     placed('plant_cleanup', 'terrahaul:plant_cleanup', [])
-    add_features('water_wall_sealer', '#minecraft:is_overworld', ['terrahaul:water_wall_sealer', 'terrahaul:plant_cleanup'],
+    add_features('water_wall_sealer', '#minecraft:is_overworld', ['terrahaul:plant_cleanup', 'terrahaul:water_wall_sealer'],
                  'top_layer_modification')
 
 
@@ -412,10 +412,12 @@ def facings_states(block, extra_list, base_weight=1, **fixed):
 def ground_predicate(on=None, water=False):
     """Air (or water) at the position, and one of `on` (tags prefixed with '#', else block ids) below.
 
-    Water means a water block, not any block holding water: seagrass and tall seagrass hold water
-    too, and a pebble put in place of the foot of tall seagrass would leave its top floating."""
-    preds = [{"type": "minecraft:matching_blocks", "blocks": "minecraft:water"} if water
-             else {"type": "minecraft:matching_blocks", "blocks": "minecraft:air"}]
+    Water means a still water block, not any block holding water: seagrass and tall seagrass hold
+    water too, and a pebble put in place of the foot of tall seagrass would leave its top floating;
+    and a waterlogged pebble put into flowing water would turn it into a source."""
+    preds = ([{"type": "minecraft:matching_blocks", "blocks": "minecraft:water"},
+              {"type": "minecraft:matching_fluids", "fluids": "minecraft:water"}] if water
+             else [{"type": "minecraft:matching_blocks", "blocks": "minecraft:air"}])
     if on:
         options = []
         for t in on:
