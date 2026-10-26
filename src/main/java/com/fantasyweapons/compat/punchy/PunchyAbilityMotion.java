@@ -41,14 +41,6 @@ public final class PunchyAbilityMotion {
     public static boolean push(PlayerModel<?> model, Player player, HumanoidArm arm, PoseStack poseStack, float partialTick, boolean item) {
         if (view == null || arm != player.getMainArm() || !(player.getMainHandItem().getItem() instanceof FantasyWeaponItem weapon)) return false;
         int side = arm == HumanoidArm.RIGHT ? 1 : -1;
-        PoseStack motion = new PoseStack();
-        boolean moving = WeaponClientExtensions.applyAbilityMotion(motion, player, weapon, side, partialTick);
-        // a Better Combat attack: Punchy leaves it be (unless it animates Better Combat's attacks itself), so the weapon's
-        // own swing is laid over its arm, as it is in the first-person hand without Punchy
-        if (com.fantasyweapons.client.anim.AnimTracker.betterCombatSwing(player, partialTick) && !PunchyCompat.animatesBetterCombatAttacks()) {
-            moving |= WeaponClientExtensions.applySwing(motion, player, weapon, side, partialTick);
-        }
-        if (!moving) return false;
         // from Punchy's own space (turned about the view) into the view's, where the motion is made
         Matrix4f toView = new Matrix4f(view).invert().mul(poseStack.last().pose());
         // the shoulder and the fist of the arm as Punchy has posed it
@@ -56,8 +48,18 @@ public final class PunchyAbilityMotion {
         (arm == HumanoidArm.RIGHT ? model.rightArm : model.leftArm).translateAndRotate(armPose);
         Vector3f shoulder = toView.transformPosition(armPose.last().pose().transformPosition(new Vector3f()));
         Vector3f hand = toView.transformPosition(armPose.last().pose().transformPosition(new Vector3f(-side / 16f, 10 / 16f, 0)));
+        // the motion is made about the fist, where it is in the view
+        PoseStack motion = new PoseStack();
+        motion.translate(hand.x, hand.y, hand.z);
+        boolean moving = WeaponClientExtensions.applyAbilityMotion(motion, player, weapon, side, partialTick);
+        // a Better Combat attack: Punchy leaves it be (unless it animates Better Combat's attacks itself), so the attack's
+        // animation is laid over its arm, as it is on the first-person hand without Punchy
+        if (com.fantasyweapons.client.anim.AnimTracker.betterCombatSwing(player) && !PunchyCompat.animatesBetterCombatAttacks()) {
+            moving |= WeaponClientExtensions.applyBetterCombatSwing(motion, hand, player, partialTick);
+        }
+        if (!moving) return false;
         // the weapon: moved about the fist
-        Matrix4f moved = new Matrix4f().translation(hand).mul(motion.last().pose()).translate(-hand.x, -hand.y, -hand.z);
+        Matrix4f moved = new Matrix4f(motion.last().pose()).translate(-hand.x, -hand.y, -hand.z);
         if (!item) {
             // the arm: its fist carried to where the weapon's grip went, turned to reach there from the shoulder
             Vector3f to = moved.transformPosition(new Vector3f(hand));

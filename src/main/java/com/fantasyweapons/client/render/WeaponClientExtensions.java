@@ -2,6 +2,8 @@ package com.fantasyweapons.client.render;
 
 import com.fantasyweapons.client.anim.AnimTracker;
 import com.fantasyweapons.client.anim.WeaponArmPoses;
+import com.fantasyweapons.compat.bettercombat.BetterCombatClient;
+import com.fantasyweapons.compat.bettercombat.BetterCombatCompat;
 import com.fantasyweapons.weapon.FantasyWeaponItem;
 import com.fantasyweapons.weapon.WeaponClass;
 import com.fantasyweapons.weapon.WeaponForm;
@@ -15,6 +17,7 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import org.joml.Vector3f;
 
 /**
  * Player presentation for fantasy weapons.
@@ -26,6 +29,9 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
  * </ul>
  */
 public class WeaponClientExtensions implements IClientItemExtensions {
+    /** Where the weapon hand rests in the first-person view (x for the right hand). */
+    private static final float HAND_X = 0.56F, HAND_Y = -0.52F, HAND_Z = -0.72F;
+
     @Override
     public HumanoidModel.ArmPose getArmPose(LivingEntity entity, InteractionHand hand, ItemStack stack) {
         if (hand != InteractionHand.MAIN_HAND || !(stack.getItem() instanceof FantasyWeaponItem item)) return HumanoidModel.ArmPose.ITEM;
@@ -42,7 +48,7 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         // their own swing instead (the dip sank them out of sight through the blow and had them climb back after it);
         // switching items still lowers and raises them
         if (AnimTracker.recoveringFromSwing(player)) equipProcess = 0;
-        pose.translate(side * 0.56F, -0.52F + equipProcess * -0.6F, -0.72F);
+        pose.translate(side * HAND_X, HAND_Y + equipProcess * -0.6F, HAND_Z);
 
         // the extended chainblade is far longer than the sword: keep it from filling the whole view
         WeaponForm heldForm = item.definition().form(FantasyWeaponItem.data(stack));
@@ -60,11 +66,21 @@ public class WeaponClientExtensions implements IClientItemExtensions {
 
     /** The first-person attack swing about the hand, if one is playing; returns whether it is. */
     public static boolean applySwing(PoseStack pose, LivingEntity player, FantasyWeaponItem item, int side, float partialTick) {
+        // Better Combat's attacks play its own animation, as the player model does in third person
+        if (AnimTracker.betterCombatSwing(player)) return applyBetterCombatSwing(pose, new Vector3f(side * HAND_X, HAND_Y, HAND_Z), player, partialTick);
         float s = AnimTracker.swingProgress(player, partialTick);
         if (s < 0) return false;
         float heavy = AnimTracker.heavy(player) ? 1.3f : 1f;
         FirstPersonAttacks.apply(pose, item.definition().weaponClass().swingStyle(), AnimTracker.variant(player), side, heavy, s);
         return true;
+    }
+
+    /**
+     * The first-person motion of a Better Combat attack about the hand ({@code hand}: where it is in the view), if one is
+     * playing; returns whether it is.
+     */
+    public static boolean applyBetterCombatSwing(PoseStack pose, Vector3f hand, LivingEntity player, float partialTick) {
+        return BetterCombatCompat.loaded() && BetterCombatClient.firstPersonAttack(pose, hand, player, partialTick);
     }
 
     /**

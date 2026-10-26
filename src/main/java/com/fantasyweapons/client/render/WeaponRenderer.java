@@ -183,7 +183,7 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> implement
     private static final java.util.Map<String, Float> FORM_FACING = java.util.Map.of("eclipse_reaper/dark", 180f);
 
     /** Rotation of the weapon about its handle for the given view, in degrees. */
-    private static float handleYaw(ItemStack stack, ItemDisplayContext ctx) {
+    public static float handleYaw(ItemStack stack, ItemDisplayContext ctx) {
         boolean fp = ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
         boolean tp = ctx == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.THIRD_PERSON_LEFT_HAND;
         if (!fp && !tp || !(stack.getItem() instanceof FantasyWeaponItem item)) return 0;

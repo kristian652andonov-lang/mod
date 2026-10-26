@@ -19,9 +19,10 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
  * <p>
  * In first person a weapon's attack is not drawn on the player model, as Better Combat does with other weapons (see
  * FirstPersonModeMixin): the model's arm ended each swing far from where the first-person hand holds the weapon, so the
- * weapon vanished and then jumped back to rest, shaking as it rose. It stays in the first-person hand and plays its own
- * attack there, from rest back to rest; Better Combat still runs the combo, picks the targets and lands the blows, and
- * plays its animations on the model everyone else sees.
+ * weapon vanished and then jumped back to rest, shaking as it rose. It stays in the first-person hand and plays the same
+ * attack there, the model's animation laid on the hand, from rest back to rest (see BetterCombatFirstPerson); Better
+ * Combat still runs the combo, picks the targets and lands the blows, and plays its animations on the model everyone
+ * else sees.
  */
 public final class BetterCombatClient {
     private BetterCombatClient() {
@@ -31,6 +32,15 @@ public final class BetterCombatClient {
     public static boolean swingsInHand() {
         var player = Minecraft.getInstance().player;
         return player != null && player.getMainHandItem().getItem() instanceof FantasyWeaponItem weapon && !weapon.definition().weaponClass().magic();
+    }
+
+    /**
+     * Lays the weapon's Better Combat attack on the first-person hand ({@code pose}, at {@code hand} in the view), as the
+     * player model plays it (see BetterCombatFirstPerson); returns whether an attack is playing.
+     */
+    public static boolean firstPersonAttack(com.mojang.blaze3d.vertex.PoseStack pose, org.joml.Vector3f hand, net.minecraft.world.entity.LivingEntity entity,
+                                            float partialTick) {
+        return entity instanceof net.minecraft.client.player.AbstractClientPlayer player && BetterCombatFirstPerson.apply(pose, hand, player, partialTick);
     }
 
     public static void init() {

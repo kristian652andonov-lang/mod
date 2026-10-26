@@ -249,10 +249,13 @@ public final class AnimTracker {
         return s != null && s.swingStart >= 0 && e.getMainHandItem().getItem() == s.swingItem && now(0) - s.lastSwing < s.swingDuration / 0.8 + 12;
     }
 
-    /** Whether a swing of Better Combat's is playing in the first-person hand (see BetterCombatClient). */
-    public static boolean betterCombatSwing(LivingEntity e, float partial) {
+    /**
+     * Whether the held weapon's last swing was one of Better Combat's and may still be playing: its animation plays it
+     * (see BetterCombatClient), for as long as it runs (its wind-down included, well within three swings' time).
+     */
+    public static boolean betterCombatSwing(LivingEntity e) {
         State s = STATES.get(e.getId());
-        return s != null && s.betterCombat && swingProgress(e, partial) >= 0;
+        return s != null && s.betterCombat && e.getMainHandItem().getItem() == s.swingItem && now(0) - s.lastSwing < s.swingDuration * 3;
     }
 
     /** Which of the weapon's attacks the current (or last) swing is: 0, 1 or 2. */
