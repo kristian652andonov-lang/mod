@@ -148,7 +148,7 @@ public class GrantExecutionVfx extends Vfx {
             float a0 = rot + i * step, a1 = a0 + step;
             if (i * step >= upto) break;
             float cut = Math.min(1, (upto - i * step) / step);
-            ctx.arc(vc, c, X, Z, rIn, rOut, a0, a0 + step * cut, 6, (u, outer) -> argb);
+            ctx.runeBand(vc, c, X, Z, rIn, rOut, a0, a1, cut, 6, i, argb);
         }
     }
 

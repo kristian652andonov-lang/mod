@@ -53,10 +53,19 @@ neoForge {
         client {
             client()
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // Dev-only: the game's memory, as a launcher would set it: -PfwXmx=2G
+            if (project.hasProperty('fwXmx')) {
+                jvmArgument '-Xmx' + project.property('fwXmx')
+            }
             // Dev-only scripted screenshot run: ./gradlew runClient -PfwDevtest=voidfang
             if (project.hasProperty('fwDevtest')) {
                 systemProperty 'fantasyweapons.devtest', project.property('fwDevtest')
-                programArguments.addAll '--quickPlaySingleplayer', (project.findProperty('fwWorld') ?: 'fwtest'), '--width', '1280', '--height', '720', '--username', 'Tester'
+                if (project.hasProperty('fwServer')) {
+                    // a dedicated server instead (./gradlew runWgtest in another shell): -PfwServer=localhost
+                    programArguments.addAll '--quickPlayMultiplayer', project.property('fwServer') + ':25565', '--width', '1280', '--height', '720', '--username', 'Tester'
+                } else {
+                    programArguments.addAll '--quickPlaySingleplayer', (project.findProperty('fwWorld') ?: 'fwtest'), '--width', '1280', '--height', '720', '--username', 'Tester'
+                }
             }
         }
         server {

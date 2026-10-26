@@ -112,8 +112,8 @@ public class DivineSummonVfx extends Vfx {
         float step = (float) (Math.PI * 2 / repeats);
         for (int i = 0; i < repeats && i < writ * repeats; i++) {
             float cut = Math.min(1, writ * repeats - i);
-            ctx.arc(band, g.add(0, 0.15, 0), X, Z, r * 1.04f, r * 1.14f, -turn * 0.6f + i * step, -turn * 0.6f + i * step + step * cut, 4,
-                    (u, o) -> Colors.alpha(a, PALE));
+            ctx.runeBand(band, g.add(0, 0.15, 0), X, Z, r * 1.04f, r * 1.14f, -turn * 0.6f + i * step, -turn * 0.6f + (i + 1) * step, cut, 4, i,
+                    Colors.alpha(a, PALE));
         }
         var ring = ctx.additive(VfxTextures.RING);
         ctx.ring(ring, g.add(0, 0.2, 0), X, Z, r * 1.16f, r * 1.19f, ctx.segments(96), Colors.alpha(a, WHITE));

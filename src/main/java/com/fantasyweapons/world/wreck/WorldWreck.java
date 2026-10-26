@@ -100,6 +100,16 @@ public final class WorldWreck {
     private static final int MOST_WAITING = 1500;
     /** Milliseconds a tick may spend landing a batch that is all ready, so it lands in a tick or two. */
     private static final long BATCH_MS = 150;
+    /**
+     * Share of the game's memory in use past which memory is short: the rewrites worked out land as they are ready
+     * instead of waiting for the rest of their batch, and only a few more are worked out at once until memory frees up.
+     * Every chunk worked out holds a copy of its chunk until it lands, and the greatest powers rewrite thousands of
+     * them; in a game given little memory, holding them all for the moment they land together would run it out
+     * ("Internal Exception: OutOfMemoryError").
+     */
+    private static final double MEMORY_SHORT = 0.8;
+    /** The most chunks worked out and waiting at once while memory is short. */
+    private static final int MOST_WAITING_SHORT = 48;
 
     private static final PriorityQueue<Task> QUEUE = new PriorityQueue<>(Comparator.comparingLong(Task::due).thenComparingLong(Task::order));
     /** Jobs set going this tick, gathered so they land together. */
@@ -201,6 +211,17 @@ public final class WorldWreck {
         return rewritten;
     }
 
+    /** Whether the game's memory is nearly all in use (see {@link #MEMORY_SHORT}). */
+    private static boolean memoryShort() {
+        Runtime rt = Runtime.getRuntime();
+        boolean shortNow = rt.totalMemory() - rt.freeMemory() > rt.maxMemory() * MEMORY_SHORT;
+        if (shortNow && !wasShort) FantasyWeapons.LOGGER.info("Memory is short: the destruction lands as it is ready, a little at a time");
+        wasShort = shortNow;
+        return shortNow;
+    }
+
+    private static boolean wasShort;
+
     public static String stats() {
         return rewritten + " rewritten, " + relit + " relit, " + resent + " resent, " + pending() + " pending, " + dropped + " dropped, " + untouched + " untouched";
     }
@@ -276,7 +297,7 @@ public final class WorldWreck {
             if (f.counted && clock >= f.due && (f.batch.ready >= f.batch.size || clock > f.batch.due + GIVE_UP)) complete = true;
         }
         long allowed = complete ? Math.max(budget, BATCH_MS * 1_000_000L) : budget;
-        boolean crowded = FLIGHTS.size() >= MOST_WAITING;
+        boolean crowded = FLIGHTS.size() >= MOST_WAITING || memoryShort();
         int n = FLIGHTS.size();
         for (int i = 0; i < n && System.nanoTime() - start < allowed; i++) {
             Flight f = FLIGHTS.poll();
@@ -309,7 +330,8 @@ public final class WorldWreck {
         int working = 0;
         for (Flight f : FLIGHTS) if (!f.plan.isDone()) working++;
         List<Task> later = new ArrayList<>();
-        while (!QUEUE.isEmpty() && QUEUE.peek().due() - clock <= AHEAD && working < most && FLIGHTS.size() < MOST_WAITING
+        int waiting = memoryShort() ? MOST_WAITING_SHORT : MOST_WAITING;
+        while (!QUEUE.isEmpty() && QUEUE.peek().due() - clock <= AHEAD && working < most && FLIGHTS.size() < waiting
                 && System.nanoTime() - start < budget) {
             Task t = QUEUE.poll();
             ServerLevel level = server.getLevel(t.dimension());
@@ -400,21 +422,9 @@ public final class WorldWreck {
         relight(level, chunk);
     }
 
-    /** Sends the rewritten sections whole to the players who see the chunk (see {@link WreckPayload}). */
+    /** Sends the rewritten sections whole to the players who see the chunk (see {@link WreckSender}). */
     private static void send(ServerLevel level, LevelChunk chunk, WreckChunk edit) {
-        var players = level.getChunkSource().chunkMap.getPlayers(chunk.getPos(), false);
-        if (players.isEmpty()) return;
-        int[] ys = edit.sentSectionYs();
-        byte[][] data = edit.sentSections();
-        int from = 0;
-        while (from < ys.length) {
-            int to = from, bytes = 0;
-            while (to < ys.length && (to == from || bytes + data[to].length <= WreckPayload.MAX_BYTES)) bytes += data[to++].length;
-            WreckPayload p = new WreckPayload(chunk.getPos().x, chunk.getPos().z, java.util.Arrays.copyOfRange(ys, from, to),
-                    java.util.Arrays.copyOfRange(data, from, to));
-            for (ServerPlayer pl : players) net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(pl, p);
-            from = to;
-        }
+        WreckSender.send(level, chunk, edit.sentSectionYs(), edit.sentSections());
     }
 
     /**

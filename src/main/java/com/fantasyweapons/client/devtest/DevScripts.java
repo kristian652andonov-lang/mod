@@ -139,6 +139,8 @@ final class DevScripts {
                 else if (name.equals("worldforge")) worldforge(b);
                 else if (name.startsWith("remote:")) remote(b, name.substring(7));
                 else if (name.startsWith("god:")) god(b, name.substring(4));
+                else if (name.startsWith("mp:")) multiplayer(b, name.substring(3));
+                else if (name.equals("circles")) circles(b);
                 else if (name.equals("scout")) scout(b);
                 else if (name.startsWith("local:")) local(b, name.substring(6));
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
@@ -2208,6 +2210,96 @@ final class DevScripts {
     }
 
     /** The Weapon of God's tooltip, its Codex pages (and the rites page), and its quests. */
+    /**
+     * On a dedicated server (runClient -PfwServer=localhost against runWgtest), over a real network connection: each of
+     * the Weapon of God's powers named ({@code a+b+c}) cast in turn on fresh land, while the connection is watched; a
+     * disconnect is logged with its reason and filmed, and the client stops.
+     */
+    private static void multiplayer(ScreenshotDirector.Builder b, String spec) {
+        // a+b+c[/distance from the caster to the target[/ticks watched after each cast]]
+        String[] parts = spec.split("/");
+        String[] abilities = parts[0].split("\\+");
+        double dist = parts.length > 1 ? Double.parseDouble(parts[1]) : 300;
+        int watch = parts.length > 2 ? Integer.parseInt(parts[2]) : 2400;
+        double baseZ = parts.length > 3 ? Double.parseDouble(parts[3]) : 0;
+        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.ClientTickEvent.Post e) -> {
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.screen instanceof net.minecraft.client.gui.screens.DisconnectedScreen d && !mpStopping) {
+                mpStopping = true;
+                com.fantasyweapons.FantasyWeapons.LOGGER.error("mp: DISCONNECTED: {}", d.getNarrationMessage().getString());
+                net.minecraft.client.Screenshot.grab(mc.gameDirectory, "fw_mp_disconnected.png", mc.getMainRenderTarget(), c -> {
+                });
+                mc.execute(mc::stop);
+            }
+        });
+        b.wait(100).cmd("/fw class set berserker").closeScreen().wait(5).closeScreen()
+                .cmd("/gamemode creative").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/gamerule doMobSpawning false")
+                .cmd("/clear @s").cmd("/fw give " + com.fantasyweapons.weapons.god.WeaponOfGod.ID + " 1").wait(40).slot(0).closeScreen();
+        for (int i = 0; i < abilities.length; i++) {
+            String ability = abilities[i];
+            double ox = 1200 * (i + 1), oz = baseZ;
+            b.cmd("/tp @s " + (ox + 0.5) + " 200 " + (oz - dist + 0.5) + " 0 20").run(mc -> {
+                mc.player.getAbilities().flying = true;
+                mc.player.onUpdateAbilities();
+            }).wait(600).cmd("/fw cooldowns").wait(20).screenshot("mp_" + ability + "_before")
+                    .run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("mp: casting {}", ability))
+                    .run(mc -> net.neoforged.neoforge.network.PacketDistributor.sendToServer(new com.fantasyweapons.network.C2SPayloads.CastAt(ability, ox + 0.5, 80, oz + 0.5)));
+            for (int t = 1; t <= watch / 200; t++) {
+                int at = t * 200;
+                b.wait(200).run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("mp: {} t={} still connected", ability, at));
+                if (t % 3 == 0) b.screenshot("mp_" + ability + "_" + at);
+            }
+        }
+        b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("mp: all powers cast, still connected")).quit();
+    }
+
+    private static volatile boolean mpStopping;
+
+    /** The magic circles hundreds of blocks across, drawn from their textures (as they were) and in lines, near and far. */
+    private static void circles(ScreenshotDirector.Builder b) {
+        b.wait(40).closeScreen().cmd("/gamemode creative").cmd("/time set midnight").cmd("/gamerule doDaylightCycle false").cmd("/kill @e[type=!player]")
+                .cmd("/tp @s 0.5 160 0.5 0 30").run(mc -> {
+                    mc.player.getAbilities().flying = true;
+                    mc.player.onUpdateAbilities();
+                }).hud(false).wait(100);
+        b.run(mc -> {
+            net.minecraft.world.phys.Vec3 c = mc.player.position().add(0, -40, 160);
+            net.minecraft.world.phys.Vec3 up = new net.minecraft.world.phys.Vec3(0, 1, 0);
+            com.fantasyweapons.client.vfx.VfxManager.add(new com.fantasyweapons.client.vfx.effects.DecalVfx(c, up, 150, com.fantasyweapons.client.vfx.Colors.argb(230, 0xB06CFF),
+                    com.fantasyweapons.client.vfx.VfxTextures.GRAND_CIRCLE, 100000).spin(0.0005f).timing(0.001f, 0.001f).satellites(0));
+            com.fantasyweapons.client.vfx.VfxManager.add(new com.fantasyweapons.client.vfx.effects.DecalVfx(c.add(-150, 1, -60), up, 40, com.fantasyweapons.client.vfx.Colors.argb(230, 0x7FE0FF),
+                    com.fantasyweapons.client.vfx.VfxTextures.SUB_CIRCLE, 100000).timing(0.001f, 0.001f).satellites(0));
+            com.fantasyweapons.client.vfx.VfxManager.add(new com.fantasyweapons.client.vfx.effects.DecalVfx(c.add(150, 1, -60), up, 40, com.fantasyweapons.client.vfx.Colors.argb(230, 0xFFD27F),
+                    com.fantasyweapons.client.vfx.VfxTextures.RUNE_CIRCLE, 100000).timing(0.001f, 0.001f).satellites(0));
+            com.fantasyweapons.client.vfx.VfxManager.add(new com.fantasyweapons.client.vfx.Vfx(100000) {
+                @Override
+                public void render(com.fantasyweapons.client.vfx.VfxContext ctx) {
+                    var band = ctx.additive(com.fantasyweapons.client.vfx.VfxTextures.RUNE_BAND);
+                    float step = (float) (Math.PI * 2 / 24);
+                    for (int i = 0; i < 24; i++) {
+                        ctx.runeBand(band, c.add(0, 0.5, 0), new net.minecraft.world.phys.Vec3(1, 0, 0), new net.minecraft.world.phys.Vec3(0, 0, 1), 156, 172, i * step, (i + 1) * step, 1, 6, i,
+                                com.fantasyweapons.client.vfx.Colors.argb(230, 0xE9D9FF));
+                    }
+                }
+            });
+        });
+        for (boolean lines : new boolean[]{false, true}) {
+            String k = lines ? "lines" : "texture";
+            b.run(mc -> com.fantasyweapons.client.vfx.MagicCircles.texturesOnly = !lines).wait(5);
+            b.viewAt(0, 60, -20, 0, -40, 160).wait(10).screenshot("circles_" + k + "_far");
+            b.viewAt(0, -25, 40, 0, -40, 200).wait(10).screenshot("circles_" + k + "_low");
+            b.viewAt(-20, -30, 140, -40, -40, 230).wait(10).screenshot("circles_" + k + "_close");
+            b.viewAt(-140, -30, 80, -150, -39, 100).wait(10).screenshot("circles_" + k + "_sub");
+            b.viewAt(140, -30, 80, 150, -39, 100).wait(10).screenshot("circles_" + k + "_rune");
+        }
+        // the cost: the same view held with the textures, then with the lines (the perf probe logs each second)
+        for (boolean lines : new boolean[]{false, true, false, true}) {
+            b.run(mc -> com.fantasyweapons.client.vfx.MagicCircles.texturesOnly = !lines).viewAt(0, -25, 40, 0, -40, 200)
+                    .run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("circles: holding {}", lines ? "lines" : "textures")).wait(140);
+        }
+        b.run(mc -> com.fantasyweapons.client.vfx.MagicCircles.texturesOnly = false).playerView().quit();
+    }
+
     private static void godUi(ScreenshotDirector.Builder b) {
         String god = com.fantasyweapons.weapons.god.WeaponOfGod.ID;
         b.wait(40).cmd("/gamemode creative").cmd("/time set noon").cmd("/clear @s").cmd("/fw class set mage").closeScreen().wait(5).closeScreen()
@@ -2978,6 +3070,11 @@ final class DevScripts {
                 if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugShow(section, 0);
             }).wait(4).screenshot("settings_" + i);
         }
+        // the lowest effect quality, made for weak computers
+        b.run(mc -> {
+            com.fantasyweapons.config.ClientConfig.VFX_QUALITY.set(com.fantasyweapons.config.ClientConfig.VfxQuality.LOW_END);
+            if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugShow(0, 0);
+        }).wait(4).screenshot("settings_low_end").run(mc -> com.fantasyweapons.config.ClientConfig.VFX_QUALITY.set(com.fantasyweapons.config.ClientConfig.VfxQuality.HIGH));
         for (int w : new int[]{3, 12}) {
             b.run(mc -> {
                 if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugShow(s.debugSections() - 1, w);

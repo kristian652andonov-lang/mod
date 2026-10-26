@@ -182,6 +182,7 @@ public final class ClientSetup {
         com.fantasyweapons.client.guide.Codex.tick(mc);
         if (mc.level == null || mc.isPaused()) return;
         VfxManager.tick();
+        com.fantasyweapons.client.wreck.WreckSync.tick();
         FxScheduler.tick();
         CameraShake.tick();
         ScreenFx.tick();

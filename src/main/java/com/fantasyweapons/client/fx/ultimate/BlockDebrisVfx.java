@@ -23,7 +23,10 @@ import java.util.List;
  * runs.
  */
 public class BlockDebrisVfx extends Vfx {
-    private static final int MAX = 700;
+    /** The most blocks in the air at once (fewer at the lower effect qualities). */
+    private static int max() {
+        return com.fantasyweapons.config.ClientConfig.quality().debris();
+    }
 
     private static final class Piece {
         BlockState state;
@@ -54,7 +57,7 @@ public class BlockDebrisVfx extends Vfx {
 
     /** A block thrown from {@code at} with velocity {@code vel} (blocks/tick), falling under gravity for {@code life} ticks. */
     public void throwBlock(BlockState state, Vec3 at, Vec3 vel, float size, int life) {
-        if (!usable(state) || pieces.size() >= MAX) return;
+        if (!usable(state) || pieces.size() >= max()) return;
         Piece p = base(state, at, size, life);
         p.vel = vel;
         pieces.add(p);
@@ -62,7 +65,7 @@ public class BlockDebrisVfx extends Vfx {
 
     /** A block dragged from {@code at} into {@code sink} along a spiral, over {@code life} ticks. */
     public void suck(BlockState state, Vec3 at, Vec3 sink, float size, float swirl, int life) {
-        if (!usable(state) || pieces.size() >= MAX) return;
+        if (!usable(state) || pieces.size() >= max()) return;
         Piece p = base(state, at, size, life);
         p.sink = sink;
         p.swirl = swirl;

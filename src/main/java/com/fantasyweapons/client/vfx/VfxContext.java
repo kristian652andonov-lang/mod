@@ -39,13 +39,13 @@ public final class VfxContext {
     }
 
     public VertexConsumer additive(ResourceLocation tex) {
-        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packGlow(tex)));
-        return buffers.getBuffer(FWRenderTypes.additive(tex));
+        VertexConsumer vc = packs ? new PackVertices(buffers.getBuffer(FWRenderTypes.packGlow(tex))) : buffers.getBuffer(FWRenderTypes.additive(tex));
+        return MagicCircles.wrap(tex, vc, () -> additive(VfxTextures.LINE_CRISP));
     }
 
     public VertexConsumer energy(ResourceLocation tex) {
-        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packGlow(tex)));
-        return buffers.getBuffer(FWRenderTypes.energy(tex));
+        VertexConsumer vc = packs ? new PackVertices(buffers.getBuffer(FWRenderTypes.packGlow(tex))) : buffers.getBuffer(FWRenderTypes.energy(tex));
+        return MagicCircles.wrap(tex, vc, () -> energy(VfxTextures.LINE_CRISP));
     }
 
     public VertexConsumer voidInterior(ResourceLocation mask) {
@@ -66,8 +66,8 @@ public final class VfxContext {
     }
 
     public VertexConsumer translucent(ResourceLocation tex) {
-        if (packs) return new PackVertices(buffers.getBuffer(FWRenderTypes.packTranslucent(tex)));
-        return buffers.getBuffer(FWRenderTypes.translucent(tex));
+        VertexConsumer vc = packs ? new PackVertices(buffers.getBuffer(FWRenderTypes.packTranslucent(tex))) : buffers.getBuffer(FWRenderTypes.translucent(tex));
+        return MagicCircles.wrap(tex, vc, () -> translucent(VfxTextures.LINE_CRISP));
     }
 
     public MultiBufferSource buffers() {
@@ -291,6 +291,21 @@ public final class VfxContext {
         }
     }
 
+    /**
+     * One strip of the rune band texture along the arc {@code a0..a1} (the texture's u along it), cut off at {@code cut}
+     * of the way: written in lines, sharp at any size, when {@code vc} is the rune band's (see {@link MagicCircles}).
+     */
+    public void runeBand(VertexConsumer vc, Vec3 center, Vec3 axisX, Vec3 axisY, float rIn, float rOut, float a0, float a1, float cut, int segs,
+                         int seed, int argb) {
+        if (vc instanceof MagicCircles.Vertices band && band.design() == null && !MagicCircles.texturesOnly) {
+            // as many runes as fit the strip, spaced as the texture spaces them (two thirds of the band's width apart)
+            int runes = Math.max(1, Math.round(Math.abs(a1 - a0) * (rIn + rOut) * 0.5f / (0.67f * Math.max(0.01f, rOut - rIn))));
+            MagicCircles.band(this, band.lines(), center, axisX, axisY, rIn, rOut, a0, a1, a0 + (a1 - a0) * cut, runes, seed, argb);
+            return;
+        }
+        arc(vc, center, axisX, axisY, rIn, rOut, a0, a0 + (a1 - a0) * cut, segs, (u, outer) -> argb);
+    }
+
     /** Full ring textured with a radial texture across v. */
     public void ring(VertexConsumer vc, Vec3 center, Vec3 axisX, Vec3 axisY, float rIn, float rOut, int segs, int argb) {
         arc(vc, center, axisX, axisY, rIn, rOut, 0, (float) (Math.PI * 2), segs, (t, o) -> argb);
@@ -298,6 +313,11 @@ public final class VfxContext {
 
     /** Flat disc quad (texture spans the square) in a plane. */
     public void disc(VertexConsumer vc, Vec3 center, Vec3 axisX, Vec3 axisY, float radius, float rotation, int argb) {
+        if (vc instanceof MagicCircles.Vertices circle && circle.inLines(radius)) {
+            // a magic circle: drawn line by line, sharp at any size (see MagicCircles)
+            circle.design().draw(this, circle.lines(), center, axisX, axisY, radius, rotation, argb);
+            return;
+        }
         double c = Math.cos(rotation), s = Math.sin(rotation);
         Vec3 ax = axisX.scale(c * radius).add(axisY.scale(s * radius));
         Vec3 ay = axisX.scale(-s * radius).add(axisY.scale(c * radius));

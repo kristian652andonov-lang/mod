@@ -118,7 +118,12 @@ public final class ScreenshotDirector {
         public Builder cmd(String command) {
             return run(mc -> {
                 MinecraftServer server = mc.getSingleplayerServer();
-                if (server == null || mc.player == null) return;
+                if (mc.player == null) return;
+                if (server == null) {
+                    // playing on a dedicated server: the command goes over the network (the player must be an operator)
+                    mc.player.connection.sendCommand(command.startsWith("/") ? command.substring(1) : command);
+                    return;
+                }
                 var uuid = mc.player.getUUID();
                 server.execute(() -> {
                     ServerPlayer sp = server.getPlayerList().getPlayer(uuid);

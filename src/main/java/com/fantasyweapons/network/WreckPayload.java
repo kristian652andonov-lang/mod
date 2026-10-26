@@ -14,8 +14,15 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  */
 public record WreckPayload(int chunkX, int chunkZ, int[] sectionYs, byte[][] sections) implements CustomPacketPayload {
     public static final Type<WreckPayload> TYPE = new Type<>(FantasyWeapons.id("wreck"));
-    /** Bytes of sections per packet at most, so a packet stays well under the size limit. */
-    public static final int MAX_BYTES = 600_000;
+    /**
+     * Bytes of sections per packet at most: well under the 1 MiB a custom packet to a player may hold (even through
+     * servers and proxies that do not split bigger ones), and small enough for one not to hold back the others.
+     */
+    public static final int MAX_BYTES = 256 * 1024;
+    /** The most sections one packet may say it holds (a chunk of the tallest world the game allows has 254). */
+    private static final int MOST_SECTIONS = 256;
+    /** The most bytes one section may take (a section of 4096 different blocks takes about 8 KB). */
+    private static final int MOST_SECTION_BYTES = 1 << 20;
 
     public static final StreamCodec<ByteBuf, WreckPayload> CODEC = StreamCodec.of(WreckPayload::write, WreckPayload::read);
 
@@ -32,12 +39,15 @@ public record WreckPayload(int chunkX, int chunkZ, int[] sectionYs, byte[][] sec
 
     private static WreckPayload read(ByteBuf buf) {
         FriendlyByteBuf in = new FriendlyByteBuf(buf);
-        int x = in.readVarInt(), z = in.readVarInt(), n = Math.min(64, in.readVarInt());
+        int x = in.readVarInt(), z = in.readVarInt(), n = in.readVarInt();
+        // all of what was written is read back, whatever its size: a packet read short leaves bytes behind, and the
+        // game drops the connection over them
+        if (n < 0 || n > MOST_SECTIONS) throw new io.netty.handler.codec.DecoderException("A destruction packet with " + n + " sections");
         int[] ys = new int[n];
         byte[][] data = new byte[n][];
         for (int i = 0; i < n; i++) {
             ys[i] = in.readVarInt();
-            data[i] = in.readByteArray(MAX_BYTES);
+            data[i] = in.readByteArray(MOST_SECTION_BYTES);
         }
         return new WreckPayload(x, z, ys, data);
     }

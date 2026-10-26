@@ -367,7 +367,7 @@ public class SixGodsVfx extends Vfx {
             float a0 = rot + i * step;
             if (i * step >= upto) break;
             float cut = Math.min(1, (upto - i * step) / step);
-            ctx.arc(vc, c, ax, ay, rIn, rOut, a0, a0 + step * cut, 6, (u, outer) -> argb);
+            ctx.runeBand(vc, c, ax, ay, rIn, rOut, a0, a0 + step, cut, 6, i, argb);
         }
     }
 

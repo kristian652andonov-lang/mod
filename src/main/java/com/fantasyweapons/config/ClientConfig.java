@@ -6,18 +6,59 @@ import net.neoforged.neoforge.common.ModConfigSpec;
  * Client-only presentation settings ({@code config/fantasyweapons-client.toml}).
  */
 public final class ClientConfig {
-    public enum VfxQuality {
-        LOW(0.35f), MEDIUM(0.6f), HIGH(1.0f), ULTRA(1.5f);
+    /** A choice in the settings menu with a name of its own (rather than its constant's, spelled out). */
+    public interface Named {
+        /** Its name in English (the language file's key). */
+        String englishName();
+    }
 
+    /**
+     * How much the effects draw. Every tier scales their detail ({@link #density()}); the lower tiers also show fewer
+     * effects at once, fewer blocks flying from the destruction, and land the destruction a little at a time instead
+     * of all in one frame, so a weak computer does not freeze when a great power lands.
+     */
+    public enum VfxQuality implements Named {
+        LOW_END("Low-end PC", 0.2f, 128, 120, 48),
+        LOW("Low", 0.35f, 256, 260, 160),
+        MEDIUM("Medium", 0.6f, 512, 450, 480),
+        HIGH("High", 1.0f, Integer.MAX_VALUE, 700, 0),
+        ULTRA("Ultra", 1.5f, Integer.MAX_VALUE, 900, 0);
+
+        private final String name;
         private final float density;
+        private final int effects, debris, sectionsPerTick;
 
-        VfxQuality(float density) {
+        VfxQuality(String name, float density, int effects, int debris, int sectionsPerTick) {
+            this.name = name;
             this.density = density;
+            this.effects = effects;
+            this.debris = debris;
+            this.sectionsPerTick = sectionsPerTick;
+        }
+
+        @Override
+        public String englishName() {
+            return name;
         }
 
         /** Multiplier for segment counts / sub-element counts in VFX. */
         public float density() {
             return density;
+        }
+
+        /** The most effects shown at once (the "Effect limit" setting can lower it further). */
+        public int effects() {
+            return effects;
+        }
+
+        /** The most blocks of land a power's destruction throws through the air at once. */
+        public int debris() {
+            return debris;
+        }
+
+        /** The most rewritten sections of land put into the world in a frame's tick (0: all of them as they come). */
+        public int sectionsPerTick() {
+            return sectionsPerTick;
         }
     }
 
@@ -26,7 +67,6 @@ public final class ClientConfig {
     private static final ModConfigSpec.Builder B = new ModConfigSpec.Builder();
 
     public static final ModConfigSpec.EnumValue<VfxQuality> VFX_QUALITY;
-    public static final ModConfigSpec.BooleanValue DISTORTION;
     public static final ModConfigSpec.DoubleValue SCREEN_SHAKE;
     public static final ModConfigSpec.IntValue MAX_VFX_INSTANCES;
     public static final ModConfigSpec.BooleanValue IMPACT_FRAMES;
@@ -50,8 +90,8 @@ public final class ClientConfig {
 
     static {
         B.translation("Visual effects").push("vfx");
-        VFX_QUALITY = B.comment("How much detail the effects have: Low, Medium, High or Ultra").translation("Effect quality").defineEnum("quality", VfxQuality.HIGH);
-        DISTORTION = B.comment("The air bending behind rifts and shockwaves (High and Ultra quality only)").translation("Distortion").define("distortion", true);
+        VFX_QUALITY = B.comment("How much the effects draw. Low-end PC is made for weak computers: the fewest and simplest effects, the fewest flying blocks, and the destruction of the great powers landing a little at a time so the game does not freeze. Low, Medium, High and Ultra draw more and more")
+                .translation("Effect quality").defineEnum("quality", VfxQuality.HIGH);
         SCREEN_SHAKE = B.comment("How hard the camera shakes at heavy impacts (0 = off)").translation("Screen shake").defineInRange("screen_shake", 1.0, 0.0, 3.0);
         MAX_VFX_INSTANCES = B.comment("The most effects shown at once").translation("Effect limit").defineInRange("max_instances", 512, 16, 8192);
         IMPACT_FRAMES = B.comment("Anime impact frames when an ability's blow lands: the picture freezes for an instant as a stark black-and-white still with speed lines")

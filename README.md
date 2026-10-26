@@ -125,8 +125,26 @@ The same settings are in the config files:
 
 - **`config/fantasyweapons-server.toml`**: EXP curve and sources, damage scaling, per-weapon base damage, and every
   ability parameter (damage, charge, cooldown, radius, …). The server syncs these values to clients.
-- **`config/fantasyweapons-client.toml`**: VFX quality, distortion, screen shake, VFX instance cap, and HUD layout and
+- **`config/fantasyweapons-client.toml`**: effect quality, screen shake, effect limit, impact frames, and HUD layout and
   notifications.
+
+### Effect quality
+
+*Effect quality* (Visual effects) sets how much the effects draw: **Low-end PC**, Low, Medium, High (the default) or
+Ultra. Every tier scales the effects' detail; the lower ones also show fewer effects at once and throw fewer blocks of
+land through the air. At Low-end PC, Low and Medium the destruction of the great powers goes into the world a share
+each tick instead of all in one frame, so a weak computer does not freeze when one lands (a block the game changes in
+a chunk still waiting first lets that chunk's waiting land in, so nothing older covers it). Low-end PC is made for weak
+computers: the fewest and simplest effects. The magic circles are drawn line by line rather than as stretched pictures,
+so they are sharp at any size; the lower tiers draw their rings with fewer segments.
+
+### Playing on a server
+
+The destruction a power causes reaches each player over the network as fast as their connection takes it: every
+rewritten chunk waits its turn (once, however often it is rewritten) and goes out with the newest blocks while the
+connection keeps up, in packets well under the size a packet may be, so a power that rewrites thousands of chunks never
+floods a player's connection. The `NetworkGameTests` write every packet the mod sends at its biggest and read it back
+as a server would, checking nothing is left over and nothing is too big.
 
 ## Languages
 

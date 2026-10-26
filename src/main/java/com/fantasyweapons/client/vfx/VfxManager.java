@@ -25,7 +25,7 @@ public final class VfxManager {
     }
 
     public static <T extends Vfx> T add(T vfx) {
-        int max = ClientConfig.get(ClientConfig.MAX_VFX_INSTANCES, 512);
+        int max = Math.min(ClientConfig.get(ClientConfig.MAX_VFX_INSTANCES, 512), ClientConfig.quality().effects());
         if (ACTIVE.size() + PENDING.size() >= max) return vfx;
         if (ticking) PENDING.add(vfx);
         else ACTIVE.add(vfx);

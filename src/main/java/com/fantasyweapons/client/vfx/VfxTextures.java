@@ -31,6 +31,8 @@ public final class VfxTextures {
     public static final ResourceLocation SUB_CIRCLE = t("sub_circle");
     public static final ResourceLocation RUNE_BAND = t("rune_band");
     public static final ResourceLocation BEAM_SOFT = t("beam_soft");
+    /** A line's cross-section (v across it), what the magic circles are drawn with (see {@link MagicCircles}). */
+    public static final ResourceLocation LINE_CRISP = t("line_crisp");
     public static final ResourceLocation CRACK = t("crack");
     public static final ResourceLocation FLAME = t("flame");
     public static final ResourceLocation MIST = t("mist");

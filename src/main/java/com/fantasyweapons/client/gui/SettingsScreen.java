@@ -266,6 +266,7 @@ public final class SettingsScreen extends Screen {
 
     private static String shownValue(Object v) {
         if (v instanceof Boolean b) return Tr.s(b ? "On" : "Off");
+        if (v instanceof com.fantasyweapons.config.ClientConfig.Named n) return Tr.s(n.englishName());
         if (v instanceof Enum<?> e) return Tr.s(ServerConfig.label(e.name().toLowerCase(Locale.ROOT)));
         if (v instanceof Double d) return number(d);
         if (v instanceof Float f) return number(f);

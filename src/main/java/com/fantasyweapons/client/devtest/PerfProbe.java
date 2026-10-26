@@ -40,9 +40,11 @@ final class PerfProbe {
         });
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> {
             if (++ticks % 20 != 0 || Minecraft.getInstance().level == null) return;
-            FantasyWeapons.LOGGER.warn("perf: frames {} worst {} ms avg {} ms | server ticks {} worst {} ms avg {} ms | {}",
+            Runtime rt = Runtime.getRuntime();
+            FantasyWeapons.LOGGER.warn("perf: frames {} worst {} ms avg {} ms | server ticks {} worst {} ms avg {} ms | memory {}/{} MB | {}",
                     frames, worstFrame / 1_000_000, frames == 0 ? 0 : frameSum / frames / 1_000_000, serverTicks, serverWorst / 1_000_000,
-                    serverTicks == 0 ? 0 : serverSum / serverTicks / 1_000_000, com.fantasyweapons.world.wreck.WorldWreck.stats());
+                    serverTicks == 0 ? 0 : serverSum / serverTicks / 1_000_000, (rt.totalMemory() - rt.freeMemory()) >> 20, rt.maxMemory() >> 20,
+                    com.fantasyweapons.world.wreck.WorldWreck.stats());
             frames = 0;
             worstFrame = frameSum = 0;
             serverTicks = 0;

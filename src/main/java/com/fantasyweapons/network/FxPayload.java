@@ -28,6 +28,11 @@ import java.util.List;
 public record FxPayload(ResourceLocation fx, int caster, Vec3 pos, Vec3 dir, float power, float scale, int level, long seed,
                         int[] entities, List<Vec3> points) implements CustomPacketPayload {
     public static final Type<FxPayload> TYPE = new Type<>(FantasyWeapons.id("fx"));
+    /**
+     * The most entities and points one effect carries. Written and read alike: an effect asked to carry more is sent
+     * with the first this many (a packet read short of what was written makes the game drop the connection).
+     */
+    public static final int MOST_ENTITIES = 1024, MOST_POINTS = 2048;
 
     public static final StreamCodec<RegistryFriendlyByteBuf, FxPayload> CODEC = new StreamCodec<>() {
         @Override
@@ -40,8 +45,9 @@ public record FxPayload(ResourceLocation fx, int caster, Vec3 pos, Vec3 dir, flo
             float scale = buf.readFloat();
             int level = buf.readVarInt();
             long seed = buf.readLong();
-            int[] ents = buf.readVarIntArray(256);
-            int n = Math.min(buf.readVarInt(), 512);
+            int[] ents = buf.readVarIntArray(MOST_ENTITIES);
+            int n = buf.readVarInt();
+            if (n < 0 || n > MOST_POINTS) throw new io.netty.handler.codec.DecoderException("An effect with " + n + " points");
             List<Vec3> pts = new ArrayList<>(n);
             for (int i = 0; i < n; i++) pts.add(readVec(buf));
             return new FxPayload(fx, caster, pos, dir, power, scale, level, seed, ents, pts);
@@ -57,9 +63,11 @@ public record FxPayload(ResourceLocation fx, int caster, Vec3 pos, Vec3 dir, flo
             buf.writeFloat(p.scale());
             buf.writeVarInt(p.level());
             buf.writeLong(p.seed());
-            buf.writeVarIntArray(p.entities());
-            buf.writeVarInt(p.points().size());
-            for (Vec3 v : p.points()) writeVec(buf, v);
+            int[] ents = p.entities();
+            buf.writeVarIntArray(ents.length > MOST_ENTITIES ? java.util.Arrays.copyOf(ents, MOST_ENTITIES) : ents);
+            int n = Math.min(MOST_POINTS, p.points().size());
+            buf.writeVarInt(n);
+            for (int i = 0; i < n; i++) writeVec(buf, p.points().get(i));
         }
     };
 

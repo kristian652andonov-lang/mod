@@ -240,7 +240,8 @@ public final class LocalizationGameTests {
                 Tr.s(ServerConfig.help(vs.getComment()));
                 if (vs.getDefault() instanceof Enum<?> en) {
                     for (Object c : en.getDeclaringClass().getEnumConstants()) {
-                        Tr.s(ServerConfig.label(((Enum<?>) c).name().toLowerCase(java.util.Locale.ROOT)));
+                        if (c instanceof ClientConfig.Named n) Tr.s(n.englishName());
+                        else Tr.s(ServerConfig.label(((Enum<?>) c).name().toLowerCase(java.util.Locale.ROOT)));
                     }
                 }
             }

@@ -29,10 +29,70 @@ import java.util.Map;
  * gone go with them.
  */
 public final class WreckSync {
+    /**
+     * At the lower effect qualities, the land waiting to go in (by chunk, in the order it came), a share of it each
+     * tick ({@link com.fantasyweapons.config.ClientConfig.VfxQuality#sectionsPerTick()}): a great power rewrites tens
+     * of thousands of sections, and a weak computer taking them all in one frame freezes for seconds.
+     */
+    private static final java.util.LinkedHashMap<Long, List<WreckPayload>> WAITING = new java.util.LinkedHashMap<>();
+    /** The world the waiting land is for. */
+    private static ClientLevel waitingIn;
+
     private WreckSync() {
     }
 
     public static void apply(WreckPayload p) {
+        if (com.fantasyweapons.config.ClientConfig.quality().sectionsPerTick() <= 0 && WAITING.isEmpty()) {
+            land(p);
+            return;
+        }
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != waitingIn) {
+            WAITING.clear();
+            waitingIn = level;
+        }
+        WAITING.computeIfAbsent(net.minecraft.world.level.ChunkPos.asLong(p.chunkX(), p.chunkZ()), k -> new ArrayList<>()).add(p);
+    }
+
+    /** Every client tick: puts in a share of the land waiting, oldest first. */
+    public static void tick() {
+        if (WAITING.isEmpty()) return;
+        if (Minecraft.getInstance().level != waitingIn) {
+            // another world (or none): the land was for the one left behind
+            WAITING.clear();
+            return;
+        }
+        int share = com.fantasyweapons.config.ClientConfig.quality().sectionsPerTick();
+        if (share <= 0) share = Integer.MAX_VALUE;
+        var it = WAITING.values().iterator();
+        while (share > 0 && it.hasNext()) {
+            List<WreckPayload> chunk = it.next();
+            it.remove();
+            for (WreckPayload p : chunk) {
+                land(p);
+                share -= p.sectionYs().length;
+            }
+        }
+    }
+
+    /** Whether any land waits to go in. */
+    public static boolean waiting() {
+        return !WAITING.isEmpty();
+    }
+
+    /** Puts in at once whatever waits for the chunk (before the game changes one of its blocks). */
+    public static void flush(int chunkX, int chunkZ) {
+        if (WAITING.isEmpty()) return;
+        List<WreckPayload> chunk = WAITING.remove(net.minecraft.world.level.ChunkPos.asLong(chunkX, chunkZ));
+        if (chunk != null) for (WreckPayload p : chunk) land(p);
+    }
+
+    /** Forgets what waits for the chunk (it has come whole, as it is now, or gone out of sight). */
+    public static void drop(int chunkX, int chunkZ) {
+        if (!WAITING.isEmpty()) WAITING.remove(net.minecraft.world.level.ChunkPos.asLong(chunkX, chunkZ));
+    }
+
+    private static void land(WreckPayload p) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null) return;
