@@ -38,6 +38,10 @@ public class WeaponClientExtensions implements IClientItemExtensions {
                                            float equipProcess, float swingProcess) {
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return false;
         int side = arm == HumanoidArm.RIGHT ? 1 : -1;
+        // the game lowers a held item while an attack recovers and raises it again: these weapons come back to rest by
+        // their own swing instead (the dip sank them out of sight through the blow and had them climb back after it);
+        // switching items still lowers and raises them
+        if (AnimTracker.recoveringFromSwing(player)) equipProcess = 0;
         pose.translate(side * 0.56F, -0.52F + equipProcess * -0.6F, -0.72F);
 
         // the extended chainblade is far longer than the sword: keep it from filling the whole view
@@ -50,8 +54,14 @@ public class WeaponClientExtensions implements IClientItemExtensions {
         applyAbilityMotion(pose, player, item, side, partialTick);
 
         FirstPersonAttacks.debug(pose, side);
+        applySwing(pose, player, item, side, partialTick);
+        return true;
+    }
+
+    /** The first-person attack swing about the hand, if one is playing; returns whether it is. */
+    public static boolean applySwing(PoseStack pose, LivingEntity player, FantasyWeaponItem item, int side, float partialTick) {
         float s = AnimTracker.swingProgress(player, partialTick);
-        if (s < 0) return true;
+        if (s < 0) return false;
         float heavy = AnimTracker.heavy(player) ? 1.3f : 1f;
         FirstPersonAttacks.apply(pose, item.definition().weaponClass().swingStyle(), AnimTracker.variant(player), side, heavy, s);
         return true;

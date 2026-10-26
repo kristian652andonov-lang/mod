@@ -126,6 +126,7 @@ final class DevScripts {
                 else if (name.startsWith("punchycombo:")) punchyCombo(b, name.substring(12).split(","));
                 else if (name.startsWith("bcfinisher:")) betterCombatFinisher(b, name.substring(11).split(","));
                 else if (name.startsWith("offhand:")) offhand(b, name.substring(8).split(","));
+                else if (name.startsWith("fpreturn:")) firstPersonReturn(b, name.substring(9).split(","));
                 else if (name.equals("punchyarmor")) punchyArmor(b);
                 else if (name.equals("codexshield")) codexShield(b);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
@@ -3234,6 +3235,41 @@ final class DevScripts {
                 b.wait(4);
             }
             b.wait(40);
+        }
+    }
+
+    /**
+     * In first person, how each weapon comes back to rest after a melee attack: at rest, then every tick from the click
+     * until well after the swing (two attacks, the second a full recovery after the first).
+     */
+    private static void firstPersonReturn(ScreenshotDirector.Builder b, String[] weapons) {
+        b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
+                .cmd("/time set noon").camera(CameraType.FIRST_PERSON).look(0, 5).hud(true).wait(20);
+        for (String w : weapons) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            int cooldown = Math.round(20f / def.weaponClass().attackSpeed());
+            b.cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).look(0, 5).wait(cooldown + 40).screenshot("fpr_" + w + "_rest")
+                    .run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info("[fpr] rest tick={} anim={}", mc.player.tickCount, animatorState(mc.player)));
+            for (int k = 0; k < 2; k++) {
+                b.click();
+                for (int f = 0; f < cooldown + 24; f++) {
+                    int ff = f;
+                    b.wait(1).screenshot("fpr_" + w + "_" + k + "_" + f).run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info(
+                            "[fpr] f={} tick={} strength={} swing={} anim={}", ff, mc.player.tickCount, mc.player.getAttackStrengthScale(0),
+                            com.fantasyweapons.client.anim.AnimTracker.swingProgress(mc.player, 0), animatorState(mc.player)));
+                }
+                b.wait(20);
+            }
+        }
+    }
+
+    /** DEVELOPMENT ONLY: playerAnimator's state for the player (first-person mode, active), if it is installed. */
+    private static String animatorState(net.minecraft.world.entity.player.Player p) {
+        try {
+            Object applier = p.getClass().getMethod("playerAnimator_getAnimation").invoke(p);
+            return applier.getClass().getMethod("getFirstPersonMode").invoke(applier) + " active=" + applier.getClass().getMethod("isActive").invoke(applier);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return "n/a " + e.getClass().getSimpleName();
         }
     }
 

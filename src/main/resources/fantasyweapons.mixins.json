@@ -4,7 +4,9 @@
   "package": "com.fantasyweapons.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ChunkMapMixin"
+    "ChunkMapMixin",
+    "OffHandSlotMixin",
+    "OffHandSwapMixin"
   ],
   "client": [
     "ClientPacketListenerMixin",

@@ -6,6 +6,8 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
@@ -32,6 +34,35 @@ public final class GripGameTests {
         ItemStack sword = FWGameTests.giveWeapon(p, "voidfang");
         p.setItemInHand(InteractionHand.MAIN_HAND, sword);
         if (CommonHooks.onLivingSwapHandItems(p).isCanceled()) h.fail("the swap key could not move the one-handed Voidfang to the off hand");
+        FWGameTests.cleanup(p);
+        h.succeed();
+    }
+
+    /**
+     * No trick of the inventory screen puts a two-handed weapon in the off hand: the swap-hands key over the weapon, a
+     * hotbar key over the off-hand slot, the weapon clicked into the slot. A one-handed weapon still goes there.
+     */
+    @GameTest(template = ARENA)
+    public static void inventoryTricksKeepTwoHandedOut(GameTestHelper h) {
+        ServerPlayer p = FWGameTests.player(h, new Vec3(2.5, 2, 2.5), 0);
+        var inventory = p.getInventory();
+        var menu = p.inventoryMenu;
+        // the inventory menu: hotbar slot 0 is menu slot 36, the off hand menu slot 45
+        int hotbar0 = 36, offHand = 45;
+        ItemStack axe = FWGameTests.giveWeapon(p, "doomcleaver");
+        menu.clicked(hotbar0, Inventory.SLOT_OFFHAND, ClickType.SWAP, p);
+        if (!inventory.offhand.get(0).isEmpty()) h.fail("the swap-hands key over the Doomcleaver put it in the off hand");
+        menu.clicked(offHand, 0, ClickType.SWAP, p);
+        if (!inventory.offhand.get(0).isEmpty()) h.fail("hotbar key 1 over the off-hand slot put the Doomcleaver in the off hand");
+        inventory.setItem(0, ItemStack.EMPTY);
+        menu.setCarried(axe);
+        menu.clicked(offHand, 0, ClickType.PICKUP, p);
+        if (!inventory.offhand.get(0).isEmpty()) h.fail("the Doomcleaver was clicked into the off-hand slot");
+        if (menu.getCarried() != axe) h.fail("the refused Doomcleaver left the cursor");
+        menu.setCarried(ItemStack.EMPTY);
+        ItemStack sword = FWGameTests.giveWeapon(p, "voidfang");
+        menu.clicked(hotbar0, Inventory.SLOT_OFFHAND, ClickType.SWAP, p);
+        if (inventory.offhand.get(0) != sword) h.fail("the one-handed Voidfang could not be swapped into the off hand");
         FWGameTests.cleanup(p);
         h.succeed();
     }

@@ -13,7 +13,8 @@ import org.joml.Vector3f;
 /**
  * Punchy draws the first-person arms and the held weapon itself, with its own idle and attack animations, so the
  * weapons' ability motion (raised while charging, the release, Monolith's plant, Cinder Cyclone, the form switch) never
- * reached the screen. While one plays it is laid over Punchy's pose instead: the weapon moves about Punchy's hand just as
+ * reached the screen, nor, with Better Combat, any attack (Punchy does not animate Better Combat's attacks unless its own
+ * Better Combat setting is on). While one plays it is laid over Punchy's pose instead: the weapon moves about Punchy's hand just as
  * it moves about the hand without Punchy, and the arm (with its sleeve) follows it there, still reaching from the
  * shoulder, so a wide swing never folds the arm into the view.
  */
@@ -41,7 +42,13 @@ public final class PunchyAbilityMotion {
         if (view == null || arm != player.getMainArm() || !(player.getMainHandItem().getItem() instanceof FantasyWeaponItem weapon)) return false;
         int side = arm == HumanoidArm.RIGHT ? 1 : -1;
         PoseStack motion = new PoseStack();
-        if (!WeaponClientExtensions.applyAbilityMotion(motion, player, weapon, side, partialTick)) return false;
+        boolean moving = WeaponClientExtensions.applyAbilityMotion(motion, player, weapon, side, partialTick);
+        // a Better Combat attack: Punchy leaves it be (unless it animates Better Combat's attacks itself), so the weapon's
+        // own swing is laid over its arm, as it is in the first-person hand without Punchy
+        if (com.fantasyweapons.client.anim.AnimTracker.betterCombatSwing(player, partialTick) && !PunchyCompat.animatesBetterCombatAttacks()) {
+            moving |= WeaponClientExtensions.applySwing(motion, player, weapon, side, partialTick);
+        }
+        if (!moving) return false;
         // from Punchy's own space (turned about the view) into the view's, where the motion is made
         Matrix4f toView = new Matrix4f(view).invert().mul(poseStack.last().pose());
         // the shoulder and the fist of the arm as Punchy has posed it

@@ -23,6 +23,22 @@ public final class PunchyCompat {
     private PunchyCompat() {
     }
 
+    private static java.lang.reflect.Method betterCombatCompat;
+    private static boolean betterCombatCompatLooked;
+
+    /** Whether Punchy animates Better Combat's attacks itself (its own Better Combat setting, off unless turned on). */
+    public static boolean animatesBetterCombatAttacks() {
+        try {
+            if (!betterCombatCompatLooked) {
+                betterCombatCompatLooked = true;
+                betterCombatCompat = Class.forName("punchy.config.PunchyConfig").getMethod("isBetterCombatCompatEnabled");
+            }
+            return betterCombatCompat != null && (boolean) betterCombatCompat.invoke(null);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return false;
+        }
+    }
+
     /** Puts the Codex on Punchy's blacklist (or takes it off), as the client config says. */
     @SuppressWarnings("unchecked")
     public static void sync() {

@@ -27,6 +27,10 @@ public final class AnimTracker {
         int combo;
         double lastSwing = -1000;
         boolean heavy;
+        /** The swing is one of Better Combat's, played in the first-person hand (see BetterCombatClient). */
+        public boolean betterCombat;
+        /** The weapon the last swing was made with. */
+        net.minecraft.world.item.Item swingItem;
         double castStart = -1;
         double formStart = -1;
         double plantStart = -1;
@@ -83,6 +87,8 @@ public final class AnimTracker {
         s.lastSwing = now;
         s.swingStart = now;
         s.heavy = heavy;
+        s.betterCombat = false;
+        s.swingItem = stack.getItem();
         s.swingDuration = swingDuration(def, stack, heavy);
     }
 
@@ -233,6 +239,21 @@ public final class AnimTracker {
 
     /** Each weapon class has this many different attacks, played in turn while the attacks are chained. */
     public static final int VARIANTS = 3;
+
+    /**
+     * Whether the held weapon is still recovering from its last swing (its recovery, and a little more for Better
+     * Combat, which starts the recovery at the blow): the time the game lowers a held item and raises it again.
+     */
+    public static boolean recoveringFromSwing(LivingEntity e) {
+        State s = STATES.get(e.getId());
+        return s != null && s.swingStart >= 0 && e.getMainHandItem().getItem() == s.swingItem && now(0) - s.lastSwing < s.swingDuration / 0.8 + 12;
+    }
+
+    /** Whether a swing of Better Combat's is playing in the first-person hand (see BetterCombatClient). */
+    public static boolean betterCombatSwing(LivingEntity e, float partial) {
+        State s = STATES.get(e.getId());
+        return s != null && s.betterCombat && swingProgress(e, partial) >= 0;
+    }
 
     /** Which of the weapon's attacks the current (or last) swing is: 0, 1 or 2. */
     public static int variant(LivingEntity e) {

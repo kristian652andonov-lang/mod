@@ -18,6 +18,9 @@ config = "${mod_id}.mixins.json"
 # hooks into Punchy's own classes, applied only when Punchy is installed (compat/punchy/PunchyMixinPlugin)
 [[mixins]]
 config = "${mod_id}.punchy.mixins.json"
+# hooks into Better Combat's own classes, applied only when Better Combat is installed (compat/bettercombat/BetterCombatMixinPlugin)
+[[mixins]]
+config = "${mod_id}.bettercombat.mixins.json"
 
 [[dependencies.${mod_id}]]
 modId = "neoforge"

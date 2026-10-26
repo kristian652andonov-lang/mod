@@ -85,7 +85,10 @@ public final class GenericFx {
      */
     public static void onBetterCombatSwing(LivingEntity entity, ItemStack stack, boolean firstPersonSwing) {
         if (!(stack.getItem() instanceof FantasyWeaponItem item)) return;
-        if (firstPersonSwing) AnimTracker.onSwing(entity, item.definition(), stack, entity.isCrouching());
+        if (firstPersonSwing) {
+            AnimTracker.onSwing(entity, item.definition(), stack, entity.isCrouching());
+            AnimTracker.state(entity).betterCombat = true;
+        }
         if (InfernochainFx.isInfernochain(stack) && InfernochainFx.chainForm(stack)) InfernochainFx.onSwing(entity);
     }
 
