@@ -123,6 +123,8 @@ final class DevScripts {
                 else if (name.startsWith("combos:")) combos(b, java.util.List.of(name.substring(7).split(",")));
                 else if (name.equals("bettercombat")) betterCombat(b, null);
                 else if (name.equals("punchy")) punchy(b);
+                else if (name.startsWith("punchycombo:")) punchyCombo(b, name.substring(12).split(","));
+                else if (name.startsWith("bcfinisher:")) betterCombatFinisher(b, name.substring(11).split(","));
                 else if (name.equals("punchyarmor")) punchyArmor(b);
                 else if (name.equals("codexshield")) codexShield(b);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
@@ -3210,6 +3212,73 @@ final class DevScripts {
         codexAll(b);
         // last, for it ends the run
         refinery(b);
+    }
+
+    /**
+     * Punchy with Better Combat: each weapon's three-hit combo in first person, frame by frame (every 2 ticks), at a dummy;
+     * logs the attack animations Punchy picks for it ({@code [punchycombo]}).
+     */
+    private static void punchyCombo(ScreenshotDirector.Builder b, String[] weapons) {
+        b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
+                .camera(CameraType.FIRST_PERSON).look(0, 10).hud(false).wait(20);
+        for (String w : weapons) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            int cooldown = Math.round(20f / def.weaponClass().attackSpeed());
+            b.cmd("/kill @e[type=!player]").cmd("/summon minecraft:husk 200.5 -60 202.5 {NoAI:1b,Health:1000f,attributes:[{id:\"minecraft:generic.max_health\",base:1000d}]}")
+                    .cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).look(0, 10).wait(cooldown + 30);
+            logPunchyAttack(b, w);
+            for (int k = 0; k < 3; k++) {
+                b.click();
+                for (int f = 0; f < cooldown + 6; f++) b.wait(1).screenshot("pc_" + w + "_" + k + "_" + f);
+                b.wait(4);
+            }
+            b.wait(40);
+        }
+    }
+
+    /** Each weapon's Better Combat combo, its finisher (the third attack) watched from the side, close, every tick. */
+    private static void betterCombatFinisher(ScreenshotDirector.Builder b, String[] weapons) {
+        b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
+                .camera(CameraType.FIRST_PERSON).hud(false).wait(20);
+        for (String w : weapons) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            int cooldown = Math.round(20f / def.weaponClass().attackSpeed());
+            b.playerView().cmd("/clear @s").cmd("/fw give " + w + " 1").wait(12).slot(0).look(0, 0).wait(cooldown + 30);
+            for (int k = 0; k < 3; k++) {
+                if (k == 2) b.viewAt(4.2, 1.4, 1.2, 0, 1.1, 0.6);
+                b.click();
+                for (int f = 0; f < (k == 2 ? cooldown + 6 : 1); f++) b.wait(1).screenshot("bcfin_" + w + "_" + k + "_" + f);
+                b.wait(k == 2 ? 4 : cooldown + 2);
+            }
+            b.wait(30);
+        }
+        b.playerView();
+    }
+
+    /** The attack animations Punchy resolves for the held item: its own cycle, and its Better Combat combo if it has one. */
+    private static void logPunchyAttack(ScreenshotDirector.Builder b, String tag) {
+        b.run(mc -> {
+            String state;
+            try {
+                var stack = mc.player.getMainHandItem();
+                Class<?> resolver = Class.forName("punchy.client.state.CustomAnimationResolver");
+                var find = resolver.getDeclaredMethod("findEntry", net.minecraft.world.item.ItemStack.class, String.class);
+                var findBc = resolver.getDeclaredMethod("findBetterCombatEntry", net.minecraft.world.item.ItemStack.class, String.class);
+                Class<?> entryType = Class.forName("punchy.config.PunchyTuningConfig$CustomAnimationEntry");
+                Class<?> bcType = Class.forName("punchy.config.PunchyTuningConfig$BetterCombatEntry");
+                var names = resolver.getDeclaredMethod("resolveComboNames", entryType);
+                var bcNames = resolver.getDeclaredMethod("resolveBetterCombatComboNames", bcType);
+                for (var m : new java.lang.reflect.Method[]{find, findBc, names, bcNames}) m.setAccessible(true);
+                Object entry = find.invoke(null, stack, "attack");
+                Object bc = findBc.invoke(null, stack, "melee_combo");
+                Class<?> config = Class.forName("punchy.config.PunchyConfig");
+                state = "attack cycle=" + (entry == null ? "none" : names.invoke(null, entry)) + ", better combat combo="
+                        + (bc == null ? "none" : bcNames.invoke(null, bc)) + ", better combat compat on=" + config.getMethod("isBetterCombatCompatEnabled").invoke(null);
+            } catch (ReflectiveOperationException | RuntimeException e) {
+                state = "could not ask Punchy: " + e;
+            }
+            com.fantasyweapons.FantasyWeapons.LOGGER.info("[punchycombo] {}: {}", tag, state);
+        });
     }
 
     /** What Punchy makes of the held items: whether each hand is left to this mod (on Punchy's blacklist). */

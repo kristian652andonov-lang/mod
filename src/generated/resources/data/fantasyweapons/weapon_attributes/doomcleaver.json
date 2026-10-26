@@ -23,10 +23,10 @@
         "upswing": 0.5
       },
       {
-        "angle": 360.0,
-        "animation": "bettercombat:two_handed_spin",
+        "angle": 150.0,
+        "animation": "bettercombat:two_handed_slash_vertical_right",
         "damage_multiplier": 1.2,
-        "hitbox": "HORIZONTAL_PLANE",
+        "hitbox": "VERTICAL_PLANE",
         "swing_sound": {
           "id": "bettercombat:double_axe_swing",
           "pitch": 0.85

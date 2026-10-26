@@ -25,9 +25,10 @@ The mod works with [Better Combat](https://modrinth.com/mod/better-combat) 2.4 o
 playerAnimator and Cloth Config). Nothing changes without it. With it installed:
 
 - Every blade swings in Better Combat's combos, chosen by weapon class: longswords slash, slash back and thrust;
-  greatswords sweep, stab and sweep back hard; battle axes and scythes finish with a spin; Starforge sweeps and slams;
-  Aetherlance thrusts twice and sweeps; Monolith sweeps both ways; Infernochain slashes and swipes. Combo finishers hit
-  harder.
+  greatswords sweep, stab and sweep back hard; battle axes and scythes sweep both ways and finish with an overhead chop
+  (not Better Combat's spin, which in first person carries the blade across the view twice and reads as two blows);
+  Starforge sweeps and slams; Aetherlance thrusts twice and sweeps; Monolith sweeps both ways; Infernochain slashes and
+  swipes. Combo finishers hit harder.
 - Better Combat's hitboxes replace the weapons' own cleave, so every enemy in the swing is hit once. Damage, levels,
   crits, heavy attacks (sneak), on-hit effects, life steal, armor bonuses and hit effects all still come from this mod.
 - Swing trails take the weapon's element colours. The weapons keep their own stances when idle.

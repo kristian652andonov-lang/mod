@@ -22,8 +22,10 @@ import java.util.concurrent.CompletableFuture;
  * <p>
  * Each weapon class gets its own chain of attacks, matched to how the weapon fights here: hitbox, arc and finisher.
  * No idle pose is set, so the weapons keep their own stances; the swing trails take the weapon's element colours.
- * Better Combat's overhead chops and slams end with the weapon pointing into the ground, which buries these long
- * blades and heads, so the two-handed weapons sweep, thrust and spin instead; only Starforge, a hammer, slams.
+ * Better Combat's slams end with the weapon pointing into the ground, which buries these long blades and heads, so the
+ * two-handed weapons sweep and thrust; only Starforge, a hammer, slams. The battle axes and scythes finish with an
+ * overhead chop that ends at the ground in front, as their own third attack does: not with Better Combat's spin, which
+ * in first person carries the blade across the view twice (once going round, once striking) and reads as two blows.
  * Staffs and spellbooks get attributes without attacks, so Better Combat leaves their click (a bolt) alone. Of the
  * tools only the axes fight Better Combat's way, as vanilla axes do; pickaxes and shovels stay vanilla diggers.
  */
@@ -76,13 +78,13 @@ public class FWBetterCombat implements DataProvider {
                 attributes.addProperty("category", "double_axe");
                 attacks.add(attack("HORIZONTAL_PLANE", 150, 1.0, "two_handed_slash_horizontal_right", "double_axe_swing", 1f));
                 attacks.add(attack("HORIZONTAL_PLANE", 150, 1.1, "two_handed_slash_horizontal_left", "double_axe_swing", 0.95f));
-                attacks.add(attack("HORIZONTAL_PLANE", 360, 1.2, "two_handed_spin", "double_axe_swing", 0.85f));
+                attacks.add(attack("VERTICAL_PLANE", 150, 1.2, "two_handed_slash_vertical_right", "double_axe_swing", 0.85f));
             }
             case SCYTHE -> {
                 attributes.addProperty("category", "scythe");
                 attacks.add(attack("HORIZONTAL_PLANE", 160, 1.0, "two_handed_slash_horizontal_right", "scythe_slash", 1f));
                 attacks.add(attack("HORIZONTAL_PLANE", 160, 1.0, "two_handed_slash_horizontal_left", "scythe_slash", 1.05f));
-                attacks.add(attack("HORIZONTAL_PLANE", 360, 1.2, "two_handed_spin", "scythe_slash", 0.9f));
+                attacks.add(attack("VERTICAL_PLANE", 150, 1.2, "two_handed_slash_vertical_right", "scythe_slash", 0.9f));
             }
             case WARHAMMER -> {
                 attributes.addProperty("category", "hammer");
