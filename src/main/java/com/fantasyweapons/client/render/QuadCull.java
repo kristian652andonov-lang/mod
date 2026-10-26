@@ -1,31 +1,36 @@
 package com.fantasyweapons.client.render;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceManager;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.cache.object.GeoCube;
 import software.bernie.geckolib.cache.object.GeoQuad;
 import software.bernie.geckolib.cache.object.GeoVertex;
-import software.bernie.geckolib.cache.texture.AutoGlowingTexture;
+import software.bernie.geckolib.cache.texture.GeoAbstractTexture;
+import software.bernie.geckolib.resource.GeoGlowingTextureMeta;
 
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Which faces of the mod's models are worth drawing, worked out once per face from its textures: a face whose patch of
  * the texture is wholly clear (in every frame of an animated one) is never drawn, and the glow passes draw only the
  * faces whose patch of the glowmask has something in it (on a model like the Weapon of God's, most of its faces have
  * none). Every face is otherwise drawn exactly as before. See {@link ModelCulling}.
+ * <p>
+ * A texture is read once, on a worker thread, the first time a model is drawn with it: until it has been read the model
+ * is drawn whole, so a model seen for the first time costs the game's drawing nothing (reading a large texture on the
+ * drawing thread, as it was read once per face, froze the game for seconds the first time a big model showed).
  */
 public final class QuadCull {
-    static final byte SEEN = 1, GLOWS = 2;
-
-    /** For each texture: whether each pixel is clear, as a summed-area table over "not clear", or null if not readable. */
-    private static final Map<ResourceLocation, Mask> MASKS = new HashMap<>();
-    /** For each texture, each face's flags (faces are kept by identity: a model's faces live as long as it). */
-    private static final Map<ResourceLocation, IdentityHashMap<GeoQuad, Byte>> FLAGS = new HashMap<>();
+    /** For each texture, where it and its glowmask have something: read once, on a worker thread (see {@link #masks}). */
+    private static final Map<ResourceLocation, CompletableFuture<Masks>> MASKS = new HashMap<>();
     /** For each texture, each cube's faces drawn: the seen ones in the low half, the glowing ones in the high half. */
     private static final Map<ResourceLocation, IdentityHashMap<GeoCube, Long>> CUBE_FACES = new HashMap<>();
     /** The texture last asked about and its cubes (a model's cubes come one after another, all with one texture). */
@@ -40,30 +45,15 @@ public final class QuadCull {
     /** Forgets everything (textures or models were reloaded). */
     public static void clear() {
         MASKS.clear();
-        FLAGS.clear();
         CUBE_FACES.clear();
         lastTexture = null;
         lastCubes = null;
     }
 
-    /** {@link #SEEN} and {@link #GLOWS} for {@code quad} of a model drawn with {@code texture}. */
-    static byte flags(ResourceLocation texture, GeoQuad quad) {
-        IdentityHashMap<GeoQuad, Byte> known = FLAGS.computeIfAbsent(texture, t -> new IdentityHashMap<>());
-        Byte f = known.get(quad);
-        if (f != null) return f;
-        // the frames are cut as the game draws them: a strip of the artist's is cut by its model (see FrameStripTextures),
-        // and the glow is cut into the same frames as the texture it glows on, as GeckoLib does
-        int[] frame = drawnFrame(texture);
-        Mask base = mask(texture, false, frame), glow = mask(AutoGlowingTexture.getEmissiveResource(texture), true, frame);
-        byte flags = 0;
-        // a texture that cannot be read is drawn in full; a missing glowmask has nothing to glow
-        if (base == null || base.any(quad)) flags |= SEEN;
-        if (glow != null && glow.any(quad)) flags |= GLOWS;
-        known.put(quad, flags);
-        return flags;
-    }
-
-    /** The faces of {@code cube} drawn (bit {@code i} for its {@code i}th face): those seen, or in the glow layer those that glow. */
+    /**
+     * The faces of {@code cube} drawn (bit {@code i} for its {@code i}th face): those seen, or in the glow layer those that
+     * glow; all of them while the texture is still being read.
+     */
     static int faces(ResourceLocation texture, GeoCube cube, boolean glow) {
         IdentityHashMap<GeoCube, Long> known;
         if (texture == lastTexture || texture.equals(lastTexture)) {
@@ -75,13 +65,15 @@ public final class QuadCull {
         }
         Long f = known.get(cube);
         if (f == null) {
+            Masks m = masks(texture);
+            if (m == null) return -1;
             long seen = 0, glows = 0;
             GeoQuad[] quads = cube.quads();
             for (int i = 0; i < quads.length && i < 31; i++) {
                 if (quads[i] == null) continue;
-                byte b = flags(texture, quads[i]);
-                if ((b & SEEN) != 0) seen |= 1L << i;
-                if ((b & GLOWS) != 0) glows |= 1L << i;
+                // a texture that cannot be read is drawn in full; one without a glowmask has nothing to glow
+                if (m.base() == null || m.base().any(quads[i])) seen |= 1L << i;
+                if (m.glow() != null && m.glow().any(quads[i])) glows |= 1L << i;
             }
             f = seen | (glows << 32);
             known.put(cube, f);
@@ -89,44 +81,70 @@ public final class QuadCull {
         return (int) (glow ? f >>> 32 : f);
     }
 
-    /**
-     * Where {@code texture} has something. A texture's pixel counts if it is not clear; a glowmask's if it is not wholly
-     * zero, as GeckoLib reads one: a pixel clear but coloured still makes the texture glow there, at full strength.
-     */
+    /** Where {@code texture} and its glowmask have something, or null while they are still being read. */
     @Nullable
-    private static Mask mask(ResourceLocation texture, boolean glowmask, @Nullable int[] frame) {
-        if (MASKS.containsKey(texture)) return MASKS.get(texture);
-        Mask m = null;
-        var res = Minecraft.getInstance().getResourceManager().getResource(texture);
-        if (res.isPresent()) {
-            try (var in = res.get().open(); NativeImage img = NativeImage.read(in)) {
-                // an animated texture's frames are laid out in the image: a face is drawn if its patch has something in
-                // any frame
-                m = frame != null ? new Mask(img, frame[0], frame[1], glowmask) : new Mask(img, img.getWidth(), img.getHeight(), glowmask);
-            } catch (Exception e) {
-                // drawn in full, as if it could not be read
-                m = Mask.ALL;
-            }
+    private static Masks masks(ResourceLocation texture) {
+        CompletableFuture<Masks> read = MASKS.get(texture);
+        if (read == null) {
+            Minecraft mc = Minecraft.getInstance();
+            // a strip of the artist's is cut into the frames its model draws (see FrameStripTextures); asked here, where
+            // the game's textures are kept
+            int[] strip = mc.getTextureManager().getTexture(texture, null) instanceof FrameStripTextures.StripTexture s
+                    ? new int[]{s.frameWidth(), s.frameHeight()} : null;
+            ResourceManager resources = mc.getResourceManager();
+            read = CompletableFuture.supplyAsync(() -> read(resources, texture, strip), Util.backgroundExecutor())
+                    .exceptionally(e -> Masks.ALL);
+            MASKS.put(texture, read);
         }
-        MASKS.put(texture, m);
-        return m;
+        return read.getNow(null);
     }
 
-    /** The size of the frames {@code texture} is drawn in ({width, height}), or null if it is not animated. */
-    @Nullable
-    private static int[] drawnFrame(ResourceLocation texture) {
-        var drawn = Minecraft.getInstance().getTextureManager().getTexture(texture, null);
-        if (drawn instanceof FrameStripTextures.StripTexture strip) return new int[]{strip.frameWidth(), strip.frameHeight()};
-        var res = Minecraft.getInstance().getResourceManager().getResource(texture);
-        if (res.isEmpty()) return null;
-        try (var in = res.get().open(); NativeImage img = NativeImage.read(in)) {
-            var animation = res.get().metadata().getSection(net.minecraft.client.resources.metadata.animation.AnimationMetadataSection.SERIALIZER);
-            if (animation.isEmpty()) return null;
-            var frame = animation.get().calculateFrameSize(img.getWidth(), img.getHeight());
-            return new int[]{frame.width(), frame.height()};
+    /**
+     * Reads where the texture and its glowmask have something, cut into the frames the game draws them in: the texture's
+     * own (a strip of the artist's by its model, an animated texture by its animation), and the glow into the same frames
+     * as the texture it glows on, as GeckoLib does. A texture's pixel counts if it is not clear; a glowmask's if it is not
+     * wholly zero, as GeckoLib reads one: a pixel clear but coloured still makes the texture glow there, at full strength.
+     */
+    private static Masks read(ResourceManager resources, ResourceLocation texture, @Nullable int[] strip) {
+        try {
+            int[] frame = strip;
+            Mask base = null;
+            boolean glowsByMeta = false;
+            var res = resources.getResource(texture);
+            if (res.isPresent()) {
+                try (var in = res.get().open(); NativeImage img = NativeImage.read(in)) {
+                    if (frame == null) {
+                        var animation = res.get().metadata().getSection(AnimationMetadataSection.SERIALIZER);
+                        if (animation.isPresent()) {
+                            var size = animation.get().calculateFrameSize(img.getWidth(), img.getHeight());
+                            frame = new int[]{size.width(), size.height()};
+                        }
+                    }
+                    base = new Mask(img, frame, false);
+                }
+                // GeckoLib can also make the glow from the texture's own metadata, without a glowmask
+                glowsByMeta = res.get().metadata().getSection(GeoGlowingTextureMeta.DESERIALIZER).isPresent();
+            }
+            Mask glow = null;
+            var glowRes = resources.getResource(GeoAbstractTexture.appendToPath(texture, "_glowmask"));
+            if (glowRes.isPresent()) {
+                try (var in = glowRes.get().open(); NativeImage img = NativeImage.read(in)) {
+                    glow = new Mask(img, frame, true);
+                }
+            } else if (glowsByMeta) {
+                glow = Mask.ALL;
+            }
+            return new Masks(base, glow);
         } catch (Exception e) {
-            return null;
+            // drawn in full, as if it could not be read
+            return Masks.ALL;
         }
+    }
+
+    /** Where a texture has something (null if it is not there: drawn in full) and where its glowmask does (null: nowhere). */
+    private record Masks(@Nullable Mask base, @Nullable Mask glow) {
+        /** A texture drawn in full, glow and all. */
+        static final Masks ALL = new Masks(Mask.ALL, Mask.ALL);
     }
 
     /** Where a texture is not clear, for asking quickly whether a rectangle of it has anything in it. */
@@ -142,12 +160,12 @@ public final class QuadCull {
         }
 
         /**
-         * A frame of {@code fw} by {@code fh}: a pixel counts if it is not clear in any of the image's frames (or, for a
-         * glowmask, not wholly zero).
+         * A frame ({width, height}, or the whole image if null): a pixel counts if it is not clear in any of the image's
+         * frames (or, for a glowmask, not wholly zero).
          */
-        Mask(NativeImage img, int fw, int fh, boolean anyChannel) {
-            w = Math.max(1, Math.min(fw, img.getWidth()));
-            h = Math.max(1, Math.min(fh, img.getHeight()));
+        Mask(NativeImage img, @Nullable int[] frame, boolean anyChannel) {
+            w = Math.max(1, Math.min(frame != null ? frame[0] : img.getWidth(), img.getWidth()));
+            h = Math.max(1, Math.min(frame != null ? frame[1] : img.getHeight(), img.getHeight()));
             int across = Math.max(1, img.getWidth() / w), down = Math.max(1, img.getHeight() / h);
             sum = new int[(w + 1) * (h + 1)];
             for (int y = 0; y < h; y++) {
