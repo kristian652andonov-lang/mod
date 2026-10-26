@@ -127,6 +127,7 @@ final class DevScripts {
                 else if (name.startsWith("bcfinisher:")) betterCombatFinisher(b, name.substring(11).split(","));
                 else if (name.startsWith("offhand:")) offhand(b, name.substring(8).split(","));
                 else if (name.startsWith("fpreturn:")) firstPersonReturn(b, name.substring(9).split(","));
+                else if (name.startsWith("reapers:")) reapers(b, name.substring(8).split(","));
                 else if (name.equals("punchyarmor")) punchyArmor(b);
                 else if (name.equals("codexshield")) codexShield(b);
                 else if (name.startsWith("bettercombat:")) betterCombat(b, java.util.List.of(name.substring(13).split(",")));
@@ -3260,6 +3261,55 @@ final class DevScripts {
                 }
                 b.wait(20);
             }
+        }
+    }
+
+    /**
+     * Every move of a weapon in each of its forms ("weapon/form/bones+...,..."), in first person: a strike, a heavy
+     * strike and each active ability, a frame every few ticks from the start of the move until it has settled, with the
+     * rendered angles of the named bones logged each frame ({@code [bone]}), so a part that turns away and back shows.
+     */
+    private static void reapers(ScreenshotDirector.Builder b, String[] entries) {
+        b.cmd("/gamemode creative").cmd("/tp @s 200.5 -60 200.5 0 0").wait(10).cmd("/fill 190 -60 190 210 -50 212 air").cmd("/kill @e[type=!player]")
+                .cmd("/time set midnight").camera(CameraType.FIRST_PERSON).look(0, 5).hud(true).wait(20);
+        for (String entry : entries) {
+            String[] u = entry.split("/");
+            var def = com.fantasyweapons.weapon.Weapons.get(u[0]);
+            String tag = u[0] + (u.length > 1 && !u[1].isEmpty() ? "_" + u[1] : "");
+            String bones = u.length > 2 ? u[2].replace('+', ',') : null;
+            b.cmd("/clear @s").cmd("/fw give " + u[0] + " 100").wait(130).slot(0).cmd("/fw points 300").cmd("/fw cooldowns").wait(10);
+            if (u.length > 1 && !u[1].isEmpty()) b.form(u[1]).wait(80);
+            java.util.function.BiConsumer<String, Integer> frames = (move, count) -> {
+                for (int f = 0; f < count; f++) {
+                    String name = "rp_" + tag + "_" + move + "_" + String.format("%02d", f);
+                    int ff = f;
+                    b.wait(1).run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.info("[rp] {} f={} tick={}", tag + "_" + move, ff, mc.player.tickCount))
+                            .screenshot(name);
+                }
+            };
+            b.run(mc -> com.fantasyweapons.client.render.WeaponGeoModel.debugBone = bones);
+            b.screenshot("rp_" + tag + "_rest").click();
+            frames.accept("strike", 24);
+            b.wait(30).run(mc -> mc.player.setShiftKeyDown(true)).click();
+            frames.accept("heavy", 30);
+            b.run(mc -> mc.player.setShiftKeyDown(false)).wait(30);
+            for (var a : def.abilities()) {
+                if (a.kind() == com.fantasyweapons.ability.AbilityKind.PASSIVE) continue;
+                b.cmd("/fw cooldowns").cmd("/kill @e[type=!player]").select(a.id()).wait(10);
+                if (u.length > 1 && !u[1].isEmpty()) b.form(u[1]).wait(60);
+                b.abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp();
+                frames.accept(a.id(), 50);
+                b.wait(40);
+            }
+            // and each change of form, from this one and back
+            for (var f : def.forms()) {
+                if (u.length > 1 && f.id().equals(u[1])) continue;
+                b.form(f.id());
+                frames.accept("to_" + f.id(), 40);
+                if (u.length > 1 && !u[1].isEmpty()) b.form(u[1]);
+                frames.accept("back", 40);
+            }
+            b.run(mc -> com.fantasyweapons.client.render.WeaponGeoModel.debugBone = null);
         }
     }
 

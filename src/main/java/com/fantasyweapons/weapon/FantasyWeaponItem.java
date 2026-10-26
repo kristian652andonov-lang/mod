@@ -84,43 +84,77 @@ public class FantasyWeaponItem extends Item implements GeoItem {
             }
             return state.setAndContinue(loops.computeIfAbsent(idle, n -> RawAnimation.begin().thenLoop(def.anim(n))));
         });
-        for (String name : List.of("attack", "heavy_attack", "impact", "recovery")) {
-            main.triggerableAnim(name, RawAnimation.begin().thenPlay(def.anim(name)));
-        }
-        main.triggerableAnim("charge", RawAnimation.begin().thenPlayAndHold(def.anim("charge")));
+        Map<String, List<String>> plays = triggers(def);
+        java.util.Set<String> held = heldTriggers(def);
+        plays.forEach((trigger, names) -> {
+            main.triggerableAnim(trigger, sequence(names, held.contains(trigger), null));
+            // and in each form that has its own versions of the animations
+            for (WeaponForm form : def.forms()) {
+                if (form.animationVariant() != null) main.triggerableAnim(formTrigger(trigger, form), sequence(names, held.contains(trigger), form));
+            }
+        });
         for (WeaponForm form : def.forms()) {
             if (form.enterAnimation() != null) {
                 main.triggerableAnim("form:" + form.id(), RawAnimation.begin().thenPlay(def.anim(form.enterAnimation())));
             }
-            main.triggerableAnim("attack:" + form.id(), RawAnimation.begin().thenPlay(def.anim(form.attackAnimation())));
-        }
-        for (AbilityDefinition ability : def.castables()) {
-            if (ability.chargeAnimation() != null && !ability.chargeAnimation().equals("charge")) {
-                main.triggerableAnim("charge:" + ability.id(), RawAnimation.begin().thenPlayAndHold(def.anim(ability.chargeAnimation())));
-            }
-            RawAnimation cast = RawAnimation.begin();
-            List<String> seq = ability.castAnimations().isEmpty() ? List.of("ability_activation", "ability_execution") : ability.castAnimations();
-            // a summoned power holds its last pose while it is summoned, until it is released (RELEASE)
-            boolean summoned = def.rarity() == Rarity.BRILLIANT_LIGHT;
-            for (int i = 0; i < seq.size(); i++) {
-                if (summoned && i == seq.size() - 1) cast.thenPlayAndHold(def.anim(seq.get(i)));
-                else cast.thenPlay(def.anim(seq.get(i)));
-            }
-            main.triggerableAnim("cast:" + ability.id(), cast);
-            ability.formCastAnimations().forEach((form, anims) -> {
-                RawAnimation formCast = RawAnimation.begin();
-                for (String s : anims) formCast.thenPlay(def.anim(s));
-                main.triggerableAnim("cast:" + ability.id() + "@" + form, formCast);
-            });
-        }
-        if (def.rarity() == Rarity.BRILLIANT_LIGHT) {
-            main.triggerableAnim(RELEASE, RawAnimation.begin().thenPlay(def.anim("ability_execution")).thenPlay(def.anim("recovery")));
+            main.triggerableAnim("attack:" + form.id(), RawAnimation.begin().thenPlay(def.anim(form.animation(form.attackAnimation()))));
         }
         controllers.add(main);
     }
 
     /** The trigger a summoned power plays when it is released. */
     public static final String RELEASE = "release";
+
+    /**
+     * Every trigger of a weapon but those that name a form ("form:", "attack:"), as the animations it plays in turn
+     * (short names, as the weapon plays them as made).
+     */
+    public static Map<String, List<String>> triggers(WeaponDefinition def) {
+        Map<String, List<String>> plays = new java.util.LinkedHashMap<>();
+        for (String name : List.of("attack", "heavy_attack", "impact", "recovery", "charge")) plays.put(name, List.of(name));
+        for (AbilityDefinition ability : def.castables()) {
+            if (ability.chargeAnimation() != null && !ability.chargeAnimation().equals("charge")) {
+                plays.put("charge:" + ability.id(), List.of(ability.chargeAnimation()));
+            }
+            plays.put("cast:" + ability.id(), ability.castAnimations().isEmpty() ? List.of("ability_activation", "ability_execution") : ability.castAnimations());
+            ability.formCastAnimations().forEach((form, anims) -> plays.put("cast:" + ability.id() + "@" + form, anims));
+        }
+        if (def.rarity() == Rarity.BRILLIANT_LIGHT) plays.put(RELEASE, List.of("ability_execution", "recovery"));
+        return plays;
+    }
+
+    /** The triggers whose last animation holds its pose until the trigger is stopped (charges; summoned powers). */
+    private static java.util.Set<String> heldTriggers(WeaponDefinition def) {
+        java.util.Set<String> held = new java.util.HashSet<>();
+        held.add("charge");
+        for (AbilityDefinition ability : def.castables()) {
+            if (ability.chargeAnimation() != null && !ability.chargeAnimation().equals("charge")) held.add("charge:" + ability.id());
+            // a summoned power holds its last pose while it is summoned, until it is released (RELEASE)
+            if (def.rarity() == Rarity.BRILLIANT_LIGHT) held.add("cast:" + ability.id());
+        }
+        return held;
+    }
+
+    /** The animations {@code names} played in turn (as {@code form} plays them, if given), the last one held if asked. */
+    private RawAnimation sequence(List<String> names, boolean holdLast, @org.jetbrains.annotations.Nullable WeaponForm form) {
+        RawAnimation raw = RawAnimation.begin();
+        for (int i = 0; i < names.size(); i++) {
+            String anim = def.anim(form == null ? names.get(i) : form.animation(names.get(i)));
+            if (holdLast && i == names.size() - 1) raw.thenPlayAndHold(anim);
+            else raw.thenPlay(anim);
+        }
+        return raw;
+    }
+
+    /**
+     * The name a trigger goes by in {@code form}: a form with its own versions of the weapon's animations (Eclipse
+     * Reaper's dark form) has its own copy of each trigger, playing those. Triggers that name a form already
+     * ("form:", "attack:") are the same in every form.
+     */
+    public static String formTrigger(String trigger, @org.jetbrains.annotations.Nullable WeaponForm form) {
+        if (form == null || form.animationVariant() == null || trigger.startsWith("form:") || trigger.startsWith("attack:")) return trigger;
+        return trigger + "~" + form.id();
+    }
 
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {

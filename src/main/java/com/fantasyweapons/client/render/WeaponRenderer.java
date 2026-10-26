@@ -193,10 +193,63 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> implement
             case CHOP, SLAM, REAP -> FP_YAW_HEAVY;
             default -> FP_YAW_BLADE;
         };
-        var form = item.definition().form(FantasyWeaponItem.data(stack));
-        float formYaw = form == null ? 0 : FORM_FACING.getOrDefault(id + "/" + form.id(), 0f);
+        float formYaw = formFacing(item, stack);
         if (fp) return debugFpYaw != null ? debugFpYaw : FP_FACING.getOrDefault(id, 0f) + fpYaw + formYaw;
         return debugTpYaw != null ? debugTpYaw : TP_FACING.getOrDefault(id, 0f) + formYaw;
+    }
+
+    /** Each held weapon's form turn as last drawn (degrees) and when (nanoseconds), by GeckoLib instance id. */
+    private static final java.util.Map<Long, double[]> FORM_TURN = new java.util.HashMap<>();
+    /** How fast the form turn catches up when an animation is cut short, degrees per second. */
+    private static final double FORM_TURN_SPEED = 450;
+
+    /**
+     * How far the weapon's form turns it round (see {@link #FORM_FACING}), read from the animation playing rather than
+     * the form the weapon is in, so the turn changes exactly when the parts' layout does: a form's own animations
+     * hold its turn, the animation that brings a form in turns the weapon round as it plays, and the weapon's other
+     * animations hold the turn of the form that plays them as they were made. (The form itself changes a moment before
+     * or after its animation arrives.) If an animation is cut short the turn catches up over a few ticks, never at once.
+     */
+    private static float formFacing(FantasyWeaponItem item, ItemStack stack) {
+        var def = item.definition();
+        String id = def.id();
+        if (!def.hasForms() || def.forms().stream().noneMatch(f -> FORM_FACING.containsKey(id + "/" + f.id()))) return 0;
+        var form = def.form(FantasyWeaponItem.data(stack));
+        double target = form == null ? 0 : FORM_FACING.getOrDefault(id + "/" + form.id(), 0f);
+        long instance = software.bernie.geckolib.animatable.GeoItem.getId(stack);
+        var manager = item.getAnimatableInstanceCache().getManagerForId(instance);
+        var controller = manager == null ? null : manager.getAnimationControllers().get(FantasyWeaponItem.CONTROLLER);
+        if (controller instanceof com.fantasyweapons.weapon.RigidAnimationController<?> rigid && !rigid.currentName().isEmpty()) {
+            String name = rigid.currentName();
+            com.fantasyweapons.weapon.WeaponForm entering = null, owner = null, plain = null;
+            for (var f : def.forms()) {
+                if (f.enterAnimation() != null && name.equals(def.anim(f.enterAnimation()))) entering = f;
+                else if (f.owns(name)) owner = f;
+                if (f.animationVariant() == null && plain == null) plain = f;
+            }
+            if (entering != null) {
+                var into = entering;
+                var from = def.forms().stream().filter(f -> f != into).findFirst().orElse(into);
+                double a = FORM_FACING.getOrDefault(id + "/" + from.id(), 0f), b = FORM_FACING.getOrDefault(id + "/" + into.id(), 0f);
+                double p = rigid.progress();
+                target = a + (b - a) * p * p * (3 - 2 * p);
+            } else if (owner != null) {
+                target = FORM_FACING.getOrDefault(id + "/" + owner.id(), 0f);
+            } else if (plain != null) {
+                target = FORM_FACING.getOrDefault(id + "/" + plain.id(), 0f);
+            }
+        }
+        long now = System.nanoTime();
+        double[] turn = FORM_TURN.get(instance);
+        if (turn == null) {
+            if (FORM_TURN.size() > 64) FORM_TURN.values().removeIf(t -> now - (long) t[1] > 10_000_000_000L);
+            turn = new double[]{target, now};
+            FORM_TURN.put(instance, turn);
+        }
+        double step = Math.min(0.25, (now - (long) turn[1]) / 1e9) * FORM_TURN_SPEED;
+        turn[0] += Math.max(-step, Math.min(step, target - turn[0]));
+        turn[1] = now;
+        return (float) turn[0];
     }
 
     /** The entity whose held Infernochain is being drawn in hand right now (its segments get tracked), or null. */

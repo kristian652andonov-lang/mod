@@ -241,7 +241,7 @@ public final class ClientSetup {
             if (hand != InteractionHand.MAIN_HAND || !(stack.getItem() instanceof FantasyWeaponItem item)) return;
             GenericFx.onSwing(entity, stack);
             var form = item.definition().form(FantasyWeaponItem.data(stack));
-            String trigger = entity.isCrouching() ? "heavy_attack" : form != null ? "attack:" + form.id() : "attack";
+            String trigger = entity.isCrouching() ? FantasyWeaponItem.formTrigger("heavy_attack", form) : form != null ? "attack:" + form.id() : "attack";
             item.triggerAnim(entity, GeoItem.getId(stack), FantasyWeaponItem.CONTROLLER, trigger);
         }
 

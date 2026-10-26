@@ -51,8 +51,8 @@ public final class Infernochain {
                 .theme(0xFF5A1F, 0xFFD38A)
                 // SWORD is entered with the artist's "retract" (Retraction), CHAINBLADE with "transform" (Transform);
                 // chainblade attacks use "whip" (Chainblade attack).
-                .form(new WeaponForm(SWORD, "Sword", "FORM", 0xFF7A2F, 0xFFD38A, "retract", "idle", "attack", 0f, 1.0f, 1.0f))
-                .form(new WeaponForm(CHAINBLADE, "Chainblade", "FORM", 0xFF2A10, 0xFFB15A, "transform", "chain_idle", "whip", 4.0f, 1.4f, 0.8f))
+                .form(new WeaponForm(SWORD, "Sword", "FORM", 0xFF7A2F, 0xFFD38A, "retract", "idle", "attack", 0f, 1.0f, 1.0f, null))
+                .form(new WeaponForm(CHAINBLADE, "Chainblade", "FORM", 0xFF2A10, 0xFFB15A, "transform", "chain_idle", "whip", 4.0f, 1.4f, 0.8f, null))
                 .onHit(InfernochainAbilities::onMeleeHit)
                 .ability(AbilityDefinition.builder(INFERNO_LASH, AbilityKind.ACTIVE)
                         .name("Inferno Lash")

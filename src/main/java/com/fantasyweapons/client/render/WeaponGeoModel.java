@@ -166,9 +166,10 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
      * the arc it should follow, and snaps back onto it at the next keyframe: with the grip held still in the hand, the
      * top of the weapon shook on every hit. So every piece turning exactly as the grip does is placed by where it sits
      * relative to the grip at the two keyframes either side, blended in the grip's own frame: exactly the artist's
-     * pose at each keyframe, and in between it travels with the grip instead of cutting across. Pieces that also move
-     * on their own (chain links paying out, orbiting souls) keep that motion; pieces that turn differently (spinning
-     * rings, moons) are left to GeckoLib.
+     * pose at each keyframe, and in between it travels with the grip instead of cutting across. The same goes for a
+     * piece held at a fixed angle to the grip (a crescent set at a slant, a part of a form laid out differently).
+     * Pieces that also move on their own (chain links paying out, orbiting souls) keep that motion; pieces that turn
+     * differently (spinning rings, moons) are left to GeckoLib.
      */
     private void weldToGrip(FantasyWeaponItem item, String anim, GeoBone root, GeoBone grip,
                             @org.jetbrains.annotations.Nullable com.fantasyweapons.weapon.RigidAnimationController<?> controller) {
@@ -187,14 +188,20 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
             if (b == grip) continue;
             double[] bs = controller.segments.get(b.getName());
             if (bs == null || Double.isNaN(bs[0])) continue;
-            boolean together = bs[12] == gs[12] && bs[13] == gs[13];
-            for (int i = 0; i < 6 && together; i++) together = Math.abs(bs[i] - gs[i]) < 1e-4;
-            if (!together) continue;
+            if (bs[12] != gs[12] || bs[13] != gs[13]) continue;
+            Matrix4f rel0 = new Matrix4f(g0inv).mul(localAt(b, bs, false)), rel1 = new Matrix4f(g1inv).mul(localAt(b, bs, true));
+            // held at the same angle to the grip all through the segment (the same angles as the grip's, or turned
+            // from it by a fixed amount, as a part laid out differently is); a part that spins a whole turn from one
+            // keyframe to the next is back at the same angle at the end, but not half way
+            org.joml.Quaternionf q0 = rel0.getNormalizedRotation(new org.joml.Quaternionf());
+            if (Math.abs(q0.dot(rel1.getNormalizedRotation(new org.joml.Quaternionf()))) < 0.999999f) continue;
+            Matrix4f relMid = new Matrix4f(localAt(grip, gs, 0.5)).invert().mul(localAt(b, bs, 0.5));
+            if (Math.abs(q0.dot(relMid.getNormalizedRotation(new org.joml.Quaternionf()))) < 0.999f) continue;
             if (!sameTiming(bs)) {
                 if (rigidStats != null) rigidStats.merge(item.definition().geoName() + " ~skip-bone-timing " + anim + " " + b.getName(), 1f, Float::sum);
                 continue;
             }
-            Matrix4f rel = blend(new Matrix4f(g0inv).mul(localAt(b, bs, false)), new Matrix4f(g1inv).mul(localAt(b, bs, true)), (float) f);
+            Matrix4f rel = blend(rel0, rel1, (float) f);
             Matrix4f want = new Matrix4f(gNow).mul(rel);
             if (rigidStats != null) {
                 Vector3f piv = new Vector3f(b.getPivotX() / 16f, b.getPivotY() / 16f, b.getPivotZ() / 16f);
@@ -212,11 +219,16 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
 
     /** The bone's transform relative to its parent at the start or end of its current keyframe segment. */
     private static Matrix4f localAt(GeoBone bone, double[] seg, boolean end) {
+        return localAt(bone, seg, end ? 1 : 0);
+    }
+
+    /** The bone's transform relative to its parent part way ({@code f}) through its current keyframe segment. */
+    private static Matrix4f localAt(GeoBone bone, double[] seg, double f) {
         float px = bone.getPosX(), py = bone.getPosY(), pz = bone.getPosZ(), rx = bone.getRotX(), ry = bone.getRotY(), rz = bone.getRotZ();
         BoneSnapshot init = bone.getInitialSnapshot();
-        int r = end ? 3 : 0, p = end ? 9 : 6;
-        bone.updateRotation((float) seg[r] + init.getRotX(), (float) seg[r + 1] + init.getRotY(), (float) seg[r + 2] + init.getRotZ());
-        if (!Double.isNaN(seg[p])) bone.updatePosition((float) seg[p], (float) seg[p + 1], (float) seg[p + 2]);
+        bone.updateRotation((float) (seg[0] + (seg[3] - seg[0]) * f) + init.getRotX(), (float) (seg[1] + (seg[4] - seg[1]) * f) + init.getRotY(),
+                (float) (seg[2] + (seg[5] - seg[2]) * f) + init.getRotZ());
+        if (!Double.isNaN(seg[6])) bone.updatePosition((float) (seg[6] + (seg[9] - seg[6]) * f), (float) (seg[7] + (seg[10] - seg[7]) * f), (float) (seg[8] + (seg[11] - seg[8]) * f));
         Matrix4f m = local(bone, false);
         bone.updatePosition(px, py, pz);
         bone.updateRotation(rx, ry, rz);
@@ -249,6 +261,10 @@ public class WeaponGeoModel extends GeoModel<FantasyWeaponItem> {
         var controller = manager.getAnimationControllers().get(FantasyWeaponItem.CONTROLLER);
         var current = controller == null ? null : controller.getCurrentAnimation();
         String name = current == null ? "" : current.animation().name();
+        // a form's own version of an animation (Eclipse Reaper's "attack_dark") counts as the animation it stands for
+        for (var form : item.definition().forms()) {
+            if (form.animationVariant() != null && name.endsWith(form.animationVariant())) name = name.substring(0, name.length() - form.animationVariant().length());
+        }
         boolean casting = !name.endsWith(".idle") && !name.endsWith("_idle") && !name.endsWith(".attack") && !name.endsWith(".heavy_attack")
                 && !name.endsWith(".whip") && !name.isEmpty();
         long now = System.nanoTime();
