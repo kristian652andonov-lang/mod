@@ -224,7 +224,7 @@ NeoForge.EVENT_BUS.addListener((GroundSplitAbility.GroundSplitEvent e) -> {
 | Regenerate VFX textures, status icons and UI glyphs | `cd tools && python3 gen_textures.py` |
 | Regenerate the fantasy UI art (frames, buttons, banners…) | `cd tools && python3 gen_ui.py` |
 | Regenerate mesh materials (ice, thorn, petal, snowflake…) | `cd tools && python3 gen_materials.py` |
-| Regenerate ability icons | `cd tools && python3 gen_icons.py [weapon …]` |
+| Regenerate ability icons | `python3 tools/gen_ability_icons.py [weapon …] [--preview sheet.png]` |
 
 - **GameTests.** There are 67 tests. They cover the EXP curve, damage scaling, codecs, level-ups, server-side upgrade
   validation (including upgrade-to-max), fizzles, kill credit, the death dissolve and wall-safe teleports. They also cast every ability of every

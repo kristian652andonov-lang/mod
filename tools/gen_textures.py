@@ -3,7 +3,6 @@
 Generates the mod's CUSTOM textures (no vanilla assets are used or copied):
 
   textures/vfx/*.png         greyscale/white energy textures tinted at runtime by the VFX system
-  textures/gui/ability/...   ability icons (per weapon)
   textures/gui/status/*.png  status-effect icons
   textures/gui/*.png         misc UI glyphs
 
@@ -398,92 +397,6 @@ class Icon:
         self.img.resize((self.size, self.size), Image.LANCZOS).save(out(path))
 
 
-def voidfang_icons():
-    P, D, L = 0x9B4DFF, 0x12041F, 0xEBDDFF
-
-    def make(name, fn):
-        ic = Icon(P, D, L)
-        ic.background()
-        fn(ic)
-        ic.save(f'gui/ability/voidfang/{name}.png')
-
-    def void_slash(ic):
-        def f(d, col):
-            d.pieslice([ic.p(8, 8), ic.p(58, 58)], 200, 340, fill=col)
-        ic.shape(f)
-        ic.d.pieslice([ic.p(14, 15), ic.p(56, 58)], 195, 345, fill=mix(ic.dark, ic.primary, 0.15) + (255,))
-        for i, (y, l) in enumerate([(40, 18), (46, 24), (52, 14)]):
-            ic.d.line([ic.p(10, y), ic.p(10 + l, y - 4)], fill=ic.light + (200,), width=2 * SS)
-
-    def void_blink(ic):
-        def f(d, col):
-            d.ellipse([ic.p(36, 12), ic.p(46, 22)], fill=col)               # head
-            d.polygon(ic.pts([(34, 24), (48, 24), (46, 42), (36, 42)]), fill=col)  # body
-            d.polygon(ic.pts([(36, 42), (41, 42), (38, 56), (33, 56)]), fill=col)
-            d.polygon(ic.pts([(41, 42), (46, 42), (50, 56), (45, 56)]), fill=col)
-        ic.shape(f)
-        rng = random.Random(2)
-        for i in range(9):  # dissolving fragments to the left
-            x = 28 - i * 2.4 + rng.uniform(-1, 1)
-            y = 18 + rng.uniform(0, 34)
-            s = 3.5 - i * 0.3
-            ic.d.rectangle([ic.p(x, y), ic.p(x + s, y + s)], fill=ic.light + (int(230 - i * 22),))
-        ic.d.polygon(ic.pts([(8, 33), (20, 27), (20, 39)]), fill=ic.primary + (255,))
-
-    def void_mark(ic):
-        def f(d, col):
-            d.polygon(ic.pts([(32, 8), (54, 32), (32, 56), (10, 32)]), outline=col, width=3 * SS)
-            d.ellipse([ic.p(22, 24), ic.p(42, 40)], outline=col, width=3 * SS)
-            d.ellipse([ic.p(28, 28), ic.p(36, 36)], fill=col)
-        ic.shape(f)
-
-    def rift_tear(ic):
-        def f(d, col):
-            d.polygon(ic.pts([(33, 6), (38, 18), (35, 26), (42, 36), (36, 46), (38, 58), (29, 46), (31, 36), (24, 27), (30, 18)]), fill=col)
-        ic.glow_layer(f, ic.primary, 6, 255)
-        ic.shape(f, glow=False)
-        def core(d, col):
-            d.polygon(ic.pts([(33, 12), (35, 19), (33, 26), (37, 36), (34, 44), (35, 52), (31, 44), (33, 36), (28, 27), (31, 19)]), fill=col)
-        layer = Image.new('RGBA', (ic.s, ic.s), (0, 0, 0, 0))
-        core(ImageDraw.Draw(layer), (8, 0, 18, 255))
-        ic.img.alpha_composite(layer)
-
-    def void_execution(ic):
-        def f(d, col):
-            d.polygon(ic.pts([(50, 8), (56, 14), (22, 48), (16, 42)]), fill=col)       # blade
-            d.polygon(ic.pts([(14, 40), (24, 50), (20, 54), (10, 44)]), fill=col)       # guard
-            d.line([ic.p(15, 49), ic.p(8, 56)], fill=col, width=4 * SS)                # grip
-        ic.shape(f)
-        ic.d.ellipse([ic.p(30, 26), ic.p(50, 46)], outline=(255, 90, 140, 255), width=2 * SS)
-        ic.d.line([ic.p(40, 22), ic.p(40, 30)], fill=(255, 90, 140, 255), width=2 * SS)
-        ic.d.line([ic.p(40, 42), ic.p(40, 50)], fill=(255, 90, 140, 255), width=2 * SS)
-
-    def void_dimension(ic):
-        def f(d, col):
-            d.ellipse([ic.p(10, 10), ic.p(54, 54)], outline=col, width=3 * SS)
-            for k in range(3):
-                a0 = k * 120
-                d.arc([ic.p(16, 16), ic.p(48, 48)], a0, a0 + 80, fill=col, width=3 * SS)
-        ic.shape(f)
-        ic.d.ellipse([ic.p(24, 24), ic.p(40, 40)], fill=(6, 0, 14, 255))
-        ic.d.ellipse([ic.p(24, 24), ic.p(40, 40)], outline=ic.light + (255,), width=SS)
-
-    make('void_slash', void_slash)
-    make('void_blink', void_blink)
-    make('void_mark', void_mark)
-    make('rift_tear', rift_tear)
-    make('void_execution', void_execution)
-    make('void_dimension', void_dimension)
-
-
-STATUS = {
-    'void_mark': 0x9B4DFF, 'solar_burn': 0xFFB627, 'frostbite': 0x8FE3FF, 'frozen': 0xDDF8FF, 'berserker': 0xE0213A,
-    'soul_drain': 0x5A8CFF, 'nature_poison': 0x6BE36F, 'eclipse_light': 0xFFE7A0, 'eclipse_darkness': 0x8B3DFF,
-    'gravity_bound': 0x8A6CFF, 'inferno_overheat': 0xFF5A1F, 'rooted': 0x4CAF50, 'staggered': 0xB08A5A,
-    'seared': 0xFF3A10,
-}
-
-
 def status_icons():
     for name, col in STATUS.items():
         rgb = hex_rgb(col)
@@ -542,7 +455,6 @@ def ui_glyphs():
 
 if __name__ == '__main__':
     vfx()
-    voidfang_icons()
     status_icons()
     ui_glyphs()
     print('textures written to', os.path.relpath(ROOT))

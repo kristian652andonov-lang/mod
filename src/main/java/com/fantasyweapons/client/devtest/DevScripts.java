@@ -116,6 +116,7 @@ final class DevScripts {
                 else if (name.equals("codexflip")) codexFlip(b);
                 else if (name.startsWith("forms:")) forms(b, name.substring(6));
                 else if (name.startsWith("hud:")) hud(b, name.substring(4));
+                else if (name.startsWith("icons:")) abilityIcons(b, name.substring(6));
                 else if (name.startsWith("fpswings:")) fpSwings(b, name.substring(9));
                 else if (name.startsWith("fpcal:")) fpCalibrate(b, name.substring(6));
                 else if (name.startsWith("after:")) after(b, name.substring(6));
@@ -2740,6 +2741,18 @@ final class DevScripts {
                 b.cmd("/clear @s").cmd("/fw give " + w + " " + lvl).wait(40).slot(0).playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 30)
                         .wait(60).screenshot("hud_" + w + "_" + lvl);
             }
+        }
+    }
+
+    /** Ability icons in place ("weapon,..."): the HUD as an ability is awakened, and the weapon's mastery menu. */
+    private static void abilityIcons(ScreenshotDirector.Builder b, String list) {
+        b.cmd("/time set noon");
+        for (String w : list.split(",")) {
+            var def = com.fantasyweapons.weapon.Weapons.get(w);
+            b.cmd("/clear @s").cmd("/fw give " + w + " 100").wait(16).slot(0).playerView().camera(CameraType.FIRST_PERSON).hud(true).look(0, 30)
+                    .wait(14).screenshot("icons_" + w + "_hud").menu(null).wait(20).screenshot("icons_" + w + "_menu");
+            if (!def.abilities().isEmpty()) b.menu(def.abilities().get(0).id()).wait(20).screenshot("icons_" + w + "_node");
+            b.closeScreen().wait(10);
         }
     }
 
