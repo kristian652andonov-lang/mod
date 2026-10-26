@@ -39,8 +39,9 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
  * <p>
  * The routine generates chunks at several locations of the Overworld (lowlands, mountains,
  * rivers, coasts), measures generation time, checks the vertical range, lighting and heightmaps,
- * counts floating terrain fragments, renders top-down maps of the generated blocks, writes a text
- * report and stops the server.
+ * counts floating terrain fragments, walls of water and blocks that cannot stay where they are
+ * (plants that would drop off at the first block update), renders top-down maps of the generated
+ * blocks, writes a text report and stops the server.
  */
 public final class AutoTest {
     private AutoTest() {
@@ -138,6 +139,19 @@ public final class AutoTest {
                 report.add("area " + areaIndex + ": biome " + id + " at " + found.getFirst().toShortString());
                 cx = found.getFirst().getX() >> 4;
                 cz = found.getFirst().getZ() >> 4;
+            } else if (p[0].startsWith("water:")) {
+                // water:<biome id>,r: the nearest stream or river (by the terrain model) in that biome
+                String id = p[0].substring(6);
+                radius = Integer.parseInt(p[1].trim());
+                int[] found = model == null ? null : waterInBiome(level, model, id);
+                if (found == null) {
+                    report.add("area " + areaIndex + ": no stream or river in biome " + id + " found");
+                    areaIndex++;
+                    continue;
+                }
+                report.add("area " + areaIndex + ": stream or river in biome " + id + " at " + found[0] + " " + found[1] + " " + found[2]);
+                cx = found[0] >> 4;
+                cz = found[2] >> 4;
             } else {
                 cx = Integer.parseInt(p[0].trim()) >> 4;
                 cz = Integer.parseInt(p[1].trim()) >> 4;
@@ -162,6 +176,7 @@ public final class AutoTest {
             surfaceCensus(level, cx, cz, radius, report);
             floatingFragments(level, cx, cz, radius, report);
             waterWalls(level, cx, cz, radius, report);
+            unsupportedBlocks(level, cx, cz, radius, report);
             TreeDump.audit(level, cx, cz, radius, report);
             if (located != null) {
                 var chunk = level.getChunk(cx, cz);
@@ -176,6 +191,10 @@ public final class AutoTest {
             mountainFlora(level, model, cx, cz, radius, report);
             areaIndex++;
         }
+        long cleaned = com.terrahaul.worldgen.features.UnsupportedPlantCleanup.CHUNKS.sum();
+        report.add(String.format(Locale.ROOT, "plant cleanup: %d chunks, %.3f ms/chunk, %d plants removed",
+            cleaned, com.terrahaul.worldgen.features.UnsupportedPlantCleanup.NANOS.sum() / 1e6 / Math.max(1, cleaned),
+            com.terrahaul.worldgen.features.UnsupportedPlantCleanup.REMOVED.sum()));
         // -Dterrahaul.autotest.biomeFeatures=<biome id>: the features the biome holds after biome modifiers
         String biomeFeatures = System.getProperty("terrahaul.autotest.biomeFeatures", "");
         if (!biomeFeatures.isEmpty()) {
@@ -410,6 +429,159 @@ public final class AutoTest {
         }
         report.add("  water fins: " + fins + " single blocks in open water at the surface (" + borderFins + " on chunk-border columns)"
             + (finExamples.isEmpty() ? "" : ", e.g. " + String.join("; ", finExamples)));
+    }
+
+    /**
+     * Counts blocks that would drop off at the first block update beside them: every block of the
+     * area, at any height, whose {@link BlockState#canSurvive} is false (a petal mat or grass tuft
+     * over air or water, a flower on rock, the top half of tall grass without its foot), plus the
+     * lower halves of double plants without their upper half, which survive the test but break as
+     * soon as a neighbour changes. Mushrooms and crops whose ground is right but whose light is
+     * not are counted apart (their light test is not something generation decides). Logs the count
+     * per block type, what lies below them, how many are plants the {@link
+     * com.terrahaul.worldgen.features.UnsupportedPlantCleanup} would remove, and a few positions.
+     * Only sections whose palettes hold a block that overrides {@code canSurvive} are scanned.
+     */
+    private static void unsupportedBlocks(ServerLevel level, int cx, int cz, int radius, List<String> report) {
+        long t0 = System.nanoTime();
+        java.util.Set<net.minecraft.world.level.block.Block> conditional = conditionalBlocks();
+        java.util.function.Predicate<BlockState> mayFail = s -> conditional.contains(s.getBlock());
+        java.util.Map<String, Integer> byType = new java.util.TreeMap<>();
+        java.util.Map<String, Integer> below = new java.util.TreeMap<>();
+        java.util.Map<String, Integer> examplesPerType = new java.util.HashMap<>();
+        List<String> examples = new ArrayList<>();
+        int total = 0;
+        int plants = 0;
+        int nearSurface = 0;
+        int halves = 0;
+        int lightOnly = 0;
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                LevelChunk chunk = level.getChunk(cx + dx, cz + dz);
+                var sections = chunk.getSections();
+                int bx = chunk.getPos().getMinBlockX();
+                int bz = chunk.getPos().getMinBlockZ();
+                for (int i = 0; i < sections.length; i++) {
+                    var section = sections[i];
+                    if (section.hasOnlyAir() || !section.maybeHas(mayFail)) {
+                        continue;
+                    }
+                    int y0 = level.getSectionYFromSectionIndex(i) << 4;
+                    for (int y = 0; y < 16; y++) {
+                        for (int z = 0; z < 16; z++) {
+                            for (int x = 0; x < 16; x++) {
+                                BlockState st = section.getBlockState(x, y, z);
+                                if (!mayFail.test(st)) {
+                                    continue;
+                                }
+                                pos.set(bx + x, y0 + y, bz + z);
+                                boolean half = false;
+                                if (st.canSurvive(level, pos)) {
+                                    if (!(st.getBlock() instanceof net.minecraft.world.level.block.DoublePlantBlock)
+                                        || st.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) != net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER) {
+                                        continue;
+                                    }
+                                    BlockState up = level.getBlockState(pos.above());
+                                    if (up.is(st.getBlock()) && up.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER) {
+                                        continue;
+                                    }
+                                    half = true;
+                                }
+                                BlockState ground = level.getBlockState(pos.below());
+                                if (st.getBlock() instanceof net.minecraft.world.level.block.MushroomBlock
+                                    && (ground.is(BlockTags.MUSHROOM_GROW_BLOCK) || ground.isSolidRender(level, pos.below()))
+                                    || st.getBlock() instanceof net.minecraft.world.level.block.CropBlock && ground.is(Blocks.FARMLAND)) {
+                                    lightOnly++;
+                                    continue;
+                                }
+                                total++;
+                                halves += half ? 1 : 0;
+                                String id = BuiltInRegistries.BLOCK.getKey(st.getBlock()).getPath() + (half ? "(lower half alone)" : "");
+                                byType.merge(id, 1, Integer::sum);
+                                String g = ground.isAir() ? "air" : BuiltInRegistries.BLOCK.getKey(ground.getBlock()).getPath();
+                                below.merge(g, 1, Integer::sum);
+                                if (com.terrahaul.worldgen.features.UnsupportedPlantCleanup.isPlant(st)) {
+                                    plants++;
+                                }
+                                if (pos.getY() >= level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, pos.getX(), pos.getZ()) - 16) {
+                                    nearSurface++;
+                                }
+                                if (examples.size() < 16 && examplesPerType.merge(id, 1, Integer::sum) <= 3) {
+                                    examples.add(pos.getX() + " " + pos.getY() + " " + pos.getZ() + " " + id + " on " + g);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        report.add(String.format(Locale.ROOT, "  unsupported blocks (canSurvive false or a lone lower half; %.0f ms): %d, of which plants %d, near the surface %d, lone lower halves %d; light only (not counted): %d",
+            (System.nanoTime() - t0) / 1e6, total, plants, nearSurface, halves, lightOnly));
+        if (total > 0) {
+            report.add("    by type: " + topEntries(byType, 16));
+            report.add("    on: " + topEntries(below, 12));
+            report.add("    e.g. " + String.join("; ", examples));
+        }
+    }
+
+    private static java.util.Set<net.minecraft.world.level.block.Block> conditionalBlocks;
+
+    /**
+     * The blocks whose class overrides {@code canSurvive} (every other block always survives), or
+     * every block if that cannot be told by reflection.
+     */
+    private static java.util.Set<net.minecraft.world.level.block.Block> conditionalBlocks() {
+        if (conditionalBlocks == null) {
+            java.util.Set<net.minecraft.world.level.block.Block> set = new java.util.HashSet<>();
+            java.util.Set<net.minecraft.world.level.block.Block> all = new java.util.HashSet<>();
+            for (net.minecraft.world.level.block.Block block : BuiltInRegistries.BLOCK) {
+                all.add(block);
+                for (Class<?> c = block.getClass(); c != null && c != net.minecraft.world.level.block.state.BlockBehaviour.class; c = c.getSuperclass()) {
+                    try {
+                        c.getDeclaredMethod("canSurvive", BlockState.class, net.minecraft.world.level.LevelReader.class, BlockPos.class);
+                        set.add(block);
+                        break;
+                    } catch (NoSuchMethodException e) {
+                        // not declared here
+                    }
+                }
+            }
+            conditionalBlocks = set.size() < 20 ? all : set;
+            Terrahaul.LOGGER.info("[autotest] {} block types override canSurvive", set.size());
+        }
+        return conditionalBlocks;
+    }
+
+    /**
+     * The nearest column (on a 32-block grid, in rings around the origin out to 8000 blocks) where
+     * the terrain model has a stream or a river channel and the surface biome is {@code id}, as
+     * {x, y, z}, or {@code null}.
+     */
+    private static int[] waterInBiome(ServerLevel level, TerrainModel model, String id) {
+        var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME, net.minecraft.resources.ResourceLocation.parse(id));
+        var source = level.getChunkSource().getGenerator().getBiomeSource();
+        var sampler = level.getChunkSource().randomState().sampler();
+        for (int ring = 0; ring <= 250; ring++) {
+            for (int i = -ring; i <= ring; i++) {
+                for (int j = -ring; j <= ring; j++) {
+                    if (Math.max(Math.abs(i), Math.abs(j)) != ring) {
+                        continue;
+                    }
+                    int x = i * 32;
+                    int z = j * 32;
+                    ColumnSample s = model.sample(x, z);
+                    if (!(s.stream > 0.5 || s.river > 0.6)) {
+                        continue;
+                    }
+                    int y = (int) s.height;
+                    if (source.getNoiseBiome(x >> 2, y >> 2, z >> 2, sampler).is(key)) {
+                        return new int[]{x, y, z};
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /** The block types of a floating fragment and what lies around it, found from its seed block. */

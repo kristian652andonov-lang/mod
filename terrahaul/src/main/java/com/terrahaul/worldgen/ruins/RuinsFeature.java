@@ -2,6 +2,7 @@ package com.terrahaul.worldgen.ruins;
 
 import com.mojang.serialization.Codec;
 import com.terrahaul.blocks.GroundDecorBlock;
+import com.terrahaul.worldgen.features.UnsupportedPlantCleanup;
 import com.terrahaul.worldgen.TerrahaulGeneration;
 import com.terrahaul.worldgen.terrain.TerrainModel;
 import java.util.ArrayList;
@@ -263,6 +264,8 @@ public final class RuinsFeature extends Feature<NoneFeatureConfiguration> {
                 return;
             }
             level.setBlock(pos, state, 2);
+            // grass planted on the soil before (by a neighbouring chunk) does not grow on a path
+            UnsupportedPlantCleanup.clearAround(level, pos, x, y, z);
             return;
         }
         BlockState below = level.getBlockState(pos.set(x, y - 1, z));

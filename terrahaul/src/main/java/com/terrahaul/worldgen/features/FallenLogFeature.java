@@ -76,6 +76,8 @@ public final class FallenLogFeature extends Feature<FallenLogConfiguration> {
             int y = rotten ? top - 1 : top;
             BlockState state = (rotten ? config.stripped() : config.log()).trySetValue(RotatedPillarBlock.AXIS, axis);
             level.setBlock(pos.set(x, y, z), state, 2);
+            // a flower the trunk now carries, or the foot of tall grass whose top it replaced
+            UnsupportedPlantCleanup.clearAround(level, pos, x, y, z);
             BlockPos above = pos.above();
             BlockState over = level.getBlockState(above);
             if (!free(over)) {
@@ -100,6 +102,7 @@ public final class FallenLogFeature extends Feature<FallenLogConfiguration> {
                 for (int dy = 0; dy < h; dy++) {
                     if (free(level.getBlockState(pos.set(x, top + dy, z)))) {
                         level.setBlock(pos, config.log().trySetValue(RotatedPillarBlock.AXIS, Direction.Axis.Y), 2);
+                        UnsupportedPlantCleanup.clearAround(level, pos, x, top + dy, z);
                     }
                 }
             }

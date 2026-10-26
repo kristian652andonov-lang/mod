@@ -2,6 +2,7 @@ package com.terrahaul.worldgen.trees;
 
 import com.mojang.serialization.Codec;
 import com.terrahaul.config.TerrahaulConfig;
+import com.terrahaul.worldgen.features.UnsupportedPlantCleanup;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.util.SplittableRandom;
@@ -159,6 +160,20 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
      */
     private static TreeSize adjustForAltitude(WorldGenLevel level, BlockPos pos, TreeSpecies species, TreeSize size) {
         return species == TreeSpecies.KRUMMHOLZ ? size : TreeLine.cap(level, pos, size);
+    }
+
+    /**
+     * After a block of the tree took the place of {@code existing}: if that was a plant or the
+     * ground (a root laid into the soil, a foot sunk into a slope), the plants it carried go with
+     * it (the grass on the soil a root replaced, the top half of tall grass whose foot a log
+     * replaced, the foot of one whose top a leaf replaced, or a propagule hanging from mangrove
+     * leaves a log replaced), as they would at the first block update. Such plants may stand in a
+     * neighbouring chunk that has finished its own decoration.
+     */
+    private static void replaced(WorldGenLevel level, BlockPos.MutableBlockPos pos, BlockState existing) {
+        if (!existing.isAir() && !existing.is(BlockTags.LOGS) && !existing.is(Blocks.WATER)) {
+            UnsupportedPlantCleanup.clearAround(level, pos, pos.getX(), pos.getY(), pos.getZ());
+        }
     }
 
     private static boolean isFree(BlockState state) {
@@ -386,6 +401,7 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
                     break;
                 }
                 level.setBlock(pos, TreeMaterials.log(species, Direction.Axis.Y), SET_FLAGS);
+                replaced(level, pos, state);
             }
         });
 
@@ -409,6 +425,7 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
             boolean sunk = !sapling && isSoil(existing) && sinks(bp, centre, x, y, z, existing);
             if (isFree(existing) || sunk || through.contains(pos.asLong())) {
                 level.setBlock(pos, TreeMaterials.woody(species, code), SET_FLAGS);
+                replaced(level, pos, existing);
                 if (y <= BURIED_BASE || sunk) {
                     // soil under a buried foot is no longer lit
                     BlockPos below = pos.below();
@@ -440,6 +457,7 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
                 .setValue(LeavesBlock.PERSISTENT, false)
                 .setValue(LeavesBlock.WATERLOGGED, existing.getFluidState().is(Fluids.WATER));
             level.setBlock(pos, state, SET_FLAGS);
+            replaced(level, pos, existing);
             placedLeaves.add(pos.asLong());
         });
         decorate(level, origin, bp, config, random, placedLeaves);
@@ -463,6 +481,7 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
             return;
         }
         level.setBlock(pos, root.trySetValue(BlockStateProperties.WATERLOGGED, existing.getFluidState().is(Fluids.WATER)), SET_FLAGS);
+        replaced(level, pos, existing);
         if (y > 0) {
             return;
         }
@@ -536,6 +555,7 @@ public final class ProceduralTreeFeature extends Feature<ProceduralTreeConfigura
                 BlockState existing = level.getBlockState(pos);
                 if (y == ground || isFree(existing)) {
                     level.setBlock(pos, wood, SET_FLAGS);
+                    replaced(level, pos, existing);
                 }
             }
             if (sapling) {

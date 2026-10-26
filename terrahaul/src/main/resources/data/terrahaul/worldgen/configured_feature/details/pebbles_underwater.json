@@ -726,6 +726,10 @@
             "type": "minecraft:all_of",
             "predicates": [
               {
+                "type": "minecraft:matching_blocks",
+                "blocks": "minecraft:water"
+              },
+              {
                 "type": "minecraft:matching_fluids",
                 "fluids": "minecraft:water"
               },
