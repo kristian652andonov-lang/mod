@@ -264,7 +264,7 @@ public class ProgressionScreen extends Screen {
         int lvl = data.abilityLevel(ab);
         boolean unlocked = lvl > 0;
         UiDraw.glow(g, x + 13, y + 13, 40, Colors.alpha(a * (unlocked ? 0.4f : 0.1f), theme));
-        UiDraw.texture(g, ab.icon(), x + 4, y + 4, 18, 18, Colors.alpha(a, unlocked ? 0xFFFFFF : 0x5A5048));
+        UiDraw.pixels(g, ab.icon(), x + 4, y + 4, 18, 18, Colors.alpha(a, unlocked ? 0xFFFFFF : 0x5A5048));
         if (!unlocked) UiDraw.texture(g, LOCK, x + 8, y + 8, 10, 10, Colors.alpha(a, 0xFFFFFF));
         UiDraw.medallion(g, x + 13, y + 13, 14, Colors.alpha(a, unlocked ? 0xFFFFFF : 0x9A9088));
         UiDraw.text(g, ab.name(), x + 31, y + 2, Colors.alpha(a, UiDraw.INK), 0.82f, true);
@@ -444,7 +444,7 @@ public class ProgressionScreen extends Screen {
             if (glowA > 0) UiDraw.glow(g, n.x(), n.y(), r * 3.2f, Colors.alpha(a * glowA, maxed ? UiDraw.GOLD_LIGHT : theme));
             UiDraw.rect(g, n.x() - r * 0.72f, n.y() - r * 0.72f, n.x() + r * 0.72f, n.y() + r * 0.72f, Colors.alpha(a, 0x0C0704));
             float ic = r * 1.25f;
-            UiDraw.texture(g, ab.icon(), n.x() - ic / 2, n.y() - ic / 2, ic, ic, Colors.alpha(a * (unlocked ? 1f : 0.6f), unlocked ? 0xFFFFFF : 0x4A4038));
+            UiDraw.pixels(g, ab.icon(), n.x() - ic / 2, n.y() - ic / 2, ic, ic, Colors.alpha(a * (unlocked ? 1f : 0.6f), unlocked ? 0xFFFFFF : 0x4A4038));
             if (!unlocked) UiDraw.texture(g, LOCK, n.x() - 3.5f, n.y() - 3.5f, 7, 7, Colors.alpha(a * 0.95f, 0xFFFFFF));
             int rim = sel ? 0xFFF4D0 : maxed ? 0xFFE7A8 : unlocked ? 0xFFFFFF : 0x8A8078;
             UiDraw.medallion(g, n.x(), n.y(), r, Colors.alpha(a, rim));

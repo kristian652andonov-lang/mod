@@ -175,6 +175,16 @@ public final class FWRenderTypes extends RenderType {
                     .setWriteMaskState(COLOR_WRITE)
                     .createCompositeState(false)));
 
+    private static final Function<ResourceLocation, RenderType> GUI_PIXELS = Util.memoize(tex -> create("fw_gui_pixels",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 256, false, false,
+            CompositeState.builder()
+                    .setShaderState(GUI_TEX_COLOR)
+                    .setTextureState(new TextureStateShard(tex, false, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
     /** Lines seen through everything (a pickaxe's Ore Sight). */
     public static final RenderType XRAY_LINES = create("fw_xray_lines", DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES, 1536, false, false,
             CompositeState.builder()
@@ -202,6 +212,11 @@ public final class FWRenderTypes extends RenderType {
 
     public static RenderType guiTextured(ResourceLocation texture) {
         return GUI_TEXTURED.apply(texture);
+    }
+
+    /** As {@link #guiTextured}, but drawn with sharp pixels (pixel art, such as the ability icons). */
+    public static RenderType guiPixels(ResourceLocation texture) {
+        return GUI_PIXELS.apply(texture);
     }
 
     public static RenderType additive(ResourceLocation texture) {

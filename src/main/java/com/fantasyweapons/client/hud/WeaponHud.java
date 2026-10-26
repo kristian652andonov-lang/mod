@@ -240,7 +240,7 @@ public final class WeaponHud {
         float in = r * 0.72f;
         UiDraw.rect(g, -in, -in, in, in, Colors.alpha(a, 0x0C0704));
         int iconTint = state == AbilityState.COOLDOWN ? 0x8A8070 : 0xFFFFFF;
-        UiDraw.texture(g, sel.icon(), -in, -in, in * 2, in * 2, Colors.alpha(a, iconTint));
+        UiDraw.pixels(g, sel.icon(), -in, -in, in * 2, in * 2, Colors.alpha(a, iconTint));
         if (state == AbilityState.COOLDOWN) {
             long rem = ClientState.cooldownRemaining(data, sel);
             int tot = Math.max(1, ClientState.cooldownTotal(data, sel));
@@ -307,7 +307,7 @@ public final class WeaponHud {
             if (isSel) UiDraw.glow(g, x, y, r * 3.6f, Colors.alpha(a * 0.55f, UiDraw.GOLD_LIGHT));
             float in = r * 0.72f;
             UiDraw.rect(g, x - in, y - in, x + in, y + in, Colors.alpha(a, 0x0C0704));
-            UiDraw.texture(g, ab.icon(), x - in, y - in, in * 2, in * 2, Colors.alpha(a * (unlocked ? 1f : 0.7f), tint));
+            UiDraw.pixels(g, ab.icon(), x - in, y - in, in * 2, in * 2, Colors.alpha(a * (unlocked ? 1f : 0.7f), tint));
             if (!unlocked) UiDraw.texture(g, LOCK, x - 2.5f, y - 2.5f, 5, 5, Colors.alpha(a * 0.9f, 0xFFFFFF));
             if (st == AbilityState.COOLDOWN) {
                 long rem = ClientState.cooldownRemaining(data, ab);

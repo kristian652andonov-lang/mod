@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Ability icons, drawn the way the Codex's thumb-tab icons are (see the Codex's tabs.png): each a small picture of what
-the ability does, built of flat-shaded shapes on a 48 grid at high resolution, three tones to a material and a glint,
-outlined in dark ink and brought down smoothly to 64 pixels; every picture is fitted to fill its cell alike, so all
-read the same size. No background of their own: the HUD, the menus and the banners set them in their own frames.
+Ability icons as 64x64 pixel art, in the manner of the Codex's thumb-tab icons (see the Codex's tabs.png): each a
+small picture of what the ability does, built of flat-shaded shapes on a 48 grid (three tones to a material and a
+glint), set down pixel by pixel in those flat tones with hard edges and ringed in a one-pixel dark ink outline; every
+picture is fitted to fill its cell alike, so all read the same size. No background of their own: the HUD, the menus
+and the banners set them in their own frames, drawn with sharp pixels.
 
 Usage: python3 tools/gen_ability_icons.py [weapon ...] [--preview out.png]
 """
@@ -12,6 +13,7 @@ import os
 import random
 import sys
 
+import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'main', 'resources', 'assets', 'fantasyweapons',
@@ -164,18 +166,44 @@ class Canvas:
         self.poly(pts, c)
 
     def finish(self, fill=0.9):
-        alpha = self.img.getchannel('A')
-        grown = alpha.filter(ImageFilter.MaxFilter(2 * int(K * 0.6) + 1))
-        img = Image.new('RGBA', (S, S), (*INK, 0))
-        img.putalpha(grown)
-        img.alpha_composite(self.img)
-        box = img.getbbox()
+        """
+        The picture as 64x64 pixel art: fitted to fill its cell alike, each pixel takes the colour most of its patch of
+        the drawing has (so every pixel is one of the drawing's own flat tones, nothing blended), a pixel is kept
+        where the drawing covers enough of it, and the whole is ringed in a one-pixel ink outline.
+        """
+        box = self.img.getbbox()
         w, h = box[2] - box[0], box[3] - box[1]
-        scale = fill * S / max(w, h)
-        crop = img.crop(box).resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
-        cell = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-        cell.alpha_composite(crop, ((S - crop.width) // 2, (S - crop.height) // 2))
-        return cell.resize((OUT, OUT), Image.LANCZOS)
+        size = round(OUT * fill) - 2                    # the outline takes a pixel each side
+        scale = size / max(w, h)
+        tw, th = max(1, round(w * scale)), max(1, round(h * scale))
+        k = 8
+        hi = np.asarray(self.img.crop(box).resize((tw * k, th * k), Image.NEAREST), dtype=np.uint8)
+        blocks = hi.reshape(th, k, tw, k, 4).transpose(0, 2, 1, 3, 4).reshape(th, tw, k * k, 4)
+        art = np.zeros((th, tw, 4), dtype=np.uint8)
+        for y in range(th):
+            for x in range(tw):
+                px = blocks[y, x]
+                solid = px[px[:, 3] > 0]
+                if len(solid) < k * k * 0.34:
+                    continue
+                packed = (solid[:, 0].astype(np.uint32) << 24) | (solid[:, 1].astype(np.uint32) << 16) | (solid[:, 2].astype(np.uint32) << 8) | solid[:, 3]
+                values, counts = np.unique(packed, return_counts=True)
+                v = int(values[np.argmax(counts)])
+                a = v & 255
+                # see-through parts (a bubble, a beam of light) keep one of three steps of see-through
+                a = 255 if a > 200 else 170 if a > 130 else 110
+                art[y, x] = (v >> 24 & 255, v >> 16 & 255, v >> 8 & 255, a)
+        cell = np.zeros((OUT, OUT, 4), dtype=np.uint8)
+        ox, oy = (OUT - tw) // 2, (OUT - th) // 2
+        cell[oy:oy + th, ox:ox + tw] = art
+        filled = cell[:, :, 3] > 0
+        grown = filled.copy()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                grown |= np.roll(np.roll(filled, dy, 0), dx, 1)
+        ring = grown & ~filled
+        cell[ring] = (*INK, 255)
+        return Image.fromarray(cell, 'RGBA')
 
 
 # ------------------------------------------------------------------------------------------------------------

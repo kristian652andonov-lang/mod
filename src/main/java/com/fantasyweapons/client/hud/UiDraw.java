@@ -470,6 +470,11 @@ public final class UiDraw {
         texturedQuad(g, FWRenderTypes.guiTextured(tex), x, y, w, h, 0, 0, 1, 1, argb);
     }
 
+    /** A pixel-art texture (an ability icon), drawn with sharp pixels rather than smoothed. */
+    public static void pixels(GuiGraphics g, ResourceLocation tex, float x, float y, float w, float h, int argb) {
+        texturedQuad(g, FWRenderTypes.guiPixels(tex), x, y, w, h, 0, 0, 1, 1, argb);
+    }
+
     public static void textureUv(GuiGraphics g, ResourceLocation tex, float x, float y, float w, float h, float u0, float v0, float u1, float v1, int argb) {
         texturedQuad(g, FWRenderTypes.guiTextured(tex), x, y, w, h, u0, v0, u1, v1, argb);
     }

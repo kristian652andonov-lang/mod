@@ -396,7 +396,7 @@ public class TargetMapScreen extends Screen {
             boolean hover = mouseX >= x && mouseX <= x + 22 && mouseY >= y && mouseY <= y + 22;
             int c = elementColor(a);
             if (sel) UiDraw.glow(g, x + 11, y + 11, 34, Colors.alpha(0.55f * open, c));
-            UiDraw.texture(g, a.icon(), x, y, 22, 22, Colors.alpha(open * (sel || hover ? 1f : 0.55f), 0xFFFFFF));
+            UiDraw.pixels(g, a.icon(), x, y, 22, 22, Colors.alpha(open * (sel || hover ? 1f : 0.55f), 0xFFFFFF));
             if (sel) UiDraw.border(g, x - 1, y - 1, x + 23, y + 23, 1, Colors.alpha(open, c));
             if (hover && !sel) UiDraw.text(g, a.name(), x + 27, y + 7, Colors.alpha(open, 0xFFFFFF), 0.55f, true);
             y += 27;

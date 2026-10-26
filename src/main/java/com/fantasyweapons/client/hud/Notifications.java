@@ -235,7 +235,7 @@ public final class Notifications {
             float icx = cx - w / 2 + 28, icy = y + 48;
             UiDraw.glow(g, icx, icy, 56, Colors.alpha(alpha * (0.4f + 0.3f * pulse), theme));
             UiDraw.rect(g, icx - 12, icy - 12, icx + 12, icy + 12, Colors.alpha(alpha, 0x0C0704));
-            UiDraw.texture(g, ability.icon(), icx - 12, icy - 12, 24, 24, Colors.alpha(alpha, 0xFFFFFF));
+            UiDraw.pixels(g, ability.icon(), icx - 12, icy - 12, 24, 24, Colors.alpha(alpha, 0xFFFFFF));
             UiDraw.medallion(g, icx, icy, 17, Colors.alpha(alpha, 0xFFFFFF));
             UiDraw.additive(g, VfxTextures.STAR, icx - 18 + (float) Math.sin(t * 9) * 2, icy - 18, 12, 12, Colors.alpha(alpha * pulse, 0xFFF4D0));
             float tx = icx + 24;
