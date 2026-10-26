@@ -109,6 +109,10 @@ running water throws up spray, mist and foam and can be heard.
 - **No floating terrain:** overhangs are part of the columns beneath them and caves keep a guard
   below the surface. A cleanup pass, run before and again after the features that carve terrain,
   removes any small piece of rock or soil that still touches nothing but air or water.
+- **No floating plants:** a step that digs, floods or replaces the ground under a plant (a
+  stream or pool, a tree root, a boulder, a fallen log, a ruin's path) takes the plant with it,
+  and a last pass in every chunk removes any grass, flower, petal mat or snow layer that still
+  could not stay where it is.
 - **Canyons** with walls stepped into world-wide strata (cliff bands over talus benches) and
   buttes; most are dry, some carry a stream.
 - **Rock formations:** natural **arches** with lopsided, sagging, eroded openings; **hoodoo

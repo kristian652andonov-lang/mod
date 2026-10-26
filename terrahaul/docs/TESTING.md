@@ -18,6 +18,50 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
+## Floating plants (branch `wf/floating-plants`, seed 12345, dedicated server and client)
+A user's screenshot showed pink petals and grass hanging over a cherry grove stream and in front
+of its dirt banks.
+- **New check:** `AutoTest` counts, in every area and at every height, the blocks whose
+  `canSurvive` is false, and lower halves of double plants without their upper half, by type, with
+  the block under them and a few positions (mushrooms and crops that fail only on light are
+  counted apart). New area spec `water:<biome id>,r`: the nearest stream or river in a biome.
+- **Areas** (r=4 each): a cherry grove stream (`water:minecraft:cherry_grove`), a cherry grove,
+  `find:stream`, `river`, `great_river`, `lake`, `waterfall`, `cascade`, a forest and
+  `find:mountain`.
+- **Before** (c82f7e9): 1,156 such blocks, 1,091 of them plants. About two thirds stood on tree
+  roots and trunk feet (bark blocks laid into the soil under grass and ferns that were already
+  there); about 140 over air or water beside streams, cascades and pools (pink petals over the
+  cherry grove stream among them); the rest on boulder rock, tall seagrass on underwater pebbles
+  that had replaced its foot, and lone halves of tall grass, sunflowers and large ferns.
+- **Causes:** vanilla's flower, grass and petal patches spread up to seven blocks into
+  neighbouring chunks, which may not have dug their streams and pools yet; the surface water then
+  carved, flooded or rebuilt the ground under them. Trees, boulders and fallen logs replaced the
+  ground (or one half of a double plant) under plants placed earlier, in their own chunk and in
+  finished neighbours. The underwater pebble patch accepted any block holding water, seagrass
+  included. Each now clears what it undermines; the pebbles go only into water blocks; and a last
+  feature (`terrahaul:plant_cleanup`) removes any plant of the chunk that still cannot stay.
+- **After:** 89 blocks, 22 plants. Not plants, left alone on purpose: 65 dirt paths under leaves
+  or roots (they would turn to dirt, not drop), an ancient city candle and a pointed dripstone.
+  Plants: 12 snow layers on packed ice in an ice spikes biome and a grass tuft and a fern on sand
+  beside a river (a later neighbour's vanilla ice spike and, most likely, a vanilla sand disk
+  changed the ground after the chunk had finished), and 8 glow lichen deep in caves whose wall
+  went after their chunk had finished (not traced further). With the last feature switched off
+  the source fixes alone leave 110 blocks, 44 plants; the feature removed 26 plants in 1,389
+  chunks.
+- **Unchanged:** floating terrain fragments, walls of water (0), water fins and floating tree
+  groups are the same in all ten areas. The stone block standing in the stream in the user's
+  screenshot has its match at the cherry grove stream: a stone and cobblestone column on the bed,
+  not floating.
+- **Cost:** the last feature takes 0.30–0.41 ms per chunk; in a JFR profile all the new code is
+  under 0.3% of the samples. Wall-clock ms/chunk varied a lot between JVM runs (1,209–1,426 summed
+  over the ten areas) and was higher in the runs with the change; the extra samples were in
+  vanilla noise filling and surface building, which the change does not touch, and with the C1
+  compiler only (no C2 inlining variance) the four-area sum was 1,175 before and 1,202 after
+  (+2%, within run-to-run noise).
+- **Screenshots** (client, software rendering) of the cherry grove stream bank at the same three
+  camera positions before and after: the petals over the water and the grass hanging in front of
+  the banks are gone.
+
 ## Fourth round: pointed mountains and mountain vegetation (merged build, seed 12345)
 This round merged the pointed mountains (`wf/pointed`: cusped crests and summits, crags on the
 big faces, no domed tops), the mountain vegetation (`wf/mountain-flora`, see below) and the

@@ -2,6 +2,7 @@ package com.terrahaul.worldgen.water;
 
 import com.mojang.serialization.Codec;
 import com.terrahaul.worldgen.TerrahaulGeneration;
+import com.terrahaul.worldgen.features.UnsupportedPlantCleanup;
 import com.terrahaul.worldgen.terrain.ColumnSample;
 import com.terrahaul.worldgen.terrain.TerrainModel;
 import java.util.ArrayList;
@@ -105,9 +106,11 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
         }
 
         // ---- shaped ground: carved down to the plan or channel, filled up to it -------------
+        int reach = natural;
         if (ws.shaped[k]) {
             int carveTop = ws.kind[k] == WaterSolver.PLAN || ws.kind[k] == WaterSolver.DRY || ws.kind[k] == WaterSolver.SEA
                 ? Math.max(natural, level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z) - 1) : natural;
+            reach = carveTop;
             for (int y = carveTop; y > ground; y--) {
                 BlockState s = level.getBlockState(pos.set(x, y, z));
                 if (!s.isAir() && WaterPalette.natural(s)) {
@@ -238,6 +241,16 @@ public final class SurfaceWaterFeature extends Feature<NoneFeatureConfiguration>
         if (ws.planned[k] && (wet || ws.shaped[k] || solidTop > ground)) {
             int rest = ws.shaped[k] || wet ? Math.min(ground, natural) - 1 : natural;
             placed |= support(level, pos, palette, x, rest, z, lava);
+        }
+
+        // ---- plants a neighbouring chunk set on this column before it was shaped ------------
+        // (vanilla's flower, grass and petal patches spread up to seven blocks into the chunks
+        // around theirs, which may not have dug their streams and pools yet): a plant left over
+        // the water, over a cut or on rock built under it goes, as it would at the first block
+        // update; those that stood where the water now is were replaced by it above
+        if (placed || ws.shaped[k] || lv != WaterSolver.NONE || solidTop > ground) {
+            int upTo = Math.max(Math.max(reach, solidTop), Math.max(lv, ws.upper[k])) + 2;
+            placed |= UnsupportedPlantCleanup.clearColumn(level, pos, x, wet ? lv : Math.min(ground, natural) + 1, upTo, z);
         }
         return placed;
     }

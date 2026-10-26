@@ -50,10 +50,15 @@ def terrain_cleanup():
     configured('terrain_cleanup_late', 'terrahaul:terrain_cleanup_late', {})
     placed('terrain_cleanup_late', 'terrahaul:terrain_cleanup_late', [])
     add_features('terrain_cleanup_late', '#minecraft:is_overworld', 'terrahaul:terrain_cleanup_late', 'fluid_springs')
-    # last of all, still water facing an opening is sealed off with rock
+    # last of all, still water facing an opening is sealed off with rock, and then the plants that
+    # cannot stay where they are go (listed in this modifier, so they run in this order, after the
+    # other top-layer features)
     configured('water_wall_sealer', 'terrahaul:water_wall_sealer', {})
     placed('water_wall_sealer', 'terrahaul:water_wall_sealer', [])
-    add_features('water_wall_sealer', '#minecraft:is_overworld', 'terrahaul:water_wall_sealer', 'top_layer_modification')
+    configured('plant_cleanup', 'terrahaul:plant_cleanup', {})
+    placed('plant_cleanup', 'terrahaul:plant_cleanup', [])
+    add_features('water_wall_sealer', '#minecraft:is_overworld', ['terrahaul:water_wall_sealer', 'terrahaul:plant_cleanup'],
+                 'top_layer_modification')
 
 
 def oceans():
@@ -405,8 +410,11 @@ def facings_states(block, extra_list, base_weight=1, **fixed):
 
 
 def ground_predicate(on=None, water=False):
-    """Air (or water) at the position, and one of `on` (tags prefixed with '#', else block ids) below."""
-    preds = [{"type": "minecraft:matching_fluids", "fluids": "minecraft:water"} if water
+    """Air (or water) at the position, and one of `on` (tags prefixed with '#', else block ids) below.
+
+    Water means a water block, not any block holding water: seagrass and tall seagrass hold water
+    too, and a pebble put in place of the foot of tall seagrass would leave its top floating."""
+    preds = [{"type": "minecraft:matching_blocks", "blocks": "minecraft:water"} if water
              else {"type": "minecraft:matching_blocks", "blocks": "minecraft:air"}]
     if on:
         options = []

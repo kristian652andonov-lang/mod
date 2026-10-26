@@ -119,6 +119,9 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
         boolean placed = false;
         for (int dx = -extent; dx <= extent; dx++) {
             for (int dz = -extent; dz <= extent; dz++) {
+                // the lowest and highest rock of the column, whose plants may have to go (below)
+                int low = Integer.MAX_VALUE;
+                int high = Integer.MIN_VALUE;
                 for (int dy = -extent; dy <= extent; dy++) {
                     int idx = ((dx + extent) * n + (dz + extent)) * n + (dy + extent);
                     if (shape[idx] >= 0) {
@@ -142,6 +145,17 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
                     }
                     level.setBlock(pos, rock, 2);
                     placed = true;
+                    low = Math.min(low, y);
+                    high = Math.max(high, y);
+                }
+                if (high != Integer.MIN_VALUE) {
+                    // a plant standing on the soil the rock replaced (here or in a neighbouring
+                    // chunk that has finished its decoration), or the foot of tall grass whose top
+                    // the rock replaced, would drop off at the first block update
+                    int x = origin.getX() + dx;
+                    int z = origin.getZ() + dz;
+                    UnsupportedPlantCleanup.clearAround(level, pos, x, high, z);
+                    UnsupportedPlantCleanup.clearAround(level, pos, x, low, z);
                 }
             }
         }
