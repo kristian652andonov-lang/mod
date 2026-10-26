@@ -6,7 +6,8 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "PunchyAbilityMotionMixin",
-    "PunchyArmRendererMixin"
+    "PunchyArmRendererMixin",
+    "PunchyBetterCombatMixin"
   ],
   "injectors": {
     "defaultRequire": 0
