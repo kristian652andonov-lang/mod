@@ -125,8 +125,8 @@ The same settings are in the config files:
 
 - **`config/fantasyweapons-server.toml`**: EXP curve and sources, damage scaling, per-weapon base damage, and every
   ability parameter (damage, charge, cooldown, radius, …). The server syncs these values to clients.
-- **`config/fantasyweapons-client.toml`**: effect quality, screen shake, effect limit, impact frames, and HUD layout and
-  notifications.
+- **`config/fantasyweapons-client.toml`**: effect quality, screen shake, effect limit, impact frames, HUD layout and
+  notifications, and the Performance optimisations.
 
 ### Effect quality
 
@@ -137,6 +137,27 @@ each tick instead of all in one frame, so a weak computer does not freeze when o
 a chunk still waiting first lets that chunk's waiting land in, so nothing older covers it). Low-end PC is made for weak
 computers: the fewest and simplest effects. The magic circles are drawn line by line rather than as stretched pictures,
 so they are sharp at any size; the lower tiers draw their rings with fewer segments.
+
+### Performance
+
+The settings menu's *Performance* section has three optimisations, each on by default and each with its own switch
+(`[performance]` in `config/fantasyweapons-client.toml`). They take effect at once, without a restart:
+
+- **Pause unseen texture animations** (`pause_unseen_animations`): the game stitches every texture under
+  `textures/block` and `textures/item` into its block atlas and redraws every animated one there each tick, blending
+  the smooth ones pixel by pixel. The mod's models are drawn by GeckoLib from their own textures, so none of the mod's
+  animated textures in the atlas is ever shown on a model; their animations are paused (the models' own animations run
+  as ever). The only thing that changes is that the specks flying from a broken ore no longer shimmer.
+- **Draw only the parts that show** (`draw_only_what_shows`): the mod's armor, weapons, tools, ores, machines, the
+  Codex and the Worldburner leave out every face whose patch of the texture is wholly clear (in every frame of an
+  animated texture), and their glow layer, which draws the whole model a second time, draws only the faces whose patch
+  of the glowmask has something in it. Nothing visible changes.
+- **Leave out details smaller than a pixel** (`skip_tiny_details`): parts of those models smaller than a pixel on the
+  screen, on armor and weapons far away, are left out. Never in the inventory or other menus.
+
+In a busy scene (forty monsters in the mod's armor holding its weapons, ten armor stands, weapon powers cast among
+them), with the software renderer of the test machine, the three together cut the frame time by about 43% (398 to
+226 ms a frame idle, 371 to 219 ms while casting). Every item's inventory icon draws the same with them on and off.
 
 ### Playing on a server
 

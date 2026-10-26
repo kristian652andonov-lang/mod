@@ -44,7 +44,7 @@ import java.util.Locale;
  * translation key (English text, translated as all the mod's text is, see {@link Tr}), its help the config's comment.
  */
 public final class SettingsScreen extends Screen {
-    private static final int W = 448, H = 256;
+    private static final int W = 448, H = 272;
     private static final int GOLD = 0xF2C46B, GOLD_LIGHT = 0xFFE7A8, MUTED = 0xB9AC92, GOOD = 0x8FE08A, BAD = 0xF07A62, LINE = 0xB08A3E;
     private static final int THEME = 0x8F6BD8;
     private static final int SIDE_X = 10, SIDE_W = 116, BODY_X = 134, BODY_TOP = 30, FOOT = 24, ROW = 15, TAB = 15;
@@ -392,9 +392,17 @@ public final class SettingsScreen extends Screen {
     private int tabY(int i) {
         // the game's sections, then a gap and the world's
         int clientCount = (int) sections.stream().filter(s -> !s.world()).count();
-        int y = top + BODY_TOP + 14 + i * (TAB + 2);
+        int y = top + BODY_TOP + 14 + i * tabStep(clientCount);
         if (i >= clientCount) y += 16;
         return y;
+    }
+
+    /** How far apart the section tabs are: as laid out, or closer if that is what it takes to keep them above the language page's button. */
+    private int tabStep(int clientCount) {
+        int n = sections.size();
+        if (n <= 1) return TAB + 2;
+        int room = footY() - 2 * (TAB + 2) - 4 - (top + BODY_TOP + 14) - (n > clientCount ? 16 : 0);
+        return Math.max(TAB, Math.min(TAB + 2, (room - TAB) / (n - 1)));
     }
 
     private int footY() {
@@ -706,6 +714,14 @@ public final class SettingsScreen extends Screen {
     /** DEVELOPMENT ONLY (screenshot director): chooses a language as a click on its row does. */
     public void debugChooseLanguage(String code) {
         chooseLanguage(code);
+    }
+
+    /** DEVELOPMENT ONLY (screenshot director): shows the section with this (English) title. */
+    public void debugShowTitled(String title) {
+        languagePage = false;
+        for (int i = 0; i < sections.size(); i++) {
+            if (sections.get(i).title().equals(title)) debugShow(i, 0);
+        }
     }
 
     public int debugSections() {

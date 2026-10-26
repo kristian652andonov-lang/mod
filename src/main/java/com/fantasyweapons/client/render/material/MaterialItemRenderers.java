@@ -6,7 +6,8 @@ import com.fantasyweapons.material.MaterialOreItem;
 import software.bernie.geckolib.model.DefaultedBlockGeoModel;
 import software.bernie.geckolib.model.DefaultedItemGeoModel;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
-import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
+import com.fantasyweapons.client.render.LeanGlowLayer;
+import com.fantasyweapons.client.render.LeanItemRenderer;
 
 /** GeckoLib item renderers for the legendary materials: their animated, glowing models in the hand and inventory. */
 public final class MaterialItemRenderers {
@@ -15,16 +16,16 @@ public final class MaterialItemRenderers {
 
     /** Raw and refined materials ({@code geo/item/<weapon>_raw|refined}). */
     public static GeoItemRenderer<MaterialItem> material(MaterialItem item) {
-        GeoItemRenderer<MaterialItem> r = new GeoItemRenderer<>(new DefaultedItemGeoModel<>(FantasyWeapons.id(item.asset())));
-        r.addRenderLayer(new AutoGlowingGeoLayer<>(r));
+        GeoItemRenderer<MaterialItem> r = new LeanItemRenderer<>(new DefaultedItemGeoModel<>(FantasyWeapons.id(item.asset())));
+        r.addRenderLayer(new LeanGlowLayer<>(r));
         return r;
     }
 
     /** The legendary tools ({@code geo/item/<material>_<tool>}), held by the grip like any tool. */
     @SuppressWarnings("unchecked")
     public static <T extends net.minecraft.world.item.Item & com.fantasyweapons.tool.LegendaryTool> GeoItemRenderer<T> tool(com.fantasyweapons.tool.LegendaryTool tool) {
-        GeoItemRenderer<T> r = new GeoItemRenderer<>(new DefaultedItemGeoModel<>(FantasyWeapons.id(tool.asset())));
-        r.addRenderLayer(new AutoGlowingGeoLayer<>(r));
+        GeoItemRenderer<T> r = new LeanItemRenderer<>(new DefaultedItemGeoModel<>(FantasyWeapons.id(tool.asset())));
+        r.addRenderLayer(new LeanGlowLayer<>(r));
         return r;
     }
 
@@ -33,7 +34,7 @@ public final class MaterialItemRenderers {
      * any other block, so the fragments that float above some of them in the world are left out there.
      */
     public static GeoItemRenderer<MaterialOreItem> ore(MaterialOreItem item) {
-        GeoItemRenderer<MaterialOreItem> r = new GeoItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(item.material().oreAsset()))) {
+        GeoItemRenderer<MaterialOreItem> r = new LeanItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(item.material().oreAsset()))) {
             @Override
             public void preRender(com.mojang.blaze3d.vertex.PoseStack poseStack, MaterialOreItem animatable, software.bernie.geckolib.cache.object.BakedGeoModel model,
                                   net.minecraft.client.renderer.MultiBufferSource bufferSource, com.mojang.blaze3d.vertex.VertexConsumer buffer, boolean isReRender,
@@ -42,7 +43,7 @@ public final class MaterialItemRenderers {
                 super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, colour);
             }
         };
-        r.addRenderLayer(new AutoGlowingGeoLayer<>(r));
+        r.addRenderLayer(new LeanGlowLayer<>(r));
         return r;
     }
 }

@@ -15,7 +15,9 @@ import software.bernie.geckolib.animatable.GeoAnimatable;
 import software.bernie.geckolib.model.DefaultedBlockGeoModel;
 import software.bernie.geckolib.renderer.GeoBlockRenderer;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
-import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
+import com.fantasyweapons.client.render.LeanGeoRenderer;
+import com.fantasyweapons.client.render.LeanGlowLayer;
+import com.fantasyweapons.client.render.LeanItemRenderer;
 
 /**
  * The GeckoLib renderers of the three-wide, two-high machines (the Arcane Refinery, the Legendary Crafting Table): the
@@ -25,11 +27,11 @@ public final class MachineRenderers {
     private MachineRenderers() {
     }
 
-    public static class Block<T extends BlockEntity & GeoAnimatable> extends GeoBlockRenderer<T> {
+    public static class Block<T extends BlockEntity & GeoAnimatable> extends GeoBlockRenderer<T> implements LeanGeoRenderer<T> {
         /** {@code model} names the block's geo model, animations and texture (with its glow mask). */
         public Block(String model) {
             super(new DefaultedBlockGeoModel<>(FantasyWeapons.id(model)));
-            addRenderLayer(new AutoGlowingGeoLayer<>(this));
+            addRenderLayer(new LeanGlowLayer<>(this));
         }
 
         /** Lit by the brightest of the air around its lower blocks (its own blocks are solid to light). */
@@ -196,8 +198,8 @@ public final class MachineRenderers {
     }
 
     public static <T extends Item & GeoAnimatable> GeoItemRenderer<T> item(String model) {
-        GeoItemRenderer<T> r = new GeoItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(model)));
-        r.addRenderLayer(new AutoGlowingGeoLayer<>(r));
+        GeoItemRenderer<T> r = new LeanItemRenderer<>(new DefaultedBlockGeoModel<>(FantasyWeapons.id(model)));
+        r.addRenderLayer(new LeanGlowLayer<>(r));
         return r;
     }
 }

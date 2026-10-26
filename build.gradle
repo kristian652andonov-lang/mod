@@ -53,6 +53,10 @@ neoForge {
         client {
             client()
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // Dev-only: a Java Flight Recording of the run (CPU samples): -PfwJfr=/path/to/file.jfr
+            if (project.hasProperty('fwJfr')) {
+                jvmArgument '-XX:StartFlightRecording=filename=' + project.property('fwJfr') + ',settings=profile,dumponexit=true'
+            }
             // Dev-only: the game's memory, as a launcher would set it: -PfwXmx=2G
             if (project.hasProperty('fwXmx')) {
                 jvmArgument '-Xmx' + project.property('fwXmx')

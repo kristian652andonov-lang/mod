@@ -170,6 +170,14 @@ public final class FrameStripTextures implements ResourceManagerReloadListener {
             this.frameHeight = frameHeight;
         }
 
+        int frameWidth() {
+            return frameWidth;
+        }
+
+        int frameHeight() {
+            return frameHeight;
+        }
+
         @Override
         public void load(ResourceManager manager) throws IOException {
             super.load(new FrameSized(manager, this.location, this.frameWidth, this.frameHeight));

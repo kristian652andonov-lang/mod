@@ -19,7 +19,8 @@ import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoArmorRenderer;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
-import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
+import com.fantasyweapons.client.render.LeanGeoRenderer;
+import com.fantasyweapons.client.render.LeanGlowLayer;
 
 import java.util.List;
 
@@ -63,7 +64,7 @@ public final class ArmorRenderers {
         return form != null && form.id().contains("dark");
     }
 
-    public static final class Worn extends GeoArmorRenderer<FantasyArmorItem> {
+    public static final class Worn extends GeoArmorRenderer<FantasyArmorItem> implements LeanGeoRenderer<FantasyArmorItem> {
         private final ArmorSet set;
         private final ResourceLocation dark;
 
@@ -71,7 +72,7 @@ public final class ArmorRenderers {
             super(new Model(set));
             this.set = set;
             this.dark = FantasyWeapons.id("textures/armor/" + set.asset() + "_dark.png");
-            addRenderLayer(new AutoGlowingGeoLayer<>(this));
+            addRenderLayer(new LeanGlowLayer<>(this));
         }
 
         @Override
@@ -103,7 +104,7 @@ public final class ArmorRenderers {
     }
 
     /** A piece in the inventory: the set's model with only that piece's bones showing. */
-    public static final class Icon extends GeoItemRenderer<FantasyArmorItem> {
+    public static final class Icon extends GeoItemRenderer<FantasyArmorItem> implements LeanGeoRenderer<FantasyArmorItem> {
         private static final List<String> ALL = List.of("armorHead", "armorBody", "armorRightArm", "armorLeftArm", "armorRightLeg", "armorLeftLeg",
                 "armorRightBoot", "armorLeftBoot");
         private final List<String> shown;
@@ -111,7 +112,7 @@ public final class ArmorRenderers {
         public Icon(ArmorSet set, ArmorItem.Type type) {
             super(new Model(set));
             this.shown = ArmorSet.bones(type);
-            addRenderLayer(new AutoGlowingGeoLayer<>(this));
+            addRenderLayer(new LeanGlowLayer<>(this));
         }
 
         @Override

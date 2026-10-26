@@ -10,14 +10,15 @@ import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix4f;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
-import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
+import com.fantasyweapons.client.render.LeanGeoRenderer;
+import com.fantasyweapons.client.render.LeanGlowLayer;
 
 /**
  * Draws the Codex. In first person it is animated on its own (opening and held open, while the inventory icon and the
  * book in other hands stay shut); while it is read it is fully lit, and the pages of the open spread are drawn onto it,
  * placed by where its two page parts were just drawn.
  */
-public final class CodexRenderer extends GeoItemRenderer<WayfarersCodexItem> {
+public final class CodexRenderer extends GeoItemRenderer<WayfarersCodexItem> implements LeanGeoRenderer<WayfarersCodexItem> {
     /** Animation instances: the reader's first-person book, and every other view of it. */
     public static final long FIRST_PERSON = 1, ELSEWHERE = 2;
 
@@ -34,7 +35,7 @@ public final class CodexRenderer extends GeoItemRenderer<WayfarersCodexItem> {
 
     public CodexRenderer() {
         super(new CodexModel());
-        addRenderLayer(new AutoGlowingGeoLayer<>(this));
+        addRenderLayer(new LeanGlowLayer<>(this));
     }
 
     @Override

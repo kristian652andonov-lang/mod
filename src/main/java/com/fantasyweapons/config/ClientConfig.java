@@ -86,6 +86,10 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.BooleanValue PUNCHY_CODEX_OWN_ANIMATION;
 
+    public static final ModConfigSpec.BooleanValue PERF_UNSEEN_ANIMATIONS;
+    public static final ModConfigSpec.BooleanValue PERF_HIDDEN_PARTS;
+    public static final ModConfigSpec.BooleanValue PERF_TINY_DETAILS;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -111,6 +115,15 @@ public final class ClientConfig {
         EXP_POPUPS = B.comment("Small +EXP numbers when a weapon gains experience").translation("EXP popups").define("exp_popups", true);
         DAMAGE_NUMBERS = B.comment("Floating numbers for the damage of your hits").translation("Damage numbers").define("damage_numbers", true);
         CONFIRM_UPGRADES = B.comment("Ask once more before mastery points are spent").translation("Confirm upgrades").define("confirm_upgrades", true);
+        B.pop();
+
+        B.translation("Performance").push("performance");
+        PERF_UNSEEN_ANIMATIONS = B.comment("Pauses the animations of the mod's textures that no model in the game shows (the game's block and item atlas holds a copy of every one of them, and redraws each animated one every tick). Only the specks that fly from a broken ore stop shimmering")
+                .translation("Pause unseen texture animations").define("pause_unseen_animations", true);
+        PERF_HIDDEN_PARTS = B.comment("The mod's armor, weapons, tools and machines draw only the parts that show: a part whose texture is clear there is left out, and the glow layer draws only the parts that glow. Nothing you can see changes")
+                .translation("Draw only the parts that show").define("draw_only_what_shows", true);
+        PERF_TINY_DETAILS = B.comment("Parts of the mod's models smaller than a pixel on the screen (on armor and weapons far away) are left out")
+                .translation("Leave out details smaller than a pixel").define("skip_tiny_details", true);
         B.pop();
 
         B.translation("Compatibility").push("compat");

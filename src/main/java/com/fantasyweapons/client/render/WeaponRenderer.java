@@ -21,7 +21,6 @@ import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.cache.texture.AutoGlowingTexture;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
-import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
 import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 
 /**
@@ -37,7 +36,7 @@ import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
  * drawn, a model's see-through part alone is drawn translucent (the rest as an ordinary cut-out model), and the heaviest
  * models leave out their glow passes as inventory icons.
  */
-public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
+public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> implements LeanGeoRenderer<FantasyWeaponItem> {
     /** Which pass is drawing: the model itself, a glow pass (only the faces that glow), or the see-through part alone. */
     enum Pass { MAIN, GLOW, EDGE }
 
@@ -60,7 +59,7 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
 
     public WeaponRenderer() {
         super(new WeaponGeoModel());
-        addRenderLayer(new AutoGlowingGeoLayer<>(this) {
+        addRenderLayer(new LeanGlowLayer<>(this) {
             @Override
             public void render(PoseStack poseStack, FantasyWeaponItem animatable, BakedGeoModel bakedModel, @Nullable RenderType renderType,
                                MultiBufferSource bufferSource, @Nullable VertexConsumer buffer, float partialTick, int packedLight, int packedOverlay) {
@@ -241,14 +240,15 @@ public class WeaponRenderer extends GeoItemRenderer<FantasyWeaponItem> {
         super.renderCubesOfBone(poseStack, bone, buffer, packedLight, packedOverlay, colour);
     }
 
+    /** The texture the model is being drawn with (what {@link ModelCulling} leaves out is worked out from it). */
     @Override
-    public void createVerticesOfQuad(software.bernie.geckolib.cache.object.GeoQuad quad, Matrix4f poseState, org.joml.Vector3f normal, VertexConsumer buffer,
-                                     int packedLight, int packedOverlay, int colour) {
-        if (drawnTexture != null && !drawAllFaces) {
-            byte f = QuadCull.flags(drawnTexture, quad);
-            if ((f & (pass == Pass.GLOW ? QuadCull.GLOWS : QuadCull.SEEN)) == 0) return;
-        }
-        super.createVerticesOfQuad(quad, poseState, normal, buffer, packedLight, packedOverlay, colour);
+    public net.minecraft.resources.ResourceLocation drawnTexture() {
+        return drawAllFaces ? null : drawnTexture;
+    }
+
+    @Override
+    public boolean drawingGlow() {
+        return pass == Pass.GLOW;
     }
 
     /** The model's see-through part (the Weapon of God's radiant edge) alone, drawn translucent so it blends. */

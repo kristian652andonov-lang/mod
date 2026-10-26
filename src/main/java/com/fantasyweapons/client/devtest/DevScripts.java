@@ -141,6 +141,8 @@ final class DevScripts {
                 else if (name.startsWith("god:")) god(b, name.substring(4));
                 else if (name.startsWith("mp:")) multiplayer(b, name.substring(3));
                 else if (name.equals("circles")) circles(b);
+                else if (name.startsWith("allicons")) allIcons(b, name.endsWith(":off"));
+                else if (name.startsWith("busy")) busy(b, name.length() > 5 ? name.substring(5) : "");
                 else if (name.equals("scout")) scout(b);
                 else if (name.startsWith("local:")) local(b, name.substring(6));
                 else if (name.startsWith("mages:")) mages(b, name.substring(6).split(","));
@@ -2255,6 +2257,97 @@ final class DevScripts {
 
     private static volatile boolean mpStopping;
 
+    /**
+     * A busy scene for measuring what the mod costs (busy[:label]): forty monsters in the mod's armor and ten stands
+     * holding its weapons, looked at while idle, then while weapons' powers are cast again and again among them (the
+     * perf probe logs every second; each phase's start is logged as "busy: <phase>").
+     */
+    private static void busy(ScreenshotDirector.Builder b, String label) {
+        // busy:off films it with the Performance section's optimisations off, anything else with them on
+        boolean on = !label.equals("off");
+        b.run(mc -> perf(on));
+        b.wait(40).closeScreen().cmd("/gamemode creative").cmd("/time set noon").cmd("/gamerule doDaylightCycle false").cmd("/gamerule doMobSpawning false")
+                .cmd("/kill @e[type=!player]").cmd("/clear @s").cmd("/tp @s 5000.5 -60 5000.5 0 15").wait(120);
+        onServer(b, sp -> {
+            var level = sp.serverLevel();
+            var sets = com.fantasyweapons.armor.ArmorSet.values();
+            var weapons = new java.util.ArrayList<>(com.fantasyweapons.registry.ModItems.WEAPONS.values());
+            for (int i = 0; i < 40; i++) {
+                var husk = net.minecraft.world.entity.EntityType.HUSK.create(level);
+                if (husk == null) continue;
+                husk.moveTo(sp.getX() - 9 + (i % 10) * 2, sp.getY(), sp.getZ() + 6 + (i / 10) * 2.5, 180, 0);
+                husk.setNoAi(true);
+                husk.setPersistenceRequired();
+                var set = sets[i % sets.length];
+                for (var type : com.fantasyweapons.armor.ArmorSet.PIECES) {
+                    husk.setItemSlot(type.getSlot(), new net.minecraft.world.item.ItemStack(com.fantasyweapons.registry.ModItems.ARMOR.get(set).get(type).get()));
+                }
+                husk.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(weapons.get(i % weapons.size()).get()));
+                husk.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(1_000_000);
+                husk.setHealth(1_000_000);
+                level.addFreshEntity(husk);
+            }
+            for (int i = 0; i < 10; i++) {
+                var stand = net.minecraft.world.entity.EntityType.ARMOR_STAND.create(level);
+                if (stand == null) continue;
+                stand.moveTo(sp.getX() - 9 + i * 2, sp.getY(), sp.getZ() + 3, 180, 0);
+                stand.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(weapons.get((i * 7) % weapons.size()).get()));
+                level.addFreshEntity(stand);
+            }
+        });
+        b.wait(100).hud(true).playerView().camera(CameraType.FIRST_PERSON).look(0, 15)
+                .run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("busy: idle {}", label)).wait(300).screenshot("busy_idle" + label);
+        // the glow at night, close up, and the crowd from far away (where the smallest details are left out)
+        b.cmd("/time set midnight").wait(20).viewAt(-1, 1.6, 4.2, -2, 1.2, 8.5).wait(10).screenshot("busy_night" + label)
+                .viewAt(0, 12, -60, 0, 1, 10).wait(10).screenshot("busy_far" + label).cmd("/time set noon").playerView().wait(10);
+        String[][] casts = {{"stormbreaker", "chain_lightning"}, {"solaris", "radiant_slash"}, {"voidfang", "rift_tear"}, {"frostrend", "glacial_domain"},
+                {"bloomfall", "thorn_sweep"}, {"infernochain", "cinder_cyclone"}};
+        b.run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("busy: casting {}", label));
+        for (int round = 0; round < 2; round++) {
+            for (String[] c : casts) {
+                var def = com.fantasyweapons.weapon.Weapons.get(c[0]);
+                if (def == null || def.ability(c[1]) == null) continue;
+                var a = def.ability(c[1]);
+                b.cmd("/clear @s").cmd("/fw give " + c[0] + " 100").wait(10).slot(0).cmd("/fw points 300").cmd("/fw cooldowns").select(c[1]).wait(5)
+                        .abilityDown().wait(Math.max(2, a.chargeTicks() + 1)).abilityUp().wait(45);
+            }
+        }
+        b.screenshot("busy_casting" + label).run(mc -> com.fantasyweapons.FantasyWeapons.LOGGER.warn("busy: done {}", label)).run(mc -> perf(true)).quit();
+    }
+
+    /** Every item of the mod's as its inventory icon, twice the size, in a grid (allicons[:off] with the optimisations off). */
+    private static void allIcons(ScreenshotDirector.Builder b, boolean off) {
+        // gathered once the screen is drawn: the film is set up before the items are registered
+        java.util.List<net.minecraft.world.item.ItemStack> items = new java.util.ArrayList<>();
+        b.run(mc -> perf(!off)).cmd("/gamemode creative").cmd("/time set noon").wait(20);
+        b.run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("icons")) {
+            @Override
+            public void render(net.minecraft.client.gui.GuiGraphics g, int mx, int my, float pt) {
+                if (items.isEmpty()) {
+                    for (var item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
+                        if (net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).getNamespace().equals(com.fantasyweapons.FantasyWeapons.MOD_ID)) items.add(new net.minecraft.world.item.ItemStack(item));
+                    }
+                }
+                g.fill(0, 0, width, height, 0xFF303030);
+                int perRow = Math.max(1, (width - 8) / 34);
+                for (int i = 0; i < items.size(); i++) {
+                    g.pose().pushPose();
+                    g.pose().translate(4 + (i % perRow) * 34, 4 + (i / perRow) * 34, 0);
+                    g.pose().scale(2, 2, 1);
+                    g.renderItem(items.get(i), 0, 0);
+                    g.pose().popPose();
+                }
+            }
+        })).wait(40).screenshot("allicons" + (off ? "_off" : "_on")).closeScreen().run(mc -> perf(true)).quit();
+    }
+
+    /** Switches every optimisation of the settings menu's Performance section on or off. */
+    private static void perf(boolean on) {
+        com.fantasyweapons.config.ClientConfig.PERF_UNSEEN_ANIMATIONS.set(on);
+        com.fantasyweapons.config.ClientConfig.PERF_HIDDEN_PARTS.set(on);
+        com.fantasyweapons.config.ClientConfig.PERF_TINY_DETAILS.set(on);
+    }
+
     /** The magic circles hundreds of blocks across, drawn from their textures (as they were) and in lines, near and far. */
     private static void circles(ScreenshotDirector.Builder b) {
         b.wait(40).closeScreen().cmd("/gamemode creative").cmd("/time set midnight").cmd("/gamerule doDaylightCycle false").cmd("/kill @e[type=!player]")
@@ -3064,7 +3157,7 @@ final class DevScripts {
                 .closeScreen().run(mc -> mc.player.getRecipeBook().setOpen(net.minecraft.world.inventory.RecipeBookType.CRAFTING, false))
                 .run(mc -> mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player))).wait(10)
                 .run(mc -> mc.setScreen(new com.fantasyweapons.client.gui.SettingsScreen(mc.screen))).wait(10);
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 10; i++) {
             int section = i;
             b.run(mc -> {
                 if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugShow(section, 0);
@@ -3087,6 +3180,8 @@ final class DevScripts {
         b.run(mc -> {
             if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugChooseLanguage("ru_ru");
         }).wait(240).screenshot("settings_language_ru").run(mc -> {
+            if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugShowTitled("Performance");
+        }).wait(4).screenshot("settings_performance_ru").run(mc -> {
             if (mc.screen instanceof com.fantasyweapons.client.gui.SettingsScreen s) s.debugChooseLanguage("en_us");
         }).wait(240).screenshot("settings_language_back");
         b.closeScreen().cmd("/gamemode creative");

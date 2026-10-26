@@ -16,17 +16,18 @@ import net.minecraft.world.phys.AABB;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoBlockRenderer;
-import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
+import com.fantasyweapons.client.render.LeanGeoRenderer;
+import com.fantasyweapons.client.render.LeanGlowLayer;
 
 /**
  * Draws an ore block with its GeckoLib model and glowmask, fitted to the block (see {@link OreFit}). The block is solid, so
  * its own light is that of the brightest air beside it; each ore is turned a quarter turn by its position so a vein never
  * looks copy-pasted, and its floating fragments only show with open air above.
  */
-public class MaterialOreRenderer extends GeoBlockRenderer<MaterialOreBlockEntity> {
+public class MaterialOreRenderer extends GeoBlockRenderer<MaterialOreBlockEntity> implements LeanGeoRenderer<MaterialOreBlockEntity> {
     public MaterialOreRenderer() {
         super(new Model());
-        addRenderLayer(new AutoGlowingGeoLayer<>(this));
+        addRenderLayer(new LeanGlowLayer<>(this));
     }
 
     @Override

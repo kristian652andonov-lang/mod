@@ -66,6 +66,7 @@ public final class ClientSetup {
             e.register(com.fantasyweapons.registry.ModMenus.UPGRADING.get(), com.fantasyweapons.client.gui.UpgradingScreen::new);
         });
         modBus.addListener(ClientSetup::registerExtensions);
+        modBus.addListener(com.fantasyweapons.client.perf.AtlasAnimations::onModelsBaked);
         // in Punchy's hand the Wayfarer's Codex stays shut: leave the Codex to its own animation
         modBus.addListener((net.neoforged.fml.event.lifecycle.FMLClientSetupEvent e) -> e.enqueueWork(com.fantasyweapons.compat.punchy.PunchyCompat::sync));
         modBus.addListener((net.neoforged.fml.event.config.ModConfigEvent.Reloading e) -> {

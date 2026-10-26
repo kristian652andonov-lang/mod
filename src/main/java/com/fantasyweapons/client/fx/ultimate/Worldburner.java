@@ -25,7 +25,8 @@ import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.constant.DataTickets;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoObjectRenderer;
-import software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer;
+import com.fantasyweapons.client.render.LeanGeoRenderer;
+import com.fantasyweapons.client.render.LeanGlowLayer;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 /**
@@ -226,7 +227,7 @@ public final class Worldburner implements GeoAnimatable {
         renderer = null;
     }
 
-    private static final class Renderer extends GeoObjectRenderer<Worldburner> {
+    private static final class Renderer extends GeoObjectRenderer<Worldburner> implements LeanGeoRenderer<Worldburner> {
         Renderer() {
             super(new GeoModel<>() {
                 @Override
@@ -257,7 +258,7 @@ public final class Worldburner implements GeoAnimatable {
                 }
             });
             // its magma crust, gills, wing veins and eyes glow
-            addRenderLayer(new AutoGlowingGeoLayer<>(this));
+            addRenderLayer(new LeanGlowLayer<>(this));
         }
 
         /** Placed exactly where the effect put it (the object renderer otherwise centres its model on a block). */
