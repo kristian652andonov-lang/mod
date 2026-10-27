@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.fantasyweapons.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ChunkMapMixin",
+    "OffHandSlotMixin",
+    "OffHandSwapMixin"
+  ],
+  "client": [
+    "ClientPacketListenerMixin",
+    "ItemInHandRendererMixin",
+    "TextureAtlasSpriteMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

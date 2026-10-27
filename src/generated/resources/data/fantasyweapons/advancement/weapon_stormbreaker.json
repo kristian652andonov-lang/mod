@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:stormbreaker"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge the Stormbreaker",
+      "translate": "advancements.fantasyweapons.weapon_stormbreaker.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:stormbreaker"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#3FF0FF",
+      "fallback": "Thunder Answers",
+      "translate": "advancements.fantasyweapons.weapon_stormbreaker.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

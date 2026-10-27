@@ -1,0 +1,32 @@
+{
+  "feature": "fantasyweapons:frostheart_ore",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 8
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "fantasyweapons:fitted_height",
+      "ground": 125,
+      "height": {
+        "type": "minecraft:uniform",
+        "max_inclusive": {
+          "absolute": 200
+        },
+        "min_inclusive": {
+          "absolute": 60
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

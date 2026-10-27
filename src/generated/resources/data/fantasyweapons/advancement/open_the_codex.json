@@ -1,0 +1,31 @@
+{
+  "parent": "fantasyweapons:root",
+  "criteria": {
+    "opened": {
+      "trigger": "fantasyweapons:codex_opened"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Open the Wayfarer's Codex and read where the road begins",
+      "translate": "advancements.fantasyweapons.open_the_codex.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:wayfarers_codex"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#E6DCC2",
+      "fallback": "First Page",
+      "translate": "advancements.fantasyweapons.open_the_codex.title"
+    }
+  },
+  "requirements": [
+    [
+      "opened"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

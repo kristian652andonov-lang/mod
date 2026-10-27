@@ -1,0 +1,29 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1200,
+  "key": {
+    "A": {
+      "item": "minecraft:obsidian"
+    },
+    "C": {
+      "item": "minecraft:heavy_core"
+    },
+    "H": {
+      "item": "minecraft:breeze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:titanstone_core"
+    }
+  },
+  "pattern": [
+    "    R    ",
+    "   RCR   ",
+    "    H    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:titanstone_shovel"
+  }
+}

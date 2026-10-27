@@ -1,0 +1,34 @@
+{
+  "parent": "fantasyweapons:legendary_tool",
+  "criteria": {
+    "power": {
+      "conditions": {
+        "name": "timberfall"
+      },
+      "trigger": "fantasyweapons:legendary_tool"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Fell every tree around you with an axe's Timberfall",
+      "translate": "advancements.fantasyweapons.timberfall.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:verdant_axe"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "Timber!",
+      "translate": "advancements.fantasyweapons.timberfall.title"
+    }
+  },
+  "requirements": [
+    [
+      "power"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

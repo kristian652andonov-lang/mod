@@ -1,0 +1,278 @@
+package com.fantasyweapons.client.render;
+
+import com.fantasyweapons.client.vfx.VfxTextures;
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.Util;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
+
+import java.util.function.Function;
+
+/**
+ * Custom render types for the VFX system. Extends RenderType only to reach the protected render-state shards.
+ * <ul>
+ *   <li>{@link #additive}: soft additive glow (alpha-weighted, so faded vertices fade out)</li>
+ *   <li>{@link #energy}: additive + animated noise breakup shader</li>
+ *   <li>{@link #voidInterior}: alpha-blended dark void with swirling nebula (can actually darken the scene)</li>
+ *   <li>{@link #translucent}: alpha-blended textured geometry (dark smoke, shadows, solid-looking fragments)</li>
+ *   <li>{@link #solid}: like translucent but writes depth, for modelled props that must hide their own back faces</li>
+ * </ul>
+ * Apart from {@link #solid} none of them write depth, so effects overlap without sorting artefacts but are still
+ * hidden behind terrain. While a shader pack is on they are swapped for the {@code pack*} types, on the game's own
+ * shaders (see {@link ShaderPacks}).
+ */
+public final class FWRenderTypes extends RenderType {
+    private FWRenderTypes(String name, VertexFormat format, VertexFormat.Mode mode, int size, boolean crumbling, boolean sort,
+                          Runnable setup, Runnable clear) {
+        super(name, format, mode, size, crumbling, sort, setup, clear);
+    }
+
+    private static final TransparencyStateShard ADDITIVE_ALPHA = new TransparencyStateShard("fw_additive_alpha", () -> {
+        RenderSystem.enableBlend();
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+    }, () -> {
+        RenderSystem.disableBlend();
+        RenderSystem.defaultBlendFunc();
+    });
+
+    private static final ShaderStateShard ADDITIVE_SHADER = new ShaderStateShard(() -> FWShaders.vfxAdditive);
+    private static final ShaderStateShard ENERGY_SHADER = new ShaderStateShard(() -> FWShaders.vfxEnergy);
+    private static final ShaderStateShard VOID_SHADER = new ShaderStateShard(() -> FWShaders.vfxVoid);
+    private static final ShaderStateShard CUTOUT_SHADER = new ShaderStateShard(() -> FWShaders.vfxCutout);
+
+    private static final Function<ResourceLocation, RenderType> ADDITIVE = Util.memoize(tex -> create("fw_vfx_additive",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(ADDITIVE_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(ADDITIVE_ALPHA)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> TRANSLUCENT = Util.memoize(tex -> create("fw_vfx_translucent",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(ADDITIVE_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> SOLID = Util.memoize(tex -> create("fw_vfx_solid",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(ADDITIVE_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_DEPTH_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> CUTOUT = Util.memoize(tex -> create("fw_vfx_cutout",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(CUTOUT_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_DEPTH_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> ENERGY = Util.memoize(tex -> create("fw_vfx_energy",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(ENERGY_SHADER)
+                    .setTextureState(MultiTextureStateShard.builder().add(tex, true, false).add(VfxTextures.NOISE, true, false).build())
+                    .setTransparencyState(ADDITIVE_ALPHA)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> VOID = Util.memoize(tex -> create("fw_vfx_void",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(VOID_SHADER)
+                    .setTextureState(MultiTextureStateShard.builder().add(tex, true, false).add(VfxTextures.NOISE, true, false).build())
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    // ---- while a shader pack is on (see ShaderPacks): the game's own entity shaders, which the pack replaces with its
+    // programs; the effects' own shaders would not be drawn at all. Glows draw as glowing eyes do (unlit and added to the
+    // scene: Iris always adds that program's colour, so nothing dark may go there); everything that is seen by its own
+    // colour (smoke, cracks, vines, chains, the void) as translucent entities, lit by the pack like any other thing.
+    // The noise of energy and the void's nebula need their own shaders, so those draw plainly there. ----
+    private static final Function<ResourceLocation, RenderType> PACK_GLOW = Util.memoize(tex -> create("fw_vfx_pack_glow",
+            DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(RENDERTYPE_EYES_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(ADDITIVE_ALPHA)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> PACK_TRANSLUCENT = Util.memoize(tex -> create("fw_vfx_pack_translucent",
+            DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setLightmapState(LIGHTMAP)
+                    .setOverlayState(OVERLAY)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> PACK_SOLID = Util.memoize(tex -> create("fw_vfx_pack_solid",
+            DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_SHADER)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setLightmapState(LIGHTMAP)
+                    .setOverlayState(OVERLAY)
+                    .setWriteMaskState(COLOR_DEPTH_WRITE)
+                    .createCompositeState(false)));
+
+    // ---- GUI (screen-space) variants, using the vanilla position-tex-colour shader (no fog) ----
+    private static final ShaderStateShard GUI_TEX_COLOR = new ShaderStateShard(GameRenderer::getPositionTexColorShader);
+
+    private static final Function<ResourceLocation, RenderType> GUI_ADDITIVE = Util.memoize(tex -> create("fw_gui_additive",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 256, false, false,
+            CompositeState.builder()
+                    .setShaderState(GUI_TEX_COLOR)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(ADDITIVE_ALPHA)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> GUI_TEXTURED = Util.memoize(tex -> create("fw_gui_textured",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 256, false, false,
+            CompositeState.builder()
+                    .setShaderState(GUI_TEX_COLOR)
+                    .setTextureState(new TextureStateShard(tex, true, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    private static final Function<ResourceLocation, RenderType> GUI_PIXELS = Util.memoize(tex -> create("fw_gui_pixels",
+            DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS, 256, false, false,
+            CompositeState.builder()
+                    .setShaderState(GUI_TEX_COLOR)
+                    .setTextureState(new TextureStateShard(tex, false, false))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(LEQUAL_DEPTH_TEST)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false)));
+
+    /** Lines seen through everything (a pickaxe's Ore Sight). */
+    public static final RenderType XRAY_LINES = create("fw_xray_lines", DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(RENDERTYPE_LINES_SHADER)
+                    .setLineState(new LineStateShard(java.util.OptionalDouble.of(2.5)))
+                    .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                    .setDepthTestState(NO_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false));
+
+    /** Untextured glow seen through everything (the faces of the ores Ore Sight shows). */
+    public static final RenderType XRAY_FILL = create("fw_xray_fill", DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS, 1536, false, false,
+            CompositeState.builder()
+                    .setShaderState(POSITION_COLOR_SHADER)
+                    .setTransparencyState(ADDITIVE_ALPHA)
+                    .setDepthTestState(NO_DEPTH_TEST)
+                    .setCullState(NO_CULL)
+                    .setWriteMaskState(COLOR_WRITE)
+                    .createCompositeState(false));
+
+    public static RenderType guiAdditive(ResourceLocation texture) {
+        return GUI_ADDITIVE.apply(texture);
+    }
+
+    public static RenderType guiTextured(ResourceLocation texture) {
+        return GUI_TEXTURED.apply(texture);
+    }
+
+    /** As {@link #guiTextured}, but drawn with sharp pixels (pixel art, such as the ability icons). */
+    public static RenderType guiPixels(ResourceLocation texture) {
+        return GUI_PIXELS.apply(texture);
+    }
+
+    public static RenderType additive(ResourceLocation texture) {
+        return ADDITIVE.apply(texture);
+    }
+
+    /** The render types that draw opaque, depth-writing geometry (drawn before the glows, so these hide what they cover). */
+    private static final java.util.Set<RenderType> OPAQUE = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+
+    /** Opaque-looking textured geometry that writes depth (vines, thorns, petals, chain links) so it occludes itself. */
+    public static RenderType solid(ResourceLocation texture) {
+        RenderType t = SOLID.apply(texture);
+        OPAQUE.add(t);
+        return t;
+    }
+
+    /** Opaque geometry whose outline is cut out by its texture's alpha (petals, leaves). */
+    public static RenderType cutout(ResourceLocation texture) {
+        RenderType t = CUTOUT.apply(texture);
+        OPAQUE.add(t);
+        return t;
+    }
+
+    /** Whether a render type draws opaque, depth-writing geometry: the mod's solid and cutout ones, and vanilla's block and entity cutouts. */
+    public static boolean opaque(RenderType t) {
+        if (OPAQUE.contains(t)) return true;
+        String name = t.toString();
+        return !name.contains("translucent") && (name.contains("cutout") || name.contains("entity_solid") || name.contains("solid"));
+    }
+
+    public static RenderType translucent(ResourceLocation texture) {
+        return TRANSLUCENT.apply(texture);
+    }
+
+    /** {@link #additive} and {@link #energy} while a shader pack is on: drawn as glowing eyes are (added). Takes entity vertices. */
+    public static RenderType packGlow(ResourceLocation texture) {
+        return PACK_GLOW.apply(texture);
+    }
+
+    /** {@link #translucent} and {@link #voidInterior} while a shader pack is on. Takes entity vertices. */
+    public static RenderType packTranslucent(ResourceLocation texture) {
+        return PACK_TRANSLUCENT.apply(texture);
+    }
+
+    /** {@link #solid} and {@link #cutout} while a shader pack is on (writes depth, drawn first). Takes entity vertices. */
+    public static RenderType packSolid(ResourceLocation texture) {
+        RenderType t = PACK_SOLID.apply(texture);
+        OPAQUE.add(t);
+        return t;
+    }
+
+    public static RenderType energy(ResourceLocation texture) {
+        return ENERGY.apply(texture);
+    }
+
+    public static RenderType voidInterior(ResourceLocation mask) {
+        return VOID.apply(mask);
+    }
+}

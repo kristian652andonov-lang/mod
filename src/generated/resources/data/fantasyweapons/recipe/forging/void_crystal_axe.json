@@ -1,0 +1,29 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1800,
+  "key": {
+    "A": {
+      "item": "minecraft:crying_obsidian"
+    },
+    "C": {
+      "item": "minecraft:ender_eye"
+    },
+    "H": {
+      "item": "minecraft:end_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:void_core"
+    }
+  },
+  "pattern": [
+    "   RR    ",
+    "  RRC    ",
+    "   RH    ",
+    "    H    ",
+    "    A    "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:void_crystal_axe"
+  }
+}

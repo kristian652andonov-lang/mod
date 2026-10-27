@@ -1,0 +1,15 @@
+{
+  "type": "fantasyweapons:refining",
+  "additive": {
+    "item": "minecraft:packed_ice"
+  },
+  "additive_count": 8,
+  "count": 8,
+  "ingredient": {
+    "item": "fantasyweapons:frostheart_shard"
+  },
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:frostheart_crystal"
+  }
+}

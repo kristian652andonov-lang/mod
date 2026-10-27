@@ -1,0 +1,21 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 1200,
+  "key": {
+    "A": {
+      "item": "minecraft:green_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:verdant_heart"
+    }
+  },
+  "pattern": [
+    "  R   R  ",
+    " RR   RR ",
+    " AR   RA "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:archdruid_boots"
+  }
+}

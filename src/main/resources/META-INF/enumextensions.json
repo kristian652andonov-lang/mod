@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+      "name": "FANTASYWEAPONS_ONE_HANDED",
+      "constructor": "(ZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+      "parameters": {
+        "class": "com/fantasyweapons/client/anim/WeaponArmPoses",
+        "field": "ONE_HANDED"
+      }
+    },
+    {
+      "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+      "name": "FANTASYWEAPONS_TWO_HANDED",
+      "constructor": "(ZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+      "parameters": {
+        "class": "com/fantasyweapons/client/anim/WeaponArmPoses",
+        "field": "TWO_HANDED"
+      }
+    }
+  ]
+}

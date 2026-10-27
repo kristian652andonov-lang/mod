@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:void_crystal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Void Crystal on the End's outer islands",
+      "translate": "advancements.fantasyweapons.ore_void_crystal.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:void_crystal"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#B04DFF",
+      "fallback": "Shard of Nothing",
+      "translate": "advancements.fantasyweapons.ore_void_crystal.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

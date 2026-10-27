@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.fantasyweapons.mixin.bettercombat",
+  "plugin": "com.fantasyweapons.compat.bettercombat.BetterCombatMixinPlugin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "FirstPersonModeMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

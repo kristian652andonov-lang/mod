@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:centurion",
+  "criteria": {
+    "kills": {
+      "conditions": {
+        "kills": 1000
+      },
+      "trigger": "fantasyweapons:weapon_milestone"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Slay a thousand foes with one legendary weapon",
+      "translate": "advancements.fantasyweapons.thousand_souls.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:wither_skeleton_skull"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "A Thousand Souls",
+      "translate": "advancements.fantasyweapons.thousand_souls.title"
+    }
+  },
+  "requirements": [
+    [
+      "kills"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

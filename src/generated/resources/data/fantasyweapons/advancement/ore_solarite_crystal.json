@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:solarite_crystal"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Solarite beneath badlands and deserts",
+      "translate": "advancements.fantasyweapons.ore_solarite_crystal.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:solarite_crystal"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FFB030",
+      "fallback": "Captured Daylight",
+      "translate": "advancements.fantasyweapons.ore_solarite_crystal.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

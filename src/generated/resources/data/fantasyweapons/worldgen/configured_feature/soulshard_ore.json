@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:ore",
+  "config": {
+    "discard_chance_on_air_exposure": 0.3,
+    "size": 3,
+    "targets": [
+      {
+        "state": {
+          "Name": "fantasyweapons:soulshard_ore"
+        },
+        "target": {
+          "predicate_type": "minecraft:tag_match",
+          "tag": "minecraft:base_stone_nether"
+        }
+      },
+      {
+        "state": {
+          "Name": "fantasyweapons:soulshard_ore"
+        },
+        "target": {
+          "block": "minecraft:soul_soil",
+          "predicate_type": "minecraft:block_match"
+        }
+      },
+      {
+        "state": {
+          "Name": "fantasyweapons:soulshard_ore"
+        },
+        "target": {
+          "block": "minecraft:soul_sand",
+          "predicate_type": "minecraft:block_match"
+        }
+      }
+    ]
+  }
+}

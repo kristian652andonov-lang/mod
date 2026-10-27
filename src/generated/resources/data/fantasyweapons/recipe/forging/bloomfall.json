@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 4200,
+  "key": {
+    "A": {
+      "item": "minecraft:moss_block"
+    },
+    "C": {
+      "item": "minecraft:spore_blossom"
+    },
+    "H": {
+      "item": "minecraft:bamboo"
+    },
+    "R": {
+      "item": "fantasyweapons:verdant_heart"
+    }
+  },
+  "pattern": [
+    "  ARRRRA ",
+    " RRRRRRH ",
+    "RR    CH ",
+    "       H ",
+    "      H  ",
+    "      H  ",
+    "     H   ",
+    "     A   ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:bloomfall"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3000,
+  "key": {
+    "A": {
+      "item": "minecraft:light_blue_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:frostheart_crystal"
+    }
+  },
+  "pattern": [
+    " AR   RA ",
+    " RRR RRR ",
+    "  RRARR  ",
+    "  ARRRA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:cryomancer_chestplate"
+  }
+}

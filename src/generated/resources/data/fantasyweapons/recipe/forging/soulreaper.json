@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 4200,
+  "key": {
+    "A": {
+      "item": "minecraft:soul_lantern"
+    },
+    "C": {
+      "item": "minecraft:ghast_tear"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:soulshard_core"
+    }
+  },
+  "pattern": [
+    "  ARRRRA ",
+    " RRRRRRH ",
+    "RR    CH ",
+    "       H ",
+    "      H  ",
+    "      H  ",
+    "     H   ",
+    "     A   ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:soulreaper"
+  }
+}

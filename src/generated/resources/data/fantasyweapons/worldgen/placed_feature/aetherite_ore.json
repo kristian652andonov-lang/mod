@@ -1,0 +1,32 @@
+{
+  "feature": "fantasyweapons:aetherite_ore",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 6
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "fantasyweapons:fitted_height",
+      "ground": 105,
+      "height": {
+        "type": "minecraft:uniform",
+        "max_inclusive": {
+          "absolute": 160
+        },
+        "min_inclusive": {
+          "absolute": 70
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

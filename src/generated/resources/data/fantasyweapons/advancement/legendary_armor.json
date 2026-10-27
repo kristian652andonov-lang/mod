@@ -1,0 +1,863 @@
+{
+  "parent": "fantasyweapons:first_forging",
+  "criteria": {
+    "aetherlance_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:aetherlance_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "aetherlance_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:aetherlance_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "aetherlance_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:aetherlance_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "aetherlance_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:aetherlance_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "archdruid_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:archdruid_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "archdruid_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:archdruid_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "archdruid_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:archdruid_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "archdruid_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:archdruid_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "bloomfall_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloomfall_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "bloomfall_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloomfall_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "bloomfall_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloomfall_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "bloomfall_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloomfall_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "cryomancer_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:cryomancer_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "cryomancer_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:cryomancer_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "cryomancer_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:cryomancer_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "cryomancer_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:cryomancer_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "doomcleaver_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:doomcleaver_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "doomcleaver_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:doomcleaver_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "doomcleaver_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:doomcleaver_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "doomcleaver_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:doomcleaver_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "eclipse_reaper_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipse_reaper_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "eclipse_reaper_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipse_reaper_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "eclipse_reaper_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipse_reaper_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "eclipse_reaper_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:eclipse_reaper_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "frostrend_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostrend_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "frostrend_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostrend_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "frostrend_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostrend_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "frostrend_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:frostrend_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "gravebite_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:gravebite_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "gravebite_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:gravebite_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "gravebite_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:gravebite_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "gravebite_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:gravebite_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "infernochain_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernochain_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "infernochain_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernochain_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "infernochain_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernochain_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "infernochain_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:infernochain_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "luminarch_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:luminarch_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "luminarch_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:luminarch_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "luminarch_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:luminarch_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "luminarch_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:luminarch_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "monolith_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:monolith_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "monolith_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:monolith_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "monolith_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:monolith_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "monolith_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:monolith_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "pyromancer_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:pyromancer_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "pyromancer_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:pyromancer_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "pyromancer_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:pyromancer_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "pyromancer_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:pyromancer_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "solaris_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:solaris_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "solaris_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:solaris_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "solaris_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:solaris_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "solaris_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:solaris_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "soulreaper_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:soulreaper_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "soulreaper_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:soulreaper_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "soulreaper_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:soulreaper_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "soulreaper_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:soulreaper_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "starforge_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:starforge_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "starforge_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:starforge_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "starforge_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:starforge_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "starforge_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:starforge_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "stormbreaker_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:stormbreaker_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "stormbreaker_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:stormbreaker_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "stormbreaker_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:stormbreaker_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "stormbreaker_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:stormbreaker_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "tidemancer_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:tidemancer_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "tidemancer_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:tidemancer_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "tidemancer_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:tidemancer_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "tidemancer_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:tidemancer_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "umbramancer_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:umbramancer_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "umbramancer_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:umbramancer_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "umbramancer_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:umbramancer_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "umbramancer_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:umbramancer_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "voidfang_boots": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:voidfang_boots"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "voidfang_chestplate": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:voidfang_chestplate"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "voidfang_helmet": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:voidfang_helmet"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "voidfang_leggings": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:voidfang_leggings"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge a piece of legendary armor",
+      "translate": "advancements.fantasyweapons.legendary_armor.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:solaris_helmet"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "Plated in Legend",
+      "translate": "advancements.fantasyweapons.legendary_armor.title"
+    }
+  },
+  "requirements": [
+    [
+      "voidfang_helmet",
+      "voidfang_chestplate",
+      "voidfang_leggings",
+      "voidfang_boots",
+      "solaris_helmet",
+      "solaris_chestplate",
+      "solaris_leggings",
+      "solaris_boots",
+      "frostrend_helmet",
+      "frostrend_chestplate",
+      "frostrend_leggings",
+      "frostrend_boots",
+      "doomcleaver_helmet",
+      "doomcleaver_chestplate",
+      "doomcleaver_leggings",
+      "doomcleaver_boots",
+      "stormbreaker_helmet",
+      "stormbreaker_chestplate",
+      "stormbreaker_leggings",
+      "stormbreaker_boots",
+      "gravebite_helmet",
+      "gravebite_chestplate",
+      "gravebite_leggings",
+      "gravebite_boots",
+      "soulreaper_helmet",
+      "soulreaper_chestplate",
+      "soulreaper_leggings",
+      "soulreaper_boots",
+      "bloomfall_helmet",
+      "bloomfall_chestplate",
+      "bloomfall_leggings",
+      "bloomfall_boots",
+      "eclipse_reaper_helmet",
+      "eclipse_reaper_chestplate",
+      "eclipse_reaper_leggings",
+      "eclipse_reaper_boots",
+      "starforge_helmet",
+      "starforge_chestplate",
+      "starforge_leggings",
+      "starforge_boots",
+      "aetherlance_helmet",
+      "aetherlance_chestplate",
+      "aetherlance_leggings",
+      "aetherlance_boots",
+      "monolith_helmet",
+      "monolith_chestplate",
+      "monolith_leggings",
+      "monolith_boots",
+      "infernochain_helmet",
+      "infernochain_chestplate",
+      "infernochain_leggings",
+      "infernochain_boots",
+      "pyromancer_helmet",
+      "pyromancer_chestplate",
+      "pyromancer_leggings",
+      "pyromancer_boots",
+      "cryomancer_helmet",
+      "cryomancer_chestplate",
+      "cryomancer_leggings",
+      "cryomancer_boots",
+      "tidemancer_helmet",
+      "tidemancer_chestplate",
+      "tidemancer_leggings",
+      "tidemancer_boots",
+      "archdruid_helmet",
+      "archdruid_chestplate",
+      "archdruid_leggings",
+      "archdruid_boots",
+      "luminarch_helmet",
+      "luminarch_chestplate",
+      "luminarch_leggings",
+      "luminarch_boots",
+      "umbramancer_helmet",
+      "umbramancer_chestplate",
+      "umbramancer_leggings",
+      "umbramancer_boots"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

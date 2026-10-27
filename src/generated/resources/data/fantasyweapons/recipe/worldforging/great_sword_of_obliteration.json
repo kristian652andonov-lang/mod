@@ -1,0 +1,166 @@
+{
+  "type": "fantasyweapons:worldforging",
+  "key": {
+    "!": {
+      "item": "minecraft:totem_of_undying"
+    },
+    "#": {
+      "item": "minecraft:netherite_block"
+    },
+    "$": {
+      "item": "minecraft:enchanted_golden_apple"
+    },
+    "%": {
+      "item": "minecraft:echo_shard"
+    },
+    "&": {
+      "item": "minecraft:dragon_breath"
+    },
+    "*": {
+      "item": "minecraft:nether_star"
+    },
+    "+": {
+      "item": "minecraft:heavy_core"
+    },
+    "@": {
+      "item": "minecraft:end_crystal"
+    },
+    "A": {
+      "item": "fantasyweapons:void_core"
+    },
+    "B": {
+      "item": "fantasyweapons:solarite_core"
+    },
+    "C": {
+      "item": "fantasyweapons:frostheart_crystal"
+    },
+    "D": {
+      "item": "fantasyweapons:bloodstone_core"
+    },
+    "E": {
+      "item": "fantasyweapons:thundercryst_core"
+    },
+    "F": {
+      "item": "fantasyweapons:necrostone_heart"
+    },
+    "G": {
+      "item": "fantasyweapons:soulshard_core"
+    },
+    "H": {
+      "item": "fantasyweapons:verdant_heart"
+    },
+    "I": {
+      "item": "fantasyweapons:eclipse_core"
+    },
+    "J": {
+      "item": "fantasyweapons:astralite_core"
+    },
+    "K": {
+      "item": "fantasyweapons:aetherite_core"
+    },
+    "L": {
+      "item": "fantasyweapons:titanstone_core"
+    },
+    "M": {
+      "item": "fantasyweapons:infernite_core"
+    },
+    "^": {
+      "item": "minecraft:wither_skeleton_skull"
+    },
+    "a": {
+      "item": "fantasyweapons:voidfang"
+    },
+    "b": {
+      "item": "fantasyweapons:solaris"
+    },
+    "c": {
+      "item": "fantasyweapons:frostrend"
+    },
+    "d": {
+      "item": "fantasyweapons:doomcleaver"
+    },
+    "e": {
+      "item": "fantasyweapons:stormbreaker"
+    },
+    "f": {
+      "item": "fantasyweapons:gravebite"
+    },
+    "g": {
+      "item": "fantasyweapons:soulreaper"
+    },
+    "h": {
+      "item": "fantasyweapons:bloomfall"
+    },
+    "i": {
+      "item": "fantasyweapons:eclipse_reaper"
+    },
+    "j": {
+      "item": "fantasyweapons:starforge"
+    },
+    "k": {
+      "item": "fantasyweapons:aetherlance"
+    },
+    "l": {
+      "item": "fantasyweapons:monolith"
+    },
+    "m": {
+      "item": "fantasyweapons:infernochain"
+    },
+    "n": {
+      "item": "fantasyweapons:cinderspire"
+    },
+    "o": {
+      "item": "fantasyweapons:rimeheart"
+    },
+    "p": {
+      "item": "fantasyweapons:tidecaller"
+    },
+    "q": {
+      "item": "fantasyweapons:thornwake"
+    },
+    "r": {
+      "item": "fantasyweapons:sunwarden"
+    },
+    "s": {
+      "item": "fantasyweapons:gloamreach"
+    },
+    "t": {
+      "item": "fantasyweapons:pyre_codex"
+    },
+    "u": {
+      "item": "fantasyweapons:frostbound_grimoire"
+    },
+    "v": {
+      "item": "fantasyweapons:codex_of_tides"
+    },
+    "w": {
+      "item": "fantasyweapons:verdant_almanac"
+    },
+    "x": {
+      "item": "fantasyweapons:lumen_psalter"
+    },
+    "y": {
+      "item": "fantasyweapons:umbral_codex"
+    },
+    "~": {
+      "item": "minecraft:beacon"
+    }
+  },
+  "pattern": [
+    "*abcdefghi*",
+    "j%  #A#  %k",
+    "l  #BCD#  m",
+    "n  #EFG#  o",
+    "p  #HIJ#  q",
+    "r  #KLM#  s",
+    "t   ###   u",
+    "v^##+~+##^w",
+    "x  ! # !  y",
+    "&    #    &",
+    "*@$  #  $@*"
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:great_sword_of_obliteration"
+  }
+}

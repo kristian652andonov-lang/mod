@@ -1,0 +1,38 @@
+{
+  "parent": "fantasyweapons:glimmer",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:verdant_core"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Mine Verdant ore in the lush caves",
+      "translate": "advancements.fantasyweapons.ore_verdant_core.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:verdant_core"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#7DFF4A",
+      "fallback": "Root and Bloom",
+      "translate": "advancements.fantasyweapons.ore_verdant_core.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

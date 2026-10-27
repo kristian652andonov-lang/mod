@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "facing=east,working=false": {
+      "model": "fantasyweapons:block/legendary_upgrading_table"
+    },
+    "facing=east,working=true": {
+      "model": "fantasyweapons:block/legendary_upgrading_table"
+    },
+    "facing=north,working=false": {
+      "model": "fantasyweapons:block/legendary_upgrading_table"
+    },
+    "facing=north,working=true": {
+      "model": "fantasyweapons:block/legendary_upgrading_table"
+    },
+    "facing=south,working=false": {
+      "model": "fantasyweapons:block/legendary_upgrading_table"
+    },
+    "facing=south,working=true": {
+      "model": "fantasyweapons:block/legendary_upgrading_table"
+    },
+    "facing=west,working=false": {
+      "model": "fantasyweapons:block/legendary_upgrading_table"
+    },
+    "facing=west,working=true": {
+      "model": "fantasyweapons:block/legendary_upgrading_table"
+    }
+  }
+}

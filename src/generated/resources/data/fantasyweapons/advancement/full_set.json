@@ -1,0 +1,32 @@
+{
+  "parent": "fantasyweapons:legendary_armor",
+  "criteria": {
+    "worn": {
+      "trigger": "fantasyweapons:full_set"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Wear a whole legendary armor set and wake its power",
+      "translate": "advancements.fantasyweapons.full_set.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:solaris_chestplate"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#6FD8F0",
+      "fallback": "Full Regalia",
+      "translate": "advancements.fantasyweapons.full_set.title"
+    }
+  },
+  "requirements": [
+    [
+      "worn"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

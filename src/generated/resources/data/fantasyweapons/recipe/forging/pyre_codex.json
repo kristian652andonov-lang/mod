@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3000,
+  "key": {
+    "A": {
+      "item": "minecraft:blaze_powder"
+    },
+    "C": {
+      "item": "minecraft:ghast_tear"
+    },
+    "H": {
+      "item": "minecraft:leather"
+    },
+    "R": {
+      "item": "fantasyweapons:infernite_core"
+    }
+  },
+  "pattern": [
+    "         ",
+    "   ARA   ",
+    "  RRHRR  ",
+    "  RRCRR  ",
+    "  RRHRR  ",
+    "   ARA   ",
+    "         ",
+    "         ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:pyre_codex"
+  }
+}

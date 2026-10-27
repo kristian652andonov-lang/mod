@@ -1,0 +1,33 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 4800,
+  "key": {
+    "A": {
+      "item": "minecraft:redstone_block"
+    },
+    "C": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:bloodstone_core"
+    }
+  },
+  "pattern": [
+    "   RRR   ",
+    "  RRRRH  ",
+    "  RRRCH  ",
+    "  RRRRH  ",
+    "      H  ",
+    "      H  ",
+    "      A  ",
+    "         ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:doomcleaver"
+  }
+}

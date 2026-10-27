@@ -1,0 +1,183 @@
+{
+  "feature": "fantasyweapons:infernite_ore",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 9
+    },
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "max_inclusive": {
+          "absolute": 117
+        },
+        "min_inclusive": {
+          "absolute": 10
+        }
+      }
+    },
+    {
+      "type": "minecraft:block_predicate_filter",
+      "predicate": {
+        "type": "minecraft:any_of",
+        "predicates": [
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              -1,
+              0,
+              0
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              0,
+              1,
+              0
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              0,
+              -1,
+              0
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              0,
+              0,
+              -1
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              2,
+              0,
+              0
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              -2,
+              0,
+              0
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              0,
+              2,
+              0
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              0,
+              -2,
+              0
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              0,
+              0,
+              2
+            ]
+          },
+          {
+            "type": "minecraft:matching_fluids",
+            "fluids": [
+              "minecraft:lava",
+              "minecraft:flowing_lava"
+            ],
+            "offset": [
+              0,
+              0,
+              -2
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

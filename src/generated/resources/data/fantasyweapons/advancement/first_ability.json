@@ -1,0 +1,31 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "cast": {
+      "trigger": "fantasyweapons:ability_cast"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Cast one of a legendary weapon's abilities",
+      "translate": "advancements.fantasyweapons.first_ability.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "minecraft:blaze_powder"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#FF8A3D",
+      "fallback": "Unleashed",
+      "translate": "advancements.fantasyweapons.first_ability.title"
+    }
+  },
+  "requirements": [
+    [
+      "cast"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

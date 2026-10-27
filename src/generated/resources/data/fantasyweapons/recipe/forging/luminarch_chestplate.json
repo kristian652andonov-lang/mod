@@ -1,0 +1,22 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 3000,
+  "key": {
+    "A": {
+      "item": "minecraft:white_wool"
+    },
+    "R": {
+      "item": "fantasyweapons:solarite_core"
+    }
+  },
+  "pattern": [
+    " AR   RA ",
+    " RRR RRR ",
+    "  RRARR  ",
+    "  ARRRA  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:luminarch_chestplate"
+  }
+}

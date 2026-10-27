@@ -1,0 +1,32 @@
+{
+  "feature": "fantasyweapons:thundercryst_ore",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 6
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "fantasyweapons:fitted_height",
+      "ground": 140,
+      "height": {
+        "type": "minecraft:uniform",
+        "max_inclusive": {
+          "absolute": 180
+        },
+        "min_inclusive": {
+          "absolute": 90
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "parent": "fantasyweapons:legend_reborn",
+  "criteria": {
+    "has": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fantasyweapons:bloomfall"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Forge Bloomfall",
+      "translate": "advancements.fantasyweapons.weapon_bloomfall.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:bloomfall"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#7DFF4A",
+      "fallback": "Bloom and Fall",
+      "translate": "advancements.fantasyweapons.weapon_bloomfall.title"
+    }
+  },
+  "requirements": [
+    [
+      "has"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:tool_upgraded",
+  "criteria": {
+    "maxed": {
+      "conditions": {
+        "name": "maxed"
+      },
+      "trigger": "fantasyweapons:legendary_tool"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Raise a legendary tool to 13x13, Fortune X and Efficiency X",
+      "translate": "advancements.fantasyweapons.tool_perfected.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fantasyweapons:astralite_pickaxe"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#C98CFF",
+      "fallback": "Perfected",
+      "translate": "advancements.fantasyweapons.tool_perfected.title"
+    }
+  },
+  "requirements": [
+    [
+      "maxed"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

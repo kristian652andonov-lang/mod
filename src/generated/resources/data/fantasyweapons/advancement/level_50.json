@@ -1,0 +1,35 @@
+{
+  "parent": "fantasyweapons:level_30",
+  "criteria": {
+    "level": {
+      "conditions": {
+        "level": 50
+      },
+      "trigger": "fantasyweapons:weapon_milestone"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "description": {
+      "fallback": "Raise a legendary weapon to level 50",
+      "translate": "advancements.fantasyweapons.level_50.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "count": 1,
+      "id": "minecraft:totem_of_undying"
+    },
+    "show_toast": false,
+    "title": {
+      "color": "#F2C46B",
+      "fallback": "Champion",
+      "translate": "advancements.fantasyweapons.level_50.title"
+    }
+  },
+  "requirements": [
+    [
+      "level"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

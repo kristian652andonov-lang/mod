@@ -1,0 +1,36 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 4200,
+  "key": {
+    "A": {
+      "item": "minecraft:magma_block"
+    },
+    "B": {
+      "item": "minecraft:chain"
+    },
+    "C": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:infernite_core"
+    }
+  },
+  "pattern": [
+    "    R    ",
+    "   RRR   ",
+    "   RRR   ",
+    "   RRR   ",
+    "  ARCRA  ",
+    "    H    ",
+    "   B B   ",
+    "    B    ",
+    "   B B   "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:infernochain"
+  }
+}

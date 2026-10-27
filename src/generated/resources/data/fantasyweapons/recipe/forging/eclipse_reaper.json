@@ -1,0 +1,36 @@
+{
+  "type": "fantasyweapons:forging",
+  "forging_time": 4200,
+  "key": {
+    "A": {
+      "item": "minecraft:glowstone"
+    },
+    "B": {
+      "item": "minecraft:obsidian"
+    },
+    "C": {
+      "item": "minecraft:clock"
+    },
+    "H": {
+      "item": "minecraft:blaze_rod"
+    },
+    "R": {
+      "item": "fantasyweapons:eclipse_core"
+    }
+  },
+  "pattern": [
+    "  ARRRRB ",
+    " RRRRRRH ",
+    "RR    CH ",
+    "       H ",
+    "      H  ",
+    "      H  ",
+    "     H   ",
+    "     B   ",
+    "         "
+  ],
+  "result": {
+    "count": 1,
+    "id": "fantasyweapons:eclipse_reaper"
+  }
+}
