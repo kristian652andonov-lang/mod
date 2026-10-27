@@ -16,6 +16,7 @@
       }
     },
     "moss": 0.0,
-    "bury": 0.4
+    "bury": 0.4,
+    "sand": false
   }
 }

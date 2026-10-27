@@ -40,8 +40,9 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
  * The routine generates chunks at several locations of the Overworld (lowlands, mountains,
  * rivers, coasts), measures generation time, checks the vertical range, lighting and heightmaps,
  * counts floating terrain fragments, walls of water and blocks that cannot stay where they are
- * (plants that would drop off at the first block update), renders top-down maps of the generated
- * blocks, writes a text report and stops the server.
+ * (plants that would drop off at the first block update), the stones lying on sand (see
+ * {@link StonesOnSand}) and the lava near the surface (see {@link SurfaceLava}), renders top-down
+ * maps of the generated blocks, writes a text report and stops the server.
  */
 public final class AutoTest {
     private AutoTest() {
@@ -93,12 +94,15 @@ public final class AutoTest {
             int radius;
             net.minecraft.core.Holder<net.minecraft.world.level.levelgen.structure.Structure> located = null;
             if (p[0].startsWith("find:")) {
+                // find:<target>[@x/z],r: the landform nearest to x, z (default 0, 0)
                 String name = p[0].substring(5);
+                int[] origin = origin(name);
+                name = name.contains("@") ? name.substring(0, name.indexOf('@')) : name;
                 radius = Integer.parseInt(p[1].trim());
                 com.terrahaul.worldgen.terrain.TerrainFinder.Target target = com.terrahaul.worldgen.terrain.TerrainFinder.targets().get(name);
                 long f0 = System.nanoTime();
                 com.terrahaul.worldgen.terrain.TerrainFinder.Result found = model == null || target == null ? null
-                    : com.terrahaul.worldgen.terrain.TerrainFinder.find(model, target, 0, 0, 30000, () -> false);
+                    : com.terrahaul.worldgen.terrain.TerrainFinder.find(model, target, origin[0], origin[1], 30000, () -> false);
                 if (found == null) {
                     report.add("area " + areaIndex + ": " + name + " not found");
                     areaIndex++;
@@ -127,10 +131,13 @@ public final class AutoTest {
                 cz = found.getFirst().getZ() >> 4;
                 located = found.getSecond();
             } else if (p[0].startsWith("biome:")) {
+                // biome:<id>[@x/z],r: the biome nearest to x, z (default 0, 0)
                 String id = p[0].substring(6);
+                int[] origin = origin(id);
+                id = id.contains("@") ? id.substring(0, id.indexOf('@')) : id;
                 radius = Integer.parseInt(p[1].trim());
                 var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME, net.minecraft.resources.ResourceLocation.parse(id));
-                var found = level.findClosestBiome3d(h -> h.is(key), BlockPos.ZERO, 12000, 32, 64);
+                var found = level.findClosestBiome3d(h -> h.is(key), new BlockPos(origin[0], 0, origin[1]), 12000, 32, 64);
                 if (found == null) {
                     report.add("area " + areaIndex + ": biome " + id + " not found");
                     areaIndex++;
@@ -177,6 +184,8 @@ public final class AutoTest {
             floatingFragments(level, cx, cz, radius, report);
             waterWalls(level, cx, cz, radius, report);
             unsupportedBlocks(level, cx, cz, radius, report);
+            StonesOnSand.check(level, cx, cz, radius, report);
+            SurfaceLava.check(level, model, cx, cz, radius, report);
             TreeDump.audit(level, cx, cz, radius, report);
             if (located != null) {
                 var chunk = level.getChunk(cx, cz);
@@ -191,6 +200,8 @@ public final class AutoTest {
             mountainFlora(level, model, cx, cz, radius, report);
             areaIndex++;
         }
+        StonesOnSand.summary(report);
+        SurfaceLava.summary(report);
         long cleaned = com.terrahaul.worldgen.features.UnsupportedPlantCleanup.CHUNKS.sum();
         report.add(String.format(Locale.ROOT, "plant cleanup: %d chunks, %.3f ms/chunk, %d plants removed",
             cleaned, com.terrahaul.worldgen.features.UnsupportedPlantCleanup.NANOS.sum() / 1e6 / Math.max(1, cleaned),
@@ -251,6 +262,16 @@ public final class AutoTest {
         for (String line : report) {
             Terrahaul.LOGGER.info("[autotest] {}", line);
         }
+    }
+
+    /** The search origin {x, z} of an area name ending in {@code @x/z}, or {0, 0}. */
+    private static int[] origin(String name) {
+        int at = name.indexOf('@');
+        if (at < 0) {
+            return new int[]{0, 0};
+        }
+        String[] o = name.substring(at + 1).split("/");
+        return new int[]{Integer.parseInt(o[0].trim()), Integer.parseInt(o[1].trim())};
     }
 
     /**

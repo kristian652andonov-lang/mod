@@ -18,6 +18,87 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
+## Sandstone on beaches, no lava lakes at the surface (branch `wf/beach-lava`, seed 12345, dedicated server and client)
+Two user requests: stones on beaches should be sandstone instead of stone and other rock from
+inland, and lava lakes should not lie on the surface (in a forest, say) outside volcanoes.
+- **New checks:** `AutoTest` counts Terrahaul's pebbles and knee-high rocks by material and by the
+  block under them (sand, dry, under 1-5 blocks of water or deeper; red sand; other ground), the
+  columns where rock stands on loose sand above water and under 1-5 blocks of water
+  (`StonesOnSand`), and the lava within 48 blocks under the ground that is open to the sky or lit
+  by daylight, inside and outside the model's volcanoes (`SurfaceLava`). The area specs
+  `find:<target>@x/z,r` and `biome:<id>@x/z,r` take a search origin.
+- **Method:** the same areas were generated from scratch (`-PnoStructures`) by a frozen copy of
+  bf77c83 with only these checks added (before) and by this branch (after), in two sets, since one
+  server with all 41 areas ran out of its 6 GB heap after 28. Set A (21 areas, 1,717 chunks): four
+  sandy beaches (`find:beach` from 0/0, 3000/3000, -3000/2000 and 2000/-3000), a snowy beach, a
+  stony shore, the sea stack nearest the origin (off the snowy beach at 4714, -2870), a dormant
+  and an active volcano (`find:volcano`, `find:volcano@23000/10500`, crater lava at Y 429) and
+  twelve inland areas (plains, forests, taiga, savanna, birch and dark forest). Set B (20 areas,
+  1,620 chunks): four more `find:beach` searches (one found set A's beach at -2324, 2528 again),
+  jungle, desert, badlands, swamp, meadow, windswept hills, old growth spruce taiga, sunflower
+  plains, flower forest, snowy plains, cherry grove and savanna plateau, and the `hills`,
+  `plateau`, `valley` and `mountain` landforms. Most beach sand of this seed lies in stony shore
+  and forest biomes rather than in `beach`, which is why the rule tests the block under a stone.
+- **Stones on dry sand:** before, 123 (set A) and 88 of 185 (set B) were stone, andesite, granite,
+  diorite, tuff or mossy rock; the rest of set B's were the desert's and badlands' own sandstone.
+  After, all 122 and 185 are sandstone (118 and 170 pebbles, 4 and 8 rocks), except 7 red
+  sandstone pebbles in the badlands, which keep their colour. In the surf on sand (1-5 blocks of
+  water) the 58 and 55 pebbles and rocks, grey before (44 of set B's 55), are all sandstone after.
+  Under deeper water the 336 and 202 keep the rock of their province, as intended (5 more in each
+  set are sandstone: river and beach underwater pebbles, which follow the rule at any depth). Pebbles on
+  gravel, stone and soil (3,704 and 2,562 before, 3,711 and 2,571 after) are unchanged in kind, so
+  stony shores, the rocky strip under coast cliffs and the volcanoes keep their stone.
+- **Boulders and ledges in the surf:** columns of rock standing on sand under 1-5 blocks of water
+  held no sandstone in set A before (1,994: mossy cobblestone, the algae coat, 940; andesite 872;
+  stone 91; calcite 70) and 229 after (sandstone 142, smooth sandstone 87): the sea-floor boulders
+  off sandy beaches. In set B sandstone went from 247 to 379 of about 1,470. The other columns
+  are bedrock ledges: an offline count with the marine planner found 386, 589 and 264 ledge
+  columns under at most 5 blocks of water in the three beach areas with the most, every one with
+  a sandy shore by the boulders' test. Ledges are not changed (see COMPATIBILITY.md).
+- **Rock standing on dry sand** (1,011 before and 1,008 after in set A, 1,249 in both in set B) is
+  the surface rule's rocky strip at the foot of coast cliffs (878 columns of stone in the snowy
+  beach around the sea stack), desert sandstone outcrops and badlands terracotta: terrain, kept.
+- **Sea stack:** the one off the snowy beach is sandstone: in its area the andesite and tuff in
+  the 15 blocks under the top fell by 562 and 578 blocks and sandstone and smooth sandstone rose
+  by 640 and 638. Offline, on world seeds 12345, 42 and 1, 6 of 30 sea stacks within 11,500 blocks
+  of the origin have a stronger beach than coast cliff within 48 blocks (the test the feature
+  uses); those are the ones that turn to sandstone.
+- **Lava at the surface outside volcanoes:** before, 19 lava blocks lay open to the sky and 242
+  were lit by daylight in set A, in three of the twelve inland areas: a surface lava lake at Y 328
+  on a taiga mountain (3124, -3046), lava under the canopy of a savanna forest (-3941, 243, 4824)
+  and an underground lake opening onto a slope in plains (-3414, 103, 1015, five blocks under the
+  ground, sky light 6); in set B 5 open and 22 lit in the cherry grove (8044, 131, -8032), and 47
+  lit in the valley 470 blocks from the dormant volcano, whose wide outer zone counts as volcano
+  but holds no crater lava. After: 0 open and 0 lit, outside volcanoes and in that outer zone, in
+  all 41 areas. The forest's `lakes` step holds `terrahaul:lava_lakes/underground` and
+  `terrahaul:surface_water`, where it held vanilla's two lava lakes before.
+- **Option on:** with `surfaceLavaLakes = true` the forest's `lakes` step lists
+  `minecraft:lake_lava_underground` and `minecraft:lake_lava_surface` again, and the taiga, plains
+  and savanna areas above have the same lava as before, block for block in the counts (19 open,
+  242 lit, the same example positions).
+- **Unchanged:** the active volcano's 45,734 lava blocks open to the sky, and its area's top-down
+  map and vertical section are identical before and after; the dormant volcano's map differs in 4
+  pixels at the edge of the area. The top blocks and the 15 blocks under them are the same in
+  both volcano areas. Walls of water: 0 in every area, before and after. Floating terrain: the
+  same in every area but one (4 single blocks before, 3 after, in the valley). Unsupported blocks
+  near the surface: 46 and 46 in set A, 69 and 70 in set B; the deep ones differ by a few soul
+  fires and candles on sculk in an ancient city at Y -42 under the dormant volcano. Pebbles in the
+  volcano areas differ by a handful (435 or 439 on other ground) from run to run of the same code:
+  the first baseline run of the previous session gave the 435 this branch gives.
+- **Screenshots** (client, software rendering) of the same camera positions in the saved worlds of
+  set A, before with the old code and after with the new: on the beach under a stone slope at
+  597, 200, a dark basalt shore and the snowy beach, the pebbles lying on the sand turned from grey
+  and pink to sandstone, while those on the rock beside them stayed grey and pink; the sea stack
+  off the snowy beach is sandstone; the lava pool on the taiga mountain at 3124, -3046 (seen from
+  above and from the north-west) is gone. The grey ledges in the shallow water off the first beach
+  are there in both. Trees in the background can differ between two shots for a reason that is not
+  this change: two runs of the same baseline code already differ in their tree audit lines (tree
+  placement depends on the order in which chunks are decorated).
+- **Not checked:** red sand beaches (none in the areas; red sand appears in the badlands, where 4
+  red sandstone pebbles lay on it); sea stacks off a beach in hot country (the stack in the areas
+  is a cold one); sounds (none involved); the sea stack rule on seeds other than the three above;
+  the lava check below 48 blocks under the ground (deep lava is not affected).
+
 ## Floating plants (branch `wf/floating-plants`, seed 12345, dedicated server and client)
 A user's screenshot showed pink petals and grass hanging over a cherry grove stream and in front
 of its dirt banks.

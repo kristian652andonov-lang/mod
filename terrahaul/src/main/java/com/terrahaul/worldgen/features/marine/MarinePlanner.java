@@ -273,6 +273,34 @@ public final class MarinePlanner {
         c.meadow *= 1.0 - smoothstep(0.35, 0.75, c.rocky);
     }
 
+    /**
+     * Depth of water off a beach, counted from the sea's top water block (depth 1), within which
+     * the stones and boulders of the sea floor are of the beach's sandstone: the shallows seen
+     * from the shore, where grey rock looked carried onto the sand (see {@link #sandyShore}).
+     */
+    public static final int SURF_ZONE = 5;
+
+    /**
+     * True if the shore near {@code (x, z)} is a sandy beach rather than a cliff: within
+     * {@code reach} blocks (sampled on rings every 8 blocks in 16 directions), the strongest beach
+     * of the terrain model is stronger than the strongest coast cliff. The model's beach weight
+     * fades out 3 blocks under sea level, so a site in the water has to look for it on the shore.
+     * Pure, so every chunk that builds a piece of the same rock decides alike.
+     */
+    public static boolean sandyShore(TerrainModel model, double x, double z, int reach) {
+        double beach = 0.0;
+        double cliff = 0.0;
+        for (int r = 8; r <= reach; r += 8) {
+            for (int a = 0; a < 16; a++) {
+                double angle = a * Math.PI / 8.0;
+                ColumnSample s = model.sample((int) Math.floor(x + r * Math.cos(angle)) & ~3, (int) Math.floor(z + r * Math.sin(angle)) & ~3);
+                beach = Math.max(beach, s.beach);
+                cliff = Math.max(cliff, s.coastCliff);
+            }
+        }
+        return beach > cliff;
+    }
+
     static int family(int geology, double volcano, double ridge, int depth) {
         if (volcano > 0.3 || ridge > 0.3 || geology == Geology.VOLCANIC) {
             return VOLCANIC;

@@ -2,9 +2,11 @@ package com.terrahaul.worldgen.features;
 
 import com.mojang.serialization.Codec;
 import com.terrahaul.worldgen.TerrahaulGeneration;
+import com.terrahaul.worldgen.features.marine.MarinePlanner;
 import com.terrahaul.worldgen.noise.SeedMixer;
 import com.terrahaul.worldgen.surface.Fades;
 import com.terrahaul.worldgen.terrain.ColumnSample;
+import com.terrahaul.worldgen.terrain.Geology;
 import com.terrahaul.worldgen.terrain.TerrainModel;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
@@ -25,7 +27,9 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
  *       legs that reach down to the ground, with rubble around their feet;</li>
  *   <li>spires: tall, slightly leaning, tapering pillars with irregular ledges;</li>
  *   <li>hoodoos: fields of beaded pillars in rows, each worn to a jagged point, some joined by fins;</li>
- *   <li>sea stacks: steep pillars with a wave-cut notch and a grassy top, off rocky coasts.</li>
+ *   <li>sea stacks: steep pillars with a wave-cut notch and a grassy top, off rocky coasts; where
+ *       the coast beside one is a sandy beach rather than a cliff, the stack is of the beach's
+ *       sandstone (see {@link #sandyCoast}).</li>
  * </ul>
  * The shapes are defined in {@link FormationShapes} and are built from vanilla blocks of the local
  * rock family (see {@link GeologyPalette}) in the strata of the surrounding terrain. Spires and sea
@@ -189,7 +193,9 @@ public final class RockFormationFeature extends Feature<NoneFeatureConfiguration
     private boolean spire(WorldGenLevel level, TerrainModel model, TerrainModel.FormationSite site, boolean seaStack) {
         FormationShapes.Spire spire = FormationShapes.Spire.plan(site, ground(level, site.x, site.z), model.seaLevel(), seaStack)
             .settle(model, (x, z) -> ground(level, x, z));
-        BlockState[] family = family(model, site);
+        // the surface rule lays yellow sand on every beach, even in hot country
+        BlockState[] family = seaStack && site.geology != Geology.VOLCANIC && sandyCoast(model, site)
+            ? GeologyPalette.sandstone(false) : family(model, site);
         int r = FormationShapes.Spire.MAX_RADIUS;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         boolean placed = false;
@@ -217,6 +223,16 @@ public final class RockFormationFeature extends Feature<NoneFeatureConfiguration
             }
         }
         return placed;
+    }
+
+    /**
+     * True if the coast beside a sea stack is a sandy beach rather than a cliff, within 48 blocks
+     * of the stack (see {@link MarinePlanner#sandyShore}). Sea stacks only stand where some cliff
+     * reaches the site, but on world seeds 12345, 42 and 1 six of thirty face a beach, and a grey
+     * pillar off yellow sand looked out of place. Volcanic stacks keep their dark rock.
+     */
+    static boolean sandyCoast(TerrainModel model, TerrainModel.FormationSite site) {
+        return MarinePlanner.sandyShore(model, site.x, site.z, 48);
     }
 
     static long mixSeed(long seed, int salt) {

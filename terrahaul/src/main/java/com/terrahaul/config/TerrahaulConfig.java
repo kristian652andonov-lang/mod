@@ -28,6 +28,7 @@ public final class TerrahaulConfig {
     static final ModConfigSpec.BooleanValue SAPLINGS_GROW_TERRAHAUL_TREES;
     static final ModConfigSpec.BooleanValue TRAILS;
     static final ModConfigSpec.BooleanValue OCEAN_VENTS;
+    static final ModConfigSpec.BooleanValue SURFACE_LAVA_LAKES;
     static final ModConfigSpec.DoubleValue TREE_SIZE_VARIATION;
     static final ModConfigSpec.DoubleValue FOREST_DENSITY;
     static final ModConfigSpec.DoubleValue VEGETATION_DENSITY;
@@ -78,6 +79,10 @@ public final class TerrahaulConfig {
             .define("trails", true);
         OCEAN_VENTS = c.comment("Build hydrothermal vent chimneys on the floors of deep-sea trenches and mid-ocean ridges in Terrahaul worlds. Restart required.")
             .define("oceanVents", true);
+        SURFACE_LAVA_LAKES = c.comment("Vanilla's lava lakes on the surface of the Overworld (in forests, plains, deserts and so on), in every world.",
+                "Off: there are none, and vanilla's underground lava lakes are kept from opening onto the surface. Volcano craters",
+                "keep their lava either way. Restart required.")
+            .define("surfaceLavaLakes", false);
         TREE_SIZE_VARIATION = c.comment("Chance (0-1) that a tree keeps a large or giant size when one is rolled. Lower values give more uniform, smaller trees.")
             .defineInRange("treeSizeVariation", 1.0, 0.0, 1.0);
         FOREST_DENSITY = c.comment("Multiplier for the number of trees in forests and woodlands.")
@@ -187,6 +192,10 @@ public final class TerrahaulConfig {
 
     public static boolean oceanVents() {
         return bool(OCEAN_VENTS);
+    }
+
+    public static boolean surfaceLavaLakes() {
+        return bool(SURFACE_LAVA_LAKES);
     }
 
     public static double treeSizeVariation() {
@@ -304,6 +313,7 @@ public final class TerrahaulConfig {
             case "ore_depth_fix" -> oreDepthFix();
             case "terrain_aware_structures" -> terrainAwareStructures();
             case "ocean_vents" -> oceanVents();
+            case "surface_lava_lakes" -> surfaceLavaLakes();
             default -> false;
         };
     }

@@ -4,6 +4,7 @@ import com.terrahaul.blocks.CountedDecorBlock;
 import com.terrahaul.blocks.GroundDecorBlock;
 import com.terrahaul.blocks.RockBlock;
 import com.terrahaul.registry.TerrahaulBlocks;
+import com.terrahaul.worldgen.features.SandRock;
 import com.terrahaul.worldgen.noise.SeedMixer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -222,8 +223,14 @@ public final class MarineBlocks {
         return code >= MarineVolume.PLANT && code < MarineVolume.ROCK || code >= MarineVolume.PEBBLES;
     }
 
-    /** Places a plant code into a water source (or, for glow lichen, air) if its support is there. */
-    private static boolean plant(WorldGenLevel level, BlockPos.MutableBlockPos pos, byte code) {
+    /**
+     * Places a plant code into a water source (or, for glow lichen, air) if its support is there.
+     * A pebble or knee-high rock in the surf zone (at most {@link MarinePlanner#SURF_ZONE} blocks
+     * under the sea's surface {@code surf}) that lies on sand takes the sand's sandstone, as the
+     * stones on the beach beside it do (see {@link SandRock}); deeper floors keep the rock of
+     * their province.
+     */
+    private static boolean plant(WorldGenLevel level, BlockPos.MutableBlockPos pos, byte code, int surf) {
         BlockState here = level.getBlockState(pos);
         boolean lichen = code >= MarineVolume.GLOW_LICHEN && code < MarineVolume.GLOW_LICHEN + 5;
         boolean wet = waterSource(here);
@@ -233,6 +240,8 @@ public final class MarineBlocks {
         BlockState state = state(code, pos.getX(), pos.getY(), pos.getZ());
         if (lichen) {
             state = state.setValue(BlockStateProperties.WATERLOGGED, wet);
+        } else if (code >= MarineVolume.PEBBLES && surf - pos.getY() < MarinePlanner.SURF_ZONE) {
+            state = SandRock.detail(state, level.getBlockState(pos.below()));
         }
         level.setBlock(pos, state, 2);
         return true;
@@ -352,10 +361,11 @@ public final class MarineBlocks {
 
     private static boolean plants(WorldGenLevel level, MarineVolume v, BlockPos.MutableBlockPos pos, int x, int z, int lo, int hi) {
         boolean placed = false;
+        int surf = v.planner().surf;
         for (int y = lo; y < hi; y++) {
             byte code = v.get(x, y, z);
             if (isPlant(code)) {
-                placed |= plant(level, pos.set(x, y, z), code);
+                placed |= plant(level, pos.set(x, y, z), code, surf);
             }
         }
         return placed;
