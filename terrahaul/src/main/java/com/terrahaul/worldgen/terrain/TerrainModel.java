@@ -2861,8 +2861,32 @@ public final class TerrainModel {
         craterShape.cone.zones(v, x - v.x, z - v.z, out);
     }
 
+    /**
+     * The magma chamber under a volcano and the conduit joining it to the crater (see
+     * {@link MagmaChamber}), planned the first time it is asked for and kept with the site.
+     */
+    public MagmaChamber magmaChamber(VolcanoSite v) {
+        MagmaChamber chamber = v.chamber;
+        if (chamber == null) {
+            // one thread plans it while the others that reach the same volcano wait for it
+            synchronized (v) {
+                chamber = v.chamber;
+                if (chamber == null) {
+                    chamber = MagmaChamber.plan(this, v);
+                    v.chamber = chamber;
+                }
+            }
+        }
+        return chamber;
+    }
+
     /** Volcano information for the find command and decoration features. */
     public VolcanoSite nearestVolcano(int x, int z, double maxDistance) {
+        return nearestVolcano(x, z, maxDistance, null);
+    }
+
+    /** The nearest volcano within {@code maxDistance} that passes {@code filter} (any if null). */
+    public VolcanoSite nearestVolcano(int x, int z, double maxDistance, java.util.function.Predicate<VolcanoSite> filter) {
         double cell = 4200.0 * hs;
         int range = (int) Math.ceil(maxDistance / cell) + 1;
         int cx = (int) Math.floor(x / cell);
@@ -2872,7 +2896,7 @@ public final class TerrainModel {
         for (int dx = -range; dx <= range; dx++) {
             for (int dz = -range; dz <= range; dz++) {
                 VolcanoSite v = volcanoSite(cx + dx, cz + dz, cell);
-                if (v != null) {
+                if (v != null && (filter == null || filter.test(v))) {
                     double dd = (v.x - x) * (v.x - x) + (v.z - z) * (v.z - z);
                     if (dd < bestD) {
                         bestD = dd;
@@ -3796,6 +3820,8 @@ public final class TerrainModel {
         CraterShape.Crater crater;
         /** The cone around the crater: lean, barrancos, lava flows and side cones (see {@link ConeShape}). */
         ConeShape.Cone cone;
+        /** The magma chamber under the volcano, once planned (see {@link TerrainModel#magmaChamber}). */
+        volatile MagmaChamber chamber;
 
         /** A one-line account of the crater's shape, for the development tools. */
         public String describeCrater() {

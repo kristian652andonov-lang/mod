@@ -7,6 +7,7 @@ import com.terrahaul.worldgen.features.FallenLogConfiguration;
 import com.terrahaul.worldgen.features.FallenLogFeature;
 import com.terrahaul.worldgen.features.FloatingTerrainCleanup;
 import com.terrahaul.worldgen.features.GroundDetailFeature;
+import com.terrahaul.worldgen.features.MagmaChamberFeature;
 import com.terrahaul.worldgen.features.OceanVentFeature;
 import com.terrahaul.worldgen.features.RockFormationFeature;
 import com.terrahaul.worldgen.features.UnsupportedPlantCleanup;
@@ -66,6 +67,8 @@ public final class TerrahaulFeatures {
         FEATURES.register("ruins", () -> new RuinsFeature(NoneFeatureConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, VolcanoThawFeature> VOLCANO_THAW =
         FEATURES.register("volcano_thaw", () -> new VolcanoThawFeature(NoneFeatureConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, MagmaChamberFeature> MAGMA_CHAMBER =
+        FEATURES.register("magma_chamber", () -> new MagmaChamberFeature(NoneFeatureConfiguration.CODEC));
 
     // sea floors (see worldgen/features/marine)
     public static final DeferredHolder<Feature<?>, SeafloorRocksFeature> SEAFLOOR_ROCKS =

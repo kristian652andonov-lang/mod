@@ -9,12 +9,13 @@ continental-scale terrain built on a custom density-function model:
 - vast plains, plateaus and valleys;
 - five styles of mountains, from pointed alpine horns to rare colossal massifs;
 - great rivers, lakes with living floors, fjords, coastlines, waterfalls and cascades;
-- canyons, rock formations, rough living volcanoes and geological layers;
+- canyons, rock formations, rough living volcanoes with magma chambers deep inside, and
+  geological layers;
 - coral reefs, sea grottos, and ruins along trails and on the sea floor.
 
 Vanilla trees are replaced by procedural trees in every species, with ground detail added. On the
-client, the wind animates falling leaves, petals and dust and sways vegetation, and falling and
-running water throws up spray, mist and foam and can be heard.
+client, the wind animates falling leaves, petals and dust and sways vegetation, falling and
+running water throws up spray, mist and foam and can be heard, and lava open to the sky smokes.
 
 > Terrahaul changes **new worlds created with the Terrahaul world type**. Existing worlds and
 > worlds of other types keep their terrain. Tree replacement, ground details and saplings apply
@@ -153,6 +154,19 @@ running water throws up spray, mist and foam and can be heard.
   of crust and a shore of magma. Crater lakes and lava pools always lie below the lowest point
   of the rim. Snow lies on the cones in patches broken up by ash and scoria, never in a hot
   crater or on an active volcano's lava flows.
+
+  Deep inside every volcano lies a **magma chamber**: a cavern some hundred to two hundred and
+  fifty blocks across under the crater, about halfway down to the volcano's foot, its bowl filled
+  with a lake of lava with islands of rock, a shore of basalt, blackstone and glowing magma
+  around it, pillars standing between floor and dome and ribs hanging from the dome. A
+  **conduit** of lava a few blocks wide rises from the top of the dome. Under a crater with lava
+  it narrows to a throat and opens into the crater's lava lake where the lava is deepest, so the
+  crater's lava goes on down into the chamber and pours from the dome as a fall of lava onto the
+  chamber's lake; under a dry crater or a crater lake it ends in a plug of rock a few dozen blocks
+  below the crater floor. Chamber and conduit are sealed in a wall at least three blocks thick, so
+  no lava reaches caves or aquifers and caves that ran into them end at the wall; the outside of
+  the volcano is unchanged. They are reached by digging in, from the crater floor or from a cave
+  that meets the wall (`/terrahaul find magma_chamber` leads to the chamber's shore).
 - **Wetlands** only in temperate and warm climates, with shallow pools between hummocks and mud
   flats.
 - **Trails:** winding dirt paths with frayed coarse-dirt and gravel edges cross plains, forests
@@ -302,6 +316,12 @@ running water throws up spray, mist and foam and can be heard.
 
   Each effect has its own option (`[water]` in the client config); the particle count follows the
   animation quality and Minecraft's Particles setting.
+- **Lava smoke:** thick, dark smoke rises from lava open to the sky in the Overworld (crater lakes,
+  lava flows, vanilla's or a player's lava too), warm with the lava's glow where it leaves the
+  surface, greying and swelling as it climbs and leaning over with the wind; a lone lava block
+  gives off only thin wisps, and a large lava lake raises a tall column above its middle. Lava
+  under a roof (in caves, in the magma chambers) does not smoke. The amount follows the animation
+  quality and Minecraft's Particles setting; `animations.lavaSmoke` turns it off.
 - **Vegetation sway:** grass, ferns, flowers, saplings, crops and bushes bend with the wind
   through a cutout core-shader override. Plants in caves stay still, and the two halves of tall
   plants bend together.
@@ -318,7 +338,7 @@ a wall or down a well). Landforms:
 | Rivers | `river`, `great_river`, `dry_river`, `stream` |
 | Lakes | `lake`, `forest_lake`, `mountain_lake`, `great_lake`, `marsh_lake`, `crater_lake`, `plateau_lake`, `glacial_lake` |
 | Sea and coast | `ocean`, `deep_ocean`, `trench`, `beach`, `sea_cliff`, `island`, `mushroom_island`, `fjord`, `sea_stack` |
-| Mountains | `mountain`, `alpine_peaks`, `ancient_mountains`, `mountain_wall`, `colossal_peak`, `highest_peak`, `volcano` |
+| Mountains | `mountain`, `alpine_peaks`, `ancient_mountains`, `mountain_wall`, `colossal_peak`, `highest_peak`, `volcano`, `lava_crater`, `magma_chamber` |
 | Lowlands and uplands | `meadow`, `plateau`, `valley`, `hills`, `plains`, `windswept_hills`, `wetland` |
 | Canyons and formations | `canyon`, `waterfall`, `cascade`, `overhang`, `arch`, `spire`, `hoodoo` |
 | Underwater | `coral_reef`, `patch_reef`, `kelp_forest`, `seagrass_meadow`, `rocky_seabed`, `sea_grotto`, `sunken_ruin` |
@@ -326,7 +346,9 @@ a wall or down a well). Landforms:
 
 `path_ruin` finds the nearest ruin of any kind beside a trail; the targets after it find one kind
 each (`ruined_house` and `trail_ruin` are other names for `broken_house`). `signpost` also finds
-direction posts and milestones along trails.
+direction posts and milestones along trails. `lava_crater` finds the nearest volcano with lava in
+its crater (a spot on the shore of the lava, beside the conduit's vent); `magma_chamber` a spot on
+the shore of the lava lake in the chamber under the nearest volcano, deep inside the rock.
 
 The other commands are:
 - `/terrahaul find biome <biome or #tag> [radius]` finds the nearest biome.
@@ -347,7 +369,8 @@ All of these need permission level 2. Searches run off the server thread.
    below) or use the prebuilt copy in [`dist/`](dist/). That copy is the previous release and
    lacks the newest features described here (lake floors and lake life, waterfalls laid on the
    slope, winding cascades, the client water effects, rough volcanoes, the new trail ruins, the
-   ocean monument and iceberg fixes, among others) until it is rebuilt.
+   ocean monument and iceberg fixes, the magma chambers and the lava smoke, among others) until
+  it is rebuilt.
 3. **Singleplayer:** on the Create World screen, *World Type* defaults to **Terrahaul**. You can
    switch back to Default in the World tab; turn off `selectTerrahaulByDefault` in the client
    config to stop the pre-selection.
@@ -395,6 +418,7 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | `animations.autumnLeafFall` | `false` | Heavy, autumn-coloured leaf fall in oak, birch and dark oak forests |
 | `animations.vegetationSway` | `true` | Plants sway in the wind (resource reload/restart to fully apply) |
 | `animations.windStrength` | `1.0` | Wind strength multiplier for all animations (0–3) |
+| `animations.lavaSmoke` | `true` | Smoke over lava open to the sky in the Overworld, a tall column over large lava lakes |
 | `water.waterfallSpray` | `true` | Spray off falling water, drops from the lip, splashes where it lands |
 | `water.waterfallMist` | `true` | Mist at the foot of falls; a large, billowing cloud under tall falls |
 | `water.waterFoam` | `true` | Foam on the water below falls and on rapids, drifting downstream |
@@ -421,7 +445,8 @@ terrahaul/
   src/main/java/com/terrahaul/
     Terrahaul.java                 mod entry point (common)
     client/                        client entry point, wind, particles, sway, sky effects, colours,
-                                   water effects (client/water: spray, mist, foam, sounds)
+                                   water effects (client/water: spray, mist, foam, sounds), lava
+                                   smoke (client/lava)
     command/                       /terrahaul find and info
     config/                        config spec and data pack condition
     blocks/, registry/             decorative blocks, registries
@@ -430,7 +455,8 @@ terrahaul/
     worldgen/density/              density functions binding the model to the noise router
     worldgen/surface/, water/      surface rule and mountain vegetation zones, rivers/lakes,
                                    waterfalls and cascades
-    worldgen/trees/, features/     procedural trees, ground detail, boulders, formations
+    worldgen/trees/, features/     procedural trees, ground detail, boulders, formations, magma
+                                   chambers
     worldgen/features/marine/      coral reefs, sea-floor rocks, kelp and seagrass, grottos
     worldgen/features/lake/        lake floors and freshwater life
     worldgen/ruins/                trail ruins, signposts, path lights, sunken ruins
@@ -438,8 +464,8 @@ terrahaul/
     dev/, client/dev/              automated server test and client screenshot harness
   src/main/resources/              assets (models, textures, shaders), data (worldgen, biome modifiers)
   src/devtools/                    offline map renderer and probes (not shipped)
-  tools/                           Python generators for worldgen JSON, features, assets and the
-                                   water effect sprites and sounds
+  tools/                           Python generators for worldgen JSON, features, assets, the
+                                   water effect sprites and sounds and the lava smoke sprites
   docs/                            building, compatibility/limitations, testing
 ```
 

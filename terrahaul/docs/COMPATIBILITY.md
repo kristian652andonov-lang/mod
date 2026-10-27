@@ -17,6 +17,7 @@ the limitations that are known today. Statements about testing are kept separate
 | Lake floors | Features `terrahaul:lake_floor` (`local_modifications` step; its biome modifier is skipped when `groundDetails` is off) and `terrahaul:lake_life` (`vegetal_decoration`) in every Overworld biome. They are planned from the terrain model's lakes; the floor replaces only lake water (and the air just above it where a rock, a tower stump or a pier post rises out of the water) and the bed's sediment, and the life places vanilla blocks in and on the water and on the shore (seagrass, tall seagrass, kelp, lily pads, small dripleaf, big dripleaf with its stem in the water and its leaf just above it, sugar cane, moss carpets). Chests in lake wrecks and drowned buildings use vanilla loot tables (`minecraft:chests/shipwreck_supply`, `minecraft:chests/underwater_ruin_small`) | Terrahaul worlds |
 | Water wall sealer | Feature `terrahaul:water_wall_sealer` in the `top_layer_modification` step of every Overworld biome. It looks at the still water (and still lava) above the ground of the chunk's columns and the ring around them, and fills any air (or plant water would wash away) below a source block with rock like the bed. Beside a source block it does the same only at or above sea level, within 12 blocks of the bed, and where the ground of the neighbouring column is lower than the source | Terrahaul worlds |
 | Unsupported plant cleanup | Feature `terrahaul:plant_cleanup`, listed just before `terrahaul:water_wall_sealer` in the same biome modifier (`top_layer_modification` step of every Overworld biome), so it runs after every other feature but the sealer, which still closes any still water a removed plant leaves beside air. In the chunk being decorated it removes plant-like blocks whose `canSurvive` is false, and lower halves of double plants without their upper half: bushes, flowers, grass, petals, saplings and other bush blocks, snow layers, moss carpets, vines, glow lichen, hanging roots, sugar cane, cactus, bamboo, kelp, cave vines, dripleaf, coral and Terrahaul's ground decorations (waterlogged ones leave their water). Terrain, logs, leaves, crops and other structure blocks are never touched; mushrooms are judged by their ground only | All worlds (Overworld biomes) |
+| Magma chambers | Feature `terrahaul:magma_chamber` (placed feature `terrahaul:volcano/magma_chamber`, `underground_decoration` step of every Overworld biome, no placement modifiers: it returns after one cached model sample away from volcanoes). It builds the chamber under each volcano and the conduit to its crater from the terrain model alone, each chunk its own blocks: lava (still, as vanilla's lakes; falling lava where the conduit pours into the chamber), cave air, and a wall of basalt, blackstone and magma blocks within three blocks of them that replaces whatever is there (rock, cave air, aquifer water, vanilla lava pools), except above the top solid block of its column (the crater's lava lake and the sky over the vent), lava higher than six blocks under the lowest crater floor (the crater's lake), volcanic rock already there and blocks in `#minecraft:features_cannot_replace`. Glow lichen, sculk veins, vines and other plants that a neighbouring chunk decorated earlier grew on rock that becomes cavity lose that face, or go, as at a block update | Terrahaul worlds |
 | Snow on volcanoes | Feature `terrahaul:volcano_thaw` (`top_layer_modification`, after vanilla's `freeze_top_layer`; placement filters `terrahaul:terrahaul_only` and `terrahaul:volcano_zone`) takes vanilla's snow layers off bare volcanic ground where no snow may lie (hot craters, active lava flows, ash and scoria patches) | Terrahaul worlds |
 | Floating terrain cleanup | Features `terrahaul:terrain_cleanup` (the `raw_generation` step) and `terrahaul:terrain_cleanup_late` (`fluid_springs`) in every Overworld biome. They remove small groups of natural rock, soil and sand that touch only air or water, in the chunk and its neighbours, and do nothing outside Terrahaul worlds or in chunks under a shipwreck or ocean ruin | Terrahaul worlds |
 | Sea floor (coral reefs, rocks, kelp, seagrass, grottos) | Biome modifiers remove vanilla's coral, kelp, seagrass, sea pickle and sand/clay/gravel disk features from the ocean biomes, add Terrahaul's sea-floor features, and add each removed vanilla feature back wrapped in `terrahaul:vanilla_fallback`, which places it only outside Terrahaul worlds | Ocean biomes; other worlds keep vanilla oceans |
@@ -27,6 +28,7 @@ the limitations that are known today. Statements about testing are kept separate
 | Sky effects | Dimension effects `terrahaul:overworld`: vanilla Overworld sky with a configurable cloud height | Terrahaul worlds, client |
 | Vegetation sway | Overrides the core shader `minecraft:shaders/core/rendertype_cutout` and wraps plant block models at model bake | Client |
 | Terrain fog | Overrides the shader include `minecraft:shaders/include/fog.glsl` (adds a fog shape 2); client mixin `FogShapeMixin` reports shape 2 instead of the cylinder in Terrahaul worlds | Client; shapes 0 and 1 are unchanged |
+| Lava smoke | Particle type `terrahaul:lava_smoke` (registered on both sides, spawned only on the client) with sprites `textures/particle/lava_smoke_0..3`; drawn in the mist's particle render type and shader (no render type of its own); client config option `animations.lavaSmoke`. No mixin | Client, the Overworld of every world |
 | Water effects | Particle types `terrahaul:spray`, `terrahaul:mist` and `terrahaul:foam` (registered on both sides, spawned only on the client) with sprites `textures/particle/spray_0..3`, `mist_0..3`, `foam_0..3`; sound events `terrahaul:ambient.waterfall` and `terrahaul:ambient.rapids`, defined in `assets/terrahaul/sounds.json` (four Ogg loops under `sounds/ambient/`, with subtitles) and not in the sound event registry; core shaders `terrahaul:mist` and `terrahaul:mist_depth`; client config section `[water]`. No mixin | Client, all worlds |
 
 ### Mixins
@@ -162,6 +164,14 @@ and `CreateWorldScreen.recreated`.
   behind the pool and the curtain; where the mist itself is behind water, the water is laid over
   it. Shader packs (Iris, Oculus) draw particles their own way: mist then uses the pack's particle
   shader and the Fabulous pass does not run.
+- **Lava smoke** needs no mixin either: it reads the client's copy of the world (the top of each
+  column, from the chunk's motion-blocking heightmap), so it rises from any lava open to the sky,
+  vanilla's and other mods' too (fluids in the `minecraft:lava` fluid tag). It is drawn in the
+  mist's render type with the mist's shader, so it adds nothing new for a renderer: Sodium (0.6 and
+  0.8) writes these particles through its own fast path for Minecraft's particle quads, as for the
+  mist; Sodium itself was not run with the smoke (see TESTING.md). A resource pack that breaks the
+  mist shader makes the smoke fall back to Minecraft's particle shader with harder edges, as the
+  mist does. With a shader pack (Iris, Oculus) the pack's particle shader draws it.
 - **Water sounds:** the roar and rush play in the Ambient/Environment sound category. A resource
   pack can replace them through `terrahaul:ambient.waterfall` and `terrahaul:ambient.rapids` in
   `sounds.json`. An ambient sound mod with its own waterfall sounds would play alongside them;
@@ -207,7 +217,9 @@ and `CreateWorldScreen.recreated`.
 
   These figures are from the second feedback round. The third round's additions (lake floors,
   the larger family of trail ruins, the rougher volcanoes and steeper mountains, the bigger
-  conifers, the water wall sealer) have not been timed in game yet; see TESTING.md.
+  conifers, the water wall sealer) have not been timed in game yet; see TESTING.md. The magma
+  chambers add about 3 ms to each of the chunks that build one (some fifty to two hundred around the
+  middle of each volcano) and nothing measurable elsewhere.
   Pre-generating the world, for example with a pre-generation mod, is recommended for servers.
   World saves are also larger: deep caves and tall mountains store more non-empty sections.
 - **Clouds** are a single flat layer (vanilla rendering). With the default height of 448, high
@@ -272,6 +284,21 @@ and `CreateWorldScreen.recreated`.
   Minecraft has no freshwater plants of its own. Where the biome will freeze a lake, nothing grows in
   or on its top water block (no lily pads or dripleaf, kelp kept two blocks under), so the ice
   has no holes.
+- **Magma chambers** are built chunk by chunk after the chunk's carvers, dungeons, geodes and ores.
+  A feature of a neighbouring chunk that is decorated later can still write into a chamber's chunk
+  (a vanilla dungeon reaches about four blocks over its chunk's border, a tree into the next
+  chunk); a dungeon that happened to cut into the wall would open it there. No such case turned up
+  in the tests, but it was not ruled out. Structures generated in a chamber's chunks (a mineshaft
+  under a low volcanic island, say) lose the parts that lie inside the chamber or its wall. The
+  lava is placed still: it starts to flow only when a block next to it changes, so a player who
+  digs into the wall beside the lake or the conduit lets it out into the tunnel, as with vanilla's
+  lava lakes. Lava in the chamber does not smoke (it is not open to the sky). A chamber deep inside
+  a tall cone can lie in the deep dark biome (Minecraft's biomes follow depth), whose sculk then
+  grows on its walls.
+- **Lava smoke** only knows the lava in chunks the client has loaded, up to ten chunks from the
+  camera at the High animation quality (fewer at lower ones, never beyond the render distance): the
+  column of a large lava lake rises from the middle of the part of the lake seen so far, which can
+  shift by a few blocks as more of it is loaded, and is not seen from further away than that.
 - **Volcano biomes:** volcano flanks take the biome that the climate gives them. In cold mountain
   regions that can be a snowy or stony-peaks biome, so the forest zones there are sparse.
 - **Floating terrain cleanup:** only groups made entirely of natural terrain blocks are removed;

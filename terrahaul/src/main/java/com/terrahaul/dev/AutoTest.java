@@ -198,10 +198,12 @@ public final class AutoTest {
                 }
             }
             mountainFlora(level, model, cx, cz, radius, report);
+            ChamberCheck.check(level, model, cx, cz, radius, report);
             areaIndex++;
         }
         StonesOnSand.summary(report);
         SurfaceLava.summary(report);
+        ChamberCheck.cost(report);
         long cleaned = com.terrahaul.worldgen.features.UnsupportedPlantCleanup.CHUNKS.sum();
         report.add(String.format(Locale.ROOT, "plant cleanup: %d chunks, %.3f ms/chunk, %d plants removed",
             cleaned, com.terrahaul.worldgen.features.UnsupportedPlantCleanup.NANOS.sum() / 1e6 / Math.max(1, cleaned),

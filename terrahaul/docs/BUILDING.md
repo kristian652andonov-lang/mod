@@ -72,7 +72,10 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1280x720x24" \
 4. Saves `run/screenshots/terrahaul_<name>.png` and logs the particle count.
 
 A shot of `name@same` reuses the previous camera, which is useful to compare animation frames.
-The player gets night vision so underwater shots (trenches, sea floors) are readable.
+The player gets night vision so underwater shots (trenches, sea floors) are readable. An entry
+`cmd=<command>` (without the slash) runs a command on the integrated server before the shots after
+it, for example `cmd=effect clear @a minecraft:night_vision` before shots that should show the
+real light, or a `fill` that starts a lava flow, which then runs while the next shot waits.
 
 Two more client checks:
 - `-PcreateWorldCheck` opens the Create World screen from the title screen. It logs the selected
@@ -94,7 +97,8 @@ The other tasks of the `terrahaul` Gradle group run the same way, with their arg
 `fadeStudy`, `treeStudy`, `seaFloorStudy`, `ruinStudy`, `wallAudit`, `finderAudit`,
 `fragmentAudit`, `transect`, `snapshot`, `wetlandStats`, `mountainShapeStats`, `domeSurvey`
 (how rounded the mountains are at random mountain places, with the camera of an in-game view of
-each; it takes world seeds) and `floraStudy`. Each class in
+each; it takes world seeds), `floraStudy` and `chamberStudy` (the magma chambers under volcanoes,
+checked cell by cell from their plans and drawn in section; it takes world seeds). Each class in
 `src/devtools/java/com/terrahaul/devtools/` lists its modes and arguments in its Javadoc (for
 example `fallStudy survey`, `treeStudy stand`, `seaFloorStudy lakesurvey`, `volcanoStudy
 cratersurvey`, `formationStudy check_hoodoo`).
@@ -117,6 +121,7 @@ normal build does not need Python. Re-run a script only after editing it:
 | `tools/datagen_features.py <vanilla data/minecraft dir>` | Configured/placed features, tree configurations, biome modifiers (trees, details, formations, water, resource layers) |
 | `tools/datagen_assets.py` | Block states, block/item models, procedural textures, particle sprites, language entries, loot tables, tags, recipes, data maps |
 | `tools/datagen_water_fx.py` | Spray, mist and foam sprites and particle descriptions; the procedural waterfall and rapids loops (Ogg Vorbis) and `sounds.json`. Needs numpy and `ffmpeg` with libvorbis |
+| `tools/datagen_lava_fx.py` | The lava smoke sprites (`lava_smoke_0..3`) and their particle description |
 
 The vanilla `data/minecraft` directory is needed because the worldgen scripts copy a few vanilla
 definitions: the Overworld surface rule, spawn target, cave expressions and the feature lists
