@@ -366,11 +366,10 @@ All of these need permission level 2. Searches run off the server thread.
 ## Installing
 1. Install NeoForge for 1.21.1.
 2. Put `terrahaul-1.0.0.jar` into the `mods` folder (client and server). Build it yourself (see
-   below) or use the prebuilt copy in [`dist/`](dist/). That copy is the previous release and
-   lacks the newest features described here (lake floors and lake life, waterfalls laid on the
-   slope, winding cascades, the client water effects, rough volcanoes, the new trail ruins, the
-   ocean monument and iceberg fixes, the magma chambers and the lava smoke, among others) until
-  it is rebuilt.
+   below) or use the prebuilt copy in [`dist/`](dist/), which is rebuilt with each release. The
+   current copy includes everything described here, up to the sandstone stones on beaches, the
+   removal of surface lava lakes, the magma chambers and the lava smoke; how it was tested is in
+   [docs/TESTING.md](docs/TESTING.md).
 3. **Singleplayer:** on the Create World screen, *World Type* defaults to **Terrahaul**. You can
    switch back to Default in the World tab; turn off `selectTerrahaulByDefault` in the client
    config to stop the pre-selection.

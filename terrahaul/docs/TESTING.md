@@ -18,6 +18,88 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
+## Fifth round: sandstone on beaches, no surface lava lakes, magma chambers and lava smoke (merged build, seed 12345)
+This round merged `wf/beach-lava` and `wf/volcano-lava` (each tested on its own, see the two
+sections below). The merged build was tested once more in game: in fresh worlds on the dedicated
+server (`AutoTest`, two runs) and with the client (render distance 10, Mesa software rendering,
+Sodium 0.8.13 installed). Two baseline runs of the same areas used the build before the merge
+(bf77c83 with only the new checks added).
+- **Merge, data and build:** the branches overlapped only in `AutoTest`, the feature registry and
+  this page; both sides were kept. `datagen_worldgen.py`, `datagen_features.py`,
+  `datagen_assets.py` and `datagen_lava_fx.py` re-run on the merged tree changed nothing.
+  `compileJava compileDevtoolsJava` and `./gradlew build` pass, and the classes in the release
+  JAR are byte for byte those of the in-game test.
+- **Areas** (12, 1,292 chunks): the two volcanoes `find:volcano` gives from 0, 0 (a crater lake
+  at 6589 -5954, r=7) and from 23000, 10500 (the large lava crater at 23235 10514, r=8); the
+  `minecraft:beach` biome nearest to 0/0, -4000/4000 and 4000/-6000 (-416 480, -3264 4928,
+  4608 -2992); a snowy beach; a forest; `find:lake`; `find:waterfall`; a cherry grove stream;
+  plains; and the taiga mountain at 3124 -3046 (r=3), where the baseline has a lava pool at the
+  surface. A third run added the small lava crater at -22923 15816 for the screenshots.
+- **Stones on sand:** pebbles and knee-high rocks lying on dry sand: 597 in the baseline, 267 of
+  them stone, andesite, granite, diorite, mossy rock or tuff; 596 after the merge, all sandstone.
+  In the surf (1-5 blocks of water on sand): 67, 54 of them grey, before; 67, all sandstone,
+  after. Under deeper water the snowy beach's 69 diorite and stone pebbles and rocks keep the
+  sea floor's rock, as intended. On gravel, stone and soil the 2,715 stones are unchanged in kind
+  (2,706 after). The 224 columns of stone and andesite standing on sand are terrain and the same
+  as in the baseline: mostly the surface rule's rocky strip at the foot of coast slopes (92
+  columns on the third beach, 40 on the snowy beach) and rock over sand in the waterfall's desert
+  gully. The boulders on the second beach were sandstone before and after.
+- **Lava at the surface:** outside volcanoes 0 lava blocks open to the sky and 0 lit by daylight
+  in every area; the baseline has 6 and 45, all in the lava pool on the taiga mountain at 3124 328
+  -3046. Inside volcanoes 92,424 open blocks against 89,046: the lava of the conduit under the
+  large crater's lake counts as open to the sky.
+- **Magma chambers:** the crater lake's chamber (plugged conduit) and the large crater's (open
+  conduit, 179 blocks): no breach between the cavity and an open cell outside it, no open cell
+  inside the wall, the cavity as planned (the air cells that differ hold sculk veins and glow
+  lichen grown on the walls), and 436 and 124 lava blocks outside the cavity below the crater
+  floor, none beside air and none within 5 blocks of the cavity: the counts of the volcano branch.
+  The small crater's chamber (third run): no breach, no hole in the wall; of its 225 stray lava
+  blocks 4 lie within 5 blocks of the cavity, just outside the wall, which the branch test found
+  without the chambers too, and 1 touches cave air 70 blocks from the chamber's centre (a vanilla
+  lava pool in the cone).
+- **Unchanged against the baseline:** walls of water 0 in every area; floating terrain the same
+  (the 31 fragments in the large crater are crust plates on its lava lake; a single stone block
+  in a lush cave under the third beach appears in the merged run and in the second baseline run
+  but not the first); unsupported blocks near the surface the same (a dirt path, a grass tuft and
+  a fern on sand by the forest's river, a fern on mossy cobblestone on the third beach, 3 dirt
+  paths in the cherry grove). Deep down, 10 soul fires on sculk in the ancient cities under the
+  volcanoes come and go from run to run in both builds. The plant cleanup removed 37 plants in
+  both. Floating trees (one 3-block group in the plains in both), water fins, the structures
+  found near spawn (all starts present; the stronghold, mineshaft, ancient city and trial
+  chambers under at least 29 blocks of rock; 23 trial spawners and 14 vaults with their block
+  entities) and the model's height check match the baseline, apart from small differences that
+  the two baseline runs also show between themselves. Ores between Y 64 and 320 in the two
+  volcano areas are 3-6% fewer, as the chambers hollow out part of the cones.
+- **Cost:** the magma chamber feature took 3.5 ms in each of the 215 chunks that built a chamber
+  or conduit and 0.37 ms per call averaged over all chunks; the plant cleanup 0.35 ms per chunk.
+  Whole-area generation summed over the 12 areas: 1,994 ms/chunk merged, 1,931 and 2,292 in the
+  two baseline runs (the two volcano areas 229 and 209 merged, 213 and 208 in the faster
+  baseline run). The difference is within run-to-run noise.
+- **Exceptions:** none in the server logs; the only warnings are the usual offline-mode notices
+  and the config file gaining the new `surfaceLavaLakes` key. The client logs hold only the
+  missing sound device.
+- **Screenshots** (client with Sodium 0.8.13, night vision cleared, looked at by eye):
+  - Large lava crater: a thick column of dark smoke over the middle of the lake, puffs rising all
+    over the lava, the crust plates and the shore of blackstone and magma in front.
+  - Lava flow: lava set on the small volcano's eastern flank with `setblock` runs down a gully,
+    with smoke rising and drifting off it; the crater's smoke shows over the ridge behind.
+  - Inside the large magma chamber, from its shore and from under the dome: the lava lake, the
+    fall of lava from the conduit, pillars and the magma-veined dome, the same views as on the
+    branch.
+  - Beaches, before (the baseline's world) and after (the merged world), same cameras, both drawn
+    by the merged client: on the beach at -440 491 and in the sandy clearing of the beach at
+    4610 -2994, the grey and pink pebbles and the stone rock on the sand turned to sandstone;
+    pebbles on the gravel patches beside them stayed grey. The sandstone boulders of the second
+    beach are there in both.
+- **Standalone server:** the built JAR in the NeoForge 21.1.262 server installed earlier, fresh
+  world (seed 12345): ready in 21 s; `/terrahaul find volcano` found none within its default 8,192
+  blocks (the nearest is 8,888 blocks from spawn) and, with a radius of 20,000, the volcano at 6589
+  409 -5954 in 21 ms; `find magma_chamber` led to the chamber's shore at 6634 202 -5955 (8 ms) and
+  `find lava_crater` to 23328 433 10486 (1.8 s); clean stop, no error or exception in the log.
+- **Not tested in this round:** other seeds in game; Iris or shader packs with the smoke; Sodium's
+  effect on frame time (software rendering only); red sand beaches; a dedicated server with a
+  remote client; the `surfaceLavaLakes = true` option on the merged build (tested on its branch).
+
 ## Sandstone on beaches, no lava lakes at the surface (branch `wf/beach-lava`, seed 12345, dedicated server and client)
 Two user requests: stones on beaches should be sandstone instead of stone and other rock from
 inland, and lava lakes should not lie on the surface (in a forest, say) outside volcanoes.

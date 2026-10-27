@@ -169,7 +169,9 @@ and `CreateWorldScreen.recreated`.
   vanilla's and other mods' too (fluids in the `minecraft:lava` fluid tag). It is drawn in the
   mist's render type with the mist's shader, so it adds nothing new for a renderer: Sodium (0.6 and
   0.8) writes these particles through its own fast path for Minecraft's particle quads, as for the
-  mist; Sodium itself was not run with the smoke (see TESTING.md). A resource pack that breaks the
+  mist. Sodium 0.8.13 was installed for the in-game screenshots of the merged build, and the smoke
+  over the craters and the lava flow looked as it does without Sodium (software rendering, so no
+  frame times; Sodium 0.6 was not run with it; see TESTING.md). A resource pack that breaks the
   mist shader makes the smoke fall back to Minecraft's particle shader with harder edges, as the
   mist does. With a shader pack (Iris, Oculus) the pack's particle shader draws it.
 - **Water sounds:** the roar and rush play in the Ambient/Environment sound category. A resource
