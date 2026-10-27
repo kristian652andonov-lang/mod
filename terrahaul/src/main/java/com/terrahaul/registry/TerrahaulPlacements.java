@@ -1,6 +1,7 @@
 package com.terrahaul.registry;
 
 import com.terrahaul.Terrahaul;
+import com.terrahaul.worldgen.placement.BuriedFilter;
 import com.terrahaul.worldgen.placement.DensityCountPlacement;
 import com.terrahaul.worldgen.placement.MountainFloraFilter;
 import com.terrahaul.worldgen.placement.TerrahaulOnlyFilter;
@@ -26,6 +27,8 @@ public final class TerrahaulPlacements {
         TYPES.register("volcano_zone", () -> () -> VolcanoZoneFilter.CODEC);
     public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<MountainFloraFilter>> MOUNTAIN_FLORA =
         TYPES.register("mountain_flora", () -> () -> MountainFloraFilter.CODEC);
+    public static final DeferredHolder<PlacementModifierType<?>, PlacementModifierType<BuriedFilter>> BURIED =
+        TYPES.register("buried", () -> () -> BuriedFilter.CODEC);
 
     private TerrahaulPlacements() {
     }

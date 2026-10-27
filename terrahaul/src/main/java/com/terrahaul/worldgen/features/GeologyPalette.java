@@ -70,6 +70,15 @@ public final class GeologyPalette {
     }
 
     /**
+     * The sandstone family (smooth sandstone, sandstone) or, with {@code red}, the red sandstone
+     * family: the rock of sand ground, used for what lies on a beach whatever the province (see
+     * {@link SandRock}).
+     */
+    public static BlockState[] sandstone(boolean red) {
+        return red ? RED : SANDY;
+    }
+
+    /**
      * The second rock of a province on mountains, which the surface rule mixes into the family in
      * large blobs (see {@code Fades.rock}): pink granite in granite provinces, so their mountains
      * finally show it; dark basalt among the dark rock (light andesite read as camouflage spots);

@@ -6,6 +6,7 @@ import com.terrahaul.worldgen.features.BoulderFeature;
 import com.terrahaul.worldgen.features.FallenLogConfiguration;
 import com.terrahaul.worldgen.features.FallenLogFeature;
 import com.terrahaul.worldgen.features.FloatingTerrainCleanup;
+import com.terrahaul.worldgen.features.GroundDetailFeature;
 import com.terrahaul.worldgen.features.OceanVentFeature;
 import com.terrahaul.worldgen.features.RockFormationFeature;
 import com.terrahaul.worldgen.features.UnsupportedPlantCleanup;
@@ -26,6 +27,7 @@ import com.terrahaul.worldgen.water.WaterfallFeature;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import net.minecraft.world.level.levelgen.feature.configurations.SimpleBlockConfiguration;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -54,6 +56,8 @@ public final class TerrahaulFeatures {
 
     public static final DeferredHolder<Feature<?>, FallenLogFeature> FALLEN_LOG =
         FEATURES.register("fallen_log", () -> new FallenLogFeature(FallenLogConfiguration.CODEC));
+    public static final DeferredHolder<Feature<?>, GroundDetailFeature> GROUND_DETAIL =
+        FEATURES.register("ground_detail", () -> new GroundDetailFeature(SimpleBlockConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, BoulderFeature> BOULDER =
         FEATURES.register("boulder", () -> new BoulderFeature(BoulderConfiguration.CODEC));
     public static final DeferredHolder<Feature<?>, RockFormationFeature> ROCK_FORMATIONS =

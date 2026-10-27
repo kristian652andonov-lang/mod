@@ -15,14 +15,17 @@ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvi
  * @param geology  use the geological province of the terrain model for the material
  * @param moss     chance of moss on exposed top blocks (scaled by humidity in Terrahaul worlds)
  * @param bury     fraction of the radius that is sunk into the ground
+ * @param sand     on sand, use the sand's sandstone instead (see {@link SandRock}), in every world;
+ *                 off for rock that belongs where it falls whatever the ground, such as a lava bomb
  */
-public record BoulderConfiguration(FloatProvider radius, BlockStateProvider material, boolean geology, float moss, float bury)
+public record BoulderConfiguration(FloatProvider radius, BlockStateProvider material, boolean geology, float moss, float bury, boolean sand)
     implements FeatureConfiguration {
     public static final Codec<BoulderConfiguration> CODEC = RecordCodecBuilder.create(i -> i.group(
         FloatProvider.codec(0.5f, 8.0f).fieldOf("radius").forGetter(BoulderConfiguration::radius),
         BlockStateProvider.CODEC.fieldOf("material").forGetter(BoulderConfiguration::material),
         Codec.BOOL.optionalFieldOf("geology", true).forGetter(BoulderConfiguration::geology),
         Codec.floatRange(0, 1).optionalFieldOf("moss", 0.0f).forGetter(BoulderConfiguration::moss),
-        Codec.floatRange(0, 1).optionalFieldOf("bury", 0.35f).forGetter(BoulderConfiguration::bury)
+        Codec.floatRange(0, 1).optionalFieldOf("bury", 0.35f).forGetter(BoulderConfiguration::bury),
+        Codec.BOOL.optionalFieldOf("sand", true).forGetter(BoulderConfiguration::sand)
     ).apply(i, BoulderConfiguration::new));
 }

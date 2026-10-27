@@ -23,7 +23,8 @@ import com.terrahaul.worldgen.noise.SeedMixer;
  * In cool, sunlit water the upper surfaces carry a coat of algae (mossy cobblestone in patches).
  * Boulders are densest below sea cliffs (talus), in fjords, on scoured slopes, on glaciated cold
  * shelves (where some are erratics of granite or diorite dropped by ice) and in kelp forests,
- * whose holdfasts need rock; they cluster in boulder fields.
+ * whose holdfasts need rock; they cluster in boulder fields. In the surf off a sandy beach (at most
+ * {@link MarinePlanner#SURF_ZONE} blocks deep) boulders are of the beach's sandstone.
  * <p>
  * Boulders are planned on a jittered grid from position hashes and the terrain model, and each
  * chunk builds only the columns it owns. Every boulder is checked block by block for a connected
@@ -182,8 +183,16 @@ public final class RockRaster {
         double sink = r * (0.3 + 0.2 * SeedMixer.cellUnit(h, 0, 0, 14));
         double cy = c.floor + 1 - sink + r * 0.7;
         int family = c.family;
+        // in the surf off a sandy beach a boulder is of the beach's sandstone, as the stones on the
+        // sand beside it are, without an algae coat or an erratic of grey rock; volcanic coasts
+        // keep their dark rock
+        boolean beachRock = family != MarinePlanner.VOLCANIC && c.depth <= MarinePlanner.SURF_ZONE
+            && MarinePlanner.sandyShore(p.model(), sx, sz, 32);
+        if (beachRock) {
+            family = MarinePlanner.SANDY;
+        }
         int erratic = -1;
-        if (cold > 0.5 && SeedMixer.cellUnit(h, 0, 0, 15) < 0.2) {
+        if (!beachRock && cold > 0.5 && SeedMixer.cellUnit(h, 0, 0, 15) < 0.2) {
             erratic = SeedMixer.cellUnit(h, 0, 0, 16) < 0.5 ? GRANITE : DIORITE;
         }
         // the box holding every lobe, grown for the lumps on the surface
@@ -291,7 +300,7 @@ public final class RockRaster {
                     }
                     byte code = erratic >= 0 ? (byte) erratic : (byte) (ROCK + family * 3 + stop(x, y, z, (int) Math.floor(cy - r), (int) Math.ceil(cy + r * 0.7)));
                     boolean exposedTop = y == top || !kept[base + y - y0 + 1];
-                    if (exposedTop && y <= surf && erratic < 0 && algae(col, x, y, z)) {
+                    if (exposedTop && y <= surf && erratic < 0 && !beachRock && algae(col, x, y, z)) {
                         code = MOSSY_COBBLE;
                     }
                     byte here = v.get(x, y, z);

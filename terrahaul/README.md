@@ -167,6 +167,13 @@ running water throws up spray, mist and foam and can be heard.
 - **Underground:** vanilla caves (cheese, spaghetti and noodle caves, plus carvers) extend into
   the deep zone. Deepslate starts at Y 8 as in vanilla, bedrock lies at Y −512 and lava lakes sit
   at Y −502.
+- **No lava lakes at the surface:** vanilla's surface lava lakes (a pool of lava in the middle of
+  a forest or a plain) are not generated, and vanilla's underground lava lakes keep at least 10
+  blocks of ground over them across their whole 16-block width, so they no longer open onto a
+  hillside or a river bank. Outside volcanoes no lava lake lies open at the surface (only
+  vanilla's rare lava springs can still pour from a cliff face); the craters of active volcanoes
+  keep their lava. The option `surfaceLavaLakes` brings vanilla's lakes back. This applies to all
+  worlds.
 - **Ores at vanilla depths:** vanilla anchors many ores to the world bottom. Terrahaul resolves
   them against the vanilla frame (Y −64..319) so diamonds, redstone and so on stay where players
   expect. It also adds resource layers for the deep zone (diamonds, redstone, gold, iron, lapis,
@@ -261,6 +268,14 @@ running water throws up spray, mist and foam and can be heard.
 - Each block has loot, tags, recipes (pebbles → cobble-type blocks, branches → sticks), compost
   values and fuel values.
 - Boulders and boulder fields, mossy rocks, ferns and mushrooms are placed per biome group.
+- **Stones on sand are sandstone:** a pebble, rock or boulder that comes to rest on sand is of
+  sandstone (smooth sandstone and sandstone for boulders, without moss), and of red sandstone on
+  red sand, so beaches, the sand behind them and sandbars carry no grey stone, granite or mossy
+  rock from the land around them (in every world). In the surf off a sandy beach (up to 5 blocks
+  of water) the pebbles and rocks on the sand and the boulders are sandstone as well, and so are
+  sea stacks that stand off a sandy beach rather than a cliff. Stony shores and the pebble
+  beaches under sea cliffs keep their rock, and so do lake beds, the bedrock ledges and the deeper
+  floor of the sea and the volcanic rock of volcanoes (lava bombs and scoria).
 
 ### Client animation (visual only; never affects the world or other players)
 - **Wind system:** direction drifts, strength swells, gusts and weather (rain, thunder) add to it,
@@ -358,6 +373,7 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | `saplingsGrowTerrahaulTrees` | `true` | Player-grown saplings produce Terrahaul trees |
 | `trails` | `true` | Lay dirt trails across gentle ground, with trail ruins, signposts and path lights |
 | `oceanVents` | `true` | Hydrothermal vent chimneys in trenches and on mid-ocean ridges (restart) |
+| `surfaceLavaLakes` | `false` | Vanilla's lava lakes on the surface, in every world; when off, its underground lava lakes are also kept from opening onto the surface (restart). Volcano craters keep their lava either way |
 | `treeSizeVariation` | `1.0` | Chance that large/giant tree sizes are kept (0 = uniform small trees) |
 | `forestDensity` | `1.0` | Multiplier for tree counts (0.1–3) |
 | `vegetationDensity` | `1.0` | Multiplier for bushes and low vegetation (0–3) |

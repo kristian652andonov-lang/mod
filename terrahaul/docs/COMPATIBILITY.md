@@ -11,7 +11,8 @@ the limitations that are known today. Statements about testing are kept separate
 | World type `terrahaul:terrahaul` | Data: world preset, dimension type `terrahaul:overworld` (Y −512..2031), noise settings `terrahaul:overworld`, density functions | Only worlds created with this type |
 | Terrain | Custom density function types `terrahaul:terrain`, `terrahaul:column_bounded`; surface rule `terrahaul:terrain_surface` (runs before the vanilla rule) | Terrahaul worlds |
 | Trees | Biome modifiers remove the vanilla tree features and add `terrahaul:procedural_tree` features; sapling growth event. The `terrahaul:sapling/*` configured features set the optional `procedural_tree` field `"sapling": true` (default `false`), so a tree grown from a sapling replaces only air, leaves, water and plants, as vanilla trees do | All Overworld biomes, all worlds (config `replaceVanillaTrees`) |
-| Ground detail | Biome modifiers add features | All Overworld biomes, all worlds (config `groundDetails`) |
+| Ground detail | Biome modifiers add features. Pebbles and rocks are placed by the feature type `terrahaul:ground_detail` (configured like `minecraft:simple_block`), which gives a stone that lands on sand or red sand the sandstone or red sandstone of that block. `terrahaul:boulder` does the same for the whole boulder unless its optional field `"sand"` is `false` (the volcano bombs) | All Overworld biomes, all worlds (config `groundDetails`) |
+| Lava lakes | While `surfaceLavaLakes` is off (the default), a biome modifier removes `minecraft:lake_lava_surface` and `minecraft:lake_lava_underground` from the vanilla Overworld biomes that have them (the `lakes` step), and another adds `terrahaul:lava_lakes/underground` back to the same biomes: vanilla's configured feature `minecraft:lake_lava` with vanilla's placement plus the placement filter `terrahaul:buried`, which keeps at least 10 blocks of ground (`OCEAN_FLOOR_WG`) over the top of the lake's 16x16 box, read on a 4x4 grid | All worlds; the craters of Terrahaul's volcanoes are not lakes and keep their lava |
 | Water, waterfalls, formations, ocean vents, volcano vegetation, ruins | Features that read the terrain model; they do nothing elsewhere. Volcano vegetation uses the placement filter `terrahaul:volcano_zone` | Terrahaul worlds |
 | Lake floors | Features `terrahaul:lake_floor` (`local_modifications` step; its biome modifier is skipped when `groundDetails` is off) and `terrahaul:lake_life` (`vegetal_decoration`) in every Overworld biome. They are planned from the terrain model's lakes; the floor replaces only lake water (and the air just above it where a rock, a tower stump or a pier post rises out of the water) and the bed's sediment, and the life places vanilla blocks in and on the water and on the shore (seagrass, tall seagrass, kelp, lily pads, small dripleaf, big dripleaf with its stem in the water and its leaf just above it, sugar cane, moss carpets). Chests in lake wrecks and drowned buildings use vanilla loot tables (`minecraft:chests/shipwreck_supply`, `minecraft:chests/underwater_ruin_small`) | Terrahaul worlds |
 | Water wall sealer | Feature `terrahaul:water_wall_sealer` in the `top_layer_modification` step of every Overworld biome. It looks at the still water (and still lava) above the ground of the chunk's columns and the ring around them, and fills any air (or plant water would wash away) below a source block with rock like the bed. Beside a source block it does the same only at or above sea level, within 12 blocks of the bed, and where the ground of the neighbouring column is lower than the source | Terrahaul worlds |
@@ -103,6 +104,12 @@ and `CreateWorldScreen.recreated`.
   rock, and air beside it within the limits given under Known limitations. A mod feature that
   leaves an open pocket beside still water on purpose, before that step, gets it filled; flowing
   water and blocks placed after world generation are not touched.
+- **Lava lakes:** with `surfaceLavaLakes` off, vanilla's two lava lake features are removed by id
+  from the vanilla Overworld biomes only. Biomes of other mods keep whatever lava lakes they list,
+  including vanilla's. A data pack that edits the configured feature `minecraft:lake_lava` still
+  changes the underground lakes (Terrahaul reuses it); one that edits the placed feature
+  `minecraft:lake_lava_underground` no longer has an effect while the option is off, since
+  `terrahaul:lava_lakes/underground` copies its placement at build time.
 - **Lake and aquatic plant mods:** Terrahaul's lake floors only replace lake water and bed
   sediment in Terrahaul lakes (and air just above the water for a few rocks and posts), and its
   lake plants are vanilla blocks; plants of other mods added under their own ids still generate.
@@ -277,6 +284,20 @@ and `CreateWorldScreen.recreated`.
   the plants they undermine themselves, also in a neighbouring chunk that has finished its
   decoration; a vanilla or other mod's feature of a chunk decorated later can still leave such a
   plant in its neighbour (vanilla's ice spikes under a snow layer, its sand disks under grass).
+- **Stones on sand:** the test is the block a pebble, rock or boulder lands on, so a boulder that
+  straddles grass and sand takes the material of the block under its centre. The ground-detail
+  patches follow the rule at any depth (the underwater pebbles of rivers and beaches too). On the
+  sea floor only the surf (under at most 5 blocks of water) follows it: pebbles and knee-high
+  rocks there turn to sandstone where they lie on sand, and boulders where the terrain model has
+  a stronger beach than coast cliff within 32 blocks (the test sea stacks use, within 48), whatever
+  the floor right under them. Ledges of bedrock in the surf, the deeper sea floor and lake beds
+  keep the rock of their province, sandy or not, and so does the rocky strip the surface rule lays
+  at the foot of coast cliffs, which can run onto a beach biome's sand. Stone that vanilla
+  features or other mods place on sand is not changed.
+- **Lava at the surface:** `terrahaul:buried` reads the generation heightmap, so a cave or ravine
+  that reaches the surface beside an underground lava lake can still lead daylight down to it, as
+  in vanilla. Vanilla's lava springs (`minecraft:spring_lava`) are unchanged and can, rarely, pour
+  from a cliff face.
 - **Overhangs** come from the 3D terrain density. They are interpolated on Minecraft's
   4×8×4-block noise cells, so ledges are at least a few blocks thick, not thin slabs.
 - **Spawn:** the world spawn is chosen by vanilla's spawn search over Terrahaul terrain. On rare

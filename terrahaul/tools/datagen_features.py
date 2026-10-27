@@ -429,10 +429,17 @@ def ground_predicate(on=None, water=False):
     return {"type": "minecraft:all_of", "predicates": preds}
 
 
-def patch(name, provider, tries, spread, on_tags=None, water=False, y_spread=2):
-    inner = {"feature": {"type": "minecraft:simple_block", "config": {"to_place": provider}},
+def patch(name, provider, tries, spread, on_tags=None, water=False, y_spread=2, block_feature='minecraft:simple_block'):
+    inner = {"feature": {"type": block_feature, "config": {"to_place": provider}},
              "placement": [{"type": "minecraft:block_predicate_filter", "predicate": ground_predicate(on_tags, water)}]}
     configured(name, 'minecraft:random_patch', {"tries": tries, "xz_spread": spread, "y_spread": y_spread, "feature": inner})
+
+
+def stone_patch(name, provider, tries, spread, on_tags=None, water=False, y_spread=2):
+    """A patch of pebbles or rocks. terrahaul:ground_detail places each like simple_block, but a stone
+    that comes to rest on sand takes the sand's sandstone (see SandRock), so beaches get sandstone
+    pebbles whatever the land behind them is made of."""
+    patch(name, provider, tries, spread, on_tags, water, y_spread, block_feature='terrahaul:ground_detail')
 
 
 def detail_placement(count, density="ground_detail", scale=160, variation=0.8, clearing=-2.0, heightmap="MOTION_BLOCKING_NO_LEAVES"):
@@ -506,7 +513,7 @@ def details():
         "river": [("stone", 3), ("andesite", 2), ("granite", 1), ("diorite", 1)],
     }
     for name, stones in pebble_sets.items():
-        patch(f'details/pebbles_{name}', pebble_states(stones), 10, 5, GROUND)
+        stone_patch(f'details/pebbles_{name}', pebble_states(stones), 10, 5, GROUND)
     add_detail('pebbles_temperate', ["plains", "snowy"], 0.6)
     add_detail('pebbles_forest', ["forest", "birch_forest", "dark_forest", "jungle", "wetland", "cherry"], 0.8)
     add_detail('pebbles_taiga', ["taiga"], 1.4)
@@ -516,7 +523,7 @@ def details():
     add_detail('pebbles_savanna', ["savanna"], 1.0)
     add_detail('pebbles_river', ["water_edge"], 2.5)
     # submerged river pebbles
-    patch('details/pebbles_underwater', pebble_states(pebble_sets["river"], wet=True), 14, 6, ["#minecraft:sand", "minecraft:gravel", "#minecraft:dirt", "minecraft:clay"], water=True, y_spread=1)
+    stone_patch('details/pebbles_underwater', pebble_states(pebble_sets["river"], wet=True), 14, 6, ["#minecraft:sand", "minecraft:gravel", "#minecraft:dirt", "minecraft:clay"], water=True, y_spread=1)
     add_detail('pebbles_underwater', ["water_edge"], 2.0, heightmap="OCEAN_FLOOR")
 
     # ---- medium rocks ----------------------------------------------------------------------------
@@ -528,7 +535,7 @@ def details():
         "mossy": [("mossy", 3), ("stone", 1)],
     }
     for name, stones in rock_sets.items():
-        patch(f'details/rocks_{name}', rock_states(stones), 3, 4, GROUND)
+        stone_patch(f'details/rocks_{name}', rock_states(stones), 3, 4, GROUND)
     add_detail('rocks_temperate', ["plains", "taiga", "savanna", "water_edge", "snowy"], 0.3, density="rocks")
     add_detail('rocks_mossy', ["forest", "birch_forest", "dark_forest", "jungle", "wetland"], 0.3, density="rocks")
     add_detail('rocks_mountain', ["mountains"], 1.0, density="rocks")
@@ -790,8 +797,10 @@ def volcano_vegetation():
     configured('volcano/bomb', 'terrahaul:boulder', {
         "radius": {"type": "minecraft:uniform", "min_inclusive": 1.4, "max_exclusive": 3.6},
         "material": {"type": "minecraft:simple_state_provider", "state": state("minecraft:basalt", axis="y")},
-        "moss": 0.0, "bury": 0.4})
+        # a bomb is volcanic rock wherever it lands, so it keeps it on sand too
+        "moss": 0.0, "bury": 0.4, "sand": False})
     volcano_feature('bomb', '#minecraft:is_overworld', volcano_detail_placement(0.35, "cone", density="rocks", scale=300, variation=1.0))
+    # scoria of the cone: cone_ground holds no sand, so these need no sandstone rule (stone_patch)
     patch('volcano/rocks', rock_states([("blackstone", 3), ("tuff", 2)]), 4, 5, cone_ground)
     volcano_feature('rocks', '#minecraft:is_overworld', volcano_detail_placement(1.0, "cone", density="rocks"))
     patch('volcano/pebbles', pebble_states([("blackstone", 3), ("tuff", 2), ("deepslate", 1)]), 10, 5, cone_ground)
@@ -954,6 +963,40 @@ def mountain_vegetation():
                      CONFIG_DETAILS, feature='terrahaul:details/fallen_log_spruce')
 
 
+# the lava lake modifiers apply while the surfaceLavaLakes option is off (its default)
+CONFIG_NO_SURFACE_LAVA = [{"type": "terrahaul:config", "key": "surface_lava_lakes", "value": False}]
+# blocks of ground kept over the top of an underground lava lake, all over its box (see BuriedFilter)
+LAVA_LAKE_COVER = 10
+
+
+def vanilla_biomes():
+    return sorted('minecraft:' + f[:-5] for f in os.listdir(os.path.join(VANILLA, 'worldgen', 'biome')) if f.endswith('.json'))
+
+
+def lava_lakes():
+    """No lava lakes at the surface outside volcanoes. Vanilla's surface lava lake (a pool of lava in
+    the middle of a forest or a plain, one in about 200 chunks) leaves every biome that has it, and its
+    underground lava lake is put back with terrahaul:buried added to its placement: vanilla only asks
+    that the lake's origin lie 5 blocks under its own column, so on a hillside or beside a river bank
+    the lake's box reached under lower ground and its air opened the lava onto the slope. Both
+    modifiers are skipped while the surfaceLavaLakes option is on, which keeps vanilla's lakes as they
+    are. Volcano craters hold Terrahaul's own lava (see SurfaceWaterFeature) and are not affected."""
+    surface = [b for b in vanilla_biomes() if 'minecraft:lake_lava_surface' in vanilla_biome_step(b, 'lakes')]
+    underground = [b for b in vanilla_biomes() if 'minecraft:lake_lava_underground' in vanilla_biome_step(b, 'lakes')]
+    remove_features('lava_lakes/remove_vanilla', sorted(set(surface) | set(underground)),
+                    ['minecraft:lake_lava_surface', 'minecraft:lake_lava_underground'], ['lakes'])
+    with_conditions('terrahaul/neoforge/biome_modifier/lava_lakes/remove_vanilla.json', CONFIG_NO_SURFACE_LAVA)
+    with open(os.path.join(VANILLA, 'worldgen', 'placed_feature', 'lake_lava_underground.json')) as f:
+        vanilla = json.load(f)
+    placement = list(vanilla["placement"])
+    # before the biome test, which comes last as in every placed feature
+    biome = next(i for i, m in enumerate(placement) if m["type"] == "minecraft:biome")
+    placement.insert(biome, {"type": "terrahaul:buried", "size": 16, "top": 2, "depth": LAVA_LAKE_COVER})
+    placed('lava_lakes/underground', vanilla["feature"], placement)
+    add_features('lava_lakes/underground', underground, 'terrahaul:lava_lakes/underground', 'lakes')
+    with_conditions('terrahaul/neoforge/biome_modifier/lava_lakes/underground.json', CONFIG_NO_SURFACE_LAVA)
+
+
 CONFIG_ORES = [{"type": "terrahaul:config", "key": "ore_depth_fix"}]
 
 
@@ -1023,6 +1066,7 @@ def ruins():
 def main():
     terrain_cleanup()
     water()
+    lava_lakes()
     oceans()
     lake_floors()
     trees()

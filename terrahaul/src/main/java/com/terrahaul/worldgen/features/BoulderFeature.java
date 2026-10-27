@@ -24,8 +24,10 @@ import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
  * In Terrahaul worlds the rock is the local province's single-colour family, as the surface rule
  * exposes it (grey on mountains, sandstone in deserts, red sandstone in hot canyon country, basalt
  * near volcanoes), shaded in broad patches of its stops by smooth noise rather than block by block.
- * Elsewhere each lobe takes one material from the configured provider. Humid places grow patches of
- * moss on the upper surfaces, again shaped by smooth noise. Only the blocks connected to the core of
+ * Elsewhere each lobe takes one material from the configured provider. A boulder resting on sand
+ * is of that sand's sandstone in every world, without moss (see {@link SandRock}): grey rock on a
+ * beach looked carried there. Humid places grow patches of moss on the upper surfaces of the
+ * others, again shaped by smooth noise. Only the blocks connected to the core of
  * the boulder are placed, so the roughness never leaves loose bits or a detached lobe in the air.
  */
 public final class BoulderFeature extends Feature<BoulderConfiguration> {
@@ -48,12 +50,18 @@ public final class BoulderFeature extends Feature<BoulderConfiguration> {
         double radius = Math.min(7.5, config.radius().sample(random));
         double mossChance = config.moss();
         TerrainModel model = TerrahaulGeneration.model(level);
-        BlockState[] family = null;
+        BlockState[] family = config.sand() ? SandRock.family(ground) : null;
+        if (family != null) {
+            // beach rock grows no moss: a mossy boulder on the sand looked carried from the woods
+            mossChance = 0.0;
+        }
         if (model != null && config.geology()) {
             ColumnSample s = model.sample(origin.getX() & ~3, origin.getZ() & ~3);
-            int climate = s.baseTemperature > 0.55 && s.humidity < 0.0 ? (s.baseTemperature > 0.75 ? 2 : 1) : 0;
-            boolean mountainous = s.mountain > 0.3 || s.alpine > 0.3;
-            family = GeologyPalette.family(s.volcano > 0.3 ? Geology.VOLCANIC : s.geology, climate, mountainous);
+            if (family == null) {
+                int climate = s.baseTemperature > 0.55 && s.humidity < 0.0 ? (s.baseTemperature > 0.75 ? 2 : 1) : 0;
+                boolean mountainous = s.mountain > 0.3 || s.alpine > 0.3;
+                family = GeologyPalette.family(s.volcano > 0.3 ? Geology.VOLCANIC : s.geology, climate, mountainous);
+            }
             mossChance *= Math.max(0.0, Math.min(1.5, 0.6 + s.humidity));
         }
         int lobes = 2 + random.nextInt(3);
