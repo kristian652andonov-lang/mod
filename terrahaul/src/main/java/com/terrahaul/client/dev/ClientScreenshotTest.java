@@ -26,7 +26,10 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * {@code name@biome:<biome id>[,distance,height]} (the camera is placed {@code distance} blocks from
  * the found place, {@code height} blocks above it, on the side with the clearest view, looking at
  * it). An entry {@code graphics=fast|fancy|fabulous} switches the graphics mode for the shots
- * after it. Afterwards the client shuts down. Without the property this class does nothing.
+ * after it, and an entry {@code cmd=<command>} runs a command on the integrated server (as an
+ * operator, without the slash) before the shots after it, for example a {@code fill} that starts a
+ * lava flow, which then runs while the next shot waits. Afterwards the client shuts down. Without
+ * the property this class does nothing.
  */
 public final class ClientScreenshotTest {
     private static final String SPEC = System.getProperty("terrahaul.screenshots");
@@ -118,6 +121,15 @@ public final class ClientScreenshotTest {
                     Minecraft.useShaderTransparency());
                 return;
             }
+            if (shot.startsWith("cmd=")) {
+                // a command run on the integrated server before the shots after it, such as a
+                // setblock that starts a lava flow, which then runs while the next shot waits
+                String command = shot.substring(4);
+                IntegratedServer server = mc.getSingleplayerServer();
+                server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withPermission(4), command));
+                Terrahaul.LOGGER.info("[screenshots] ran /{}", command);
+                return;
+            }
             String where = shot.substring(shot.indexOf('@') + 1);
             // "same" repeats the previous camera, for comparing animation frames
             double[] cam = where.equals("same") ? lastCamera : resolve(mc, where);
@@ -157,6 +169,7 @@ public final class ClientScreenshotTest {
                     nearbyChunksLoaded(mc, 8), mc.player.blockPosition().toShortString());
                 logMemory(mc, name);
                 Terrahaul.LOGGER.info("[screenshots] water effects at {}: {}", name, com.terrahaul.client.water.WaterEffects.describe());
+                Terrahaul.LOGGER.info("[screenshots] lava smoke at {}: {}", name, com.terrahaul.client.lava.LavaSmoke.describe());
                 stage = 2;
                 wait = 0;
             }

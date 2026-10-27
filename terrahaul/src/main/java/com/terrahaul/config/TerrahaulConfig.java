@@ -12,8 +12,8 @@ import net.neoforged.neoforge.common.ModConfigSpec;
  * marked "restart" are read while data packs load and need a world reload.
  * <p>
  * <b>Client (visual only)</b> — {@code config/terrahaul-client.toml}. Falling leaves, petals, dust,
- * wind, vegetation sway, and the spray, mist, foam and sound of falling water. They never affect the
- * world, the server or other players.
+ * wind, vegetation sway, smoke over lava, and the spray, mist, foam and sound of falling water. They
+ * never affect the world, the server or other players.
  */
 public final class TerrahaulConfig {
     public static final ModConfigSpec COMMON_SPEC;
@@ -46,6 +46,7 @@ public final class TerrahaulConfig {
     public static final ModConfigSpec.BooleanValue AUTUMN_LEAF_FALL;
     public static final ModConfigSpec.BooleanValue VEGETATION_SWAY;
     public static final ModConfigSpec.DoubleValue WIND_STRENGTH;
+    public static final ModConfigSpec.BooleanValue LAVA_SMOKE;
     public static final ModConfigSpec.BooleanValue WATERFALL_SPRAY;
     public static final ModConfigSpec.BooleanValue WATERFALL_MIST;
     public static final ModConfigSpec.BooleanValue WATER_FOAM;
@@ -101,7 +102,7 @@ public final class TerrahaulConfig {
             "water or lava, in powder snow and from blindness or darkness stays. A shader pack draws its own fog.")
             .define("distanceFog", true);
         b.pop();
-        b.comment("Environmental animations: falling leaves and petals, wind, dust and vegetation sway.").push("animations");
+        b.comment("Environmental animations: falling leaves and petals, wind, dust, vegetation sway and lava smoke.").push("animations");
         ANIMATION_QUALITY = b.comment("Overall animation quality. OFF disables every Terrahaul animation; LOW reduces range and particle counts.")
             .defineEnum("quality", AnimationQuality.HIGH);
         FALLING_LEAVES = b.comment("Leaves drift down from tree canopies.").define("fallingLeaves", true);
@@ -112,6 +113,9 @@ public final class TerrahaulConfig {
         VEGETATION_SWAY = b.comment("Grass, flowers, ferns, saplings and bushes sway in the wind (core shader; has no effect while a shader pack",
             "or a renderer replacement such as Sodium/Iris is active).").define("vegetationSway", true);
         WIND_STRENGTH = b.comment("Multiplier for wind strength in all animations.").defineInRange("windStrength", 1.0, 0.0, 3.0);
+        LAVA_SMOKE = b.comment("Smoke rises from lava open to the sky in the Overworld (volcano craters, lava flows, single lava blocks),",
+            "a tall column over large lava lakes; it drifts with the wind and follows the quality above and Minecraft's Particles option.")
+            .define("lavaSmoke", true);
         b.pop();
         b.comment("Effects of falling and running water: waterfalls, cascades and rapids, in every world (vanilla falls too).",
             "The particles follow the animation quality above and Minecraft's Particles option (none at Minimal).").push("water");
@@ -265,6 +269,10 @@ public final class TerrahaulConfig {
 
     public static double windStrength() {
         return number(WIND_STRENGTH);
+    }
+
+    public static boolean lavaSmoke() {
+        return bool(LAVA_SMOKE);
     }
 
     public static boolean waterfallSpray() {

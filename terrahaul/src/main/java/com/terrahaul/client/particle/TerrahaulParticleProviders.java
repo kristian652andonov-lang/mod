@@ -5,8 +5,8 @@ import net.minecraft.client.particle.SpriteSet;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 
 /**
- * Registers the particle providers and keeps the sprite sets so the ambient spawner and the water
- * effects can create particles directly with a chosen sprite and tint.
+ * Registers the particle providers and keeps the sprite sets so the ambient spawner, the water
+ * effects and the lava smoke can create particles directly with a chosen sprite and tint.
  */
 public final class TerrahaulParticleProviders {
     static SpriteSet leafSprites;
@@ -16,6 +16,7 @@ public final class TerrahaulParticleProviders {
     static SpriteSet spraySprites;
     static SpriteSet mistSprites;
     static SpriteSet foamSprites;
+    static SpriteSet smokeSprites;
 
     private TerrahaulParticleProviders() {
     }
@@ -35,6 +36,11 @@ public final class TerrahaulParticleProviders {
 
     public static SpriteSet foamSprites() {
         return foamSprites;
+    }
+
+    /** The lava smoke sprites, or null until the particle atlas has been built. */
+    public static SpriteSet smokeSprites() {
+        return smokeSprites;
     }
 
     public static void register(RegisterParticleProvidersEvent event) {
@@ -93,6 +99,15 @@ public final class TerrahaulParticleProviders {
             foamSprites = sprites;
             return (type, level, x, y, z, dx, dy, dz) -> {
                 FoamParticle particle = new FoamParticle(level, x, y, z, dx, dz, 0.3F, 120, null);
+                particle.pickSprite(sprites);
+                return particle;
+            };
+        });
+        // the lava smoke creates its particles directly too
+        event.registerSpriteSet(TerrahaulParticles.LAVA_SMOKE.get(), sprites -> {
+            smokeSprites = sprites;
+            return (type, level, x, y, z, dx, dy, dz) -> {
+                LavaSmokeParticle particle = new LavaSmokeParticle(level, x, y, z, dx, dy, dz, 0.4F, 1.8F, 120, 0.5F, 0.03F, 0.2F, null);
                 particle.pickSprite(sprites);
                 return particle;
             };

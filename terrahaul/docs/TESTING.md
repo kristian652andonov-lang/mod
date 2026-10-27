@@ -18,6 +18,70 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
+## Magma chambers and lava smoke (branch `wf/volcano-lava`, seed 12345, dedicated server and client)
+The user asked to leave the volcanoes as they are, but to let the crater lava go down into a large
+reservoir inside the volcano, and for smoke from the lava.
+- **Offline (`chamberStudy`, world seed 12345):** the six volcanoes nearest the origin (all crater
+  lakes, so plugged conduits) and the five nearest with lava in the crater (all five with an open
+  conduit into the crater's lake once the vent test asked only that the throat lie in the lake;
+  with the first, stricter test of open lava 1.5 blocks deep around the whole conduit, two of
+  three had stayed plugged). For every cell of each cavity: lava beside or above the cavern's air
+  0, falling lava not landing in lava 0, the lake, the fall and the conduit one body of lava (a few
+  small pools in hollows of the shore stand apart), at least 28 blocks of rock over the cavity
+  wherever the crater's lava does not lie over it, and the vent's columns all under the crater's
+  lava: 0 problems in all eleven. Planning takes 4–118 ms per volcano, once.
+- **AutoTest areas** (`-PnoStructures`): the chamber of the large lava crater at 23250 10511
+  (r=8, 289 chunks; crater radius 234, chamber radius 89, conduit 179 blocks long), of a small
+  lava crater at -22923 15816 (r=5) and of a crater-lake volcano at 6590 -5955 (r=7, plugged
+  conduit). A baseline run of the same areas used the same build with the feature switched off
+  (`-PdebugProps=terrahaul.debug.noMagmaChamber`).
+- **New check** (`ChamberCheck`, in every area that a chamber reaches): the plan's cavity against
+  the generated blocks, faces between the cavity and an open cell outside it (breaches), open
+  cells inside the wall under the ground, and lava outside the cavity below the lowest crater
+  floor in the chamber's box and sixteen blocks around it.
+- **Results** (final run): cavity cells as planned in all three (lava 167,102 / 20,659 / 50,147,
+  falling lava 4,068 / 1,560 / 3,795; the air cells that differ hold glow lichen and sculk veins
+  grown on the chamber's walls afterwards). **Breaches 0, open cells in the wall 0** in all three.
+  Lava below the crater floor outside the cavity: 124 / 373 / 436 blocks, **the same counts as in
+  the baseline** (vanilla lava pools and springs in the caves of the cones), none of it in the
+  wall; 4 of them in the small volcano lie 4–5 blocks from the cavity, just outside the wall, and
+  are there in the baseline too. Caves meet the outside of the walls at 1,700–5,300 air cells.
+- **Unchanged against the baseline:** floating terrain fragments (22 / 66 / 0 with chambers,
+  22 / 85 / 0 without: the small crater's conduit took away some of the existing fragments on its
+  lake bed), walls of water and lava (0), water fins (152 / 16 / 23, crust plates on the lava
+  lakes). The 22 fragments of the large crater are pieces of its lake bed and crust over cave air,
+  there in the baseline as well; they were not traced further.
+- **Found and fixed:** the first run left 236 / 24 / 361 blocks that cannot stay (baseline 2 / 3 /
+  4): glow lichen, vines and sculk veins (the crater-lake volcano's chamber lies in a deep dark
+  biome) hanging in the chambers' air, all on chunk-border columns. A neighbouring chunk decorated
+  earlier had grown them on rock that the later chunk then hollowed out. The feature now drops the
+  face or the plant across the border, as a block update would (930 in the final run); the counts
+  are back to 2 / 3 / 5 (the extra one is a carpet on a sculk vein in the ancient city 230 blocks
+  below the crater-lake chamber, also in the run before; not traced).
+- **Cost:** 3.1–3.4 ms per chunk that builds a chamber or conduit (255 chunks, 6,500 blocks
+  placed per chunk); 0.005 ms per chunk elsewhere. Whole-area generation was 194 / 125 / 194
+  ms/chunk in one run with chambers against 194 / 141 / 200 in the baseline, and 230 / 137 / 211
+  in another run with chambers: run-to-run differences are larger than the feature's cost.
+- **Screenshots** (client, software rendering, render distance 10, noon, night vision taken off
+  with a new `cmd=` entry of the screenshot harness): inside the large chamber from its shore
+  (the viewpoint chosen with `chamberStudy`) and from the dome (the lava lake, the fall from the
+  conduit, pillars standing in the lava, the dome's ribs and magma veins), inside the small
+  chamber beside its fall, both crater lakes with their smoke and the column, and a lava flow
+  started with `setblock` on the small volcano's outer flank, smoke blowing off it with the wind.
+  The first smoke was too sparse (dots); puffs and the column were made larger, denser and
+  taller, young puffs fade in as they leave the lava, flowing lava keeps a share of each chunk's
+  sample, and no smoke is spawned while the camera is deep underground (the chamber shots then
+  showed 32–70 particles, against 980–1,500 at the craters). Flows started on the large crater's
+  inner wall, beside its lake, showed little smoke of their own in the shot. Two camera positions
+  failed and were dropped: one inside the large crater's cloud layer (its lake lies at Y 429, the
+  clouds at 448) and one inside the crater wall.
+- **Not tested:** Sodium, Iris and shader packs with the smoke (only read: the smoke uses the
+  mist's render type and Sodium's particle fast path, see COMPATIBILITY.md); a dedicated server
+  with a remote client; dry craters (only crater lakes and lava craters were among the volcanoes
+  checked); the smoke's frame time on a real GPU; whether a dungeon or other feature of a chunk
+  decorated after a chamber's chunk ever opens the wall (none did in these areas); lone lava blocks
+  (thin wisps) in a screenshot.
+
 ## Floating plants (branch `wf/floating-plants`, seed 12345, dedicated server and client)
 A user's screenshot showed pink petals and grass hanging over a cherry grove stream and in front
 of its dirt banks.

@@ -2,6 +2,7 @@ package com.terrahaul.client;
 
 import com.terrahaul.Terrahaul;
 import com.terrahaul.client.dev.ClientScreenshotTest;
+import com.terrahaul.client.lava.LavaSmoke;
 import com.terrahaul.client.particle.AmbientParticleSpawner;
 import com.terrahaul.client.particle.MistParticle;
 import com.terrahaul.client.particle.MistShaders;
@@ -43,13 +44,21 @@ public final class TerrahaulClient {
             WindSystem.tick(mc);
             AmbientParticleSpawner.tick(mc);
             WaterEffects.tick(mc);
+            LavaSmoke.tick(mc);
         });
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut event) -> {
             WindSystem.reset();
             WaterEffects.reset();
+            LavaSmoke.reset();
         });
-        NeoForge.EVENT_BUS.addListener((ChunkEvent.Load event) -> WaterEffects.onChunkChanged(event));
-        NeoForge.EVENT_BUS.addListener((ChunkEvent.Unload event) -> WaterEffects.onChunkChanged(event));
+        NeoForge.EVENT_BUS.addListener((ChunkEvent.Load event) -> {
+            WaterEffects.onChunkChanged(event);
+            LavaSmoke.onChunkChanged(event);
+        });
+        NeoForge.EVENT_BUS.addListener((ChunkEvent.Unload event) -> {
+            WaterEffects.onChunkChanged(event);
+            LavaSmoke.onChunkChanged(event);
+        });
         NeoForge.EVENT_BUS.addListener(SwayShader::onRenderStage);
         NeoForge.EVENT_BUS.addListener(FogControl::onRenderFog);
         NeoForge.EVENT_BUS.addListener(MistParticle::onRenderStage);

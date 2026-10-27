@@ -804,6 +804,15 @@ def volcano_vegetation():
     placed('volcano/thaw', 'terrahaul:volcano/thaw', VOLCANO_GATE)
     add_features('volcano/thaw', '#minecraft:is_overworld', 'terrahaul:volcano/thaw', 'top_layer_modification')
 
+    # ---- the magma chamber deep in every volcano and the conduit of lava joining it to the crater
+    # (MagmaChamberFeature), sealed in basalt, blackstone and magma: after the carvers, the crater's
+    # lava (lakes step), ores, dungeons and geodes, before springs and the late floating-terrain
+    # pass. Every overworld chunk runs it (one cached model sample away from volcanoes), so a chamber
+    # is complete whatever biomes it lies under; part of the volcano, so not behind a config key
+    configured('volcano/magma_chamber', 'terrahaul:magma_chamber', {})
+    placed('volcano/magma_chamber', 'terrahaul:volcano/magma_chamber', [])
+    add_features('volcano/magma_chamber', '#minecraft:is_overworld', 'terrahaul:volcano/magma_chamber', 'underground_decoration')
+
 
 def mountain_zone(zone, max_slope=0, threshold=0.0):
     f = {"type": "terrahaul:mountain_flora", "zone": zone}

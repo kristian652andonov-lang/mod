@@ -115,6 +115,10 @@ public final class TerrainFinder {
         add("wetland", "a wetland or swamp", 48, s -> s.swamp > 0.6 && s.temperature > -0.2,
             s -> s.swamp > 0.85 && s.temperature > -0.2 && s.height >= 62.5 && s.height < 65.0, Kind.GRID);
         add("volcano", "a volcano", 0, null, null, Kind.VOLCANO);
+        // the shore of the lava lake in the chamber under the nearest volcano, and the shore of the
+        // lava in the nearest active crater, beside the conduit's vent
+        add("magma_chamber", "the magma chamber deep inside a volcano", 1, null, null, Kind.VOLCANO);
+        add("lava_crater", "a volcano with lava in its crater", 2, null, null, Kind.VOLCANO);
         add("waterfall", "a waterfall", 0, null, null, Kind.WATERFALL);
         add("cascade", "a forest cascade of pools", 1, null, null, Kind.WATERFALL);
         add("arch", "a natural stone arch", TerrainModel.ARCH, null, null, Kind.FORMATION);
@@ -208,7 +212,8 @@ public final class TerrainFinder {
      */
     public static Result find(TerrainModel model, Target target, int x, int z, int radius, BooleanSupplier cancelled) {
         return switch (target.kind()) {
-            case VOLCANO -> findVolcano(model, x, z, radius);
+            case VOLCANO -> target.step() == 1 ? findChamber(model, x, z, radius)
+                : target.step() == 2 ? findLavaCrater(model, x, z, radius) : findVolcano(model, x, z, radius);
             case WATERFALL -> findWaterfall(model, target.step() == 1, x, z, radius, cancelled);
             case LAKE_SITE -> findLake(model, target.step(), x, z, radius);
             case HIGHEST -> findHighest(model, target, x, z, radius, cancelled);
@@ -544,6 +549,58 @@ public final class TerrainFinder {
         ColumnSample s = new ColumnSample();
         model.sampleInto((int) v.x, (int) v.z, s);
         return new Result((int) v.x, surfaceY(s), (int) v.z, "volcano");
+    }
+
+    /**
+     * The magma chamber under the nearest volcano: a spot on the dry shore of its lava lake, with
+     * room to stand, on the side towards the volcano's centre where it can (see
+     * {@link MagmaChamber#standPoint}). Inside the chamber's wall, so it is only reached by digging
+     * (or teleporting) in.
+     */
+    private static Result findChamber(TerrainModel model, int x, int z, int radius) {
+        TerrainModel.VolcanoSite v = model.nearestVolcano(x, z, radius);
+        if (v == null) {
+            return null;
+        }
+        MagmaChamber chamber = model.magmaChamber(v);
+        double[] stand = chamber.standPoint();
+        if (stand == null) {
+            return new Result((int) Math.floor(chamber.x), chamber.top, (int) Math.floor(chamber.z), "magma_chamber");
+        }
+        return new Result((int) Math.floor(stand[0]), (int) stand[1], (int) Math.floor(stand[2]), "magma_chamber");
+    }
+
+    /**
+     * The nearest volcano with lava in its crater: the first dry ground at least two blocks above the
+     * lava, walking out from the conduit's vent away from the crater's centre, so the lava and the
+     * vent are in front of whoever stands there.
+     */
+    private static Result findLavaCrater(TerrainModel model, int x, int z, int radius) {
+        TerrainModel.VolcanoSite v = model.nearestVolcano(x, z, radius, site -> site.lavaLevel != ColumnSample.NO_WATER);
+        if (v == null) {
+            return null;
+        }
+        MagmaChamber chamber = model.magmaChamber(v);
+        double dx = chamber.ventX - v.x;
+        double dz = chamber.ventZ - v.z;
+        double len = Math.hypot(dx, dz);
+        if (len < 1.0) {
+            dx = 1.0;
+            dz = 0.0;
+            len = 1.0;
+        }
+        dx /= len;
+        dz /= len;
+        ColumnSample s = new ColumnSample();
+        for (double r = 0.0; r < v.radius; r += 2.0) {
+            int px = (int) Math.floor(chamber.ventX + dx * r);
+            int pz = (int) Math.floor(chamber.ventZ + dz * r);
+            model.sampleInto(px, pz, s);
+            if (s.lavaLevel == ColumnSample.NO_WATER && s.height >= v.lavaLevel + 2.0) {
+                return new Result(px, (int) Math.ceil(model.interpolatedHeight(px, pz)) + 1, pz, "lava_crater");
+            }
+        }
+        return new Result((int) Math.floor(chamber.ventX), (int) v.lavaLevel + 8, (int) Math.floor(chamber.ventZ), "lava_crater");
     }
 
     private static Result findLake(TerrainModel model, int type, int x, int z, int radius) {
