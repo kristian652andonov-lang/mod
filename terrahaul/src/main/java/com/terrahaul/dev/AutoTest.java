@@ -146,6 +146,22 @@ public final class AutoTest {
                 report.add("area " + areaIndex + ": biome " + id + " at " + found.getFirst().toShortString());
                 cx = found.getFirst().getX() >> 4;
                 cz = found.getFirst().getZ() >> 4;
+            } else if (p[0].startsWith("surface:")) {
+                // surface:<id>[@x/z],r: the nearest column (64-block grid) whose surface biome is <id>
+                String id = p[0].substring(8);
+                int[] origin = origin(id);
+                id = id.contains("@") ? id.substring(0, id.indexOf('@')) : id;
+                radius = Integer.parseInt(p[1].trim());
+                var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME, net.minecraft.resources.ResourceLocation.parse(id));
+                int[] found = OreCensus.findSurfaceBiome(level, key, origin[0], origin[1], 12000, 64);
+                if (found == null) {
+                    report.add("area " + areaIndex + ": surface biome " + id + " not found");
+                    areaIndex++;
+                    continue;
+                }
+                report.add("area " + areaIndex + ": surface biome " + id + " at " + found[0] + " " + found[1]);
+                cx = found[0] >> 4;
+                cz = found[1] >> 4;
             } else if (p[0].startsWith("water:")) {
                 // water:<biome id>,r: the nearest stream or river (by the terrain model) in that biome
                 String id = p[0].substring(6);
@@ -180,6 +196,7 @@ public final class AutoTest {
             renderSection(level, cx, cz, radius, dir.resolve("section" + areaIndex + ".png").toFile());
             dumpRiverColumn(level, model, cx, cz, radius, report);
             oreHistogram(level, cx, cz, radius, report);
+            OreCensus.area(level, cx, cz, radius, report);
             surfaceCensus(level, cx, cz, radius, report);
             floatingFragments(level, cx, cz, radius, report);
             waterWalls(level, cx, cz, radius, report);
@@ -202,6 +219,7 @@ public final class AutoTest {
             areaIndex++;
         }
         StonesOnSand.summary(report);
+        OreCensus.summary(level, report);
         SurfaceLava.summary(report);
         ChamberCheck.cost(report);
         long cleaned = com.terrahaul.worldgen.features.UnsupportedPlantCleanup.CHUNKS.sum();

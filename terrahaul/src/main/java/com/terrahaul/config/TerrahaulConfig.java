@@ -68,7 +68,8 @@ public final class TerrahaulConfig {
             .define("geologicalFormations", true);
         ORE_DEPTH_FIX = c.comment("In Terrahaul worlds, keep vanilla ores, geodes, springs and cave decorations at their vanilla depths",
                 "(vanilla anchors many of them to the world bottom, which is 448 blocks deeper here) and add extra resource layers",
-                "in the deep (Y -512..-64) and high (above Y 320) zones. The extra layers need a restart.")
+                "in the deep (Y -512..-64) and high (above Y 320) zones. Ores of other mods that belong to a biome also spawn",
+                "under ground taller than vanilla's, where vanilla would have their biome at that height. The extra layers need a restart.")
             .define("oreDepthFix", true);
         TERRAIN_AWARE_STRUCTURES = c.comment("Move villages, outposts, mansions and temples away from steep slopes, cliffs and water in Terrahaul",
                 "worlds (the position inside each structure region is chosen by terrain). Set it before creating a world: changing it",
