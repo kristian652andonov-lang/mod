@@ -1017,9 +1017,14 @@ def trapezoid(lo, hi, plateau=0):
     return {"type": "minecraft:trapezoid", "min_inclusive": {"absolute": lo}, "max_inclusive": {"absolute": hi}, "plateau": plateau}
 
 
+STRICT_BIOME = []  # placed features listed in the tag terrahaul:strict_biome (see strict_biome())
+
+
 def layer(name, feature, count, height, step, biomes='#minecraft:is_overworld', rarity=None, extra=None):
     """A resource layer for Terrahaul's deep (Y -512..-64) or high (Y 320+) zone. It reuses a vanilla
     configured feature and only places in Terrahaul worlds (terrahaul:terrahaul_only)."""
+    if biomes != '#minecraft:is_overworld':
+        STRICT_BIOME.append(f'terrahaul:resources/{name}')
     placement = []
     if rarity:
         placement.append({"type": "minecraft:rarity_filter", "chance": rarity})
@@ -1062,6 +1067,36 @@ def resources():
     layer('high_water_spring', 'minecraft:spring_water', 10, uniform(320, 1600), 'fluid_springs')
 
 
+def strict_biome():
+    """The placed-feature tag terrahaul:strict_biome: ores whose minecraft:biome filter keeps
+    vanilla's 3D-biome test in Terrahaul worlds, without the widening for ground that stands taller
+    than vanilla's (FeatureBiomes). It holds vanilla's ores that only some Overworld biomes have
+    (emeralds and infested stone in the mountains, extra gold in the badlands, clay in lush caves,
+    large copper veins in dripstone caves and the copper ore those caves lack) and Terrahaul's own
+    biome-bound resource layers, so the amounts of vanilla's ores, which the deep and high layers
+    were tuned against, stay as they were. Other mods' ores are not listed: their ores are what the
+    widening is for. Data packs can add to the tag."""
+    with open(os.path.join(VANILLA, 'tags', 'worldgen', 'biome', 'is_overworld.json')) as f:
+        overworld = json.load(f)['values']
+    features = {}
+    for biome in overworld:
+        with open(os.path.join(VANILLA, 'worldgen', 'biome', biome.split(':')[1] + '.json')) as f:
+            for step in json.load(f)['features']:
+                for feature in step if isinstance(step, list) else [step]:
+                    features.setdefault(feature, set()).add(biome)
+    vanilla = []
+    for feature, holders in sorted(features.items()):
+        with open(os.path.join(VANILLA, 'worldgen', 'placed_feature', feature.split(':')[1] + '.json')) as f:
+            configured = json.load(f)['feature']
+        if not isinstance(configured, str):
+            continue
+        with open(os.path.join(VANILLA, 'worldgen', 'configured_feature', configured.split(':')[1] + '.json')) as f:
+            kind = json.load(f)['type']
+        if kind in ('minecraft:ore', 'minecraft:scattered_ore') and len(holders) < len(overworld):
+            vanilla.append(feature)
+    write('terrahaul/tags/worldgen/placed_feature/strict_biome.json', {"replace": False, "values": vanilla + STRICT_BIOME})
+
+
 def ruins():
     # ruined houses, signposts and lamp posts beside trails, sunken ruins on mid-depth sea floors.
     # Sites come from the terrain model (no-op outside Terrahaul worlds); every overworld chunk runs
@@ -1083,6 +1118,7 @@ def main():
     volcano_vegetation()
     mountain_vegetation()
     resources()
+    strict_biome()
     ruins()
 
 

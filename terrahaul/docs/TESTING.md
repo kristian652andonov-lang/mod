@@ -18,6 +18,91 @@ their classes.
   Terrahaul world (dimension type `terrahaul:overworld`), generated the spawn area in 17 s, ran
   for four minutes without an exception and stopped cleanly.
 
+## Other mods' ores (branch `wf/modded-ores`, seed 12345, dedicated server)
+Fantasy Weapons 0.1.0 (the jar the user plays with) and GeckoLib 4.9.3 for NeoForge 1.21.1
+(downloaded from Modrinth's CDN; its SHA-512 matched the one Modrinth's API lists) were put into
+`run/mods`, and `AutoTest` ran with its new ore census (`OreCensus`, see BUILDING.md) in fresh
+worlds of seed 12345, Terrahaul (`oreDepthFix` on) and `minecraft:normal`, with `-PnoStructures`.
+Only the Overworld ores were looked at; the mod's Nether and End ores were not.
+- **Areas** (72): from 0, 0 (radius 5): 0, 0 itself, the nearest column (`surface:`) whose
+  surface biome is meadow, cherry grove, windswept hills, windswept gravelly hills, windswept
+  forest, stony peaks, jagged peaks, frozen peaks, badlands, eroded badlands, wooded badlands,
+  desert and ice spikes, and the nearest lush caves and deep dark (`biome:`, any height); and the
+  same thirteen surface biomes and lush caves from each of 6000/6000, −6000/6000, 6000/−6000 and
+  −6000/−6000 (radius 4), in four server sessions. 6,187 chunks in each Terrahaul run, 6,131 in
+  the normal world (a session counts each chunk once; the first and a later set can overlap, as
+  the nearest windswept gravelly hills from 0/0 and from 6000/6000 do). A first try with the 56
+  areas in one session ran out of the 6 GB heap in a worker thread (`AutoTest` keeps every chunk
+  it generated loaded) and was thrown away.
+- **Runs:** *before*: the base commit (5d0b61d) with only the census added (the 16 areas from
+  0, 0), and the final build with the widening switched off (`-PdebugProps=terrahaul.debug.
+  noOreBiomeWidening`) for the 56 others; *after*: the final build. A second *before* run of the
+  16 areas (the switch) measured the noise between two runs of the same generation.
+- **What made the ores rare** (before, against the normal world): the biome check, not the rock.
+  The share of an ore's candidate rock (its height band, in the columns of its surface biomes and
+  wherever the 3D biome holds it) that the `minecraft:biome` filter let through fell from 90% to
+  32% for aetherite (meadow and cherry grove), 94% to 39% for thundercryst, 83% to 23% for
+  frostheart under frozen peaks, 94% to 40% under ice spikes, 77% to 48% for solarite; the 3D
+  biome turning them away was the deep dark (84-99% of the refusals in the 16 areas), and
+  dripstone caves for solarite. Solid blocks outside the ores' targets were 3-17% of the candidate
+  rock in both worlds (mostly dirt, gravel, other ores and, for solarite, the deepslate below
+  Y 8); Terrahaul's province rock among them (smooth basalt and basalt under the frozen peaks of
+  a dark province, red sandstone and smooth sandstone in the deserts, terracotta and basalt for
+  emeralds) was at most about 5% of the candidate rock, mostly under 1%. Deepslate was
+  where vanilla has it (titanstone, which only replaces deepslate and tuff, had 7,570 blocks of
+  candidate rock per chunk against 7,347). Open space in the bands was about the same, except
+  where Terrahaul's ground is taller (mountain bands are rock, not air) and under Terrahaul's deep
+  sea.
+- **Ore blocks per chunk** of the ore's surface biomes (per chunk of all areas for the last four),
+  blocks counted, and the share of candidate rock the biome check let through:
+
+  | Ore | Normal world | Terrahaul before | Terrahaul after |
+  |---|---|---|---|
+  | aetherite (meadow, cherry grove; Y 70..160) | 0.070 (25; 90%) | 0.036 (10; 32%) | 0.147 (41; 80%) |
+  | thundercryst (windswept hills, stony and jagged peaks; Y 90..180) | 0.031 (22; 94%) | 0.070 (43; 39%) | 0.140 (86; 60%) |
+  | frostheart (frozen peaks; Y 60..200) | 0.048 (6; 83%) | 0.013 (3; 23%) | 0.097 (22; 63%) |
+  | frostheart (ice spikes; Y 40..75) | 0.071 (22; 94%) | 0.043 (14; 40%) | 0.065 (21; 85%) |
+  | solarite (badlands, desert; Y 0..60) | 0.064 (72; 77%) | 0.047 (69; 48%) | 0.059 (87; 59%) |
+  | eclipsite (every biome; Y −20..20) | 0.049 (301) | 0.046 (287) | 0.046 (287) |
+  | titanstone (every biome; Y −64..−30) | 0.053 (322) | 0.055 (340) | 0.055 (339) |
+  | verdant (lush caves; Y −40..40) | 0.023 (138) | 0.002 (11) | 0.031 (194) |
+  | necrostone (deep dark; Y −60..−10) | 0.039 (239) | 0.110 (682) | 0.111 (686) |
+
+  The counts of the rare ores are small (frostheart: 6 blocks in the normal world's 124 chunks of
+  frozen peaks), so single ratios are rough; the candidate rock per chunk is the steadier
+  measure. Per block of candidate rock that passes, aetherite and thundercryst are as dense as in
+  the normal world (0.09 and 0.11 against 0.10 and 0.09 per 10,000); per chunk they are more
+  common because a Terrahaul mountain is rock through their whole band (16,042 and 12,445 blocks of
+  candidate rock per chunk against 7,350 and 3,534). Necrostone follows the deep dark, which
+  Terrahaul's taller ground brings up to Y −60..−10 three times as often (6,496 blocks per chunk
+  against 2,215), before and after alike.
+- **Vanilla's ores:** the same per chunk before and after: every vanilla ore with more than one
+  block per chunk within 0.22% (coal 603.1 and 603.4, iron 294.3 and 294.3, copper 163.8 and
+  163.8, gold 13.37 and 13.38, emerald 2.42 and 2.42, diamond in deepslate 70.02 and 70.01); the
+  two *before* runs of the 16 areas differ by up to 0.16%. An intermediate build without the tag
+  `terrahaul:strict_biome` widened the check for vanilla's biome-bound ores too: in the 16 areas
+  emeralds went from 2.48 to 7.57 per chunk, copper from 148.7 to 221.3 and gold from 9.12 to
+  13.61, which is why vanilla's and Terrahaul's biome-bound ores are in the tag.
+- **Unchanged checks:** walls of water 0 in all 72 areas in every run. Floating terrain the same
+  per area before and after (8 fragments of 9 blocks in the 16 areas in all three runs; 41
+  fragments of 84 blocks in the 56), except one session in which two single blocks of coarse dirt
+  beside spruce trees on the edge of an area showed up after only; two earlier *after* runs of the
+  16 areas had a single block of packed ice at an area's edge that the final run, with the same
+  widening, did not, so these come and go with the order in which chunks at the edge of an area
+  are decorated. Water fins, unsupported plants and the tree check differ between runs about as
+  much as the two *before* runs do (unsupported plants 238, 270 and 262 in the 16 areas; wood
+  groups within 1%). No exception in the server logs of these runs (the discarded session above
+  aside).
+- **Cost:** every call of the widened check past its cheap tests (an ore feature in a Terrahaul
+  world that the 3D biome turned away) took 62 ms in all over the 16 areas' generation, 0.035 ms
+  per counted chunk (0.037-0.048 in the four sessions of the other 56 areas); there it looked up
+  the vanilla-height biome 1,175 times and let 265 ores through. It caches the climate per 4x4
+  column and thread.
+- **Not checked:** the client and mining in game; other seeds; other ore mods (the code is
+  generic, but only Fantasy Weapons was installed); ores with feature types of their own (they
+  keep the 3D biome's check); chunk generation times with and without the change (the AutoTest
+  timings of the runs are too noisy to separate 0.035 ms per chunk).
+
 ## Fifth round: sandstone on beaches, no surface lava lakes, magma chambers and lava smoke (merged build, seed 12345)
 This round merged `wf/beach-lava` and `wf/volcano-lava` (each tested on its own, see the two
 sections below). The merged build was tested once more in game: in fresh worlds on the dedicated

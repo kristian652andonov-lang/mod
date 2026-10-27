@@ -25,6 +25,7 @@ the limitations that are known today. Statements about testing are kept separate
 | Ocean monuments | `RandomSpreadStructurePlacementMixin` picks the flattest deep candidate chunk in each monument region (structure set salt 10387313); `OceanMonumentStructureMixin` drops sites whose floor still varies by more than 10 blocks and lowers the building and its rooms onto the floor | Terrahaul worlds (the choice of the flattest chunk: config `terrainAwareStructures`) |
 | Underground structures | `StructureMixin` moves every structure in the structure tag `terrahaul:keep_underground` (trial chambers, ancient cities, strongholds and ordinary mineshafts) down as a whole, when its structure start is created, until each piece lies at least 12 blocks under the terrain over and around it (the generator's `OCEAN_FLOOR_WG` height on an 8-block grid). Structures already that deep keep their vanilla height; none is moved lower than 16 blocks above the world bottom. The start's chunk does not change, so `/locate` and eyes of ender lead to it as before | Terrahaul worlds; data packs can add structures to the tag |
 | Extra ore layers | Biome modifiers with the `terrahaul:terrahaul_only` placement filter | Terrahaul worlds (config `oreDepthFix`) |
+| Biome-bound ores | `BiomeFilterMixin` widens the `minecraft:biome` placement filter for ores (features configured with an ore configuration): where the 3D biome at the ore's position turns it away, the position lies inside the ground and that ground stands taller than vanilla's terrain of the same climate, the ore is also placed if the biome vanilla would have at that height holds it (`FeatureBiomes`). Ores in the placed-feature tag `terrahaul:strict_biome` (vanilla's biome-bound ores and Terrahaul's mountain emerald layer) keep the 3D biome's answer. See [Other mods' ores](#other-mods-ores) | Terrahaul worlds (config `oreDepthFix`) |
 | Sky effects | Dimension effects `terrahaul:overworld`: vanilla Overworld sky with a configurable cloud height | Terrahaul worlds, client |
 | Vegetation sway | Overrides the core shader `minecraft:shaders/core/rendertype_cutout` and wraps plant block models at model bake | Client |
 | Terrain fog | Overrides the shader include `minecraft:shaders/include/fog.glsl` (adds a fog shape 2); client mixin `FogShapeMixin` reports shape 2 instead of the cylinder in Terrahaul worlds | Client; shapes 0 and 1 are unchanged |
@@ -46,6 +47,7 @@ otherwise leaves vanilla behaviour untouched.
 | `StructureMixin` | `Structure.generate` (wraps `StructurePiecesBuilder.build`) | In Terrahaul worlds, moves the pieces of a structure in `terrahaul:keep_underground` (and, for jigsaw pieces, their junctions, which the terrain adaptation reads) below the terrain before the structure start is made from them; see Underground structures above. `/locate` only asks for the generation point, which is unchanged |
 | `WorldDimensionsMixin` | `isStableOverworld` | Treat the Terrahaul preset as a stable (non-experimental) Overworld so no "experimental settings" warning is shown |
 | `HeightRangePlacementMixin` | `HeightRangePlacement.getPositions` | In Terrahaul worlds with `oreDepthFix`, resolve height anchors against the vanilla Y −64..319 frame |
+| `BiomeFilterMixin` | `BiomeFilter.shouldPlace` | In Terrahaul worlds with `oreDepthFix`, may turn the filter's refusal of an ore into an acceptance (never the reverse): see Biome-bound ores above and [Other mods' ores](#other-mods-ores) |
 | `RandomSpreadStructurePlacementMixin`, `StructurePlacementAccessor` | `getPotentialStructureChunk` | Terrain-aware choice of the structure chunk in Terrahaul worlds for the vanilla surface structure sets (flat, dry ground) and the ocean monument set (the flattest deep sea floor under the 58x58 footprint), identified by salt |
 | `ChunkGeneratorMixin` | `createState` | Registers a Terrahaul world's terrain for the structure placement above |
 | `OceanMonumentStructureMixin` | `OceanMonumentStructure.findGenerationPoint`, `generatePieces` (wraps `StructurePiecesBuilder.addPiece`), `regeneratePiecesAfterLoad` | In Terrahaul worlds: no monument where the sea floor, sampled on a 5x5 grid over the 58x58 footprint, varies by more than 10 blocks (checked while finding the generation point, so `/locate` agrees); otherwise the building and its rooms, built at a fixed Y 39, are lowered onto the lowest floor under the footprint. A monument rebuilt after its structure start is loaded from disk (vanilla rebuilds it at Y 39) is moved back to its saved height; that hook runs in all worlds and changes nothing where the heights already agree |
@@ -84,7 +86,8 @@ and `CreateWorldScreen.recreated`.
 - **Feature mods:** features added by biome modifiers generate normally. Features that assume a
   Y −64 world bottom via `above_bottom` anchors are kept at vanilla depths by the
   `oreDepthFix` mixin when they use `minecraft:height_range` placement. Features with custom
-  placement code that reads `getMinBuildHeight()` directly will use Y −512.
+  placement code that reads `getMinBuildHeight()` directly will use Y −512. Ores get more care:
+  see [Other mods' ores](#other-mods-ores).
 - **Structure mods:** structures generate. Jigsaw structures project to the surface heightmap and
   work at any height. Only the vanilla surface structure sets (villages, outposts, mansions,
   desert pyramids, jungle temples, swamp huts, igloos) and the ocean monuments get terrain-aware
@@ -189,6 +192,102 @@ and `CreateWorldScreen.recreated`.
   in vanilla.
 - **Distant Horizons and similar LOD mods:** not tested. Very tall terrain may need a larger LOD
   vertical range.
+
+## Other mods' ores
+Ores that other mods add through NeoForge biome modifiers (`neoforge:add_features`, usually in the
+`underground_ores` step) generate in Terrahaul worlds like any other feature. Four things decide
+whether they turn up as often as in a normal world:
+
+- **Height.** An ore placed by `minecraft:height_range` at absolute heights keeps those heights.
+  Anchors to the bottom or top of the world (`above_bottom`, `below_top`) are resolved against
+  vanilla's Y −64..319 while `oreDepthFix` is on, as for vanilla's ores. Terrahaul's ground is far
+  taller than vanilla's, so a band meant for the inside of a vanilla mountain (say Y 90..180) lies
+  in the root of a Terrahaul mountain, and a band meant for just under a vanilla meadow lies a
+  few hundred blocks under a Terrahaul meadow: the ore is there, deeper below the surface. Mountain
+  ores also come out more often per chunk than in a normal world, because in a Terrahaul mountain
+  their whole band is rock while in a vanilla one much of it is open air above the ground.
+- **Biome.** The `minecraft:biome` placement filter asks for the biome at the ore's own position,
+  and Minecraft's biomes are three-dimensional: the biome source places the cave biomes (lush
+  caves, dripstone caves) about 25 to 115 blocks below the terrain where the climate suits them,
+  and the deep dark further down, from a depth parameter of about one unit per 128 blocks.
+  Terrahaul computes that parameter from its own ground, so a few hundred blocks under a Terrahaul
+  meadow, peak or high plateau the biome is mostly the deep dark, where a vanilla world of the same
+  climate still has the meadow or the peak. An ore bound to such a biome at a fixed height then
+  found its biome in only part of the rock it was made for. In Terrahaul worlds with `oreDepthFix`
+  on (the default), `BiomeFilterMixin` widens the filter for ores (`FeatureBiomes`): where the 3D
+  biome turns an ore away, the position lies inside the ground, and that ground stands taller
+  than vanilla's terrain of the same climate would, the ore may still be placed if the biome
+  vanilla would have at that height holds it. That biome is the biome source's answer for the
+  column's climate with the depth vanilla's own router computes there (vanilla's offset spline on
+  the continentalness, erosion and folded weirdness Terrahaul's model hands to the biome source,
+  plus vanilla's height gradient; in a normal world the computed offset matches the router's to
+  within 1e-6). So an ore of a mountain biome is found in a mountain's root as in a vanilla
+  mountain, and an ore of a cave biome where vanilla would have that cave biome at that height.
+  - "Ore" means a feature configured with an ore configuration: `minecraft:ore`,
+    `minecraft:scattered_ore` and other mods' features that reuse that configuration. Ores with a
+    feature type and configuration of their own, and features of other kinds (trees, plants, cave
+    decoration, geodes), keep the 3D biome's answer.
+  - The filter is only ever widened: whatever the 3D biome accepts is still accepted. Nothing above
+    the ground, below ground no taller than vanilla's, or in other worlds and dimensions changes.
+  - Ores in the placed-feature tag `terrahaul:strict_biome` keep the 3D biome's answer. It holds
+    vanilla's ores that only some Overworld biomes have (emeralds and infested stone in the
+    mountains, the badlands' extra gold, the clay of lush caves, the large copper veins of
+    dripstone caves and the copper ore those caves lack) and Terrahaul's mountain emerald layer:
+    Terrahaul's resource layers were tuned against the amounts of vanilla's ores, and widening the
+    check for them tripled the emeralds in the test areas and added half again to their copper
+    and gold. With the tag, vanilla's ore counts are unchanged. A data pack can add other mods'
+    placed features to the tag (`data/terrahaul/tags/worldgen/placed_feature/strict_biome.json`).
+  - Cost: the check runs only for ores the 3D biome turns away inside the ground; it caches the
+    climate per 4x4 column and per thread and does one lookup in the biome tree. Over the test
+    areas it took 0.035 to 0.048 ms per chunk.
+- **Host rock.** Ores replace the blocks their targets name, usually the tags
+  `minecraft:stone_ore_replaceables` (stone, granite, diorite, andesite) and
+  `minecraft:deepslate_ore_replaceables` (deepslate, tuff). Terrahaul's ground is stone, with
+  deepslate below a wavy boundary between Y 0 and 8 down to the bottom, as in vanilla. Only the
+  material fades of its geological provinces (calcite, smooth basalt, basalt, blackstone,
+  sandstone, red sandstone, terracotta and the mountains' rock mosaic), which reach at most 15
+  blocks below an exposed face or a cave roof near the surface, lie outside those tags. Ores do not
+  replace them, vanilla's included. In the test areas they were at most about 5% of an ore's
+  candidate rock (frostheart under frozen peaks of a dark province, solarite under red
+  sandstone), usually well under 1%, so they were left as they are: adding them to vanilla's tags
+  would change every world, and putting ores into the decorative strata would change how they
+  look.
+- **Water.** Terrahaul's oceans are much deeper (floors around Y −24..30, abyssal plains down to
+  Y −160, trenches to Y −340), so an ore band around Y −20..20 is open water under much of the
+  sea, where a vanilla world has the sea floor's rock.
+
+**Measured** with Fantasy Weapons 0.1.0 (and GeckoLib 4.9.3) on seed 12345: 72 `AutoTest` areas
+(6,187 chunks; the normal world's 6,131) around the biomes its Overworld ores belong to, in a
+Terrahaul world before this change, after it, and in a normal world (see
+[TESTING.md](TESTING.md#other-mods-ores-branch-wfmodded-ores-seed-12345-dedicated-server)).
+Ore blocks per chunk of the ore's surface biomes (per chunk of all areas for the last four), the
+blocks counted, and the share of the ore's candidate rock that its biome check let through:
+
+| Ore (biomes, height) | Normal world | Terrahaul before | Terrahaul after |
+|---|---|---|---|
+| aetherite (meadow, cherry grove; Y 70..160) | 0.070 (25; 90%) | 0.036 (10; 32%) | 0.147 (41; 80%) |
+| thundercryst (windswept hills, stony and jagged peaks; Y 90..180) | 0.031 (22; 94%) | 0.070 (43; 39%) | 0.140 (86; 60%) |
+| frostheart (frozen peaks; Y 60..200) | 0.048 (6; 83%) | 0.013 (3; 23%) | 0.097 (22; 63%) |
+| frostheart (ice spikes; Y 40..75) | 0.071 (22; 94%) | 0.043 (14; 40%) | 0.065 (21; 85%) |
+| solarite (badlands, desert; Y 0..60) | 0.064 (72; 77%) | 0.047 (69; 48%) | 0.059 (87; 59%) |
+| eclipsite (every biome; Y −20..20) | 0.049 (301) | 0.046 (287) | 0.046 (287) |
+| titanstone (every biome, deepslate only; Y −64..−30) | 0.053 (322) | 0.055 (340) | 0.055 (339) |
+| verdant (lush caves; Y −40..40) | 0.023 (138) | 0.002 (11) | 0.031 (194) |
+| necrostone (deep dark; Y −60..−10) | 0.039 (239) | 0.110 (682) | 0.111 (686) |
+
+Where the after column differs from the normal world, it is the terrain. The meadow and frozen
+peak ores are about twice as common per chunk, thundercryst four and a half times, because their
+whole band is rock in a Terrahaul mountain, while in a vanilla one much of it is air above the
+ground; per block of rock that passes the checks they are as dense as in the normal world (about
+0.09 blocks per 10,000 for aetherite in both, 0.11 against 0.09 for thundercryst). The ice spikes
+and desert ores come out at 0.9 times the normal world's. The rest of the rock the check
+still turns away is where vanilla's own terrain of that climate would have the deep dark or a cave
+biome at that height too. Necrostone is three times as common because the deep dark at
+Y −60..−10 is: under Terrahaul's taller ground the deep dark comes higher, and Terrahaul does not
+take biomes away. Verdant needs lush caves at Y −40..40, which Terrahaul only has under humid
+ground no taller than vanilla's, or now, through the widening, where vanilla would have them.
+Vanilla's ores per chunk were the same before and after, within 0.22% (two runs of the same build
+differ by up to 0.16%).
 
 ## Known limitations
 - **`/locate` for distant structures is slower** in Terrahaul worlds: about 20 s instead of 9-10 s

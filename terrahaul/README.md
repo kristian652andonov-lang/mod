@@ -193,6 +193,14 @@ running water throws up spray, mist and foam and can be heard, and lava open to 
   expect. It also adds resource layers for the deep zone (diamonds, redstone, gold, iron, lapis,
   geodes, lava springs, glow lichen) and the mountain cores above Y 320 (coal, iron, copper, gold,
   emerald in mountain biomes, springs).
+- **Other mods' ores:** ores that other mods add to particular biomes keep spawning under
+  Terrahaul's taller ground. Minecraft picks the biome of a block from the climate and the
+  block's depth below the terrain, so deep under a Terrahaul meadow or peak it found the deep dark
+  or a cave biome instead of the meadow or peak the ore belongs to, and such ores became rare.
+  Where the ground stands taller than vanilla's would for the same climate, an ore may now also
+  spawn if the biome vanilla would have at that height is its biome. Vanilla's own biome-bound
+  ores keep their amounts (data packs can opt other ores out with the placed-feature tag
+  `terrahaul:strict_biome`); see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md#other-mods-ores).
 - **Structures:** villages, pillager outposts, mansions and temples are steered to flat, dry ground
   within their normal spacing regions, and ocean monuments to flat sea floors (see Deep oceans).
   Strongholds and mineshafts stay within the vanilla depth range. Trial chambers, ancient cities,
@@ -368,7 +376,8 @@ All of these need permission level 2. Searches run off the server thread.
 2. Put `terrahaul-1.0.0.jar` into the `mods` folder (client and server). Build it yourself (see
    below) or use the prebuilt copy in [`dist/`](dist/), which is rebuilt with each release. The
    current copy includes everything described here, up to the sandstone stones on beaches, the
-   removal of surface lava lakes, the magma chambers and the lava smoke; how it was tested is in
+   removal of surface lava lakes, the magma chambers and the lava smoke, except the handling of
+   other mods' biome-bound ores, which comes with the next rebuild; how it was tested is in
    [docs/TESTING.md](docs/TESTING.md).
 3. **Singleplayer:** on the Create World screen, *World Type* defaults to **Terrahaul**. You can
    switch back to Default in the World tab; turn off `selectTerrahaulByDefault` in the client
@@ -390,7 +399,7 @@ Configs are generated in `config/`. They can also be edited in-game (Mods → Te
 | `replaceVanillaTrees` | `true` | Use Terrahaul's procedural trees instead of vanilla trees (restart) |
 | `groundDetails` | `true` | Pebbles, rocks, branches, twigs, litter, bushes, fallen logs, boulders, and the beds, rocks, logs and wrecks of lake floors (restart) |
 | `geologicalFormations` | `true` | Arches, spires, hoodoos, sea stacks (restart) |
-| `oreDepthFix` | `true` | Keep vanilla ores at vanilla depths and add deep/high resource layers (layers need a restart) |
+| `oreDepthFix` | `true` | Keep vanilla ores at vanilla depths, add deep/high resource layers (layers need a restart) and let other mods' biome-bound ores spawn under ground taller than vanilla's |
 | `terrainAwareStructures` | `true` | Steer surface structures to flat, dry ground and ocean monuments to flat sea floors (set before creating a world) |
 | `saplingsGrowTerrahaulTrees` | `true` | Player-grown saplings produce Terrahaul trees |
 | `trails` | `true` | Lay dirt trails across gentle ground, with trail ruins, signposts and path lights |

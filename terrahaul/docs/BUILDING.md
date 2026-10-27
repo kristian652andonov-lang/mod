@@ -33,13 +33,22 @@ Both use `run/` as the game directory.
 ./gradlew runServer -Pautotest=<output dir> -Pareas="0,0,8;find:mountain,6;biome:minecraft:plains,5"
 ```
 After the server starts, `com.terrahaul.dev.AutoTest` does the following, then halts the server:
-- generates each area (`x,z,radiusInChunks`, `find:<landform>,r`, `biome:<id>,r` or
-  `structure:<id>@x/z,r`, the structure nearest to x, z as `/locate` finds it) to full status,
+- generates each area (`x,z,radiusInChunks`, `find:<landform>,r`, `biome:<id>,r` (the nearest
+  position of the biome at any height), `surface:<id>[@x/z],r` (the nearest column, on a 64-block
+  grid from x, z, whose climate gives that biome at the surface) or `structure:<id>@x/z,r`, the
+  structure nearest to x, z as `/locate` finds it) to full status,
   measuring the time; for a `structure:` area it also checks the structure's start as below and
   compares the start the world holds (after a restart, the one loaded from disk) with the same
   start generated afresh;
 - compares generated heights with the terrain model;
 - counts ores per depth band and cave volume;
+- runs the ore census (`OreCensus`): every ore block of every mod (the `c:ores` tag, or `ore` in
+  the block's id) by id, height band and surface biome, each chunk once, and, for the ore features
+  of other mods (and vanilla's emeralds), the volume they can spawn in: how much of their height
+  range in the columns of their biomes is open, is host rock their targets match, lies in a 3D
+  biome that holds them and passes the game's biome check (with Terrahaul's widening, see
+  COMPATIBILITY.md, "Other mods' ores"), with the host blocks and 3D biomes that turn them away.
+  The summary ends the report, with the time the widened biome check took;
 - renders a top-down map and a vertical section of each area to PNG;
 - locates and generates villages, outposts, temples, mansions, strongholds, mineshafts, ancient
   cities, trial chambers and monuments; for those in `terrahaul:keep_underground` it reports how
@@ -57,8 +66,10 @@ Two more reports can be added:
   of a structure within `radius` blocks of x, z, as chunk generation would, and reports how many
   reach above the natural floor and by how much, without generating any chunk.
 
-Add `-Pjfr=<file.jfr>` to record a Java Flight Recorder profile. Without `-Pautotest` the server
-runs normally.
+`-PdebugProps=<property>,...` sets development switches to `true`, for example
+`terrahaul.debug.noOreBiomeWidening` (ores keep vanilla's 3D-biome check, to measure a world
+without the widening). Add `-Pjfr=<file.jfr>` to record a Java Flight Recorder profile. Without
+`-Pautotest` the server runs normally.
 
 ### Client screenshot test
 ```
