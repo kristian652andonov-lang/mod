@@ -181,7 +181,8 @@ public final class LocalizationGameTests {
             m.rawName();
             m.refinedName();
             m.pulse();
-            m.found();
+            m.foundIn(false);
+            m.foundIn(true);
             m.look();
             // a forging's stage lines name the cores in the plural
             Tr.s(m.refinedEnglish() + "s");

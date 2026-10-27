@@ -7,7 +7,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class FWNetwork {
-    public static final String VERSION = "4";
+    public static final String VERSION = "5";
 
     private FWNetwork() {
     }
@@ -52,6 +52,8 @@ public final class FWNetwork {
                         com.fantasyweapons.playerclass.PlayerClass.byId(p.playerClass()))));
         r.playToClient(QuestPayloads.OpenClasses.TYPE, QuestPayloads.OpenClasses.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> SidedHooks.get().handleOpenClasses()));
+        r.playToClient(com.fantasyweapons.world.gen.WorldShape.Payload.TYPE, com.fantasyweapons.world.gen.WorldShape.Payload.CODEC, (p, ctx) ->
+                ctx.enqueueWork(p::handle));
         r.playToClient(QuestPayloads.Completed.TYPE, QuestPayloads.Completed.CODEC, (p, ctx) ->
                 ctx.enqueueWork(() -> SidedHooks.get().handleQuestCompleted(p.quest())));
     }

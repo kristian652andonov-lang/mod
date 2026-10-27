@@ -147,9 +147,24 @@ public enum Material {
         return Tr.s(pulse);
     }
 
-    /** Where its ore is found. */
+    /** Where its ore is found, in the world joined. */
     public String found() {
-        return Tr.s(found);
+        return foundIn(com.fantasyweapons.world.gen.WorldShape.fittedOres());
+    }
+
+    /**
+     * Where its ore is found, in a world of the vanilla height or ({@code fitted}) a taller one, where the heights of the
+     * ores that belong under particular ground move with it (see FittedHeightPlacement): there the descriptions that give
+     * heights give depths under the ground instead.
+     */
+    public String foundIn(boolean fitted) {
+        String tall = switch (this) {
+            case SOLARITE -> "Badlands and deserts, up to %s blocks under the ground";
+            case FROSTHEART -> "Frozen peaks and ice spikes, up to %s blocks under the ground";
+            case THUNDERCRYST -> "Windswept hills and stony or jagged peaks, up to %s blocks under the ground";
+            default -> null;
+        };
+        return fitted && tall != null ? Tr.f(tall, com.fantasyweapons.datagen.FWWorldGen.deepest(this)) : Tr.s(found);
     }
 
     public String look() {

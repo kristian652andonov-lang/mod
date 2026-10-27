@@ -98,6 +98,12 @@ public final class FWCommand {
                         .then(Commands.argument("biome", net.minecraft.commands.arguments.ResourceLocationArgument.id())
                                 .executes(c -> oreScanBiome(c.getSource(), net.minecraft.commands.arguments.ResourceLocationArgument.getId(c, "biome"),
                                         IntegerArgumentType.getInteger(c, "radius"))))))
+                .then(Commands.literal("orestats").then(Commands.argument("radius", IntegerArgumentType.integer(0, 32))
+                        .executes(c -> OreStats.run(c.getSource(), net.minecraft.core.BlockPos.containing(c.getSource().getPosition()),
+                                IntegerArgumentType.getInteger(c, "radius")))
+                        .then(Commands.argument("biome", net.minecraft.commands.arguments.ResourceLocationArgument.id())
+                                .executes(c -> oreStatsBiome(c.getSource(), net.minecraft.commands.arguments.ResourceLocationArgument.getId(c, "biome"),
+                                        IntegerArgumentType.getInteger(c, "radius"))))))
                 .then(Commands.literal("wreck").then(Commands.literal("shaft").then(Commands.argument("radius", IntegerArgumentType.integer(1, 256))
                         .executes(c -> {
                             var pos = c.getSource().getPosition();
@@ -200,6 +206,20 @@ public final class FWCommand {
             return 0;
         }
         return oreScan(source, found.getFirst(), radius, key);
+    }
+
+    /** Finds the nearest place with {@code biome} and surveys the chunks around it (see {@link OreStats}). */
+    private static int oreStatsBiome(net.minecraft.commands.CommandSourceStack source, net.minecraft.resources.ResourceLocation biome, int radius) {
+        var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.BIOME, biome);
+        var found = source.getLevel().findClosestBiome3d(h -> h.is(key), net.minecraft.core.BlockPos.containing(source.getPosition()), 12800, 32, 64);
+        if (found == null) {
+            String report = "[orestats] " + biome + ": not found";
+            com.fantasyweapons.FantasyWeapons.LOGGER.info(report);
+            source.sendFailure(Component.literal(report));
+            return 0;
+        }
+        com.fantasyweapons.FantasyWeapons.LOGGER.info("[orestats] " + biome + " found at " + found.getFirst().toShortString());
+        return OreStats.run(source, found.getFirst(), radius);
     }
 
     /**

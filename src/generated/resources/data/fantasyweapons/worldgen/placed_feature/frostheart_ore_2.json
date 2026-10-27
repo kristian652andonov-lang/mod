@@ -13,7 +13,8 @@
       "type": "minecraft:in_square"
     },
     {
-      "type": "minecraft:height_range",
+      "type": "fantasyweapons:fitted_height",
+      "ground": 67,
       "height": {
         "type": "minecraft:uniform",
         "max_inclusive": {

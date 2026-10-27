@@ -3,6 +3,7 @@ package com.fantasyweapons.datagen;
 import com.fantasyweapons.FantasyWeapons;
 import com.fantasyweapons.material.Material;
 import com.fantasyweapons.registry.ModBlocks;
+import com.fantasyweapons.world.gen.FittedHeightPlacement;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.RegistrySetBuilder;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.levelgen.blockpredicates.BlockPredicate;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
+import net.minecraft.world.level.levelgen.heightproviders.UniformHeight;
 import net.minecraft.world.level.levelgen.placement.BiomeFilter;
 import net.minecraft.world.level.levelgen.placement.BlockPredicateFilter;
 import net.minecraft.world.level.levelgen.placement.CountPlacement;
@@ -56,9 +58,15 @@ public final class FWWorldGen {
     /**
      * @param size   ore feature size (3 gives veins of one to three ores)
      * @param chunks the base rarity: one vein in this many chunks of the right biomes (generated at one and a half times it)
+     * @param ground for an ore that belongs under particular ground: the height of its biomes' ground in a vanilla world,
+     *               which its height moves with in taller worlds (see FittedHeightPlacement); 0 for a fixed height
      */
     record Spec(Function<HolderGetter<Biome>, HolderSet<Biome>> biomes, List<RuleTest> replaces, int size, int chunks, int minY, int maxY,
-                float airDiscard, boolean nearLava) {
+                float airDiscard, boolean nearLava, int ground) {
+        Spec(Function<HolderGetter<Biome>, HolderSet<Biome>> biomes, List<RuleTest> replaces, int size, int chunks, int minY, int maxY,
+             float airDiscard, boolean nearLava) {
+            this(biomes, replaces, size, chunks, minY, maxY, airDiscard, nearLava, 0);
+        }
     }
 
     /** Where each ore generates: one or more placements (a different biome or height each). */
@@ -81,22 +89,29 @@ public final class FWWorldGen {
         put(Material.BLOODSTONE, new Spec(b -> biomes(b, Biomes.CRIMSON_FOREST), List.of(netherStone), 3, 5, 10, 117, 0.3f, false));
         put(Material.SOULSHARD, new Spec(b -> biomes(b, Biomes.SOUL_SAND_VALLEY),
                 List.of(netherStone, new BlockMatchTest(Blocks.SOUL_SOIL), new BlockMatchTest(Blocks.SOUL_SAND)), 3, 5, 10, 117, 0.3f, false));
-        // the Overworld
+        // the Overworld. The ores that belong under particular ground carry the height of their biomes' ground in a vanilla
+        // world (the middle of what a survey of vanilla worlds found), so in taller worlds they move with the ground (see
+        // FittedHeightPlacement); Eclipsite and Titanstone keep to their heights by the deepslate, which those worlds share
         put(Material.SOLARITE, new Spec(b -> biomes(b, Biomes.BADLANDS, Biomes.ERODED_BADLANDS, Biomes.WOODED_BADLANDS, Biomes.DESERT),
-                List.of(stone, new TagMatchTest(BlockTags.TERRACOTTA), new BlockMatchTest(Blocks.SANDSTONE)), 3, 6, 0, 60, 0.3f, false));
+                List.of(stone, new TagMatchTest(BlockTags.TERRACOTTA), new BlockMatchTest(Blocks.SANDSTONE)), 3, 6, 0, 60, 0.3f, false, 110));
         List<RuleTest> frost = List.of(stone, new BlockMatchTest(Blocks.PACKED_ICE), new BlockMatchTest(Blocks.SNOW_BLOCK));
         // the ice spikes plains are low: there it lies just under the surface
-        put(Material.FROSTHEART, new Spec(b -> biomes(b, Biomes.FROZEN_PEAKS), frost, 3, 4, 60, 200, 0f, false),
-                new Spec(b -> biomes(b, Biomes.ICE_SPIKES), frost, 3, 7, 40, 75, 0f, false));
+        put(Material.FROSTHEART, new Spec(b -> biomes(b, Biomes.FROZEN_PEAKS), frost, 3, 4, 60, 200, 0f, false, 125),
+                new Spec(b -> biomes(b, Biomes.ICE_SPIKES), frost, 3, 7, 40, 75, 0f, false, 67));
         put(Material.THUNDERCRYST, new Spec(b -> biomes(b, Biomes.WINDSWEPT_HILLS, Biomes.WINDSWEPT_GRAVELLY_HILLS, Biomes.WINDSWEPT_FOREST,
-                Biomes.STONY_PEAKS, Biomes.JAGGED_PEAKS), List.of(stone), 3, 3, 90, 180, 0f, false));
+                Biomes.STONY_PEAKS, Biomes.JAGGED_PEAKS), List.of(stone), 3, 3, 90, 180, 0f, false, 140));
         put(Material.NECROSTONE, new Spec(b -> biomes(b, Biomes.DEEP_DARK), List.of(deepslate, new BlockMatchTest(Blocks.SCULK)), 3, 3, -60, -10,
-                0f, false));
+                0f, false, 120));
         put(Material.VERDANT, new Spec(b -> biomes(b, Biomes.LUSH_CAVES),
-                List.of(stone, deepslate, new BlockMatchTest(Blocks.MOSS_BLOCK), new BlockMatchTest(Blocks.CLAY)), 3, 2, -40, 40, 0f, false));
+                List.of(stone, deepslate, new BlockMatchTest(Blocks.MOSS_BLOCK), new BlockMatchTest(Blocks.CLAY)), 3, 2, -40, 40, 0f, false, 90));
         put(Material.ECLIPSITE, new Spec(b -> b.getOrThrow(BiomeTags.IS_OVERWORLD), List.of(stone, deepslate), 3, 12, -20, 20, 0.5f, false));
-        put(Material.AETHERITE, new Spec(b -> biomes(b, Biomes.MEADOW, Biomes.CHERRY_GROVE), List.of(stone), 3, 3, 70, 160, 0f, false));
+        put(Material.AETHERITE, new Spec(b -> biomes(b, Biomes.MEADOW, Biomes.CHERRY_GROVE), List.of(stone), 3, 3, 70, 160, 0f, false, 105));
         put(Material.TITANSTONE, new Spec(b -> b.getOrThrow(BiomeTags.IS_OVERWORLD), List.of(deepslate), 3, 10, -64, -30, 0.5f, false));
+    }
+
+    /** How deep under the ground its ore goes at most, in a world where its height moves with the ground. */
+    public static int deepest(Material m) {
+        return SPECS.getOrDefault(m, List.of()).stream().filter(s -> s.ground() != 0).mapToInt(s -> s.ground() - s.minY()).max().orElse(0);
     }
 
     @SafeVarargs
@@ -154,7 +169,8 @@ public final class FWWorldGen {
                 mods.add(RarityFilter.onAverageOnceEvery(spec.chunks() * 2));
             }
             mods.add(InSquarePlacement.spread());
-            mods.add(HeightRangePlacement.uniform(VerticalAnchor.absolute(spec.minY()), VerticalAnchor.absolute(spec.maxY())));
+            var height = UniformHeight.of(VerticalAnchor.absolute(spec.minY()), VerticalAnchor.absolute(spec.maxY()));
+            mods.add(spec.ground() != 0 ? new FittedHeightPlacement(height, spec.ground()) : HeightRangePlacement.of(height));
             if (spec.nearLava()) mods.add(BlockPredicateFilter.forPredicate(lavaNearby()));
             mods.add(BiomeFilter.biome());
             ctx.register(placedKey(m, i), new PlacedFeature(features.getOrThrow(configuredKey(m, i)), mods));

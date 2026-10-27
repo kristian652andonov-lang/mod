@@ -288,7 +288,7 @@ public final class CodexBook {
         }
 
         static Realm of(Material m) {
-            String where = m.found();
+            String where = m.foundEnglish();
             return where.contains("Nether") ? NETHER : where.contains("End") ? END : OVERWORLD;
         }
     }

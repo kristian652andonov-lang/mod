@@ -43,6 +43,7 @@ public final class FantasyWeapons {
         com.fantasyweapons.registry.ModRecipes.SERIALIZERS.register(modBus);
         modBus.addListener(FantasyWeapons::registerCapabilities);
         com.fantasyweapons.registry.ModEntities.REGISTER.register(modBus);
+        com.fantasyweapons.registry.ModPlacements.REGISTER.register(modBus);
         ModTabs.REGISTER.register(modBus);
 
         container.registerConfig(ModConfig.Type.SERVER, ServerConfig.SPEC);

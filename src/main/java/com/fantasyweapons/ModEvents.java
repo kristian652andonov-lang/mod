@@ -54,6 +54,7 @@ public final class ModEvents {
         bus.addListener(com.fantasyweapons.playerclass.ClassService::onLogin);
         bus.addListener(com.fantasyweapons.playerclass.ClassService::onRespawn);
         bus.addListener(com.fantasyweapons.guide.CodexGift::onLogin);
+        bus.addListener(com.fantasyweapons.world.gen.WorldShape::onLogin);
         bus.addListener(com.fantasyweapons.command.ServerScript::onServerStarted);
         com.fantasyweapons.magic.MagicEvents.register(bus);
     }
